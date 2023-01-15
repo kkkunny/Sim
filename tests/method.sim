@@ -10,7 +10,7 @@ func (A) get()i32{
 func main()u8{
     let a: A = 1
     if a.get() != 1{
-        c::__assert_fail(c"a.get() != 1", c"method.k", 13, c"main")
+        c::__assert_fail("a.get() != 1", "method.k", 13, "main")
     }
     return 0
 }

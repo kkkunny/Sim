@@ -10,7 +10,7 @@ func fib(n: i32)i32{
 @extern(main)
 func main()u8{
     if fib(5) != 5{
-        c::__assert_fail(c"fib(5) != 5", c"fib.k", 13, c"main")
+        c::__assert_fail("fib(5) != 5", "fib.k", 13, "main")
     }
     return 0
 }

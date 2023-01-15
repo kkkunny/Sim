@@ -40,12 +40,12 @@ clean:
 	rm -f $(BIN_PATH)
 
 .PHONY: test
-test: build
+test:
+	@make build > /dev/null
 	@for file in $(foreach dir, $(TEST_DIR), $(wildcard $(TEST_DIR)/*.$(EXT_NAME))); do \
-		echo $(BIN_FILE) run $$file > /dev/null; \
-		echo -e "\e[32m 测试成功 $$file \e[0m"; \
+	    ($(BIN_FILE) run $$file > /dev/null 2>&1 || (echo -e "\e[33m 测试失败 $$file \e[0m"; exit 1)) && echo -e "\e[32m 测试成功 $$file \e[0m"; \
     done; \
-    make clean
+    make clean > /dev/null
 
 .PHONY: docker
 docker:

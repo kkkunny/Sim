@@ -1279,7 +1279,7 @@ func analyseBuildInFuncCall(ctx *blockContext, ident *parse.Ident, paramAsts []p
 			return nil, err
 		}
 		return &String{
-			Type:  NewPtrType(I32),
+			Type:  NewPtrType(I8),
 			Value: param.GetType().String(),
 		}, nil
 	case "size":
