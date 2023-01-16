@@ -134,25 +134,6 @@ func (self Loop) Position() utils.Position {
 
 func (self Loop) Stmt() {}
 
-// Defer 延迟调用
-type Defer struct {
-	Pos  utils.Position
-	Call *Call
-}
-
-func NewDefer(pos utils.Position, call *Call) *Defer {
-	return &Defer{
-		Pos:  pos,
-		Call: call,
-	}
-}
-
-func (self Defer) Position() utils.Position {
-	return self.Pos
-}
-
-func (self Defer) Stmt() {}
-
 // ****************************************************************
 
 // 语句
@@ -171,8 +152,6 @@ func (self *Parser) parseStmt() Stmt {
 	case lex.BREAK, lex.CONTINUE:
 		self.next()
 		return NewLoopControl(self.curTok)
-	case lex.DEFER:
-		return self.parseDefer()
 	default:
 		return self.parseExpr()
 	}
@@ -244,15 +223,4 @@ func (self *Parser) parseFor() *Loop {
 	cond := self.parseExpr()
 	body := self.parseBlock()
 	return NewLoop(utils.MixPosition(begin, body.Pos), cond, body)
-}
-
-// 延迟调用
-func (self *Parser) parseDefer() *Defer {
-	begin := self.expectNextIs(lex.DEFER).Pos
-	expr := self.parseExpr()
-	call, ok := expr.(*Call)
-	if !ok {
-		self.throwErrorf(expr.Position(), "expect a function call")
-	}
-	return NewDefer(utils.MixPosition(begin, call.Pos), call)
 }

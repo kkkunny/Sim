@@ -73,13 +73,6 @@ type LoopControl struct {
 
 func (self LoopControl) stmt() {}
 
-// Defer 延迟调用
-type Defer struct {
-	Call *FuncCall
-}
-
-func (self Defer) stmt() {}
-
 // *********************************************************************************************************************
 
 // 代码块
@@ -148,8 +141,6 @@ func analyseStmt(ctx *blockContext, ast parse.Stmt) (Stmt, utils.Error) {
 		}
 		ctx.SetEnd()
 		return &LoopControl{Type: stmt.Kind.Source}, nil
-	case *parse.Defer:
-		return analyseDefer(ctx, stmt)
 	default:
 		panic("unknown stmt")
 	}
@@ -284,17 +275,4 @@ func analyseFor(ctx *blockContext, ast *parse.Loop) (*Loop, utils.Error) {
 		Cond: cond,
 		Body: body,
 	}, nil
-}
-
-// 延迟调用
-func analyseDefer(ctx *blockContext, ast *parse.Defer) (*Defer, utils.Error) {
-	obj, err := analyseExpr(ctx, nil, ast.Call)
-	if err != nil {
-		return nil, err
-	}
-	call, ok := obj.(*FuncCall)
-	if !ok {
-		return nil, utils.Errorf(ast.Call.Position(), "expect a function call")
-	}
-	return &Defer{Call: call}, nil
 }

@@ -35,8 +35,6 @@ func (self *CodeGenerator) codegenStmt(mean analyse.Stmt) bool {
 		self.codegenLoop(*meanStmt)
 	case *analyse.LoopControl:
 		self.codegenLoopControl(*meanStmt)
-	case *analyse.Defer:
-		self.codegenDefer(*meanStmt)
 	default:
 		panic("")
 	}
@@ -46,11 +44,9 @@ func (self *CodeGenerator) codegenStmt(mean analyse.Stmt) bool {
 // 函数返回
 func (self *CodeGenerator) codegenReturn(mean analyse.Return) {
 	if mean.Value == nil {
-		self.doneBeforeFuncEnd()
 		self.builder.CreateRetVoid()
 	} else {
 		value := self.codegenExpr(mean.Value, true)
-		self.doneBeforeFuncEnd()
 		self.builder.CreateRet(value)
 	}
 }
@@ -122,30 +118,5 @@ func (self *CodeGenerator) codegenLoopControl(mean analyse.LoopControl) {
 		self.builder.CreateBr(self.eb)
 	} else {
 		self.builder.CreateBr(self.cb)
-	}
-}
-
-type deferInfo struct {
-	Func llvm.Value
-	Args []llvm.Value
-}
-
-// 延迟调用
-func (self *CodeGenerator) codegenDefer(mean analyse.Defer) {
-	f := self.codegenExpr(mean.Call.Func, true)
-	args := make([]llvm.Value, len(mean.Call.Args))
-	for i, a := range mean.Call.Args {
-		args[i] = self.codegenExpr(a, true)
-	}
-	self.defers = append(self.defers, deferInfo{
-		Func: f,
-		Args: args,
-	})
-}
-
-// 函数结束前需做的事情
-func (self *CodeGenerator) doneBeforeFuncEnd() {
-	for _, d := range self.defers {
-		self.builder.CreateCall(d.Func.Type().ReturnType(), d.Func, d.Args, "")
 	}
 }

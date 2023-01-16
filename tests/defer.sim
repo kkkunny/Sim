@@ -1,7 +1,0 @@
-import std.c
-
-@extern(main)
-func main()u8{
-    defer c::puts("exit")
-    return 0
-}

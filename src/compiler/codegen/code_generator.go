@@ -18,8 +18,6 @@ type CodeGenerator struct {
 
 	// loop
 	cb, eb llvm.BasicBlock
-	// defer
-	defers []deferInfo
 	// string
 	stringPool map[string]llvm.Value
 	// cstring
@@ -81,8 +79,6 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 				}
 
 				self.codegenBlock(*global.Body)
-
-				self.defers = nil
 			}
 		case *analyse.GlobalVariable:
 			if global.Value != nil {

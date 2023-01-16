@@ -127,11 +127,6 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 			args[i] = self.codegenExpr(a, true)
 		}
 		call := self.builder.CreateCall(f.Type().ReturnType(), f, args, "")
-		if meanFunc, ok := expr.Func.(*analyse.Function); ok {
-			if meanFunc.NoReturn {
-				self.doneBeforeFuncEnd()
-			}
-		}
 		return call
 	case *analyse.MethodCall:
 		f := self.codegenExpr(expr.Method.Func, true)

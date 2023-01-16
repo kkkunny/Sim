@@ -83,7 +83,6 @@ const (
 	CONTINUE // continue
 	AS       // as
 	TYPE     // type
-	DEFER    // defer
 	IMPORT   // import
 	PUB      // pub
 	LET      // let
@@ -164,7 +163,6 @@ var tokenKindStr = [...]string{
 	CONTINUE: "continue",
 	AS:       "as",
 	TYPE:     "type",
-	DEFER:    "defer",
 	IMPORT:   "import",
 	PUB:      "pub",
 	LET:      "let",
@@ -199,8 +197,6 @@ func LookUp(s string) TokenKind {
 		return TYPE
 	case "null":
 		return NULL
-	case "defer":
-		return DEFER
 	case "import":
 		return IMPORT
 	case "pub":
