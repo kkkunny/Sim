@@ -3,6 +3,7 @@ package analyse
 import (
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
+	"github.com/kkkunny/stl/types"
 )
 
 // Block 代码块
@@ -73,6 +74,15 @@ type LoopControl struct {
 
 func (self LoopControl) stmt() {}
 
+// Switch 分支
+type Switch struct {
+	From    Expr
+	Cases   []types.Pair[Expr, *Block]
+	Default *Block // 可能为空
+}
+
+func (self Switch) stmt() {}
+
 // *********************************************************************************************************************
 
 // 代码块
@@ -141,6 +151,8 @@ func analyseStmt(ctx *blockContext, ast parse.Stmt) (Stmt, utils.Error) {
 		}
 		ctx.SetEnd()
 		return &LoopControl{Type: stmt.Kind.Source}, nil
+	case *parse.Switch:
+		return analyseSwitch(ctx, stmt)
 	default:
 		panic("unknown stmt")
 	}
@@ -275,4 +287,52 @@ func analyseFor(ctx *blockContext, ast *parse.Loop) (*Loop, utils.Error) {
 		Cond: cond,
 		Body: body,
 	}, nil
+}
+
+// 分支
+func analyseSwitch(ctx *blockContext, ast *parse.Switch) (*Switch, utils.Error) {
+	from, err := analyseExpr(ctx, nil, ast.From)
+	if err != nil {
+		return nil, err
+	}
+	ft := from.GetType()
+
+	cases := make([]types.Pair[Expr, *Block], len(ast.Cases))
+	end := ast.Default != nil
+	var errs []utils.Error
+	for i, c := range ast.Cases {
+		cv, err := expectExpr(ctx, ft, c.First)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		cbCtx, cb, err := analyseBlock(ctx, c.Second, false)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		end = end && cbCtx.end
+		cases[i] = types.NewPair(cv, cb)
+	}
+	var de *Block
+	if ast.Default != nil {
+		var deCtx *blockContext
+		deCtx, de, err = analyseBlock(ctx, ast.Default, false)
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			end = end && deCtx.end
+		}
+	}
+	if len(errs) == 0 {
+		return &Switch{
+			From:    from,
+			Cases:   cases,
+			Default: de,
+		}, nil
+	} else if len(errs) == 1 {
+		return nil, errs[0]
+	} else {
+		return nil, utils.NewMultiError(errs...)
+	}
 }

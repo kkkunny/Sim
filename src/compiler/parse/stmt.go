@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/stl/list"
+	"github.com/kkkunny/stl/types"
 )
 
 // Stmt 语句
@@ -134,6 +135,29 @@ func (self Loop) Position() utils.Position {
 
 func (self Loop) Stmt() {}
 
+// Switch 分支
+type Switch struct {
+	Pos     utils.Position
+	From    Expr
+	Cases   []types.Pair[Expr, *Block]
+	Default *Block // 可能为空
+}
+
+func NewSwitch(pos utils.Position, from Expr, cases []types.Pair[Expr, *Block], d *Block) *Switch {
+	return &Switch{
+		Pos:     pos,
+		From:    from,
+		Cases:   cases,
+		Default: d,
+	}
+}
+
+func (self Switch) Position() utils.Position {
+	return self.Pos
+}
+
+func (self Switch) Stmt() {}
+
 // ****************************************************************
 
 // 语句
@@ -152,6 +176,8 @@ func (self *Parser) parseStmt() Stmt {
 	case lex.BREAK, lex.CONTINUE:
 		self.next()
 		return NewLoopControl(self.curTok)
+	case lex.SWITCH:
+		return self.parseSwitch()
 	default:
 		return self.parseExpr()
 	}
@@ -223,4 +249,41 @@ func (self *Parser) parseFor() *Loop {
 	cond := self.parseExpr()
 	body := self.parseBlock()
 	return NewLoop(utils.MixPosition(begin, body.Pos), cond, body)
+}
+
+// 分支
+func (self *Parser) parseSwitch() *Switch {
+	begin := self.expectNextIs(lex.SWITCH).Pos
+	from := self.parseExpr()
+	self.expectNextIs(lex.LBR)
+	var cases []types.Pair[Expr, *Block]
+	var de *Block
+	self.skipSem()
+	for !self.nextIs(lex.RBR) {
+		var caseValue Expr
+		if self.skipNextIs(lex.CASE) {
+			caseValue = self.parseExpr()
+		} else {
+			self.expectNextIs(lex.DEFAULT)
+		}
+		self.expectNextIs(lex.COL)
+		block := NewBlock(self.curTok.Pos)
+		self.skipSem()
+		for !self.nextIs(lex.CASE) && !self.nextIs(lex.DEFAULT) && !self.nextIs(lex.RBR) {
+			block.Stmts.PushBack(self.parseStmt())
+			self.expectNextIs(lex.SEM)
+			self.skipSem()
+		}
+		if !block.Stmts.Empty() {
+			block.Pos = utils.MixPosition(block.Stmts.First().Position(), block.Stmts.Last().Position())
+			if caseValue == nil {
+				de = block
+			} else {
+				cases = append(cases, types.NewPair(caseValue, block))
+			}
+		}
+		self.skipSem()
+	}
+	end := self.expectNextIs(lex.RBR).Pos
+	return NewSwitch(utils.MixPosition(begin, end), from, cases, de)
 }

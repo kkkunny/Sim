@@ -3,6 +3,8 @@ package codegen
 import (
 	"github.com/kkkunny/Sim/src/compiler/analyse"
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/stl/types"
+	stlutil "github.com/kkkunny/stl/util"
 )
 
 // 代码块
@@ -35,6 +37,8 @@ func (self *CodeGenerator) codegenStmt(mean analyse.Stmt) bool {
 		self.codegenLoop(*meanStmt)
 	case *analyse.LoopControl:
 		self.codegenLoopControl(*meanStmt)
+	case *analyse.Switch:
+		self.codegenSwitch(*meanStmt)
 	default:
 		panic("")
 	}
@@ -118,5 +122,74 @@ func (self *CodeGenerator) codegenLoopControl(mean analyse.LoopControl) {
 		self.builder.CreateBr(self.eb)
 	} else {
 		self.builder.CreateBr(self.cb)
+	}
+}
+
+// 分支
+func (self *CodeGenerator) codegenSwitch(mean analyse.Switch) {
+	if len(mean.Cases) == 0 && mean.Default == nil {
+		return
+	} else if len(mean.Cases) == 0 {
+		self.codegenBlock(*mean.Default)
+	} else {
+		ft := analyse.GetBaseType(mean.From.GetType())
+		if !analyse.IsArrayType(ft) && !analyse.IsTupleType(ft) && !analyse.IsStructType(ft) {
+			from := self.codegenExpr(mean.From, true)
+
+			cases := make([]types.Pair[llvm.Value, llvm.BasicBlock], len(mean.Cases))
+			for i, c := range mean.Cases {
+				cv := self.codegenExpr(c.First, true)
+				cb := llvm.AddBasicBlock(self.function, "")
+				cases[i] = types.NewPair(cv, cb)
+			}
+			db := llvm.AddBasicBlock(self.function, "")
+			eb := stlutil.Ternary(mean.Default == nil, db, llvm.AddBasicBlock(self.function, ""))
+			sw := self.builder.CreateSwitch(from, db, len(mean.Cases))
+			for _, c := range cases {
+				sw.AddCase(c.First, c.Second)
+			}
+
+			for i, c := range mean.Cases {
+				self.builder.SetInsertPointAtEnd(cases[i].Second)
+				if self.codegenBlock(*c.Second) {
+					self.builder.CreateBr(eb)
+				}
+			}
+			if mean.Default != nil {
+				self.builder.SetInsertPointAtEnd(db)
+				if self.codegenBlock(*mean.Default) {
+					self.builder.CreateBr(eb)
+				}
+			}
+
+			self.builder.SetInsertPointAtEnd(eb)
+		} else {
+			from := self.codegenExpr(mean.From, true)
+
+			eb := llvm.AddBasicBlock(self.function, "")
+			db := stlutil.Ternary(mean.Default == nil, eb, llvm.AddBasicBlock(self.function, ""))
+			for i, c := range mean.Cases {
+				cv := self.codegenExpr(c.First, true)
+				cc := self.equal(from, cv)
+				ct := llvm.AddBasicBlock(self.function, "")
+				cf := stlutil.Ternary(i == len(mean.Cases)-1, db, llvm.AddBasicBlock(self.function, ""))
+				self.builder.CreateCondBr(cc, ct, cf)
+
+				self.builder.SetInsertPointAtEnd(ct)
+				if self.codegenBlock(*c.Second) {
+					self.builder.CreateBr(eb)
+				}
+
+				self.builder.SetInsertPointAtEnd(cf)
+			}
+			if mean.Default != nil {
+				self.builder.SetInsertPointAtEnd(db)
+				if self.codegenBlock(*mean.Default) {
+					self.builder.CreateBr(eb)
+				}
+			}
+
+			self.builder.SetInsertPointAtEnd(eb)
+		}
 	}
 }

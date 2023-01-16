@@ -86,6 +86,9 @@ const (
 	IMPORT   // import
 	PUB      // pub
 	LET      // let
+	SWITCH   // switch
+	CASE     // case
+	DEFAULT  // default
 )
 
 var tokenKindStr = [...]string{
@@ -166,6 +169,9 @@ var tokenKindStr = [...]string{
 	IMPORT:   "import",
 	PUB:      "pub",
 	LET:      "let",
+	SWITCH:   "switch",
+	CASE:     "case",
+	DEFAULT:  "default",
 }
 
 // LookUp 区分标识符和关键字
@@ -203,6 +209,12 @@ func LookUp(s string) TokenKind {
 		return PUB
 	case "let":
 		return LET
+	case "switch":
+		return SWITCH
+	case "case":
+		return CASE
+	case "default":
+		return DEFAULT
 	default:
 		return IDENT
 	}
