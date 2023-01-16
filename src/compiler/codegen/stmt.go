@@ -37,6 +37,7 @@ func (self *CodeGenerator) codegenStmt(mean analyse.Stmt) bool {
 		self.codegenLoop(*meanStmt)
 	case *analyse.LoopControl:
 		self.codegenLoopControl(*meanStmt)
+		return false
 	case *analyse.Switch:
 		self.codegenSwitch(*meanStmt)
 	default:

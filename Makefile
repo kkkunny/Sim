@@ -1,8 +1,9 @@
 BIN_FILE = sim
 EXT_NAME = sim
 WORK_PATH = $(shell pwd)
+EXAMPLE_DIR = $(WORK_PATH)/examples
 TEST_DIR = $(WORK_PATH)/tests
-TEST_FILE = $(TEST_DIR)/hello_world.$(EXT_NAME)
+TEST_FILE = $(EXAMPLE_DIR)/hello_world.$(EXT_NAME)
 BIN_PATH = $(GOPATH)/bin/$(BIN_FILE)
 
 .PHONY: lex
