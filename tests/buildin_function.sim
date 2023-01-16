@@ -12,8 +12,10 @@ func main()u8{
         c::__assert_fail("typename(i) != \"*i8\"", "buildin_function.k", 12, "main")
     }
 
-    if size(i[0]) != 1{
-        c::__assert_fail("size(i[0]) != 1", "buildin_function.k", 16, "main")
+    let a = alloc(8) as *isize
+    *a = 10
+    if *a != 10{
+        c::__assert_fail("*a != 10", "buildin_function.k", 18, "main")
     }
 
     return 0

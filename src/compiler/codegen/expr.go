@@ -366,8 +366,10 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 			v = self.builder.CreateLoad(v.Type().ElementType(), v, "")
 		}
 		return v
-	case *analyse.GetTypeBytes:
-		return llvm.SizeOf(self.codegenType(expr.Type))
+	case *analyse.Alloc:
+		size := self.codegenExpr(expr.Size, true)
+		ptr := self.builder.CreateArrayAlloca(self.ctx.Int8Type(), size, "")
+		return self.builder.CreatePointerCast(ptr, llvm.PointerType(t_size, 0), "")
 	default:
 		panic("")
 	}

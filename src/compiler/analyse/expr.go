@@ -339,9 +339,10 @@ func (self Equal) IsConst() bool {
 
 // Unary 一元表达式
 type Unary struct {
-	Type  Type
-	Opera string
-	Value Expr
+	Mutable bool
+	Type    Type
+	Opera   string
+	Value   Expr
 }
 
 func (self Unary) stmt() {}
@@ -351,7 +352,7 @@ func (self Unary) GetType() Type {
 }
 
 func (self Unary) GetMut() bool {
-	return false
+	return self.Mutable
 }
 
 func (self Unary) IsTemporary() bool {
@@ -585,26 +586,26 @@ func (self Method) IsConst() bool {
 	return false
 }
 
-// GetTypeBytes 获取类型占用byte
-type GetTypeBytes struct {
-	Type Type
+// Alloc 栈内存分配
+type Alloc struct {
+	Size Expr
 }
 
-func (self GetTypeBytes) stmt() {}
+func (self Alloc) stmt() {}
 
-func (self GetTypeBytes) GetType() Type {
-	return Usize
+func (self Alloc) GetType() Type {
+	return NewPtrType(Usize)
 }
 
-func (self GetTypeBytes) GetMut() bool {
+func (self Alloc) GetMut() bool {
 	return false
 }
 
-func (self GetTypeBytes) IsTemporary() bool {
+func (self Alloc) IsTemporary() bool {
 	return true
 }
 
-func (self GetTypeBytes) IsConst() bool {
+func (self Alloc) IsConst() bool {
 	return false
 }
 
@@ -806,9 +807,10 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				return nil, err
 			}
 			return &Unary{
-				Type:  value.GetType(),
-				Opera: "!",
-				Value: value,
+				Mutable: false,
+				Type:    value.GetType(),
+				Opera:   "!",
+				Value:   value,
 			}, nil
 		case lex.AND:
 			if expect != nil && IsPtrTypeAndSon(expect) {
@@ -822,9 +824,10 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				return nil, utils.Errorf(expr.Value.Position(), "not expect a temporary value")
 			}
 			return &Unary{
-				Type:  NewPtrType(value.GetType()),
-				Opera: "&",
-				Value: value,
+				Mutable: false,
+				Type:    NewPtrType(value.GetType()),
+				Opera:   "&",
+				Value:   value,
 			}, nil
 		case lex.MUL:
 			if expect != nil {
@@ -839,9 +842,10 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				return nil, utils.Errorf(expr.Value.Position(), "expect a pointer")
 			}
 			return &Unary{
-				Type:  GetBaseType(vt).(*TypePtr).Elem,
-				Opera: "*",
-				Value: value,
+				Mutable: value.GetMut(),
+				Type:    GetBaseType(vt).(*TypePtr).Elem,
+				Opera:   "*",
+				Value:   value,
 			}, nil
 		default:
 			panic("")
@@ -1044,9 +1048,10 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			}
 			return &GetField{
 				From: &Unary{
-					Type:  t.Elem,
-					Opera: "*",
-					Value: prefix,
+					Mutable: prefix.GetMut(),
+					Type:    t.Elem,
+					Opera:   "*",
+					Value:   prefix,
 				},
 				Index: expr.End.Source,
 			}, nil
@@ -1282,15 +1287,15 @@ func analyseBuildInFuncCall(ctx *blockContext, ident *parse.Ident, paramAsts []p
 			Type:  NewPtrType(I8),
 			Value: param.GetType().String(),
 		}, nil
-	case "size":
+	case "alloc":
 		if len(paramAsts) != 1 {
 			return nil, utils.Errorf(ident.Position(), "expect 1 arguments")
 		}
-		param, err := analyseExpr(ctx, nil, paramAsts[0])
+		param, err := expectExpr(ctx, Usize, paramAsts[0])
 		if err != nil {
 			return nil, err
 		}
-		return &GetTypeBytes{Type: param.GetType()}, nil
+		return &Alloc{Size: param}, nil
 	default:
 		return nil, utils.Errorf(ident.Position(), "unknown identifier")
 	}
