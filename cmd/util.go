@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/go-llvm"
 	stlos "github.com/kkkunny/stl/os"
+	stlutil "github.com/kkkunny/stl/util"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -66,6 +67,8 @@ func outputLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.TargetM
 	}
 	module := codegen.NewCodeGenerator().Codegen(*mean)
 
+	optLevel := stlutil.Ternary(config.Release, llvm.CodeGenLevelAggressive, llvm.CodeGenLevelNone)
+
 	if err = llvm.InitializeNativeTarget(); err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
@@ -77,7 +80,7 @@ func outputLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.TargetM
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	tm := target.CreateTargetMachine(module.Target(), "generic", "", llvm.CodeGenLevelNone, llvm.RelocPIC, llvm.CodeModelDefault)
+	tm := target.CreateTargetMachine(module.Target(), "generic", "", optLevel, llvm.RelocPIC, llvm.CodeModelDefault)
 	module.SetDataLayout(tm.CreateTargetData().String())
 
 	for l := range mean.Links {

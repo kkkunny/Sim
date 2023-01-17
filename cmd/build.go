@@ -13,6 +13,7 @@ type buildConfig struct {
 	Target       stlos.Path   // 目标地址
 	Output       stlos.Path   // 输出地址
 	End          string       // 输出文件类型
+	Release      bool         // 是否是release模式
 	Linkages     []stlos.Path // 链接
 	Libraries    []string     // 链接库
 	LibraryPaths []string     // 链接库地址
@@ -47,6 +48,8 @@ func BuildCmd() *cobra.Command {
 	cmd.Flags().StringVarP((*string)(&conf.Output), "output", "o", "", "output path")
 	// output file type
 	cmd.Flags().StringVar(&conf.End, "end", "exe", "output file type")
+	// release
+	cmd.Flags().BoolVar(&conf.Release, "release", false, "release mode")
 	// lib
 	cmd.Flags().StringSliceVarP(&conf.Libraries, "lib", "l", nil, "linkage extern library")
 	cmd.Flags().StringSliceVarP(&conf.LibraryPaths, "lib_path", "L", nil, "library path")
