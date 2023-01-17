@@ -210,7 +210,10 @@ func analyseVariable(ctx *blockContext, ast *parse.Variable) (*Variable, utils.E
 		}
 		typ = value.GetType()
 	} else {
-		value = getDefaultExprByType(typ)
+		value, err = getDefaultExprByType(ast.Type.Position(), typ)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	v := &Variable{

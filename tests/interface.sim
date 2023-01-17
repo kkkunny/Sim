@@ -1,0 +1,30 @@
+@extern(printf)
+func printf(*i8, i32)
+
+type A interface{
+    get: func()i32
+}
+
+type B interface{
+    set: func(i32)
+}
+
+type C struct{
+    value: i32
+}
+
+func (C) get()i32{
+    return self.value
+}
+
+func (C) set(v: i32){
+    self.value = v
+}
+
+@extern(main)
+func main()u8{
+    let c: C = {10}
+    c.set(1)
+    printf("%d\n", c.get())
+    return 0
+}

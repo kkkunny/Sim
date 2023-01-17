@@ -7,7 +7,6 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/analyse"
 	"github.com/kkkunny/Sim/src/compiler/codegen"
 	"github.com/kkkunny/Sim/src/compiler/parse"
-	"github.com/kkkunny/go-llvm"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/kkkunny/stl/util"
 	"os"
@@ -23,6 +22,5 @@ func main() {
 	}
 	mean := util.MustValue(analyse.AnalyseMain(ast))
 	module := codegen.NewCodeGenerator().Codegen(*mean)
-	util.Must(llvm.VerifyModule(module, llvm.ReturnStatusAction))
 	fmt.Println(module)
 }

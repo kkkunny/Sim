@@ -134,6 +134,25 @@ func (self TypeStruct) Position() utils.Position {
 
 func (self TypeStruct) Type() {}
 
+// TypeInterface 接口类型
+type TypeInterface struct {
+	Pos    utils.Position
+	Fields []*NameAndType
+}
+
+func NewTypeInterface(pos utils.Position, field ...*NameAndType) *TypeInterface {
+	return &TypeInterface{
+		Pos:    pos,
+		Fields: field,
+	}
+}
+
+func (self TypeInterface) Position() utils.Position {
+	return self.Pos
+}
+
+func (self TypeInterface) Type() {}
+
 // ****************************************************************
 
 // 类型或空
@@ -151,6 +170,8 @@ func (self *Parser) parseTypeOrNil() Type {
 		return self.parseTypeTuple()
 	case lex.STRUCT:
 		return self.parseTypeStruct()
+	case lex.INTERFACE:
+		return self.parseTypeInterface()
 	default:
 		return nil
 	}
@@ -185,7 +206,7 @@ func (self *Parser) parseTypeList() (toks []Type) {
 }
 
 // 标识符类型
-func (self *Parser) parseTypeIdent() Type {
+func (self *Parser) parseTypeIdent() *TypeIdent {
 	pkg := self.expectNextIs(lex.IDENT)
 	if self.skipNextIs(lex.CLL) {
 		name := self.expectNextIs(lex.IDENT)
@@ -195,14 +216,14 @@ func (self *Parser) parseTypeIdent() Type {
 }
 
 // 指针类型
-func (self *Parser) parseTypePtr() Type {
+func (self *Parser) parseTypePtr() *TypePtr {
 	begin := self.expectNextIs(lex.MUL).Pos
 	elem := self.parseType()
 	return NewTypePtr(utils.MixPosition(begin, elem.Position()), elem)
 }
 
 // 函数类型
-func (self *Parser) parseTypeFunc() Type {
+func (self *Parser) parseTypeFunc() *TypeFunc {
 	begin := self.expectNextIs(lex.FUNC).Pos
 	self.expectNextIs(lex.LPA)
 	params := self.parseTypeList()
@@ -212,7 +233,7 @@ func (self *Parser) parseTypeFunc() Type {
 }
 
 // 数组类型
-func (self *Parser) parseTypeArray() Type {
+func (self *Parser) parseTypeArray() *TypeArray {
 	begin := self.expectNextIs(lex.LBA).Pos
 	size := self.parseIntExpr()
 	self.expectNextIs(lex.RBA)
@@ -221,7 +242,7 @@ func (self *Parser) parseTypeArray() Type {
 }
 
 // 元组类型
-func (self *Parser) parseTypeTuple() Type {
+func (self *Parser) parseTypeTuple() *TypeTuple {
 	begin := self.expectNextIs(lex.LPA).Pos
 	elems := self.parseTypeList()
 	end := self.expectNextIs(lex.RPA).Pos
@@ -229,16 +250,29 @@ func (self *Parser) parseTypeTuple() Type {
 }
 
 // 结构体类型
-func (self *Parser) parseTypeStruct() Type {
+func (self *Parser) parseTypeStruct() *TypeStruct {
 	begin := self.expectNextIs(lex.STRUCT).Pos
 	self.expectNextIs(lex.LBR)
-	mid := lex.COL
 	var fields []types.Pair[bool, *NameAndType]
 	for self.skipSem(); !self.nextIs(lex.RBR); self.skipSem() {
 		pub := self.skipNextIs(lex.PUB)
-		fields = append(fields, types.NewPair(pub, self.parseNameAndType(&mid)))
+		fields = append(fields, types.NewPair(pub, self.parseNameAndType(false)))
 		self.expectNextIs(lex.SEM)
 	}
 	end := self.expectNextIs(lex.RBR).Pos
 	return NewTypeStruct(utils.MixPosition(begin, end), fields...)
+}
+
+// 接口类型
+func (self *Parser) parseTypeInterface() *TypeInterface {
+	begin := self.expectNextIs(lex.INTERFACE).Pos
+	self.expectNextIs(lex.LBR)
+	var fields []*NameAndType
+	for self.skipSem(); !self.nextIs(lex.RBR); self.skipSem() {
+		field := self.parseNameAndType(true)
+		fields = append(fields, field)
+		self.expectNextIs(lex.SEM)
+	}
+	end := self.expectNextIs(lex.RBR).Pos
+	return NewTypeInterface(utils.MixPosition(begin, end), fields...)
 }

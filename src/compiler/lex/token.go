@@ -71,24 +71,25 @@ const (
 	DOT // .
 	QUO // ?
 
-	FUNC     // func
-	RETURN   // return
-	TRUE     // true
-	FALSE    // false
-	STRUCT   // struct
-	IF       // if
-	ELSE     // else
-	FOR      // for
-	BREAK    // break
-	CONTINUE // continue
-	AS       // as
-	TYPE     // type
-	IMPORT   // import
-	PUB      // pub
-	LET      // let
-	SWITCH   // switch
-	CASE     // case
-	DEFAULT  // default
+	FUNC      // func
+	RETURN    // return
+	TRUE      // true
+	FALSE     // false
+	STRUCT    // struct
+	IF        // if
+	ELSE      // else
+	FOR       // for
+	BREAK     // break
+	CONTINUE  // continue
+	AS        // as
+	TYPE      // type
+	IMPORT    // import
+	PUB       // pub
+	LET       // let
+	SWITCH    // switch
+	CASE      // case
+	DEFAULT   // default
+	INTERFACE // interface
 )
 
 var tokenKindStr = [...]string{
@@ -154,24 +155,25 @@ var tokenKindStr = [...]string{
 	DOT: ".",
 	QUO: "?",
 
-	FUNC:     "func",
-	RETURN:   "return",
-	TRUE:     "true",
-	FALSE:    "false",
-	STRUCT:   "struct",
-	IF:       "if",
-	ELSE:     "else",
-	FOR:      "for",
-	BREAK:    "break",
-	CONTINUE: "continue",
-	AS:       "as",
-	TYPE:     "type",
-	IMPORT:   "import",
-	PUB:      "pub",
-	LET:      "let",
-	SWITCH:   "switch",
-	CASE:     "case",
-	DEFAULT:  "default",
+	FUNC:      "func",
+	RETURN:    "return",
+	TRUE:      "true",
+	FALSE:     "false",
+	STRUCT:    "struct",
+	IF:        "if",
+	ELSE:      "else",
+	FOR:       "for",
+	BREAK:     "break",
+	CONTINUE:  "continue",
+	AS:        "as",
+	TYPE:      "type",
+	IMPORT:    "import",
+	PUB:       "pub",
+	LET:       "let",
+	SWITCH:    "switch",
+	CASE:      "case",
+	DEFAULT:   "default",
+	INTERFACE: "interface",
 }
 
 // LookUp 区分标识符和关键字
@@ -215,6 +217,8 @@ func LookUp(s string) TokenKind {
 		return CASE
 	case "default":
 		return DEFAULT
+	case "interface":
+		return INTERFACE
 	default:
 		return IDENT
 	}

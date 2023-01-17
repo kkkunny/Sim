@@ -383,7 +383,7 @@ func analyseMethodDef(ctx *packageContext, ast *parse.Method) utils.Error {
 		if i == 0 {
 			fctx.AddValue("self", p)
 		} else {
-			pn := ast.Params[i].Name
+			pn := ast.Params[i-1].Name
 			if pn != nil {
 				if !fctx.AddValue(pn.Source, p) {
 					return utils.Errorf(pn.Pos, "duplicate identifier")

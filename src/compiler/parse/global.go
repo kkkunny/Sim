@@ -294,8 +294,7 @@ func (self *Parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 
 	name := self.expectNextIs(lex.IDENT)
 	self.expectNextIs(lex.LPA)
-	mid := lex.COL
-	params := self.parseNameOrNilAndTypeList(&mid, lex.COM, false)
+	params := self.parseNameOrNilAndTypeList(lex.COM, false)
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block
@@ -344,8 +343,7 @@ func (self *Parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 
 	name := self.expectNextIs(lex.IDENT)
 	self.expectNextIs(lex.LPA)
-	mid := lex.COL
-	params := self.parseNameOrNilAndTypeList(&mid, lex.COM, false)
+	params := self.parseNameOrNilAndTypeList(lex.COM, false)
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block

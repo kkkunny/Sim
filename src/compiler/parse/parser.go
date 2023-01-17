@@ -224,36 +224,31 @@ func (self *Parser) parseTokenListAtLeastOne(sep lex.TokenKind) (toks []lex.Toke
 }
 
 // 名字和类型
-func (self *Parser) parseNameAndType(mid *lex.TokenKind) *NameAndType {
+func (self *Parser) parseNameAndType(ft bool) *NameAndType {
 	name := self.expectNextIs(lex.IDENT)
-	if mid != nil {
-		self.expectNextIs(*mid)
+	self.expectNextIs(lex.COL)
+	var typ Type
+	if ft {
+		typ = self.parseTypeFunc()
+	} else {
+		typ = self.parseType()
 	}
-	typ := self.parseType()
 	return NewNameAndType(name, typ)
 }
 
-// 名字（或空）和类型
-func (self *Parser) parseNameOrNilAndType(mid *lex.TokenKind) *NameOrNilAndType {
-	typ := self.parseType()
-	var name *lex.Token
-	if ident, ok := typ.(*TypeIdent); ok && ident.Pkg == nil {
-		name = &ident.Name
-		if mid != nil {
-			self.expectNextIs(*mid)
-		}
-		typ = self.parseType()
-	}
-	return NewNameOrNilAndType(name, typ)
-}
-
 // 名字（或空）和类型列表
-func (self *Parser) parseNameOrNilAndTypeList(mid *lex.TokenKind, sep lex.TokenKind, skipSem bool) (toks []*NameOrNilAndType) {
+func (self *Parser) parseNameOrNilAndTypeList(sep lex.TokenKind, skipSem bool) (toks []*NameOrNilAndType) {
 	for {
-		if len(toks) == 0 && !self.nextIs(lex.IDENT) {
+		typ := self.parseTypeOrNil()
+		if typ == nil {
 			break
 		}
-		toks = append(toks, self.parseNameOrNilAndType(mid))
+		var name *lex.Token
+		if ident, ok := typ.(*TypeIdent); ok && ident.Pkg == nil && self.skipNextIs(lex.COL) {
+			name = &ident.Name
+			typ = self.parseType()
+		}
+		toks = append(toks, NewNameOrNilAndType(name, typ))
 		if !self.skipNextIs(sep) {
 			break
 		}

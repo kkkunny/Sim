@@ -777,9 +777,13 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			if !IsNumberTypeAndSon(value.GetType()) {
 				return nil, utils.Errorf(expr.Value.Position(), "expect a number")
 			}
+			left, err := getDefaultExprByType(expr.Value.Position(), value.GetType())
+			if err != nil {
+				return nil, err
+			}
 			return &Binary{
 				Opera: "-",
-				Left:  getDefaultExprByType(value.GetType()),
+				Left:  left,
 				Right: value,
 			}, nil
 		case lex.NEG:
@@ -1169,7 +1173,7 @@ func autoExpectExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils
 }
 
 // 获取类型默认值
-func getDefaultExprByType(t Type) Expr {
+func getDefaultExprByType(pos utils.Position, t Type) (Expr, utils.Error) {
 	switch GetBaseType(t).(type) {
 	case *typeBasic:
 		switch {
@@ -1179,30 +1183,32 @@ func getDefaultExprByType(t Type) Expr {
 			return &Integer{
 				Type:  t,
 				Value: 0,
-			}
+			}, nil
 		case IsFloatType(t):
 			return &Float{
 				Type:  t,
 				Value: 0,
-			}
+			}, nil
 		case IsBoolType(t):
 			return &Boolean{
 				Type:  t,
 				Value: false,
-			}
+			}, nil
 		default:
 			panic("")
 		}
 	case *TypeFunc:
-		return &Null{Type: t}
+		return &Null{Type: t}, nil
 	case *TypeArray:
-		return &EmptyArray{Type: t}
+		return &EmptyArray{Type: t}, nil
 	case *TypeTuple:
-		return &EmptyTuple{Type: t}
+		return &EmptyTuple{Type: t}, nil
 	case *TypeStruct:
-		return &EmptyStruct{Type: t}
+		return &EmptyStruct{Type: t}, nil
 	case *TypePtr:
-		return &Null{Type: t}
+		return &Null{Type: t}, nil
+	case *TypeInterface:
+		return nil, utils.Errorf(pos, "can not get default value for this type")
 	default:
 		panic("")
 	}

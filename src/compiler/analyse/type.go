@@ -275,12 +275,14 @@ func IsStructTypeAndSon(t Type) bool {
 
 func (self TypeStruct) String() string {
 	var buf strings.Builder
+	buf.WriteByte('{')
 	for iter := self.Fields.Begin(); iter.HasValue(); iter.Next() {
 		buf.WriteString(fmt.Sprintf("%s: %s", iter.Key(), iter.Value()))
 		if iter.HasNext() {
 			buf.WriteString(", ")
 		}
 	}
+	buf.WriteByte('}')
 	return buf.String()
 }
 
@@ -411,6 +413,55 @@ func GetDepthBaseType(t Type) Type {
 	}
 }
 
+// TypeInterface 接口类型
+type TypeInterface struct {
+	Fields map[string]Type
+}
+
+// NewTypeInterface 新建接口类型
+func NewTypeInterface(fields map[string]Type) *TypeInterface {
+	return &TypeInterface{Fields: fields}
+}
+
+// IsTypeInterface 是否是结构体类型
+func IsTypeInterface(t Type) bool {
+	_, ok := t.(*TypeInterface)
+	return ok
+}
+
+// IsTypeInterfaceAndSon 是否是结构体类型及其子类型
+func IsTypeInterfaceAndSon(t Type) bool {
+	return IsTypeInterface(GetBaseType(t))
+}
+
+func (self TypeInterface) String() string {
+	var buf strings.Builder
+	buf.WriteString("interface(")
+	var i int
+	for n, t := range self.Fields {
+		buf.WriteString(fmt.Sprintf("%s: %s", n, t))
+		if i < len(self.Fields)-1 {
+			buf.WriteString(", ")
+		}
+		i++
+	}
+	buf.WriteByte(')')
+	return buf.String()
+}
+
+func (self TypeInterface) Equal(t Type) bool {
+	if i, ok := t.(*TypeInterface); ok && len(self.Fields) == len(i.Fields) {
+		for n, t := range self.Fields {
+			it, ok := i.Fields[n]
+			if !ok || !t.Equal(it) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // *********************************************************************************************************************
 
 // 类型
@@ -493,6 +544,26 @@ func analyseType(ctx *packageContext, ast parse.Type) (Type, utils.Error) {
 			return nil, err
 		}
 		return NewPtrType(elem), nil
+	case *parse.TypeInterface:
+		fields := make(map[string]Type)
+		var errs []utils.Error
+		for _, f := range typ.Fields {
+			ft, err := analyseType(ctx, f.Type)
+			if err != nil {
+				errs = append(errs, err)
+			} else if _, ok := fields[f.Name.Source]; ok {
+				errs = append(errs, utils.Errorf(f.Name.Pos, "duplicate identifier"))
+			} else {
+				fields[f.Name.Source] = ft
+			}
+		}
+		if len(errs) == 0 {
+			return NewTypeInterface(fields), nil
+		} else if len(errs) == 1 {
+			return nil, errs[0]
+		} else {
+			return nil, utils.NewMultiError(errs...)
+		}
 	default:
 		panic("")
 	}
@@ -549,6 +620,13 @@ func checkTypeCircle(tmp *set.LinkedHashSet[*Typedef], t Type) bool {
 			tmp.Remove(typ)
 		}()
 		return checkTypeCircle(tmp, typ.Dst)
+	case *TypeInterface:
+		for _, ft := range typ.Fields {
+			if checkTypeCircle(tmp, ft) {
+				return true
+			}
+		}
+		return false
 	default:
 		panic("")
 	}
