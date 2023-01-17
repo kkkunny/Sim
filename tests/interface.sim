@@ -5,11 +5,11 @@ type A interface{
     get: func()i32
 }
 
-type B interface{
+type B(A) interface{
     set: func(i32)
 }
 
-type C struct{
+type C(B) struct{
     value: i32
 }
 

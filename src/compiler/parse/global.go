@@ -39,14 +39,16 @@ type TypeDef struct {
 	Pos    utils.Position
 	Public bool
 	Name   lex.Token
+	Impls  []*TypeIdent
 	Target Type
 }
 
-func NewTypeDef(pos utils.Position, pub bool, name lex.Token, target Type) *TypeDef {
+func NewTypeDef(pos utils.Position, pub bool, name lex.Token, impls []*TypeIdent, target Type) *TypeDef {
 	return &TypeDef{
 		Pos:    pos,
 		Public: pub,
 		Name:   name,
+		Impls:  impls,
 		Target: target,
 	}
 }
@@ -256,12 +258,18 @@ func (self *Parser) parseImport() *Import {
 func (self *Parser) parseTypeDef(pub *lex.Token) *TypeDef {
 	begin := self.expectNextIs(lex.TYPE).Pos
 	name := self.expectNextIs(lex.IDENT)
-	target := self.parseType()
-	if pub == nil {
-		return NewTypeDef(utils.MixPosition(begin, target.Position()), false, name, target)
-	} else {
-		return NewTypeDef(utils.MixPosition(pub.Pos, target.Position()), true, name, target)
+	var impls []*TypeIdent
+	if self.skipNextIs(lex.LPA) {
+		for {
+			impls = append(impls, self.parseTypeIdent())
+			if !self.skipNextIs(lex.COM) {
+				break
+			}
+		}
+		self.expectNextIs(lex.RPA)
 	}
+	target := self.parseType()
+	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, impls, target)
 }
 
 // 函数

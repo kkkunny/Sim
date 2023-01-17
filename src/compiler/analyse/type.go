@@ -338,17 +338,19 @@ func (self TypePtr) Equal(t Type) bool {
 
 // Typedef 类型定义
 type Typedef struct {
-	Pkg  stlos.Path
-	Name string
-	Dst  Type
+	Pkg   stlos.Path
+	Name  string
+	Impls *set.HashSet[*Typedef]
+	Dst   Type
 }
 
 // NewTypedef 新建类型定义
 func NewTypedef(pkg stlos.Path, name string, dst Type) *Typedef {
 	return &Typedef{
-		Pkg:  pkg,
-		Name: name,
-		Dst:  dst,
+		Pkg:   pkg,
+		Name:  name,
+		Impls: set.NewHashSet[*Typedef](),
+		Dst:   dst,
 	}
 }
 

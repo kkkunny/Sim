@@ -574,6 +574,10 @@ func (self Method) GetType() Type {
 	return self.Func.GetType()
 }
 
+func (self Method) GetMethodType() Type {
+	return self.Func.GetMethodType()
+}
+
 func (self Method) GetMut() bool {
 	return false
 }
@@ -948,19 +952,17 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			}
 			return nil, err
 		}
-		ft, ok := GetBaseType(f.GetType()).(*TypeFunc)
-		if !ok {
-			return nil, utils.Errorf(expr.Func.Position(), "expect a function")
-		}
-
 		if method, ok := f.(*Method); ok {
-			if len(ft.Params)-1 != len(expr.Args) {
-				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params)-1)
+			ft, ok := method.GetMethodType().(*TypeFunc)
+			if !ok {
+				return nil, utils.Errorf(expr.Func.Position(), "expect a function")
+			} else if len(ft.Params) != len(expr.Args) {
+				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
 			}
 
 			args := make([]Expr, len(expr.Args))
 			var errs []utils.Error
-			for i, pt := range ft.Params[1:] {
+			for i, pt := range ft.Params {
 				var err utils.Error
 				args[i], err = expectExpr(ctx, pt, expr.Args[i])
 				if err != nil {
@@ -978,7 +980,10 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				Args:   args,
 			}, nil
 		} else {
-			if len(ft.Params) != len(expr.Args) {
+			ft, ok := GetBaseType(f.GetType()).(*TypeFunc)
+			if !ok {
+				return nil, utils.Errorf(expr.Func.Position(), "expect a function")
+			} else if len(ft.Params) != len(expr.Args) {
 				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
 			}
 
