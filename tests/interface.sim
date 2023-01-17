@@ -24,7 +24,8 @@ func (C) set(v: i32){
 @extern(main)
 func main()u8{
     let c: C = {10}
-    c.set(1)
+    let b: B = &c
+    let a: A = b
     printf("%d\n", c.get())
     return 0
 }

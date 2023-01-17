@@ -58,7 +58,8 @@ func (self *CodeGenerator) codegenReturn(mean analyse.Return) {
 
 // 变量
 func (self *CodeGenerator) codegenVariable(mean *analyse.Variable) {
-	alloca := self.builder.CreateAlloca(self.codegenType(mean.Type), "")
+	typ := self.codegenType(mean.Type)
+	alloca := self.builder.CreateAlloca(typ, "")
 	value := self.codegenExpr(mean.Value, true)
 	self.vars[mean] = alloca
 	self.builder.CreateStore(value, alloca)

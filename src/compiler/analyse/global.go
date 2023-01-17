@@ -319,9 +319,13 @@ func analyseGlobalVariable(ctx *packageContext, ast *parse.GlobalValue) (*Global
 
 // 方法声明
 func analyseMethodDecl(ctx *packageContext, ast *parse.Method) (*Function, utils.Error) {
-	_selfType, err := analyseType(ctx, parse.NewTypeIdent(nil, ast.Self))
+	_selfTypeObj, err := analyseType(ctx, parse.NewTypeIdent(nil, ast.Self))
 	if err != nil {
 		return nil, err
+	}
+	_selfType, ok := _selfTypeObj.(*Typedef)
+	if !ok {
+		return nil, utils.Errorf(ast.Self.Pos, "expect a typedef")
 	}
 	selfType := NewPtrType(_selfType)
 
@@ -374,18 +378,19 @@ func analyseMethodDecl(ctx *packageContext, ast *parse.Method) (*Function, utils
 	if !ctx.AddValue(ast.Public, name, f) {
 		return nil, utils.Errorf(ast.Name.Pos, "duplicate identifier")
 	}
+	_selfType.Methods[ast.Name.Source] = f
 	return f, nil
 }
 
 // 方法定义
 func analyseMethodDef(ctx *packageContext, ast *parse.Method) utils.Error {
-	_selfType, err := analyseType(ctx, parse.NewTypeIdent(nil, ast.Self))
+	_selfTypeObj, err := analyseType(ctx, parse.NewTypeIdent(nil, ast.Self))
 	if err != nil {
 		return err
 	}
+	_selfType := _selfTypeObj.(*Typedef)
 
-	name := _selfType.String() + "." + ast.Name.Source
-	f := ctx.GetValue(name).Second.(*Function)
+	f := _selfType.Methods[ast.Name.Source]
 	fctx := newFunctionContext(ctx, f.Ret)
 	for i, p := range f.Params {
 		if i == 0 {

@@ -263,7 +263,7 @@ func analysePackageInterfaceImpl(ctx *packageContext, asts *list.SingleLinkedLis
 				continue
 			}
 			implTd, ok := implType.(*Typedef)
-			if !ok || !IsTypeInterface(implTd.Dst) {
+			if !ok || !IsInterfaceType(implTd.Dst) {
 				errs = append(errs, utils.Errorf(impl.Position(), "expect a typedef for interface"))
 				continue
 			}
@@ -297,9 +297,9 @@ func analysePackageInterfaceImpl(ctx *packageContext, asts *list.SingleLinkedLis
 					implQueueSet.Add(sonImpl)
 				}
 			}
-			for name, _ := range impl.Dst.(*TypeInterface).Fields {
-				if !methodNameSet.Add(name) {
-					errs = append(errs, utils.Errorf(pos, "interface function `%s` conflict", name))
+			for iter := impl.Dst.(*TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
+				if !methodNameSet.Add(iter.Key()) {
+					errs = append(errs, utils.Errorf(pos, "interface function `%s` conflict", iter.Key()))
 					break
 				}
 			}
@@ -322,17 +322,13 @@ func analysePackageInterfaceImpl(ctx *packageContext, asts *list.SingleLinkedLis
 		for iter := td.Impls.Iterator(); iter.HasValue(); iter.Next() {
 			itTd := iter.Value()
 			it := itTd.Dst.(*TypeInterface)
-			for fn, ftObj := range it.Fields {
-				ft := ftObj.(*TypeFunc)
-				name := td.String() + "." + fn
-				v := ctx.GetValue(name)
-				if v.Second == nil {
-					errs = append(errs, utils.Errorf(pos, "missing function `%s` implementation for interface `%s`", fn, itTd.Name))
+			for iter := it.Fields.Begin(); iter.HasValue(); iter.Next() {
+				ft := iter.Value().(*TypeFunc)
+				if f, ok := td.Methods[iter.Key()]; !ok {
+					errs = append(errs, utils.Errorf(pos, "missing function `%s` implementation for interface `%s`", iter.Key(), itTd.Name))
 					continue
-				}
-				f := v.Second.(*Function)
-				if !f.GetMethodType().Equal(ft) {
-					errs = append(errs, utils.Errorf(pos, "error function `%s` implementation for interface `%s`", fn, itTd.Name))
+				} else if !f.GetMethodType().Equal(ft) {
+					errs = append(errs, utils.Errorf(pos, "error function `%s` implementation for interface `%s`", iter.Key(), itTd.Name))
 					continue
 				}
 			}

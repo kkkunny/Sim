@@ -338,19 +338,21 @@ func (self TypePtr) Equal(t Type) bool {
 
 // Typedef 类型定义
 type Typedef struct {
-	Pkg   stlos.Path
-	Name  string
-	Impls *set.HashSet[*Typedef]
-	Dst   Type
+	Pkg     stlos.Path
+	Name    string
+	Impls   *set.HashSet[*Typedef]
+	Dst     Type
+	Methods map[string]*Function
 }
 
 // NewTypedef 新建类型定义
 func NewTypedef(pkg stlos.Path, name string, dst Type) *Typedef {
 	return &Typedef{
-		Pkg:   pkg,
-		Name:  name,
-		Impls: set.NewHashSet[*Typedef](),
-		Dst:   dst,
+		Pkg:     pkg,
+		Name:    name,
+		Impls:   set.NewHashSet[*Typedef](),
+		Dst:     dst,
+		Methods: make(map[string]*Function),
 	}
 }
 
@@ -369,6 +371,25 @@ func (self Typedef) Equal(t Type) bool {
 		return true
 	}
 	return false
+}
+
+// IsImpl 是否实现了某个接口
+func (self Typedef) IsImpl(dst *Typedef) bool {
+	return self.Impls.Contain(dst)
+}
+
+// GetInterfaceFields 获取接口成员
+func (self Typedef) GetInterfaceFields() *table.LinkedHashMap[string, Type] {
+	fields := table.NewLinkedHashMap[string, Type]()
+	for iter := self.Impls.Iterator(); iter.HasValue(); iter.Next() {
+		for iter := iter.Value().Dst.(*TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
+			fields.Set(iter.Key(), iter.Value())
+		}
+	}
+	for iter := self.Dst.(*TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
+		fields.Set(iter.Key(), iter.Value())
+	}
+	return fields
 }
 
 // GetBaseType 获取底层类型
@@ -417,45 +438,44 @@ func GetDepthBaseType(t Type) Type {
 
 // TypeInterface 接口类型
 type TypeInterface struct {
-	Fields map[string]Type
+	Fields *table.LinkedHashMap[string, Type]
 }
 
 // NewTypeInterface 新建接口类型
-func NewTypeInterface(fields map[string]Type) *TypeInterface {
+func NewTypeInterface(fields *table.LinkedHashMap[string, Type]) *TypeInterface {
 	return &TypeInterface{Fields: fields}
 }
 
-// IsTypeInterface 是否是结构体类型
-func IsTypeInterface(t Type) bool {
+// IsInterfaceType 是否是结构体类型
+func IsInterfaceType(t Type) bool {
 	_, ok := t.(*TypeInterface)
 	return ok
 }
 
-// IsTypeInterfaceAndSon 是否是结构体类型及其子类型
-func IsTypeInterfaceAndSon(t Type) bool {
-	return IsTypeInterface(GetBaseType(t))
+// IsInterfaceTypeAndSon 是否是结构体类型及其子类型
+func IsInterfaceTypeAndSon(t Type) bool {
+	return IsInterfaceType(GetBaseType(t))
 }
 
 func (self TypeInterface) String() string {
 	var buf strings.Builder
 	buf.WriteString("interface(")
-	var i int
-	for n, t := range self.Fields {
+	for iter := self.Fields.Begin(); iter.HasValue(); iter.Next() {
+		n, t := iter.Key(), iter.Value()
 		buf.WriteString(fmt.Sprintf("%s: %s", n, t))
-		if i < len(self.Fields)-1 {
+		if iter.HasNext() {
 			buf.WriteString(", ")
 		}
-		i++
 	}
 	buf.WriteByte(')')
 	return buf.String()
 }
 
 func (self TypeInterface) Equal(t Type) bool {
-	if i, ok := t.(*TypeInterface); ok && len(self.Fields) == len(i.Fields) {
-		for n, t := range self.Fields {
-			it, ok := i.Fields[n]
-			if !ok || !t.Equal(it) {
+	if i, ok := t.(*TypeInterface); ok && self.Fields.Length() == i.Fields.Length() {
+		for iter := self.Fields.Begin(); iter.HasValue(); iter.Next() {
+			it := i.Fields.Get(iter.Key())
+			if it == nil || !iter.Value().Equal(it) {
 				return false
 			}
 		}
@@ -547,16 +567,16 @@ func analyseType(ctx *packageContext, ast parse.Type) (Type, utils.Error) {
 		}
 		return NewPtrType(elem), nil
 	case *parse.TypeInterface:
-		fields := make(map[string]Type)
+		fields := table.NewLinkedHashMap[string, Type]()
 		var errs []utils.Error
 		for _, f := range typ.Fields {
 			ft, err := analyseType(ctx, f.Type)
 			if err != nil {
 				errs = append(errs, err)
-			} else if _, ok := fields[f.Name.Source]; ok {
+			} else if fields.ContainKey(f.Name.Source) {
 				errs = append(errs, utils.Errorf(f.Name.Pos, "duplicate identifier"))
 			} else {
-				fields[f.Name.Source] = ft
+				fields.Set(f.Name.Source, ft)
 			}
 		}
 		if len(errs) == 0 {
@@ -623,8 +643,8 @@ func checkTypeCircle(tmp *set.LinkedHashSet[*Typedef], t Type) bool {
 		}()
 		return checkTypeCircle(tmp, typ.Dst)
 	case *TypeInterface:
-		for _, ft := range typ.Fields {
-			if checkTypeCircle(tmp, ft) {
+		for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
+			if checkTypeCircle(tmp, iter.Value()) {
 				return true
 			}
 		}

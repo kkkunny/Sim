@@ -1023,9 +1023,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				_selfType = prefixType.(*TypePtr).Elem.(*Typedef)
 			}
 
-			funcName := _selfType.String() + "." + expr.End.Source
-			if funcObj := ctx.GetValue(funcName); funcObj != nil {
-				fun := funcObj.(*Function)
+			if fun, ok := _selfType.Methods[expr.End.Source]; ok {
 				return &Method{
 					Self: prefix,
 					Func: fun,
@@ -1130,6 +1128,9 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 
 // 期待指定类型的表达式
 func expectExprWithType(pos utils.Position, expect Type, expr Expr) (Expr, utils.Error) {
+	if vv := analyseAutoCovert(expr, expect); vv != nil {
+		return vv, nil
+	}
 	exprType := expr.GetType()
 	if !exprType.Equal(expect) {
 		return nil, utils.Errorf(pos, "expect type `%s` but there is `%s`", expect, exprType)
@@ -1139,6 +1140,9 @@ func expectExprWithType(pos utils.Position, expect Type, expr Expr) (Expr, utils
 
 // 期待指定类型的表达式及其子类型
 func expectExprWithTypeAndSon(pos utils.Position, expect Type, expr Expr) (Expr, utils.Error) {
+	if vv := analyseAutoCovert(expr, expect); vv != nil {
+		return vv, nil
+	}
 	exprType := expr.GetType()
 	if !GetDepthBaseType(exprType).Equal(GetDepthBaseType(expect)) {
 		return nil, utils.Errorf(pos, "expect type `%s` but there is `%s`", expect, exprType)
@@ -1314,6 +1318,10 @@ func analyseBuildInFuncCall(ctx *blockContext, ident *parse.Ident, paramAsts []p
 
 // 类型转换
 func analyseCovert(v Expr, t Type) *Covert {
+	if vv := analyseAutoCovert(v, t); vv != nil {
+		return vv
+	}
+
 	ft := v.GetType()
 	switch {
 	case GetDepthBaseType(ft).Equal(GetDepthBaseType(t)):
@@ -1321,6 +1329,24 @@ func analyseCovert(v Expr, t Type) *Covert {
 	case GetBaseType(ft).Equal(Usize) && (IsPtrTypeAndSon(t) || IsFuncTypeAndSon(t)):
 	case (IsPtrTypeAndSon(ft) || IsFuncTypeAndSon(ft)) && GetBaseType(t).Equal(Usize):
 	case (IsPtrTypeAndSon(ft) || IsFuncTypeAndSon(ft)) && (IsPtrTypeAndSon(t) || IsFuncTypeAndSon(t)):
+	default:
+		return nil
+	}
+
+	return &Covert{
+		From: v,
+		To:   t,
+	}
+}
+
+// 自动类型转换
+func analyseAutoCovert(v Expr, t Type) *Covert {
+	ft := v.GetType()
+	switch {
+	case IsPtrTypeAndSon(ft) && IsTypedef(GetBaseType(ft).(*TypePtr).Elem) && IsTypedef(t) && GetBaseType(ft).(*TypePtr).Elem.(*Typedef).IsImpl(t.(*Typedef)):
+		// 类型定义指针 --> 接口类型定义
+	case IsTypedef(ft) && IsTypedef(t) && IsInterfaceType(ft.(*Typedef).Dst) && ft.(*Typedef).IsImpl(t.(*Typedef)):
+		// 子接口类型定义 --> 父接口类型定义
 	default:
 		return nil
 	}
