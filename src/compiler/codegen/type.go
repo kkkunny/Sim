@@ -63,7 +63,7 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 	case *analyse.TypePtr:
 		return llvm.PointerType(self.codegenType(typ.Elem), 0)
 	case *analyse.Typedef:
-		if !analyse.IsTupleType(typ.Dst) && !analyse.IsStructType(typ.Dst) && !analyse.IsInterfaceType(typ.Dst) {
+		if !analyse.IsTupleType(typ.Dst) && !analyse.IsStructType(typ.Dst) {
 			return self.codegenType(typ.Dst)
 		}
 		key := typ.String()
@@ -85,24 +85,28 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 				elems[iter.Index()] = self.codegenType(iter.Value().Second)
 			}
 			td.StructSetBody(elems, false)
-		case *analyse.TypeInterface:
-			fields := typ.GetInterfaceFields()
-			elems := make([]llvm.Type, fields.Length()+2)
-			elems[0] = llvm.PointerType(self.ctx.Int8Type(), 0) // 类型
-			elems[1] = llvm.PointerType(self.ctx.Int8Type(), 0) // self
-			i := 2
-			for iter := fields.Begin(); iter.HasValue(); iter.Next() {
-				ft := self.codegenType(iter.Value()).ElementType()
-				elems[i] = llvm.PointerType(llvm.FunctionType(ft.ReturnType(), append([]llvm.Type{elems[1]}, ft.ParamTypes()...), ft.IsFunctionVarArg()), 0)
-				i++
-			}
-			td.StructSetBody(elems, false)
 		default:
 			panic("")
 		}
 		return td
 	case *analyse.TypeInterface:
-		panic("")
+		key := typ.String()
+		if t, ok := self.types[key]; ok {
+			return t
+		}
+		td := self.ctx.StructCreateNamed("")
+		elems := make([]llvm.Type, typ.Fields.Length()+2)
+		elems[0] = llvm.PointerType(self.ctx.Int8Type(), 0) // 类型
+		elems[1] = llvm.PointerType(self.ctx.Int8Type(), 0) // self
+		i := 2
+		for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
+			ft := self.codegenType(iter.Value()).ElementType()
+			elems[i] = llvm.PointerType(llvm.FunctionType(ft.ReturnType(), append([]llvm.Type{elems[1]}, ft.ParamTypes()...), ft.IsFunctionVarArg()), 0)
+			i++
+		}
+		td.StructSetBody(elems, false)
+		self.types[key] = td
+		return td
 	default:
 		switch {
 		case analyse.IsNoneType(typ):

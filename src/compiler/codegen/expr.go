@@ -357,9 +357,9 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 			return self.builder.CreatePtrToInt(from, to, "")
 		case (analyse.IsPtrTypeAndSon(meanFt) || analyse.IsFuncTypeAndSon(meanFt)) && (analyse.IsPtrTypeAndSon(meanTo) || analyse.IsFuncTypeAndSon(meanTo)):
 			return self.builder.CreatePointerCast(from, to, "")
-		case analyse.IsPtrTypeAndSon(meanFt) && analyse.IsTypedef(analyse.GetBaseType(meanFt).(*analyse.TypePtr).Elem) && analyse.IsTypedef(meanTo) && analyse.GetBaseType(meanFt).(*analyse.TypePtr).Elem.(*analyse.Typedef).IsImpl(meanTo.(*analyse.Typedef)):
+		case analyse.IsPtrTypeAndSon(meanFt) && analyse.IsTypedef(analyse.GetBaseType(meanFt).(*analyse.TypePtr).Elem) && analyse.IsInterfaceTypeAndSon(meanTo) && analyse.GetBaseType(meanFt).(*analyse.TypePtr).Elem.(*analyse.Typedef).IsImpl(analyse.GetBaseType(meanTo).(*analyse.TypeInterface)):
 			ft := analyse.GetBaseType(meanFt).(*analyse.TypePtr).Elem.(*analyse.Typedef)
-			it := meanTo.(*analyse.Typedef)
+			it := analyse.GetBaseType(meanTo).(*analyse.TypeInterface)
 			toParams := to.StructElementTypes()
 			alloca := self.builder.CreateAlloca(to, "")
 
@@ -370,33 +370,11 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 			}, false), index)
 			index = self.createStructIndex(alloca, 1, false)
 			self.builder.CreateStore(self.builder.CreatePointerCast(from, toParams[1], ""), index)
-			for iter := it.GetInterfaceFields().Begin(); iter.HasValue(); iter.Next() {
+			for iter := it.Fields.Begin(); iter.HasValue(); iter.Next() {
 				index = self.createStructIndex(alloca, uint(iter.Index()+2), false)
 				f := self.codegenExpr(ft.Methods[iter.Key()], true)
 				ptr := self.builder.CreatePointerCast(f, toParams[iter.Index()+2], "")
 				self.builder.CreateStore(ptr, index)
-			}
-
-			return self.builder.CreateLoad(alloca.Type().ElementType(), alloca, "")
-		case analyse.IsTypedef(meanFt) && analyse.IsTypedef(meanTo) && analyse.IsInterfaceType(meanFt.(*analyse.Typedef).Dst) && meanFt.(*analyse.Typedef).IsImpl(meanTo.(*analyse.Typedef)):
-			it := meanTo.(*analyse.Typedef)
-			alloca := self.builder.CreateAlloca(to, "")
-
-			index := self.createStructIndex(alloca, 0, false)
-			self.builder.CreateStore(self.createStructIndex(from, 0, true), index)
-			index = self.createStructIndex(alloca, 1, false)
-			self.builder.CreateStore(self.createStructIndex(from, 1, true), index)
-			fromParams := meanFt.(*analyse.Typedef).GetInterfaceFields()
-			for iter := it.GetInterfaceFields().Begin(); iter.HasValue(); iter.Next() {
-				index = self.createStructIndex(alloca, uint(iter.Index()+2), false)
-				var i uint
-				for sonIter := fromParams.Begin(); sonIter.HasValue(); sonIter.Next() {
-					if iter.Key() == sonIter.Key() {
-						i = uint(iter.Index())
-						break
-					}
-				}
-				self.builder.CreateStore(self.createStructIndex(from, i+2, true), index)
 			}
 
 			return self.builder.CreateLoad(alloca.Type().ElementType(), alloca, "")

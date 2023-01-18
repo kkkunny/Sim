@@ -340,7 +340,7 @@ func (self TypePtr) Equal(t Type) bool {
 type Typedef struct {
 	Pkg     stlos.Path
 	Name    string
-	Impls   *set.HashSet[*Typedef]
+	Impls   *set.HashSet[*TypeInterface]
 	Dst     Type
 	Methods map[string]*Function
 }
@@ -350,7 +350,7 @@ func NewTypedef(pkg stlos.Path, name string, dst Type) *Typedef {
 	return &Typedef{
 		Pkg:     pkg,
 		Name:    name,
-		Impls:   set.NewHashSet[*Typedef](),
+		Impls:   set.NewHashSet[*TypeInterface](),
 		Dst:     dst,
 		Methods: make(map[string]*Function),
 	}
@@ -374,22 +374,8 @@ func (self Typedef) Equal(t Type) bool {
 }
 
 // IsImpl 是否实现了某个接口
-func (self Typedef) IsImpl(dst *Typedef) bool {
+func (self Typedef) IsImpl(dst *TypeInterface) bool {
 	return self.Impls.Contain(dst)
-}
-
-// GetInterfaceFields 获取接口成员
-func (self Typedef) GetInterfaceFields() *table.LinkedHashMap[string, Type] {
-	fields := table.NewLinkedHashMap[string, Type]()
-	for iter := self.Impls.Iterator(); iter.HasValue(); iter.Next() {
-		for iter := iter.Value().Dst.(*TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
-			fields.Set(iter.Key(), iter.Value())
-		}
-	}
-	for iter := self.Dst.(*TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
-		fields.Set(iter.Key(), iter.Value())
-	}
-	return fields
 }
 
 // GetBaseType 获取底层类型
@@ -438,11 +424,11 @@ func GetDepthBaseType(t Type) Type {
 
 // TypeInterface 接口类型
 type TypeInterface struct {
-	Fields *table.LinkedHashMap[string, Type]
+	Fields *table.LinkedHashMap[string, *TypeFunc]
 }
 
 // NewTypeInterface 新建接口类型
-func NewTypeInterface(fields *table.LinkedHashMap[string, Type]) *TypeInterface {
+func NewTypeInterface(fields *table.LinkedHashMap[string, *TypeFunc]) *TypeInterface {
 	return &TypeInterface{Fields: fields}
 }
 
@@ -567,14 +553,16 @@ func analyseType(ctx *packageContext, ast parse.Type) (Type, utils.Error) {
 		}
 		return NewPtrType(elem), nil
 	case *parse.TypeInterface:
-		fields := table.NewLinkedHashMap[string, Type]()
+		fields := table.NewLinkedHashMap[string, *TypeFunc]()
 		var errs []utils.Error
 		for _, f := range typ.Fields {
-			ft, err := analyseType(ctx, f.Type)
+			t, err := analyseType(ctx, f.Type)
 			if err != nil {
 				errs = append(errs, err)
 			} else if fields.ContainKey(f.Name.Source) {
 				errs = append(errs, utils.Errorf(f.Name.Pos, "duplicate identifier"))
+			} else if ft, ok := t.(*TypeFunc); !ok {
+				errs = append(errs, utils.Errorf(f.Name.Pos, "expect a function type"))
 			} else {
 				fields.Set(f.Name.Source, ft)
 			}

@@ -5,7 +5,6 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/stl/list"
 	stlos "github.com/kkkunny/stl/os"
-	"github.com/kkkunny/stl/queue"
 	"github.com/kkkunny/stl/set"
 	"github.com/kkkunny/stl/types"
 )
@@ -217,6 +216,83 @@ func analysePackageVariableDecl(ctx *packageContext, asts *list.SingleLinkedList
 	}
 }
 
+// 包 接口实现
+func analysePackageInterfaceImpl(ctx *packageContext, asts *list.SingleLinkedList[parse.Global]) utils.Error {
+	// 建立接口实现关系
+	typedefs := list.NewSingleLinkedList[types.Pair[utils.Position, *Typedef]]()
+	var errs []utils.Error
+	for iter := asts.Iterator(); iter.HasValue(); iter.Next() {
+		ast, ok := iter.Value().(*parse.TypeDef)
+		if !ok || len(ast.Impls) == 0 {
+			continue
+		}
+		td := ctx.typedefs[ast.Name.Source].Second
+
+		for _, impl := range ast.Impls {
+			implType, err := analyseType(ctx, impl)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			implIt, ok := GetBaseType(implType).(*TypeInterface)
+			if !ok {
+				errs = append(errs, utils.Errorf(impl.Position(), "expect a interface"))
+				continue
+			}
+			td.Impls.Add(implIt)
+		}
+		typedefs.PushBack(types.NewPair(ast.Name.Pos, td))
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+	// 检查冲突
+	errs = make([]utils.Error, 0, 0)
+	for iter := typedefs.Iterator(); iter.HasValue(); iter.Next() {
+		pos := iter.Value().First
+		methodNameSet := set.NewHashSet[string]()
+		for iter := iter.Value().Second.Impls.Iterator(); iter.HasValue(); iter.Next() {
+			for iter := iter.Value().Fields.Begin(); iter.HasValue(); iter.Next() {
+				if !methodNameSet.Add(iter.Key()) {
+					errs = append(errs, utils.Errorf(pos, "interface function `%s` conflict", iter.Key()))
+					break
+				}
+			}
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+	// 检查实现
+	errs = make([]utils.Error, 0, 0)
+	for iter := typedefs.Iterator(); iter.HasValue(); iter.Next() {
+		pos, td := iter.Value().First, iter.Value().Second
+		if _, ok := td.Dst.(*TypeInterface); ok {
+			continue
+		}
+		for iter := td.Impls.Iterator(); iter.HasValue(); iter.Next() {
+			for iter := iter.Value().Fields.Begin(); iter.HasValue(); iter.Next() {
+				if f, ok := td.Methods[iter.Key()]; !ok {
+					errs = append(errs, utils.Errorf(pos, "missing function `%s` implementation", iter.Key()))
+				} else if !f.GetMethodType().Equal(iter.Value()) {
+					errs = append(errs, utils.Errorf(pos, "error function `%s` implementation", iter.Key()))
+				}
+			}
+		}
+	}
+	if len(errs) == 0 {
+		return nil
+	} else if len(errs) == 1 {
+		return errs[0]
+	} else {
+		return utils.NewMultiError(errs...)
+	}
+}
+
 // 包 变量定义
 func analysePackageVariableDef(ctx *packageContext, asts *list.SingleLinkedList[parse.Global]) utils.Error {
 	var errors []utils.Error
@@ -241,104 +317,5 @@ func analysePackageVariableDef(ctx *packageContext, asts *list.SingleLinkedList[
 		return errors[0]
 	} else {
 		return utils.NewMultiError(errors...)
-	}
-}
-
-// 包 接口实现
-func analysePackageInterfaceImpl(ctx *packageContext, asts *list.SingleLinkedList[parse.Global]) utils.Error {
-	// 建立接口实现关系
-	typedefs := list.NewSingleLinkedList[types.Pair[utils.Position, *Typedef]]()
-	var errs []utils.Error
-	for iter := asts.Iterator(); iter.HasValue(); iter.Next() {
-		ast, ok := iter.Value().(*parse.TypeDef)
-		if !ok || len(ast.Impls) == 0 {
-			continue
-		}
-		td := ctx.typedefs[ast.Name.Source].Second
-
-		for _, impl := range ast.Impls {
-			implType, err := analyseTypeIdent(ctx, impl, false)
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			implTd, ok := implType.(*Typedef)
-			if !ok || !IsInterfaceType(implTd.Dst) {
-				errs = append(errs, utils.Errorf(impl.Position(), "expect a typedef for interface"))
-				continue
-			}
-			td.Impls.Add(implTd)
-		}
-		typedefs.PushBack(types.NewPair(ast.Name.Pos, td))
-	}
-	if len(errs) == 1 {
-		return errs[0]
-	} else if len(errs) > 1 {
-		return utils.NewMultiError(errs...)
-	}
-	// 平展实现关系并检查冲突
-	errs = make([]utils.Error, 0, 0)
-	for iter := typedefs.Iterator(); iter.HasValue(); iter.Next() {
-		pos, td := iter.Value().First, iter.Value().Second
-		methodNameSet := set.NewHashSet[string]()
-		implQueueSet := set.NewHashSet[*Typedef]()
-		implQueue := queue.NewQueue[*Typedef]()
-		for iter := td.Impls.Iterator(); iter.HasValue(); iter.Next() {
-			implQueue.Push(iter.Value())
-			implQueueSet.Add(iter.Value())
-		}
-
-		for !implQueue.Empty() {
-			impl := implQueue.Pop()
-			for iter := impl.Impls.Iterator(); iter.HasValue(); iter.Next() {
-				sonImpl := iter.Value()
-				if !implQueueSet.Contain(sonImpl) && !td.Impls.Contain(sonImpl) {
-					implQueue.Push(sonImpl)
-					implQueueSet.Add(sonImpl)
-				}
-			}
-			for iter := impl.Dst.(*TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
-				if !methodNameSet.Add(iter.Key()) {
-					errs = append(errs, utils.Errorf(pos, "interface function `%s` conflict", iter.Key()))
-					break
-				}
-			}
-			implQueueSet.Remove(impl)
-			td.Impls.Add(impl)
-		}
-	}
-	if len(errs) == 1 {
-		return errs[0]
-	} else if len(errs) > 1 {
-		return utils.NewMultiError(errs...)
-	}
-	// 检查实现
-	errs = make([]utils.Error, 0, 0)
-	for iter := typedefs.Iterator(); iter.HasValue(); iter.Next() {
-		pos, td := iter.Value().First, iter.Value().Second
-		if _, ok := td.Dst.(*TypeInterface); ok {
-			continue
-		}
-		for iter := td.Impls.Iterator(); iter.HasValue(); iter.Next() {
-			itTd := iter.Value()
-			it := itTd.Dst.(*TypeInterface)
-			for iter := it.Fields.Begin(); iter.HasValue(); iter.Next() {
-				ft := iter.Value().(*TypeFunc)
-				if f, ok := td.Methods[iter.Key()]; !ok {
-					errs = append(errs, utils.Errorf(pos, "missing function `%s` implementation for interface `%s`", iter.Key(), itTd.Name))
-					continue
-				} else if !f.GetMethodType().Equal(ft) {
-					errs = append(errs, utils.Errorf(pos, "error function `%s` implementation for interface `%s`", iter.Key(), itTd.Name))
-					continue
-				}
-			}
-		}
-	}
-	if len(errs) == 0 {
-		return nil
-	} else if len(errs) == 1 {
-		return errs[0]
-	} else {
-		return utils.NewMultiError(errs...)
 	}
 }

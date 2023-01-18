@@ -39,11 +39,11 @@ type TypeDef struct {
 	Pos    utils.Position
 	Public bool
 	Name   lex.Token
-	Impls  []*TypeIdent
+	Impls  []Type
 	Target Type
 }
 
-func NewTypeDef(pos utils.Position, pub bool, name lex.Token, impls []*TypeIdent, target Type) *TypeDef {
+func NewTypeDef(pos utils.Position, pub bool, name lex.Token, impls []Type, target Type) *TypeDef {
 	return &TypeDef{
 		Pos:    pos,
 		Public: pub,
@@ -258,10 +258,10 @@ func (self *Parser) parseImport() *Import {
 func (self *Parser) parseTypeDef(pub *lex.Token) *TypeDef {
 	begin := self.expectNextIs(lex.TYPE).Pos
 	name := self.expectNextIs(lex.IDENT)
-	var impls []*TypeIdent
+	var impls []Type
 	if self.skipNextIs(lex.LPA) {
 		for {
-			impls = append(impls, self.parseTypeIdent())
+			impls = append(impls, self.parseType())
 			if !self.skipNextIs(lex.COM) {
 				break
 			}

@@ -1343,10 +1343,8 @@ func analyseCovert(v Expr, t Type) *Covert {
 func analyseAutoCovert(v Expr, t Type) *Covert {
 	ft := v.GetType()
 	switch {
-	case IsPtrTypeAndSon(ft) && IsTypedef(GetBaseType(ft).(*TypePtr).Elem) && IsTypedef(t) && GetBaseType(ft).(*TypePtr).Elem.(*Typedef).IsImpl(t.(*Typedef)):
+	case IsPtrTypeAndSon(ft) && IsTypedef(GetBaseType(ft).(*TypePtr).Elem) && IsInterfaceTypeAndSon(t) && GetBaseType(ft).(*TypePtr).Elem.(*Typedef).IsImpl(GetBaseType(t).(*TypeInterface)):
 		// 类型定义指针 --> 接口类型定义
-	case IsTypedef(ft) && IsTypedef(t) && IsInterfaceType(ft.(*Typedef).Dst) && ft.(*Typedef).IsImpl(t.(*Typedef)):
-		// 子接口类型定义 --> 父接口类型定义
 	default:
 		return nil
 	}

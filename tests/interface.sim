@@ -5,11 +5,11 @@ type A interface{
     get: func()i32
 }
 
-type B(A) interface{
+type B interface{
     set: func(i32)
 }
 
-type C(B) struct{
+type C(A, B) struct{
     value: i32
 }
 
@@ -24,8 +24,9 @@ func (C) set(v: i32){
 @extern(main)
 func main()u8{
     let c: C = {10}
+    c.set(1)
     let b: B = &c
-    let a: A = b
+    let a: A = &c
     printf("%d\n", c.get())
     return 0
 }
