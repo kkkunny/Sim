@@ -9,6 +9,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	stlos "github.com/kkkunny/stl/os"
 	stlutil "github.com/kkkunny/stl/util"
+	"io"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -49,8 +50,8 @@ func RandomString(n uint8) string {
 	return buf.String()
 }
 
-// 输出llvm
-func outputLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.TargetMachine, error) {
+// 编译到ir
+func compileToLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.TargetMachine, error) {
 	var ast *parse.Package
 	var err error
 	if from.IsDir() {
@@ -67,8 +68,6 @@ func outputLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.TargetM
 	}
 	module := codegen.NewCodeGenerator().Codegen(*mean)
 
-	optLevel := stlutil.Ternary(config.Release, llvm.CodeGenLevelAggressive, llvm.CodeGenLevelNone)
-
 	if err = llvm.InitializeNativeTarget(); err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
@@ -80,7 +79,14 @@ func outputLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.TargetM
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	tm := target.CreateTargetMachine(module.Target(), "generic", "", optLevel, llvm.RelocPIC, llvm.CodeModelDefault)
+	tm := target.CreateTargetMachine(
+		module.Target(),
+		"generic",
+		"",
+		stlutil.Ternary(config.Release, llvm.CodeGenLevelAggressive, llvm.CodeGenLevelNone),
+		llvm.RelocPIC,
+		llvm.CodeModelDefault,
+	)
 	module.SetDataLayout(tm.CreateTargetData().String())
 
 	for l := range mean.Links {
@@ -90,6 +96,29 @@ func outputLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.TargetM
 		config.Libraries = append(config.Libraries, l)
 	}
 	return module, tm, nil
+}
+
+// 输出ir
+func outputIr(module llvm.Module, to stlos.Path) error {
+	file, err := os.OpenFile(to.String(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, strings.NewReader(module.String()))
+	return err
+}
+
+// 输出bc
+func outputBc(module llvm.Module, to stlos.Path) error {
+	file, err := os.OpenFile(to.String(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return llvm.WriteBitcodeToFile(module, file)
 }
 
 // 输出汇编
@@ -120,20 +149,20 @@ func outputObject(from, to stlos.Path, links []stlos.Path) (stlos.Path, error) {
 		}
 	}
 
-	_, assembler := LookupCmd("as")
-	if assembler == nil {
-		return "", errors.New("can not found a assembler")
+	_, compiler := LookupCmd("clang", "gcc")
+	if compiler == nil {
+		return "", errors.New("can not found a c compiler")
 	}
 
-	assembler.Args = append(assembler.Args, "-o", to.String(), from.String())
+	compiler.Args = append(compiler.Args, "-c", "-o", to.String(), from.String())
 	for _, link := range links {
-		assembler.Args = append(assembler.Args, link.String())
+		compiler.Args = append(compiler.Args, link.String())
 	}
-	return to, assembler.Run()
+	return to, compiler.Run()
 }
 
-// 输出动态库文件
-func outputSharedFile(from, to stlos.Path, libraries, libraryPaths []string) (stlos.Path, error) {
+// 输出动态库
+func outputSharedLibrary(from, to stlos.Path, libraries, libraryPaths []string) (stlos.Path, error) {
 	if to == "" {
 		for {
 			to = stlos.Path(os.TempDir()).Join("lib" + stlos.Path(RandomString(6)) + ".so")
@@ -143,41 +172,67 @@ func outputSharedFile(from, to stlos.Path, libraries, libraryPaths []string) (st
 		}
 	}
 
-	_, linker := LookupCmd("clang", "gcc")
-	if linker == nil {
-		return "", errors.New("can not found a linker")
+	_, compiler := LookupCmd("clang", "gcc")
+	if compiler == nil {
+		return "", errors.New("can not found a c compiler")
 	}
-	linker.Args = append(linker.Args, "-shared", "-fPIC", "-o", to.String(), from.String())
+
+	compiler.Args = append(compiler.Args, "-fPIC", "-shared", "-o", to.String(), from.String())
 	for _, l := range libraries {
-		linker.Args = append(linker.Args, fmt.Sprintf("-l%s", l))
+		compiler.Args = append(compiler.Args, fmt.Sprintf("-l%s", l))
 	}
 	for _, L := range libraryPaths {
-		linker.Args = append(linker.Args, fmt.Sprintf("-L%s", L))
+		compiler.Args = append(compiler.Args, fmt.Sprintf("-L%s", L))
 	}
-	return to, linker.Run()
+	return to, compiler.Run()
 }
 
-// 输出可执行文件
-func outputExecutableFile(from, to stlos.Path, libraries, libraryPaths []string) (stlos.Path, error) {
+// 输出静态库
+func outputStaticLibrary(from, to stlos.Path) (stlos.Path, error) {
 	if to == "" {
 		for {
-			to = stlos.Path(os.TempDir()).Join(stlos.Path(RandomString(6)))
+			to = stlos.Path(os.TempDir()).Join("lib" + stlos.Path(RandomString(6)) + ".a")
 			if !to.IsExist() {
 				break
 			}
 		}
 	}
 
-	_, linker := LookupCmd("clang", "gcc")
-	if linker == nil {
-		return "", errors.New("can not found a linker")
+	_, compiler := LookupCmd("ar")
+	if compiler == nil {
+		return "", errors.New("can not found a file for packaging")
 	}
-	linker.Args = append(linker.Args, "-fPIC", "-o", to.String(), from.String())
+
+	compiler.Args = append(compiler.Args, "-rcs", to.String(), from.String())
+	return to, compiler.Run()
+}
+
+// 输出可执行文件
+func outputExecutableFile(from, to stlos.Path, static bool, libraries, libraryPaths []string) (stlos.Path, error) {
+	if to == "" {
+		for {
+			to = stlos.Path(os.TempDir()).Join(stlos.Path(RandomString(6))) + ".out"
+			if !to.IsExist() {
+				break
+			}
+		}
+	}
+
+	_, compiler := LookupCmd("clang", "gcc")
+	if compiler == nil {
+		return "", errors.New("can not found a c compiler")
+	}
+
+	compiler.Args = append(compiler.Args, "-fPIC")
+	if static {
+		compiler.Args = append(compiler.Args, "-static")
+	}
+	compiler.Args = append(compiler.Args, "-o", to.String(), from.String())
 	for _, l := range libraries {
-		linker.Args = append(linker.Args, fmt.Sprintf("-l%s", l))
+		compiler.Args = append(compiler.Args, fmt.Sprintf("-l%s", l))
 	}
 	for _, L := range libraryPaths {
-		linker.Args = append(linker.Args, fmt.Sprintf("-L%s", L))
+		compiler.Args = append(compiler.Args, fmt.Sprintf("-L%s", L))
 	}
-	return to, linker.Run()
+	return to, compiler.Run()
 }

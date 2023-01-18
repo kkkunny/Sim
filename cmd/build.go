@@ -47,7 +47,7 @@ func BuildCmd() *cobra.Command {
 	// output path
 	cmd.Flags().StringVarP((*string)(&conf.Output), "output", "o", "", "output path")
 	// output file type
-	cmd.Flags().StringVar(&conf.End, "end", "exe", "output file type")
+	cmd.Flags().StringVar(&conf.End, "end", "exe", "output file type, in (\"ir\", \"bc\", \"asm\", \"obj\", \"shared-lib\", \"static-lib\", \"exe\", \"static\")")
 	// release
 	cmd.Flags().BoolVar(&conf.Release, "release", false, "release mode")
 	// lib
@@ -59,7 +59,7 @@ func BuildCmd() *cobra.Command {
 func build(conf buildConfig) error {
 	// 输出类型
 	switch conf.End {
-	case "asm", "obj", "lib", "exe":
+	case "ir", "bc", "asm", "obj", "shared-lib", "static-lib", "exe", "static":
 	default:
 		return fmt.Errorf("unknwon output file type")
 	}
@@ -68,33 +68,55 @@ func build(conf buildConfig) error {
 	if conf.Output == "" {
 		if !conf.Target.IsDir() {
 			switch conf.End {
+			case "ir":
+				conf.Output = conf.Target.WithExtension("ll")
+			case "bc":
+				conf.Output = conf.Target.WithExtension("bc")
 			case "asm":
 				conf.Output = conf.Target.WithExtension("s")
 			case "obj":
 				conf.Output = conf.Target.WithExtension("o")
-			case "lib":
+			case "shared-lib":
 				conf.Output = conf.Target.GetParent().Join("lib" + conf.Target.GetBase().WithExtension("so"))
-			case "exe":
+			case "static-lib":
+				conf.Output = conf.Target.GetParent().Join("lib" + conf.Target.GetBase().WithExtension("a"))
+			case "exe", "static":
 				conf.Output = conf.Target.WithExtension("out")
 			}
 		} else {
 			switch conf.End {
+			case "ir":
+				conf.Output = conf.Target.Join(conf.Target.GetBase().WithExtension("ll"))
+			case "bc":
+				conf.Output = conf.Target.Join(conf.Target.GetBase().WithExtension("bc"))
 			case "asm":
 				conf.Output = conf.Target.Join(conf.Target.GetBase().WithExtension("s"))
 			case "obj":
 				conf.Output = conf.Target.Join(conf.Target.GetBase().WithExtension("o"))
-			case "lib":
+			case "shared-lib":
 				conf.Output = conf.Target.Join("lib" + conf.Target.GetBase().WithExtension("so"))
-			case "exe":
+			case "static-lib":
+				conf.Output = conf.Target.Join("lib" + conf.Target.GetBase().WithExtension("a"))
+			case "exe", "static":
 				conf.Output = conf.Target.Join(conf.Target.GetBase().WithExtension("out"))
 			}
 		}
 	}
 
-	// llvm
-	module, targetMachine, err := outputLLVM(&conf, conf.Target)
+	// 编译
+	module, targetMachine, err := compileToLLVM(&conf, conf.Target)
 	if err != nil {
 		return err
+	}
+
+	// llvm
+	if conf.End == "ir" {
+		return outputIr(module, conf.Output)
+	}
+
+	// bc
+	if conf.End == "bc" {
+		return outputBc(module, conf.Output)
 	}
 
 	// 汇编
@@ -125,13 +147,24 @@ func build(conf buildConfig) error {
 	}
 	defer os.Remove(objectPath.String())
 
-	// 动态库
-	if conf.End == "lib" {
-		_, err = outputSharedFile(objectPath, conf.Output, conf.Libraries, conf.LibraryPaths)
+	switch conf.End {
+	case "shared-lib":
+		// 动态库
+		_, err = outputSharedLibrary(objectPath, conf.Output, conf.Libraries, conf.LibraryPaths)
 		return err
+	case "static-lib":
+		// 静态库
+		_, err = outputStaticLibrary(objectPath, conf.Output)
+		return err
+	case "exe":
+		// 可执行文件
+		_, err = outputExecutableFile(objectPath, conf.Output, false, conf.Libraries, conf.LibraryPaths)
+		return err
+	case "static":
+		// 静态可执行文件
+		_, err = outputExecutableFile(objectPath, conf.Output, true, conf.Libraries, conf.LibraryPaths)
+		return err
+	default:
+		panic("")
 	}
-
-	// 可执行文件
-	_, err = outputExecutableFile(objectPath, conf.Output, conf.Libraries, conf.LibraryPaths)
-	return err
 }
