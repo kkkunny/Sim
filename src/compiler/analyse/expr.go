@@ -197,7 +197,7 @@ type MethodCall struct {
 func (self MethodCall) stmt() {}
 
 func (self MethodCall) GetType() Type {
-	return self.Method.GetType().(*TypeFunc).Ret
+	return self.Method.GetMethodType().Ret
 }
 
 func (self MethodCall) GetMut() bool {
@@ -574,7 +574,7 @@ func (self Method) GetType() Type {
 	return self.Func.GetType()
 }
 
-func (self Method) GetMethodType() Type {
+func (self Method) GetMethodType() *TypeFunc {
 	return self.Func.GetMethodType()
 }
 
@@ -610,6 +610,60 @@ func (self Alloc) IsTemporary() bool {
 }
 
 func (self Alloc) IsConst() bool {
+	return false
+}
+
+// GetInterfaceField 获取接口成员
+type GetInterfaceField struct {
+	From  Expr
+	Index string
+}
+
+func (self GetInterfaceField) stmt() {}
+
+func (self GetInterfaceField) GetType() Type {
+	ft := self.GetType().(*TypeFunc)
+	ft.Params = append([]Type{NewPtrType(Usize)}, ft.Params...)
+	return ft
+}
+
+func (self GetInterfaceField) GetMethodType() *TypeFunc {
+	return GetBaseType(self.From.GetType()).(*TypeInterface).Fields.Get(self.Index)
+}
+
+func (self GetInterfaceField) GetMut() bool {
+	return false
+}
+
+func (self GetInterfaceField) IsTemporary() bool {
+	return true
+}
+
+func (self GetInterfaceField) IsConst() bool {
+	return false
+}
+
+// InterfaceFieldCall 接口成员调用
+type InterfaceFieldCall struct {
+	Field *GetInterfaceField
+	Args  []Expr
+}
+
+func (self InterfaceFieldCall) stmt() {}
+
+func (self InterfaceFieldCall) GetType() Type {
+	return self.Field.GetMethodType().Ret
+}
+
+func (self InterfaceFieldCall) GetMut() bool {
+	return false
+}
+
+func (self InterfaceFieldCall) IsTemporary() bool {
+	return true
+}
+
+func (self InterfaceFieldCall) IsConst() bool {
 	return false
 }
 
@@ -953,10 +1007,8 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			return nil, err
 		}
 		if method, ok := f.(*Method); ok {
-			ft, ok := method.GetMethodType().(*TypeFunc)
-			if !ok {
-				return nil, utils.Errorf(expr.Func.Position(), "expect a function")
-			} else if len(ft.Params) != len(expr.Args) {
+			ft := method.GetMethodType()
+			if len(ft.Params) != len(expr.Args) {
 				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
 			}
 
@@ -978,6 +1030,31 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			return &MethodCall{
 				Method: method,
 				Args:   args,
+			}, nil
+		} else if im, ok := f.(*GetInterfaceField); ok {
+			ft := im.GetMethodType()
+			if len(ft.Params) != len(expr.Args) {
+				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
+			}
+
+			args := make([]Expr, len(expr.Args))
+			var errs []utils.Error
+			for i, pt := range ft.Params {
+				var err utils.Error
+				args[i], err = expectExpr(ctx, pt, expr.Args[i])
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+			if len(errs) == 1 {
+				return nil, errs[0]
+			} else if len(errs) > 1 {
+				return nil, utils.NewMultiError(errs...)
+			}
+
+			return &InterfaceFieldCall{
+				Field: im,
+				Args:  args,
 			}, nil
 		} else {
 			ft, ok := GetBaseType(f.GetType()).(*TypeFunc)
@@ -1043,25 +1120,44 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				From:  prefix,
 				Index: expr.End.Source,
 			}, nil
-		case *TypePtr:
-			st, ok := GetBaseType(t.Elem).(*TypeStruct)
-			if !ok {
-				break
-			}
-			if !st.Fields.ContainKey(expr.End.Source) {
-				return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
-			} else if td, ok := t.Elem.(*Typedef); ok && ctx.GetPackageContext().path != td.Pkg && !st.Fields.Get(expr.End.Source).First {
+		case *TypeInterface:
+			if !t.Fields.ContainKey(expr.End.Source) {
 				return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
 			}
-			return &GetField{
-				From: &Unary{
-					Mutable: prefix.GetMut(),
-					Type:    t.Elem,
-					Opera:   "*",
-					Value:   prefix,
-				},
+			return &GetInterfaceField{
+				From:  prefix,
 				Index: expr.End.Source,
 			}, nil
+		case *TypePtr:
+			if st, ok := GetBaseType(t.Elem).(*TypeStruct); ok {
+				if !st.Fields.ContainKey(expr.End.Source) {
+					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
+				} else if td, ok := t.Elem.(*Typedef); ok && ctx.GetPackageContext().path != td.Pkg && !st.Fields.Get(expr.End.Source).First {
+					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
+				}
+				return &GetField{
+					From: &Unary{
+						Mutable: prefix.GetMut(),
+						Type:    t.Elem,
+						Opera:   "*",
+						Value:   prefix,
+					},
+					Index: expr.End.Source,
+				}, nil
+			} else if st, ok := GetBaseType(t.Elem).(*TypeInterface); ok {
+				if !st.Fields.ContainKey(expr.End.Source) {
+					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
+				}
+				return &GetInterfaceField{
+					From: &Unary{
+						Mutable: prefix.GetMut(),
+						Type:    t.Elem,
+						Opera:   "*",
+						Value:   prefix,
+					},
+					Index: expr.End.Source,
+				}, nil
+			}
 		}
 		return nil, utils.Errorf(expr.Front.Position(), "expect a struct")
 	case *parse.Index:

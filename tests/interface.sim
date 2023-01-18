@@ -9,6 +9,10 @@ type B interface{
     set: func(i32)
 }
 
+func (B) set2(v: i32){
+    self.set(v)
+}
+
 type C(A, B) struct{
     value: i32
 }
@@ -24,9 +28,9 @@ func (C) set(v: i32){
 @extern(main)
 func main()u8{
     let c: C = {10}
-    c.set(1)
     let b: B = &c
+    b.set2(2)
     let a: A = &c
-    printf("%d\n", c.get())
+    printf("%d\n", a.get())
     return 0
 }

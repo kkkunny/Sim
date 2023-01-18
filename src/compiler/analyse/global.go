@@ -50,7 +50,7 @@ func (self Function) IsConst() bool {
 	return false
 }
 
-func (self Function) GetMethodType() Type {
+func (self Function) GetMethodType() *TypeFunc {
 	paramTypes := make([]Type, len(self.Params)-1)
 	for i, p := range self.Params[1:] {
 		paramTypes[i] = p.Type

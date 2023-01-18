@@ -391,6 +391,26 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 		size := self.codegenExpr(expr.Size, true)
 		ptr := self.builder.CreateArrayAlloca(self.ctx.Int8Type(), size, "")
 		return self.builder.CreatePointerCast(ptr, llvm.PointerType(t_size, 0), "")
+	case *analyse.GetInterfaceField:
+		f := self.codegenExpr(expr.From, false)
+		var index uint = 2
+		for iter := analyse.GetBaseType(expr.From.GetType()).(*analyse.TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
+			if iter.Key() == expr.Index {
+				break
+			}
+			index++
+		}
+		return self.createStructIndex(f, index, true)
+	case *analyse.InterfaceFieldCall:
+		f := self.codegenExpr(expr.Field, true)
+
+		args := make([]llvm.Value, len(expr.Args)+1)
+		args[0] = self.createStructIndex(self.codegenExpr(expr.Field.From, true), 1, true)
+		for i, a := range expr.Args {
+			args[i+1] = self.codegenExpr(a, true)
+		}
+
+		return self.builder.CreateCall(f.Type().ReturnType(), f, args, "")
 	default:
 		panic("")
 	}
