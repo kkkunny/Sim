@@ -268,13 +268,10 @@ func (self *Parser) parseTypeInterface() *TypeInterface {
 	begin := self.expectNextIs(lex.INTERFACE).Pos
 	self.expectNextIs(lex.LBR)
 	var fields []*NameAndType
-	for self.skipSem(); ; self.skipSem() {
+	for self.skipSem(); !self.nextIs(lex.RBR); self.skipSem() {
 		field := self.parseNameAndType(true)
 		fields = append(fields, field)
 		self.expectNextIs(lex.SEM)
-		if self.nextIs(lex.RBR) {
-			break
-		}
 	}
 	end := self.expectNextIs(lex.RBR).Pos
 	return NewTypeInterface(utils.MixPosition(begin, end), fields...)
