@@ -69,6 +69,7 @@ const (
 	NEG // ~
 	COM // ,
 	DOT // .
+	ELL // ..
 	QUO // ?
 
 	FUNC      // func
@@ -153,6 +154,7 @@ var tokenKindStr = [...]string{
 	NEG: "~",
 	COM: ",",
 	DOT: ".",
+	ELL: "..",
 	QUO: "?",
 
 	FUNC:      "func",

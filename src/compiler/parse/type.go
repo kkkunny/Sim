@@ -59,13 +59,15 @@ type TypeFunc struct {
 	Pos    utils.Position
 	Ret    Type // 可能为空
 	Params []Type
+	VarArg bool
 }
 
-func NewTypeFunc(pos utils.Position, ret Type, p ...Type) *TypeFunc {
+func NewTypeFunc(pos utils.Position, ret Type, params []Type, varArg bool) *TypeFunc {
 	return &TypeFunc{
 		Pos:    pos,
 		Ret:    ret,
-		Params: p,
+		Params: params,
+		VarArg: varArg,
 	}
 }
 
@@ -205,6 +207,28 @@ func (self *Parser) parseTypeList() (toks []Type) {
 	return toks
 }
 
+// 函数参数类型列表
+func (self *Parser) parsParamTypeList() (toks []Type, varArg bool) {
+	for {
+		if self.skipNextIs(lex.ELL) {
+			varArg = true
+			break
+		} else if len(toks) == 0 {
+			typ := self.parseTypeOrNil()
+			if typ == nil {
+				break
+			}
+			toks = append(toks, typ)
+		} else {
+			toks = append(toks, self.parseType())
+		}
+		if !self.skipNextIs(lex.COM) {
+			break
+		}
+	}
+	return toks, varArg
+}
+
 // 标识符类型
 func (self *Parser) parseTypeIdent() *TypeIdent {
 	pkg := self.expectNextIs(lex.IDENT)
@@ -226,10 +250,10 @@ func (self *Parser) parseTypePtr() *TypePtr {
 func (self *Parser) parseTypeFunc() *TypeFunc {
 	begin := self.expectNextIs(lex.FUNC).Pos
 	self.expectNextIs(lex.LPA)
-	params := self.parseTypeList()
+	params, varArg := self.parsParamTypeList()
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
-	return NewTypeFunc(utils.MixPosition(begin, self.curTok.Pos), ret, params...)
+	return NewTypeFunc(utils.MixPosition(begin, self.curTok.Pos), ret, params, varArg)
 }
 
 // 数组类型

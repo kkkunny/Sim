@@ -128,13 +128,15 @@ func (self typeBasic) Equal(t Type) bool {
 type TypeFunc struct {
 	Ret    Type
 	Params []Type
+	VarArg bool
 }
 
 // NewFuncType 新建函数类型
-func NewFuncType(ret Type, params ...Type) *TypeFunc {
+func NewFuncType(ret Type, params []Type, varArg bool) *TypeFunc {
 	return &TypeFunc{
 		Ret:    ret,
 		Params: params,
+		VarArg: varArg,
 	}
 }
 
@@ -158,10 +160,7 @@ func (self TypeFunc) String() string {
 }
 
 func (self TypeFunc) Equal(t Type) bool {
-	if f, ok := t.(*TypeFunc); ok {
-		if !self.Ret.Equal(f.Ret) || len(self.Params) != len(f.Params) {
-			return false
-		}
+	if f, ok := t.(*TypeFunc); ok && self.Ret.Equal(f.Ret) && len(self.Params) == len(f.Params) && self.VarArg == f.VarArg {
 		for i, p := range self.Params {
 			if !p.Equal(f.Params[i]) {
 				return false
@@ -398,7 +397,7 @@ func GetDepthBaseType(t Type) Type {
 		for i, p := range typ.Params {
 			params[i] = GetBaseType(p)
 		}
-		return NewFuncType(GetBaseType(typ.Ret), params...)
+		return NewFuncType(GetBaseType(typ.Ret), params, typ.VarArg)
 	case *TypePtr:
 		return NewPtrType(GetBaseType(typ.Elem))
 	case *TypeArray:
@@ -496,7 +495,7 @@ func analyseType(ctx *packageContext, ast parse.Type) (Type, utils.Error) {
 			}
 		}
 		if len(errors) == 0 {
-			return NewFuncType(ret, params...), nil
+			return NewFuncType(ret, params, typ.VarArg), nil
 		} else if len(errors) == 1 {
 			return nil, errors[0]
 		} else {

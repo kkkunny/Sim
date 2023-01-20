@@ -1,5 +1,4 @@
-@extern(printf)
-func printf(*i8, i32)
+import std.c
 
 type A interface{
     get: func()i32
@@ -31,6 +30,6 @@ func main()u8{
     let b: B = &c
     b.set2(2)
     let a: A = &c
-    printf("%d\n", a.get())
+    c::printf("%d\n", a.get())
     return 0
 }

@@ -420,6 +420,10 @@ func (self *Lexer) Scan() Token {
 		case '.':
 			kind = DOT
 			buf.WriteRune(self.ch)
+			if self.peek() == '.' {
+				buf.WriteRune(self.next())
+				kind = ELL
+			}
 		default:
 			buf.WriteRune(self.ch)
 		}

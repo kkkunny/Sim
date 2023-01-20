@@ -21,6 +21,7 @@ type Function struct {
 
 	Ret    Type
 	Params []*Param
+	VarArg bool
 	Body   *Block
 }
 
@@ -35,7 +36,7 @@ func (self Function) GetType() Type {
 	for i, p := range self.Params {
 		paramTypes[i] = p.Type
 	}
-	return NewFuncType(self.Ret, paramTypes...)
+	return NewFuncType(self.Ret, paramTypes, self.VarArg)
 }
 
 func (self Function) GetMut() bool {
@@ -55,7 +56,7 @@ func (self Function) GetMethodType() *TypeFunc {
 	for i, p := range self.Params[1:] {
 		paramTypes[i] = p.Type
 	}
-	return NewFuncType(self.Ret, paramTypes...)
+	return NewFuncType(self.Ret, paramTypes, self.VarArg)
 }
 
 // GlobalVariable 全局变量
@@ -116,6 +117,7 @@ func analyseExternFunction(ctx *packageContext, ast *parse.ExternFunction) (*Fun
 	f := &Function{
 		Ret:    retType,
 		Params: params,
+		VarArg: ast.VarArg,
 	}
 
 	// 属性
@@ -182,6 +184,7 @@ func analyseFunctionDecl(ctx *packageContext, ast *parse.Function) (*Function, u
 	f := &Function{
 		Ret:    retType,
 		Params: params,
+		VarArg: ast.VarArg,
 	}
 
 	// 属性
@@ -354,6 +357,7 @@ func analyseMethodDecl(ctx *packageContext, ast *parse.Method) (*Function, utils
 	f := &Function{
 		Ret:    retType,
 		Params: params,
+		VarArg: ast.VarArg,
 	}
 
 	// 属性

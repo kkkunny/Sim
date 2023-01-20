@@ -14,7 +14,7 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 		for i, p := range typ.Params {
 			params[i] = self.codegenType(p)
 		}
-		return llvm.PointerType(llvm.FunctionType(ret, params, false), 0)
+		return llvm.PointerType(llvm.FunctionType(ret, params, typ.VarArg), 0)
 	case *analyse.TypeArray:
 		elem := self.codegenType(typ.Elem)
 		return llvm.ArrayType(elem, int(typ.Size))

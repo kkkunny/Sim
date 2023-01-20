@@ -1006,19 +1006,29 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			}
 			return nil, err
 		}
+
 		if method, ok := f.(*Method); ok {
+			// 方法调用
 			ft := method.GetMethodType()
-			if len(ft.Params) != len(expr.Args) {
+			if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
+				(ft.VarArg && len(ft.Params) > len(expr.Args)) {
 				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
 			}
 
 			args := make([]Expr, len(expr.Args))
 			var errs []utils.Error
-			for i, pt := range ft.Params {
+			for i, a := range expr.Args {
+				var arg Expr
 				var err utils.Error
-				args[i], err = expectExpr(ctx, pt, expr.Args[i])
+				if i < len(ft.Params) {
+					arg, err = expectExpr(ctx, ft.Params[i], a)
+				} else {
+					arg, err = analyseExpr(ctx, nil, a)
+				}
 				if err != nil {
 					errs = append(errs, err)
+				} else {
+					args[i] = arg
 				}
 			}
 			if len(errs) == 1 {
@@ -1032,18 +1042,27 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				Args:   args,
 			}, nil
 		} else if im, ok := f.(*GetInterfaceField); ok {
+			// 接口成员方法调用
 			ft := im.GetMethodType()
-			if len(ft.Params) != len(expr.Args) {
+			if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
+				(ft.VarArg && len(ft.Params) > len(expr.Args)) {
 				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
 			}
 
 			args := make([]Expr, len(expr.Args))
 			var errs []utils.Error
-			for i, pt := range ft.Params {
+			for i, a := range expr.Args {
+				var arg Expr
 				var err utils.Error
-				args[i], err = expectExpr(ctx, pt, expr.Args[i])
+				if i < len(ft.Params) {
+					arg, err = expectExpr(ctx, ft.Params[i], a)
+				} else {
+					arg, err = analyseExpr(ctx, nil, a)
+				}
 				if err != nil {
 					errs = append(errs, err)
+				} else {
+					args[i] = arg
 				}
 			}
 			if len(errs) == 1 {
@@ -1057,20 +1076,29 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				Args:  args,
 			}, nil
 		} else {
+			// 函数调用
 			ft, ok := GetBaseType(f.GetType()).(*TypeFunc)
 			if !ok {
 				return nil, utils.Errorf(expr.Func.Position(), "expect a function")
-			} else if len(ft.Params) != len(expr.Args) {
+			} else if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
+				(ft.VarArg && len(ft.Params) > len(expr.Args)) {
 				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
 			}
 
 			args := make([]Expr, len(expr.Args))
 			var errs []utils.Error
-			for i, pt := range ft.Params {
+			for i, a := range expr.Args {
+				var arg Expr
 				var err utils.Error
-				args[i], err = expectExpr(ctx, pt, expr.Args[i])
+				if i < len(ft.Params) {
+					arg, err = expectExpr(ctx, ft.Params[i], a)
+				} else {
+					arg, err = analyseExpr(ctx, nil, a)
+				}
 				if err != nil {
 					errs = append(errs, err)
+				} else {
+					args[i] = arg
 				}
 			}
 			if len(errs) == 1 {

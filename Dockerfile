@@ -4,9 +4,9 @@ RUN echo "Server = https://mirrors.ustc.edu.cn/archlinux/\$repo/os/\$arch" > /et
 RUN echo "Server = https://mirrors.tuna.tsinghua.edu.cn/archlinux/\$repo/os/\$arch" >> /etc/pacman.d/mirrorlist
 RUN pacman-key --init
 RUN pacman --noconfirm -Sy archlinux-keyring
-RUN pacman --noconfirm -Syu make git gcc go llvm
+RUN pacman --noconfirm -Syu make git gcc go llvm14
 
 WORKDIR /sim
 COPY . .
-RUN go mod download
+RUN export GOPROXY="https://goproxy.cn,direct" && go mod download
 RUN make build

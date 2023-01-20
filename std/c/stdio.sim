@@ -69,32 +69,32 @@ pub func tmpfile()*FILE
 @extern(tmpnam)
 pub func tmpnam(str: *char)*char
 
-//@extern(fprintf)
-//pub func fprintf(stream: *FILE, format: *char, ...)int
+@extern(fprintf)
+pub func fprintf(stream: *FILE, format: *char, ..)int
 
-//@extern(printf)
-//pub func printf(format: *char, ...)int
+@extern(printf)
+pub func printf(format: *char, ..)int
 
-//@extern(sprintf)
-//pub func sprintf(str: *char, format: *char, ...)int
+@extern(sprintf)
+pub func sprintf(str: *char, format: *char, ..)int
 
-//@extern(vfprintf)
-//pub func vfprintf(stream: *FILE, format: *char, ...)int
+@extern(vfprintf)
+pub func vfprintf(stream: *FILE, format: *char, ..)int
 
-//@extern(vprintf)
-//pub func vprintf(format: char, ...)int
+@extern(vprintf)
+pub func vprintf(format: char, ..)int
 
-//@extern(vsprintf)
-//pub func vsprintf(str: *char, format: *char, ...)int
+@extern(vsprintf)
+pub func vsprintf(str: *char, format: *char, ..)int
 
-//@extern(fscanf)
-//pub func fscanf(stream: *FILE, format: *char, ...)int
+@extern(fscanf)
+pub func fscanf(stream: *FILE, format: *char, ..)int
 
-//@extern(scanf)
-//pub func scanf(format: *char, ...)int
+@extern(scanf)
+pub func scanf(format: *char, ..)int
 
-//@extern(sscanf)
-//pub func sscanf(str: *char, format: *char, ...)int
+@extern(sscanf)
+pub func sscanf(str: *char, format: *char, ..)int
 
 @extern(fgetc)
 pub func fgetc(stream: *FILE)int
@@ -132,5 +132,5 @@ pub func ungetc(char: int, stream: *FILE)int
 @extern(perror)
 pub func perror(str: *char)
 
-//@extern(snprintf)
-//pub func snprintf(str: *char, size: size_t, format: *char, ...)int
+@extern(snprintf)
+pub func snprintf(str: *char, size: size_t, format: *char, ..)int

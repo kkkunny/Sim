@@ -67,9 +67,10 @@ type ExternFunction struct {
 	Ret    Type
 	Name   lex.Token
 	Params []*NameOrNilAndType
+	VarArg bool
 }
 
-func NewExternFunction(pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*NameOrNilAndType) *ExternFunction {
+func NewExternFunction(pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*NameOrNilAndType, varArg bool) *ExternFunction {
 	return &ExternFunction{
 		Pos:    pos,
 		Attrs:  attrs,
@@ -77,6 +78,7 @@ func NewExternFunction(pos utils.Position, attrs []Attr, pub bool, ret Type, nam
 		Ret:    ret,
 		Name:   name,
 		Params: params,
+		VarArg: varArg,
 	}
 }
 
@@ -94,10 +96,11 @@ type Function struct {
 	Ret    Type
 	Name   lex.Token
 	Params []*NameOrNilAndType
+	VarArg bool
 	Body   *Block // 可能为空
 }
 
-func NewFunction(pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*NameOrNilAndType, body *Block) *Function {
+func NewFunction(pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*NameOrNilAndType, varArg bool, body *Block) *Function {
 	return &Function{
 		Pos:    pos,
 		Attrs:  attrs,
@@ -105,6 +108,7 @@ func NewFunction(pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.
 		Ret:    ret,
 		Name:   name,
 		Params: params,
+		VarArg: varArg,
 		Body:   body,
 	}
 }
@@ -124,10 +128,11 @@ type Method struct {
 	Ret    Type
 	Name   lex.Token
 	Params []*NameOrNilAndType
+	VarArg bool
 	Body   *Block
 }
 
-func NewMethod(pos utils.Position, attrs []Attr, pub bool, self lex.Token, ret Type, name lex.Token, params []*NameOrNilAndType, body *Block) *Method {
+func NewMethod(pos utils.Position, attrs []Attr, pub bool, self lex.Token, ret Type, name lex.Token, params []*NameOrNilAndType, varArg bool, body *Block) *Method {
 	return &Method{
 		Pos:    pos,
 		Attrs:  attrs,
@@ -136,6 +141,7 @@ func NewMethod(pos utils.Position, attrs []Attr, pub bool, self lex.Token, ret T
 		Ret:    ret,
 		Name:   name,
 		Params: params,
+		VarArg: varArg,
 		Body:   body,
 	}
 }
@@ -302,7 +308,7 @@ func (self *Parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 
 	name := self.expectNextIs(lex.IDENT)
 	self.expectNextIs(lex.LPA)
-	params := self.parseNameOrNilAndTypeList(lex.COM, false)
+	params, varArg := self.parseParamList()
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block
@@ -320,7 +326,7 @@ func (self *Parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 				return nil
 			}
 		}
-		return NewExternFunction(pos, attrs, pub != nil, ret, name, params)
+		return NewExternFunction(pos, attrs, pub != nil, ret, name, params, varArg)
 	} else {
 		for _, attr := range attrs {
 			switch attr.(type) {
@@ -330,7 +336,7 @@ func (self *Parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 				return nil
 			}
 		}
-		return NewFunction(pos, attrs, pub != nil, ret, name, params, body)
+		return NewFunction(pos, attrs, pub != nil, ret, name, params, varArg, body)
 	}
 }
 
@@ -351,14 +357,14 @@ func (self *Parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 
 	name := self.expectNextIs(lex.IDENT)
 	self.expectNextIs(lex.LPA)
-	params := self.parseNameOrNilAndTypeList(lex.COM, false)
+	params, varArg := self.parseParamList()
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block
 	if self.nextIs(lex.LBR) {
 		body = self.parseBlock()
 	}
-	return NewMethod(utils.MixPosition(begin, self.curTok.Pos), attrs, pub, selfTok, ret, name, params, body)
+	return NewMethod(utils.MixPosition(begin, self.curTok.Pos), attrs, pub, selfTok, ret, name, params, varArg, body)
 }
 
 // 全局变量

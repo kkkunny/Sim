@@ -22,9 +22,6 @@ type fd_set struct{
 	fds_bits: [16]c::long
 }
 
-@extern(printf)
-func printf(format: *c::char, c::int, c::int)c::int
-
 @extern(usleep)
 func usleep(useconds: c::unsigned_int)c::int
 
@@ -41,7 +38,7 @@ let SIZE: (i32, i32) = (60, 30)
 
 @extern(main)
 func main()u8{
-	printf("\e[?25l", 0, 0)
+	c::printf("\e[?25l", 0, 0)
 
 	let oldt: termios
 	let newt: termios
@@ -54,35 +51,35 @@ func main()u8{
 	let y: [1000]i32
 	let quit: bool
 	for !quit{
-		printf("┌", 0, 0)
+		c::printf("┌", 0, 0)
 		let i: i32 = 0
 		for i < SIZE[0]{
-			printf("─", 0, 0)
+			c::printf("─", 0, 0)
 			i += 1
 		}
-		printf("┐\n", 0, 0)
+		c::printf("┐\n", 0, 0)
 
 		i = 0
 		for i < SIZE[1]{
-			printf("│", 0, 0)
+			c::printf("│", 0, 0)
 			let j: i32 = 0
 			for j < SIZE[0]{
-				printf("·", 0, 0)
+				c::printf("·", 0, 0)
 				j += 1
 			}
-			printf("│\n", 0, 0)
+			c::printf("│\n", 0, 0)
 			i += 1
 		}
 
-		printf("└", 0, 0)
+		c::printf("└", 0, 0)
 		i = 0
 		for i < SIZE[0]{
-			printf("─", 0, 0)
+			c::printf("─", 0, 0)
 			i += 1
 		}
-		printf("┘\n", 0, 0)
+		c::printf("┘\n", 0, 0)
 
-		printf("\e[%iA", SIZE[1] as c::int + 2, 0)
+		c::printf("\e[%iA", SIZE[1] as c::int + 2, 0)
 
 		let head: i32
 		let tail: i32
@@ -108,17 +105,17 @@ func main()u8{
 				}
 
 				if applex >= 0{
-					printf("\e[%iB\e[%iC❤", appley as c::int + 1, applex as c::int + 1)
-					printf("\e[%iF", appley as c::int + 1, 0)
+					c::printf("\e[%iB\e[%iC❤", appley as c::int + 1, applex as c::int + 1)
+					c::printf("\e[%iF", appley as c::int + 1, 0)
 				}
 			}
 
-			printf("\e[%iB\e[%iC·", y[tail] as c::int + 1, x[tail] as c::int + 1)
-			printf("\e[%iF", y[tail] as c::int + 1, 0)
+			c::printf("\e[%iB\e[%iC·", y[tail] as c::int + 1, x[tail] as c::int + 1)
+			c::printf("\e[%iF", y[tail] as c::int + 1, 0)
 
 			if x[head] == applex && y[head] == appley{
 				applex = -1
-				printf("\a", 0, 0)
+				c::printf("\a", 0, 0)
 			}else{
 				tail = (tail + 1) % 1000
 			}
@@ -136,8 +133,8 @@ func main()u8{
 				i = (i + 1) % 1000
 			}
 
-			printf("\e[%iB\e[%iC▓", y[head] as c::int + 1, x[head] as c::int + 1)
-			printf("\e[%iF", y[head] as c::int + 1, 0)
+			c::printf("\e[%iB\e[%iC▓", y[head] as c::int + 1, x[head] as c::int + 1)
+			c::printf("\e[%iF", y[head] as c::int + 1, 0)
 			c::fflush(c::stdout)
 
 			usleep(5 as c::unsigned_int * 1000000 / 60)
@@ -170,14 +167,14 @@ func main()u8{
 		}
 
 		if !quit{
-			printf("\e[%iB\e[%iC Game Over! ", SIZE[1] as c::int / 2, SIZE[0] as c::int / 2 - 5)
-			printf("\e[%iF", SIZE[1] as c::int / 2, 0)
+			c::printf("\e[%iB\e[%iC Game Over! ", SIZE[1] as c::int / 2, SIZE[0] as c::int / 2 - 5)
+			c::printf("\e[%iF", SIZE[1] as c::int / 2, 0)
 			c::fflush(c::stdout)
 			c::getchar()
 		}
 	}
 
-	printf("\e[?25h", 0, 0)
+	c::printf("\e[?25h", 0, 0)
 	tcsetattr(0, 0, &oldt)
 	return 0
 }

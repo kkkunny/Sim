@@ -3,6 +3,8 @@ github.com/inconshreveable/mousetrap v1.0.1 h1:U3uMjPSQEBMNp1lFxmllqCPM6P5u/Xq7P
 github.com/inconshreveable/mousetrap v1.0.1/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/kkkunny/go-llvm v0.0.0-20221229055450-29837b9418ac h1:nqNi86daIfzFp/s+melUVgwap6OmbuvkKPsVDsEoAh4=
 github.com/kkkunny/go-llvm v0.0.0-20221229055450-29837b9418ac/go.mod h1:jB5pXrp+OuU925YsDy0bRhSNIhC/+hjkD9Silgu8iTc=
+github.com/kkkunny/go-llvm v0.0.0-20230120153922-bf94446e177e h1:Qg4CoMRpgEk4DYAsXx9gjauUSKGJFPv6ZXW7fLQvWHE=
+github.com/kkkunny/go-llvm v0.0.0-20230120153922-bf94446e177e/go.mod h1:I3sQ0HJznc6X7O2rJbBdDjA9nczhnG7l55vfYtd+uAg=
 github.com/kkkunny/stl v0.0.0-20221015140421-2a6594a9d191 h1:uJMc7G0lxLav8LJHd/F4rpXNWSs9pSORCQDaCSq9sYQ=
 github.com/kkkunny/stl v0.0.0-20221015140421-2a6594a9d191/go.mod h1:WeWSheCo/CshxBASAhjwvxl7i+cx0ZBGG5JrWE24XHI=
 github.com/kkkunny/stl v0.0.0-20230108132724-b828446f586c h1:zqAAl4jHmTE/hzWwAw0tl9MuRxFvmVuODYJVAXfkDvA=
