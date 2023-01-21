@@ -5,7 +5,6 @@ EXAMPLE_DIR = $(WORK_PATH)/examples
 TEST_DIR = $(WORK_PATH)/tests
 TEST_FILE = $(EXAMPLE_DIR)/hello_world.$(EXT_NAME)
 BIN_PATH = $(GOPATH)/bin/$(BIN_FILE)
-LLVM_VERSION = llvm14
 
 .PHONY: lex
 lex: lex.go $(TEST_FILE)
@@ -27,13 +26,13 @@ analyse: analyse.go $(TEST_FILE)
 
 .PHONY: codegen
 codegen: codegen.go $(TEST_FILE)
-	@go build -tags test,codegen,llvm14 -o .test .
+	@go build -tags test,codegen -o .test .
 	-@./.test $(TEST_FILE) || true
 	@rm .test
 
 .PHONY: build
 build: clean main.go
-	go build -tags $(LLVM_VERSION) -o $(BIN_FILE) main.go
+	go build -o $(BIN_FILE) .
 	ln -s $(WORK_PATH)/$(BIN_FILE) $(BIN_PATH)
 
 .PHONY: clean
