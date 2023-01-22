@@ -6,7 +6,7 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/analyse"
 	"github.com/kkkunny/Sim/src/compiler/codegen"
 	"github.com/kkkunny/Sim/src/compiler/parse"
-	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/llvm"
 	stlos "github.com/kkkunny/stl/os"
 	stlutil "github.com/kkkunny/stl/util"
 	"io"

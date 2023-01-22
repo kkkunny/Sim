@@ -3,7 +3,7 @@ package codegen
 import (
 	"fmt"
 	"github.com/kkkunny/Sim/src/compiler/analyse"
-	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/llvm"
 	stlutil "github.com/kkkunny/stl/util"
 	"unsafe"
 )
@@ -113,7 +113,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 	case *analyse.Variable:
 		v := self.vars[expr]
 		if getValue {
-			v = self.builder.CreateLoad(v.Type().ElementType(), v, "")
+			v = self.builder.CreateLoad(v, "")
 		}
 		return v
 	case *analyse.Function:
@@ -126,7 +126,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 		for i, a := range expr.Args {
 			args[i] = self.codegenExpr(a, true)
 		}
-		call := self.builder.CreateCall(f.Type().ReturnType(), f, args, "")
+		call := self.builder.CreateCall(f, args, "")
 		return call
 	case *analyse.MethodCall:
 		f := self.codegenExpr(expr.Method.Func, true)
@@ -143,7 +143,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 		for i, a := range expr.Args {
 			args[i+1] = self.codegenExpr(a, true)
 		}
-		call := self.builder.CreateCall(f.Type().ReturnType(), f, args, "")
+		call := self.builder.CreateCall(f, args, "")
 		if expr.Method.Func.NoReturn {
 			self.builder.CreateUnreachable()
 		}
@@ -151,7 +151,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 	case *analyse.Param:
 		v := self.vars[expr]
 		if getValue {
-			v = self.builder.CreateLoad(v.Type().ElementType(), v, "")
+			v = self.builder.CreateLoad(v, "")
 		}
 		return v
 	case *analyse.Assign:
@@ -226,7 +226,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 		case "*":
 			value := self.codegenExpr(expr.Value, true)
 			if getValue {
-				value = self.builder.CreateLoad(value.Type().ElementType(), value, "")
+				value = self.builder.CreateLoad(value, "")
 			}
 			return value
 		default:
@@ -282,7 +282,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 				index := self.createArrayIndex(tmp, llvm.ConstInt(t_size, uint64(i), false), false)
 				self.builder.CreateStore(e, index)
 			}
-			return self.builder.CreateLoad(tmp.Type().ElementType(), tmp, "")
+			return self.builder.CreateLoad(tmp, "")
 		}
 	case *analyse.Tuple:
 		isConst := true
@@ -301,7 +301,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 				index := self.createStructIndex(tmp, uint(i), false)
 				self.builder.CreateStore(e, index)
 			}
-			return self.builder.CreateLoad(tmp.Type().ElementType(), tmp, "")
+			return self.builder.CreateLoad(tmp, "")
 		}
 	case *analyse.Struct:
 		isConst := true
@@ -320,7 +320,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 				index := self.createStructIndex(tmp, uint(i), false)
 				self.builder.CreateStore(e, index)
 			}
-			return self.builder.CreateLoad(tmp.Type().ElementType(), tmp, "")
+			return self.builder.CreateLoad(tmp, "")
 		}
 	case *analyse.GetField:
 		f := self.codegenExpr(expr.From, false)
@@ -377,14 +377,14 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 				self.builder.CreateStore(ptr, index)
 			}
 
-			return self.builder.CreateLoad(alloca.Type().ElementType(), alloca, "")
+			return self.builder.CreateLoad(alloca, "")
 		default:
 			panic("")
 		}
 	case *analyse.GlobalVariable:
 		v := self.vars[expr]
 		if getValue {
-			v = self.builder.CreateLoad(v.Type().ElementType(), v, "")
+			v = self.builder.CreateLoad(v, "")
 		}
 		return v
 	case *analyse.Alloc:
@@ -410,7 +410,7 @@ func (self *CodeGenerator) codegenExpr(mean analyse.Expr, getValue bool) llvm.Va
 			args[i+1] = self.codegenExpr(a, true)
 		}
 
-		return self.builder.CreateCall(f.Type().ReturnType(), f, args, "")
+		return self.builder.CreateCall(f, args, "")
 	default:
 		panic("")
 	}
@@ -462,7 +462,7 @@ func (self *CodeGenerator) codegenConstantExpr(mean analyse.Expr) llvm.Value {
 			v.SetInitializer(llvm.ConstPointerCast(vv, v.Type().ElementType()))
 			self.cstringPool[expr.Value] = v
 		}
-		return self.builder.CreateLoad(v.Type().ElementType(), v, "")
+		return self.builder.CreateLoad(v, "")
 	default:
 		panic("")
 	}
@@ -485,7 +485,7 @@ func (self *CodeGenerator) equal(left, right llvm.Value) llvm.Value {
 		self.builder.CreateBr(cb)
 
 		self.builder.SetInsertPointAtEnd(cb)
-		iv := self.builder.CreateLoad(i.Type().ElementType(), i, "")
+		iv := self.builder.CreateLoad(i, "")
 		lb, eb := llvm.AddBasicBlock(self.function, ""), llvm.AddBasicBlock(self.function, "")
 		lt := self.builder.CreateICmp(llvm.IntULT, iv, llvm.ConstInt(iv.Type(), uint64(left.Type().ArrayLength()), false), "")
 		self.builder.CreateCondBr(lt, lb, eb)

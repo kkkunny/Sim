@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/Sim/src/compiler/utils"
-	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/llvm"
 )
 
 var (
@@ -23,9 +23,9 @@ func (self CodeGenerator) init() {
 
 func (self *CodeGenerator) createArrayIndex(v llvm.Value, i llvm.Value, getValue bool) llvm.Value {
 	if v.Type().TypeKind() == llvm.PointerTypeKind {
-		value := self.builder.CreateInBoundsGEP(v.Type().ElementType(), v, []llvm.Value{llvm.ConstInt(t_size, 0, false), i}, "")
+		value := self.builder.CreateInBoundsGEP(v, []llvm.Value{llvm.ConstInt(t_size, 0, false), i}, "")
 		if getValue {
-			value = self.builder.CreateLoad(value.Type().ElementType(), value, "")
+			value = self.builder.CreateLoad(value, "")
 		}
 		return value
 	} else {
@@ -34,18 +34,18 @@ func (self *CodeGenerator) createArrayIndex(v llvm.Value, i llvm.Value, getValue
 }
 
 func (self *CodeGenerator) createPointerIndex(v llvm.Value, i llvm.Value, getValue bool) llvm.Value {
-	value := self.builder.CreateInBoundsGEP(v.Type().ElementType(), v, []llvm.Value{i}, "")
+	value := self.builder.CreateInBoundsGEP(v, []llvm.Value{i}, "")
 	if getValue {
-		value = self.builder.CreateLoad(value.Type().ElementType(), value, "")
+		value = self.builder.CreateLoad(value, "")
 	}
 	return value
 }
 
 func (self *CodeGenerator) createStructIndex(v llvm.Value, i uint, getValue bool) llvm.Value {
 	if v.Type().TypeKind() == llvm.PointerTypeKind {
-		value := self.builder.CreateStructGEP(v.Type().ElementType(), v, int(i), "")
+		value := self.builder.CreateStructGEP(v, int(i), "")
 		if getValue {
-			value = self.builder.CreateLoad(value.Type().ElementType(), value, "")
+			value = self.builder.CreateLoad(value, "")
 		}
 		return value
 	} else {

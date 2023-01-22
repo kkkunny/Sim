@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/Sim/src/compiler/analyse"
-	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/llvm"
 	"github.com/kkkunny/stl/types"
 	stlutil "github.com/kkkunny/stl/util"
 )
