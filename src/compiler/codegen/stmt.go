@@ -135,7 +135,17 @@ func (self *CodeGenerator) codegenSwitch(mean analyse.Switch) {
 		self.codegenBlock(*mean.Default)
 	} else {
 		ft := analyse.GetBaseType(mean.From.GetType())
-		if !analyse.IsArrayType(ft) && !analyse.IsTupleType(ft) && !analyse.IsStructType(ft) {
+		isConst := !analyse.IsArrayType(ft) && !analyse.IsTupleType(ft) && !analyse.IsStructType(ft)
+		if isConst {
+			for _, c := range mean.Cases {
+				if !c.First.IsConst() {
+					isConst = false
+					break
+				}
+			}
+		}
+
+		if isConst {
 			from := self.codegenExpr(mean.From, true)
 
 			cases := make([]types.Pair[llvm.Value, llvm.BasicBlock], len(mean.Cases))
