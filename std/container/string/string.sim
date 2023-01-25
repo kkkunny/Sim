@@ -1,3 +1,5 @@
+import std.c
+
 // 字符串
 pub type String struct {
     pub data: *i8
@@ -5,9 +7,6 @@ pub type String struct {
 }
 
 pub func new(s: *i8) String {
-    let len: usize
-    for s[len] != 0 {
-        len += 1
-    }
+    let len = c::strlen(s as *c::char) as usize
     return {s, len}
 }

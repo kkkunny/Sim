@@ -5,17 +5,17 @@ func main()u8{
     let i = "你好世界！"
     let j: [2]i32
     if len(j) != 2{
-        c::__assert_fail("len(j) != 2", "buildin_function.k", 8, "main")
+        return 1
     }
 
     if typename(i) != "*i8"{
-        c::__assert_fail("typename(i) != \"*i8\"", "buildin_function.k", 12, "main")
+        return 1
     }
 
     let a = alloc(8) as *isize
     *a = 10
     if *a != 10{
-        c::__assert_fail("*a != 10", "buildin_function.k", 18, "main")
+        return 1
     }
 
     return 0

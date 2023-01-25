@@ -3,6 +3,8 @@ github.com/inconshreveable/mousetrap v1.0.1 h1:U3uMjPSQEBMNp1lFxmllqCPM6P5u/Xq7P
 github.com/inconshreveable/mousetrap v1.0.1/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/kkkunny/llvm v0.0.0-20230122132048-fbbd29cf16d2 h1:JbPb+p0vuHsMljAQQHnzu6D2zpZANO78f0kbLZgn7HM=
 github.com/kkkunny/llvm v0.0.0-20230122132048-fbbd29cf16d2/go.mod h1:qRICKjV7NdxbcOkY1MvsrWlsy6AlU6mZ820FC3+Pgv0=
+github.com/kkkunny/llvm v0.0.0-20230125025608-305104cfa513 h1:0X8zMx359ckRJGiceymzsyeHh6PZ1Pt2xo4ptVJWJqU=
+github.com/kkkunny/llvm v0.0.0-20230125025608-305104cfa513/go.mod h1:qRICKjV7NdxbcOkY1MvsrWlsy6AlU6mZ820FC3+Pgv0=
 github.com/kkkunny/stl v0.0.0-20230108132724-b828446f586c h1:zqAAl4jHmTE/hzWwAw0tl9MuRxFvmVuODYJVAXfkDvA=
 github.com/kkkunny/stl v0.0.0-20230108132724-b828446f586c/go.mod h1:WeWSheCo/CshxBASAhjwvxl7i+cx0ZBGG5JrWE24XHI=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=

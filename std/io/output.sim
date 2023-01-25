@@ -2,14 +2,9 @@ import std.c
 import std.container.string
 
 pub func print(s: string::String){
-    let index: usize
-    for index < s.len{
-        c::putchar(s.data[index] as c::int)
-        index += 1
-    }
+    c::printf("%s", s.data)
 }
 
 pub func println(s: string::String){
-    print(s)
-    c::putchar('\n')
+    c::printf("%s\n", s.data)
 }
