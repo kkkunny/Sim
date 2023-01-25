@@ -18,6 +18,7 @@ type Function struct {
 	ExternName string // 外部名
 	NoReturn   bool   // 函数是否不返回
 	Inline     *bool  // 函数是否强制内联或者强制不内联
+	Init, Fini bool   // 是否是init or fini函数
 
 	Ret    Type
 	Params []*Param
@@ -142,6 +143,10 @@ func analyseExternFunction(ctx *packageContext, ast *parse.ExternFunction) (*Fun
 			}
 		case *parse.AttrNoReturn:
 			f.NoReturn = true
+		case *parse.AttrInit:
+			f.Init = true
+		case *parse.AttrFini:
+			f.Fini = true
 		default:
 			panic("unknown attr")
 		}
@@ -202,6 +207,10 @@ func analyseFunctionDecl(ctx *packageContext, ast *parse.Function) (*Function, u
 				v = false
 			}
 			f.Inline = &v
+		case *parse.AttrInit:
+			f.Init = true
+		case *parse.AttrFini:
+			f.Fini = true
 		default:
 			panic("unknown attr")
 		}

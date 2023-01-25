@@ -22,6 +22,8 @@ type CodeGenerator struct {
 	stringPool map[string]llvm.Value
 	// cstring
 	cstringPool map[string]llvm.Value
+	// init fini
+	inits, finis []llvm.Value
 }
 
 // NewCodeGenerator 新建代码生成器
@@ -53,6 +55,12 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 			}
 			if global.Inline != nil {
 				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(stlutil.Ternary[uint](*global.Inline, 1, 26), 0))
+			}
+			if global.Init {
+				self.inits = append(self.inits, f)
+			}
+			if global.Fini {
+				self.finis = append(self.finis, f)
 			}
 			self.vars[global] = f
 		case *analyse.GlobalVariable:
@@ -87,6 +95,39 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 		default:
 			panic("")
 		}
+	}
+	// init
+	structType := self.ctx.StructType([]llvm.Type{
+		self.ctx.Int32Type(),
+		llvm.PointerType(llvm.FunctionType(self.ctx.VoidType(), nil, false), 0),
+		llvm.PointerType(self.ctx.Int8Type(), 0)},
+		false)
+	if len(self.inits) > 0 {
+		init := llvm.AddGlobal(self.module, llvm.ArrayType(structType, len(self.inits)), "llvm.global_ctors")
+		init.SetLinkage(llvm.AppendingLinkage)
+		values := make([]llvm.Value, len(self.inits))
+		for i, f := range self.inits {
+			values[i] = llvm.ConstStruct([]llvm.Value{
+				llvm.ConstInt(structType.StructElementTypes()[0], 65535, true),
+				f,
+				llvm.ConstNull(structType.StructElementTypes()[2])},
+				false)
+		}
+		init.SetInitializer(llvm.ConstArray(structType, values))
+	}
+	// fini
+	if len(self.finis) > 0 {
+		fini := llvm.AddGlobal(self.module, llvm.ArrayType(structType, len(self.finis)), "llvm.global_dtors")
+		fini.SetLinkage(llvm.AppendingLinkage)
+		values := make([]llvm.Value, len(self.finis))
+		for i, f := range self.finis {
+			values[len(self.inits)-i-1] = llvm.ConstStruct([]llvm.Value{
+				llvm.ConstInt(structType.StructElementTypes()[0], 65535, true),
+				f,
+				llvm.ConstNull(structType.StructElementTypes()[2])},
+				false)
+		}
+		fini.SetInitializer(llvm.ConstArray(structType, values))
 	}
 	return self.module
 }

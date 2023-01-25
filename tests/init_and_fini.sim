@@ -1,0 +1,24 @@
+import std.io
+import std.container.string
+
+@init
+func init(){
+    io::println(string::new("init"))
+}
+
+@extern(main)
+func main()u8{
+    io::println(string::new("main"))
+    return 0
+}
+
+@fini
+func fini(){
+    io::println(string::new("fini"))
+}
+
+@init
+@fini
+func init_and_fini(){
+    io::println(string::new("init && fini"))
+}

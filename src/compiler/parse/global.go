@@ -285,7 +285,7 @@ func (self *Parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 		switch attr.(type) {
 		case *AttrExtern:
 			isExtern = true
-		case *AttrLink, *AttrNoReturn, *AttrInline:
+		case *AttrLink, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
 		default:
 			self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 			return nil
@@ -317,10 +317,19 @@ func (self *Parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 	}
 
 	pos := utils.MixPosition(begin, self.curTok.Pos)
+	if len(params) != 0 || ret != nil {
+		for _, attr := range attrs {
+			switch attr.(type) {
+			case *AttrInit, *AttrFini:
+				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
+				return nil
+			}
+		}
+	}
 	if isExtern && body == nil {
 		for _, attr := range attrs {
 			switch attr.(type) {
-			case *AttrExtern, *AttrLink, *AttrNoReturn:
+			case *AttrExtern, *AttrLink, *AttrNoReturn, *AttrInit, *AttrFini:
 			default:
 				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 				return nil
@@ -330,7 +339,7 @@ func (self *Parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 	} else {
 		for _, attr := range attrs {
 			switch attr.(type) {
-			case *AttrExtern, *AttrNoReturn, *AttrInline:
+			case *AttrExtern, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
 			default:
 				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 				return nil

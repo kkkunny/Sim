@@ -85,6 +85,40 @@ func (self AttrInline) Position() utils.Position {
 
 func (self AttrInline) Attr() {}
 
+// AttrInit @init
+type AttrInit struct {
+	Pos utils.Position
+}
+
+func NewAttrInit(pos utils.Position) *AttrInit {
+	return &AttrInit{
+		Pos: pos,
+	}
+}
+
+func (self AttrInit) Position() utils.Position {
+	return self.Pos
+}
+
+func (self AttrInit) Attr() {}
+
+// AttrFini @fini
+type AttrFini struct {
+	Pos utils.Position
+}
+
+func NewAttrFini(pos utils.Position) *AttrFini {
+	return &AttrFini{
+		Pos: pos,
+	}
+}
+
+func (self AttrFini) Position() utils.Position {
+	return self.Pos
+}
+
+func (self AttrFini) Attr() {}
+
 // ****************************************************************
 
 func (self *Parser) parseAttr() Attr {
@@ -128,6 +162,10 @@ func (self *Parser) parseAttr() Attr {
 		}
 		end := self.expectNextIs(lex.RPA).Pos
 		return NewAttrInline(utils.MixPosition(attrName.Pos, end), v)
+	case "@init":
+		return NewAttrInit(attrName.Pos)
+	case "@fini":
+		return NewAttrFini(attrName.Pos)
 	default:
 		self.throwErrorf(attrName.Pos, "unknown attribute")
 		return nil
