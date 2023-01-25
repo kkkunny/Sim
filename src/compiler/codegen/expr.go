@@ -429,7 +429,7 @@ func (self *CodeGenerator) codegenConstantExpr(mean analyse.Expr) llvm.Value {
 	case *analyse.Boolean:
 		return stlutil.Ternary(expr.Value, v_true, v_false)
 	case *analyse.EmptyArray, *analyse.EmptyTuple, *analyse.EmptyStruct:
-		return llvm.ConstNull(self.codegenType(expr.GetType()))
+		return llvm.ConstAggregateZero(self.codegenType(expr.GetType()))
 	case *analyse.Array:
 		elems := make([]llvm.Value, len(expr.Elems))
 		for i, e := range expr.Elems {

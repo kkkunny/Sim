@@ -3,7 +3,6 @@ package codegen
 import (
 	"github.com/kkkunny/Sim/src/compiler/analyse"
 	"github.com/kkkunny/llvm"
-	"github.com/kkkunny/stl/types"
 	stlutil "github.com/kkkunny/stl/util"
 )
 
@@ -134,74 +133,31 @@ func (self *CodeGenerator) codegenSwitch(mean analyse.Switch) {
 	} else if len(mean.Cases) == 0 {
 		self.codegenBlock(*mean.Default)
 	} else {
-		ft := analyse.GetBaseType(mean.From.GetType())
-		isConst := !analyse.IsArrayType(ft) && !analyse.IsTupleType(ft) && !analyse.IsStructType(ft)
-		if isConst {
-			for _, c := range mean.Cases {
-				if !c.First.IsConst() {
-					isConst = false
-					break
-				}
+		from := self.codegenExpr(mean.From, true)
+
+		eb := llvm.AddBasicBlock(self.function, "")
+		db := stlutil.Ternary(mean.Default == nil, eb, llvm.AddBasicBlock(self.function, ""))
+		for i, c := range mean.Cases {
+			cv := self.codegenExpr(c.First, true)
+			cc := self.equal(from, cv)
+			ct := llvm.AddBasicBlock(self.function, "")
+			cf := stlutil.Ternary(i == len(mean.Cases)-1, db, llvm.AddBasicBlock(self.function, ""))
+			self.builder.CreateCondBr(cc, ct, cf)
+
+			self.builder.SetInsertPointAtEnd(ct)
+			if self.codegenBlock(*c.Second) {
+				self.builder.CreateBr(eb)
+			}
+
+			self.builder.SetInsertPointAtEnd(cf)
+		}
+		if mean.Default != nil {
+			self.builder.SetInsertPointAtEnd(db)
+			if self.codegenBlock(*mean.Default) {
+				self.builder.CreateBr(eb)
 			}
 		}
 
-		if isConst {
-			from := self.codegenExpr(mean.From, true)
-
-			cases := make([]types.Pair[llvm.Value, llvm.BasicBlock], len(mean.Cases))
-			for i, c := range mean.Cases {
-				cv := self.codegenExpr(c.First, true)
-				cb := llvm.AddBasicBlock(self.function, "")
-				cases[i] = types.NewPair(cv, cb)
-			}
-			db := llvm.AddBasicBlock(self.function, "")
-			eb := stlutil.Ternary(mean.Default == nil, db, llvm.AddBasicBlock(self.function, ""))
-			sw := self.builder.CreateSwitch(from, db, len(mean.Cases))
-			for _, c := range cases {
-				sw.AddCase(c.First, c.Second)
-			}
-
-			for i, c := range mean.Cases {
-				self.builder.SetInsertPointAtEnd(cases[i].Second)
-				if self.codegenBlock(*c.Second) {
-					self.builder.CreateBr(eb)
-				}
-			}
-			if mean.Default != nil {
-				self.builder.SetInsertPointAtEnd(db)
-				if self.codegenBlock(*mean.Default) {
-					self.builder.CreateBr(eb)
-				}
-			}
-
-			self.builder.SetInsertPointAtEnd(eb)
-		} else {
-			from := self.codegenExpr(mean.From, true)
-
-			eb := llvm.AddBasicBlock(self.function, "")
-			db := stlutil.Ternary(mean.Default == nil, eb, llvm.AddBasicBlock(self.function, ""))
-			for i, c := range mean.Cases {
-				cv := self.codegenExpr(c.First, true)
-				cc := self.equal(from, cv)
-				ct := llvm.AddBasicBlock(self.function, "")
-				cf := stlutil.Ternary(i == len(mean.Cases)-1, db, llvm.AddBasicBlock(self.function, ""))
-				self.builder.CreateCondBr(cc, ct, cf)
-
-				self.builder.SetInsertPointAtEnd(ct)
-				if self.codegenBlock(*c.Second) {
-					self.builder.CreateBr(eb)
-				}
-
-				self.builder.SetInsertPointAtEnd(cf)
-			}
-			if mean.Default != nil {
-				self.builder.SetInsertPointAtEnd(db)
-				if self.codegenBlock(*mean.Default) {
-					self.builder.CreateBr(eb)
-				}
-			}
-
-			self.builder.SetInsertPointAtEnd(eb)
-		}
+		self.builder.SetInsertPointAtEnd(eb)
 	}
 }

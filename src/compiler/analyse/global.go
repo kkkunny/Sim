@@ -23,7 +23,7 @@ type Function struct {
 	Ret    Type
 	Params []*Param
 	VarArg bool
-	Body   *Block
+	Body   *Block // 可能为空
 }
 
 func (self Function) global() {}
@@ -48,10 +48,6 @@ func (self Function) IsTemporary() bool {
 	return true
 }
 
-func (self Function) IsConst() bool {
-	return false
-}
-
 func (self Function) GetMethodType() *TypeFunc {
 	paramTypes := make([]Type, len(self.Params)-1)
 	for i, p := range self.Params[1:] {
@@ -65,7 +61,7 @@ type GlobalVariable struct {
 	ExternName string
 
 	Type  Type
-	Value Expr
+	Value Expr // 可能为空
 }
 
 func (self GlobalVariable) global() {}
@@ -83,10 +79,6 @@ func (self GlobalVariable) GetMut() bool {
 }
 
 func (self GlobalVariable) IsTemporary() bool {
-	return false
-}
-
-func (self GlobalVariable) IsConst() bool {
 	return false
 }
 
@@ -249,52 +241,19 @@ func analyseFunctionDef(ctx *packageContext, f *Function, ast *parse.Function) u
 	return nil
 }
 
-// 全局变量
-func analyseGlobalVariable(ctx *packageContext, ast *parse.GlobalValue) (*GlobalVariable, utils.Error) {
-	if ast.Variable.Type == nil && ast.Variable.Value == nil {
-		return nil, utils.Errorf(ast.Variable.Name.Pos, "expect a type or a value")
-	}
-
-	var typ Type
-	var err utils.Error
-	if ast.Variable.Type != nil {
-		typ, err = analyseType(ctx, ast.Variable.Type)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var value Expr
-	if ast.Variable.Type != nil && ast.Variable.Value != nil {
-		value, err = expectExpr(newBlockContext(newFunctionContext(ctx, None), false), typ, ast.Variable.Value)
-		if err != nil {
-			return nil, err
-		}
-		if !value.IsConst() {
-			return nil, utils.Errorf(ast.Variable.Value.Position(), "expect a constant value")
-		}
-	} else if ast.Variable.Type == nil && ast.Variable.Value != nil {
-		value, err = analyseExpr(newBlockContext(newFunctionContext(ctx, None), false), nil, ast.Variable.Value)
-		if err != nil {
-			return nil, err
-		} else if IsNoneType(value.GetType()) {
-			return nil, utils.Errorf(ast.Variable.Value.Position(), "expect a value")
-		} else if !value.IsConst() {
-			return nil, utils.Errorf(ast.Variable.Value.Position(), "expect a constant value")
-		}
-		typ = value.GetType()
+// 全局变量声明
+func analyseGlobalVariableDecl(ctx *packageContext, ast *parse.GlobalValue) (*GlobalVariable, utils.Error) {
+	typ, err := analyseType(ctx, ast.Type)
+	if err != nil {
+		return nil, err
 	}
 
 	v := &GlobalVariable{
-		Type:  typ,
-		Value: value,
-	}
-	if !ctx.AddValue(ast.Public, ast.Variable.Name.Source, v) {
-		return nil, utils.Errorf(ast.Variable.Name.Pos, "duplicate identifier")
+		Type: typ,
 	}
 
 	// 属性
-	var errors []utils.Error
+	var errs []utils.Error
 	for _, astAttr := range ast.Attrs {
 		switch attr := astAttr.(type) {
 		case *parse.AttrExtern:
@@ -306,7 +265,7 @@ func analyseGlobalVariable(ctx *packageContext, ast *parse.GlobalValue) (*Global
 					linkPath = ctx.path.Join(linkPath)
 				}
 				if !linkPath.IsExist() {
-					errors = append(errors, utils.Errorf(asm.Position(), "can not find path `%s`", linkPath))
+					errs = append(errs, utils.Errorf(asm.Position(), "can not find path `%s`", linkPath))
 				}
 				ctx.f.Links[linkPath] = struct{}{}
 			}
@@ -317,16 +276,27 @@ func analyseGlobalVariable(ctx *packageContext, ast *parse.GlobalValue) (*Global
 			panic("unknown attr")
 		}
 	}
-	if v.ExternName == "" && ast.Variable.Value == nil {
-		errors = append(errors, utils.Errorf(ast.Variable.Name.Pos, "missing value"))
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
 	}
-	if len(errors) == 0 {
-		return v, nil
-	} else if len(errors) == 1 {
-		return nil, errors[0]
-	} else {
-		return nil, utils.NewMultiError(errors...)
+
+	if !ctx.AddValue(ast.Public, ast.Name.Source, v) {
+		return nil, utils.Errorf(ast.Name.Pos, "duplicate identifier")
 	}
+	return v, nil
+}
+
+// 全局变量定义
+func analyseGlobalVariableDef(ctx *packageContext, v *GlobalVariable, ast *parse.GlobalValue) utils.Error {
+	var err utils.Error
+	if ast.Value != nil {
+		v.Value, err = expectExpr(newBlockContext(newFunctionContext(ctx, None), false), v.Type, ast.Value)
+	} else if v.ExternName == "" {
+		v.Value, err = getDefaultExprByType(ast.Type.Position(), v.Type)
+	}
+	return err
 }
 
 // 方法声明

@@ -197,7 +197,7 @@ func analysePackageVariableDecl(ctx *packageContext, asts *list.SingleLinkedList
 		case *parse.Method:
 			g, err = analyseMethodDecl(ctx, global)
 		case *parse.GlobalValue:
-			g, err = analyseGlobalVariable(ctx, global)
+			g, err = analyseGlobalVariableDecl(ctx, global)
 		default:
 			continue
 		}
@@ -295,27 +295,28 @@ func analysePackageInterfaceImpl(ctx *packageContext, asts *list.SingleLinkedLis
 
 // 包 变量定义
 func analysePackageVariableDef(ctx *packageContext, asts *list.SingleLinkedList[parse.Global]) utils.Error {
-	var errors []utils.Error
+	var errs []utils.Error
 	for iter := asts.Iterator(); iter.HasValue(); iter.Next() {
+		var err utils.Error
 		switch global := iter.Value().(type) {
 		case *parse.Function:
-			if global.Body == nil {
-				continue
-			}
-			if err := analyseFunctionDef(ctx, ctx.GetValue(global.Name.Source).Second.(*Function), global); err != nil {
-				errors = append(errors, err)
-			}
+			f := ctx.GetValue(global.Name.Source).Second.(*Function)
+			err = analyseFunctionDef(ctx, f, global)
 		case *parse.Method:
-			if err := analyseMethodDef(ctx, global); err != nil {
-				errors = append(errors, err)
-			}
+			err = analyseMethodDef(ctx, global)
+		case *parse.GlobalValue:
+			v := ctx.GetValue(global.Name.Source).Second.(*GlobalVariable)
+			err = analyseGlobalVariableDef(ctx, v, global)
+		}
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
-	if len(errors) == 0 {
+	if len(errs) == 0 {
 		return nil
-	} else if len(errors) == 1 {
-		return errors[0]
+	} else if len(errs) == 1 {
+		return errs[0]
 	} else {
-		return utils.NewMultiError(errors...)
+		return utils.NewMultiError(errs...)
 	}
 }

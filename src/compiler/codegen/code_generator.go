@@ -22,6 +22,9 @@ type CodeGenerator struct {
 	stringPool map[string]llvm.Value
 	// cstring
 	cstringPool map[string]llvm.Value
+	// global
+	globalDefFunc   llvm.Value
+	globalLastBlock llvm.BasicBlock
 	// init fini
 	inits, finis []llvm.Value
 }
@@ -50,6 +53,9 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 		case *analyse.Function:
 			ft := self.codegenType(global.GetType()).ElementType()
 			f := llvm.AddFunction(self.module, global.ExternName, ft)
+			if global.ExternName == "" {
+				f.SetLinkage(llvm.InternalLinkage)
+			}
 			if global.NoReturn {
 				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(31, 0))
 			}
@@ -65,7 +71,16 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 			self.vars[global] = f
 		case *analyse.GlobalVariable:
 			vt := self.codegenType(global.GetType())
-			self.vars[global] = llvm.AddGlobal(self.module, vt, global.ExternName)
+			v := llvm.AddGlobal(self.module, vt, global.ExternName)
+			if global.ExternName == "" {
+				v.SetLinkage(llvm.InternalLinkage)
+			} else if global.Value == nil {
+				v.SetLinkage(llvm.ExternalLinkage)
+			}
+			if global.Value != nil {
+				v.SetInitializer(llvm.ConstZero(vt))
+			}
+			self.vars[global] = v
 		default:
 			panic("")
 		}
@@ -74,27 +89,46 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 	for _, g := range mean.Globals {
 		switch global := g.(type) {
 		case *analyse.Function:
-			if global.Body != nil {
-				f := self.vars[global]
-				self.function = f
-				entry := llvm.AddBasicBlock(f, "")
-				self.builder.SetInsertPointAtEnd(entry)
-
-				for i, p := range global.Params {
-					param := self.builder.CreateAlloca(self.codegenType(p.GetType()), "")
-					self.builder.CreateStore(f.Param(i), param)
-					self.vars[p] = param
-				}
-
-				self.codegenBlock(*global.Body)
+			if global.Body == nil {
+				continue
 			}
+			f := self.vars[global]
+			self.function = f
+			entry := llvm.AddBasicBlock(f, "")
+			self.builder.SetInsertPointAtEnd(entry)
+
+			for i, p := range global.Params {
+				param := self.builder.CreateAlloca(self.codegenType(p.GetType()), "")
+				self.builder.CreateStore(f.Param(i), param)
+				self.vars[p] = param
+			}
+
+			self.codegenBlock(*global.Body)
 		case *analyse.GlobalVariable:
-			if global.Value != nil {
-				self.vars[global].SetInitializer(self.codegenConstantExpr(global.Value))
+			if global.Value == nil {
+				continue
 			}
+			if self.globalDefFunc.IsNil() {
+				self.globalDefFunc = llvm.AddFunction(self.module, "", llvm.FunctionType(self.ctx.VoidType(), nil, false))
+				self.globalDefFunc.SetLinkage(llvm.InternalLinkage)
+				self.inits = append(self.inits, self.globalDefFunc)
+				self.globalLastBlock = llvm.AddBasicBlock(self.globalDefFunc, "entry")
+			}
+			self.builder.SetInsertPointAtEnd(self.globalLastBlock)
+			value := self.codegenExpr(global.Value, true)
+			if value.IsConstant() {
+				self.vars[global].SetInitializer(value)
+			} else {
+				self.builder.CreateStore(value, self.vars[global])
+			}
+			self.globalLastBlock = self.builder.GetInsertBlock()
 		default:
 			panic("")
 		}
+	}
+	if !self.globalLastBlock.IsNil() {
+		self.builder.SetInsertPointAtEnd(self.globalLastBlock)
+		self.builder.CreateRetVoid()
 	}
 	// init
 	structType := self.ctx.StructType([]llvm.Type{
@@ -110,7 +144,7 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 			values[i] = llvm.ConstStruct([]llvm.Value{
 				llvm.ConstInt(structType.StructElementTypes()[0], 65535, true),
 				f,
-				llvm.ConstNull(structType.StructElementTypes()[2])},
+				llvm.ConstZero(structType.StructElementTypes()[2])},
 				false)
 		}
 		init.SetInitializer(llvm.ConstArray(structType, values))
@@ -121,10 +155,10 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 		fini.SetLinkage(llvm.AppendingLinkage)
 		values := make([]llvm.Value, len(self.finis))
 		for i, f := range self.finis {
-			values[len(self.inits)-i-1] = llvm.ConstStruct([]llvm.Value{
+			values[len(self.finis)-i-1] = llvm.ConstStruct([]llvm.Value{
 				llvm.ConstInt(structType.StructElementTypes()[0], 65535, true),
 				f,
-				llvm.ConstNull(structType.StructElementTypes()[2])},
+				llvm.ConstZero(structType.StructElementTypes()[2])},
 				false)
 		}
 		fini.SetInitializer(llvm.ConstArray(structType, values))

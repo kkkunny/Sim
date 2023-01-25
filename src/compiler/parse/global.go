@@ -97,7 +97,7 @@ type Function struct {
 	Name   lex.Token
 	Params []*NameOrNilAndType
 	VarArg bool
-	Body   *Block // 可能为空
+	Body   *Block
 }
 
 func NewFunction(pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*NameOrNilAndType, varArg bool, body *Block) *Function {
@@ -154,21 +154,27 @@ func (self Method) Global() {}
 
 // GlobalValue 全局变量
 type GlobalValue struct {
-	Attrs    []Attr
-	Public   bool
-	Variable *Variable
+	Pos    utils.Position
+	Attrs  []Attr
+	Public bool
+	Type   Type
+	Name   lex.Token
+	Value  Expr // 可能为空
 }
 
 func NewGlobalValue(pos utils.Position, attrs []Attr, pub bool, t Type, name lex.Token, v Expr) *GlobalValue {
 	return &GlobalValue{
-		Attrs:    attrs,
-		Public:   pub,
-		Variable: NewVariable(pos, t, name, v),
+		Pos:    pos,
+		Attrs:  attrs,
+		Public: pub,
+		Type:   t,
+		Name:   name,
+		Value:  v,
 	}
 }
 
 func (self GlobalValue) Position() utils.Position {
-	return self.Variable.Pos
+	return self.Pos
 }
 
 func (self GlobalValue) Global() {}
@@ -339,7 +345,7 @@ func (self *Parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 	} else {
 		for _, attr := range attrs {
 			switch attr.(type) {
-			case *AttrExtern, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
+			case *AttrExtern, *AttrLink, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
 			default:
 				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 				return nil
@@ -386,14 +392,25 @@ func (self *Parser) parseGlobalValue(pub *lex.Token, attrs []Attr) *GlobalValue 
 			return nil
 		}
 	}
-	v := self.parseVariable()
+
 	var begin utils.Position
+	self.expectNextIs(lex.LET)
 	if len(attrs) > 0 {
 		begin = attrs[0].Position()
 	} else if pub != nil {
 		begin = pub.Pos
 	} else {
-		begin = v.Pos
+		begin = self.curTok.Pos
 	}
-	return NewGlobalValue(utils.MixPosition(begin, v.Position()), attrs, pub != nil, v.Type, v.Name, v.Value)
+
+	name := self.expectNextIs(lex.IDENT)
+
+	self.expectNextIs(lex.COL)
+	t := self.parseType()
+
+	var v Expr
+	if self.skipNextIs(lex.ASS) {
+		v = self.parseExpr()
+	}
+	return NewGlobalValue(utils.MixPosition(begin, self.curTok.Pos), attrs, pub != nil, t, name, v)
 }

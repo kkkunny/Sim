@@ -1,0 +1,14 @@
+import std.io
+import std.container.string
+
+let s: string::String = get_string()
+
+func get_string()string::String{
+    return string::new("Hello World")
+}
+
+@extern(main)
+func main()u8{
+    io::println(s)
+    return 0
+}

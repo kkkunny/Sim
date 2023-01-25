@@ -3,7 +3,7 @@ module github.com/kkkunny/Sim
 go 1.18
 
 require (
-	github.com/kkkunny/llvm v0.0.0-20230125025608-305104cfa513
+	github.com/kkkunny/llvm v0.0.0-20230125093221-c075fa76c7d5
 	github.com/kkkunny/stl v0.0.0-20230108132724-b828446f586c
 	github.com/spf13/cobra v1.6.1
 	golang.org/x/exp v0.0.0-20220414153411-bcd21879b8fd

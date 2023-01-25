@@ -12,7 +12,6 @@ type Expr interface {
 	GetType() Type
 	GetMut() bool
 	IsTemporary() bool
-	IsConst() bool
 }
 
 // Ident 标识符
@@ -41,10 +40,6 @@ func (self Integer) IsTemporary() bool {
 	return true
 }
 
-func (self Integer) IsConst() bool {
-	return true
-}
-
 // Float 浮点数
 type Float struct {
 	Type  Type
@@ -62,10 +57,6 @@ func (self Float) GetMut() bool {
 }
 
 func (self Float) IsTemporary() bool {
-	return true
-}
-
-func (self Float) IsConst() bool {
 	return true
 }
 
@@ -89,10 +80,6 @@ func (self Boolean) IsTemporary() bool {
 	return true
 }
 
-func (self Boolean) IsConst() bool {
-	return true
-}
-
 // String 字符串
 type String struct {
 	Type  Type
@@ -113,10 +100,6 @@ func (self String) IsTemporary() bool {
 	return true
 }
 
-func (self String) IsConst() bool {
-	return true
-}
-
 // Null 空指针
 type Null struct {
 	Type Type
@@ -133,10 +116,6 @@ func (self Null) GetMut() bool {
 }
 
 func (self Null) IsTemporary() bool {
-	return true
-}
-
-func (self Null) IsConst() bool {
 	return true
 }
 
@@ -160,10 +139,6 @@ func (self Binary) IsTemporary() bool {
 	return true
 }
 
-func (self Binary) IsConst() bool {
-	return false
-}
-
 // FuncCall 函数调用
 type FuncCall struct {
 	Func Expr
@@ -184,10 +159,6 @@ func (self FuncCall) IsTemporary() bool {
 	return true
 }
 
-func (self FuncCall) IsConst() bool {
-	return false
-}
-
 // MethodCall 方法调用
 type MethodCall struct {
 	Method *Method
@@ -206,10 +177,6 @@ func (self MethodCall) GetMut() bool {
 
 func (self MethodCall) IsTemporary() bool {
 	return true
-}
-
-func (self MethodCall) IsConst() bool {
-	return false
 }
 
 // Param 参数
@@ -233,10 +200,6 @@ func (self Param) IsTemporary() bool {
 	return false
 }
 
-func (self Param) IsConst() bool {
-	return false
-}
-
 // Array 数组
 type Array struct {
 	Type  Type
@@ -257,15 +220,6 @@ func (self Array) IsTemporary() bool {
 	return true
 }
 
-func (self Array) IsConst() bool {
-	for _, e := range self.Elems {
-		if !e.IsConst() {
-			return false
-		}
-	}
-	return true
-}
-
 // EmptyArray 空数组
 type EmptyArray struct {
 	Type Type
@@ -282,10 +236,6 @@ func (self EmptyArray) GetMut() bool {
 }
 
 func (self EmptyArray) IsTemporary() bool {
-	return true
-}
-
-func (self EmptyArray) IsConst() bool {
 	return true
 }
 
@@ -309,10 +259,6 @@ func (self Assign) IsTemporary() bool {
 	return true
 }
 
-func (self Assign) IsConst() bool {
-	return false
-}
-
 // Equal 赋值
 type Equal struct {
 	Opera       string
@@ -331,10 +277,6 @@ func (self Equal) GetMut() bool {
 
 func (self Equal) IsTemporary() bool {
 	return true
-}
-
-func (self Equal) IsConst() bool {
-	return false
 }
 
 // Unary 一元表达式
@@ -359,10 +301,6 @@ func (self Unary) IsTemporary() bool {
 	return true
 }
 
-func (self Unary) IsConst() bool {
-	return false
-}
-
 // Index 索引
 type Index struct {
 	Type        Type
@@ -383,10 +321,6 @@ func (self Index) IsTemporary() bool {
 	return self.From.IsTemporary()
 }
 
-func (self Index) IsConst() bool {
-	return false
-}
-
 // Select 选择
 type Select struct {
 	Cond, True, False Expr
@@ -404,10 +338,6 @@ func (self Select) GetMut() bool {
 
 func (self Select) IsTemporary() bool {
 	return self.True.IsTemporary() || self.False.IsTemporary()
-}
-
-func (self Select) IsConst() bool {
-	return false
 }
 
 // Tuple 元组
@@ -430,15 +360,6 @@ func (self Tuple) IsTemporary() bool {
 	return true
 }
 
-func (self Tuple) IsConst() bool {
-	for _, e := range self.Elems {
-		if !e.IsConst() {
-			return false
-		}
-	}
-	return true
-}
-
 // EmptyTuple 空元组
 type EmptyTuple struct {
 	Type Type
@@ -455,10 +376,6 @@ func (self EmptyTuple) GetMut() bool {
 }
 
 func (self EmptyTuple) IsTemporary() bool {
-	return true
-}
-
-func (self EmptyTuple) IsConst() bool {
 	return true
 }
 
@@ -482,15 +399,6 @@ func (self Struct) IsTemporary() bool {
 	return true
 }
 
-func (self Struct) IsConst() bool {
-	for _, e := range self.Fields {
-		if !e.IsConst() {
-			return false
-		}
-	}
-	return true
-}
-
 // EmptyStruct 空结构体
 type EmptyStruct struct {
 	Type Type
@@ -507,10 +415,6 @@ func (self EmptyStruct) GetMut() bool {
 }
 
 func (self EmptyStruct) IsTemporary() bool {
-	return true
-}
-
-func (self EmptyStruct) IsConst() bool {
 	return true
 }
 
@@ -534,10 +438,6 @@ func (self GetField) IsTemporary() bool {
 	return self.From.IsTemporary()
 }
 
-func (self GetField) IsConst() bool {
-	return false
-}
-
 // Covert 类型转换
 type Covert struct {
 	From Expr
@@ -556,10 +456,6 @@ func (self Covert) GetMut() bool {
 
 func (self Covert) IsTemporary() bool {
 	return true
-}
-
-func (self Covert) IsConst() bool {
-	return false
 }
 
 // Method 方法
@@ -586,10 +482,6 @@ func (self Method) IsTemporary() bool {
 	return true
 }
 
-func (self Method) IsConst() bool {
-	return false
-}
-
 // Alloc 栈内存分配
 type Alloc struct {
 	Size Expr
@@ -607,10 +499,6 @@ func (self Alloc) GetMut() bool {
 
 func (self Alloc) IsTemporary() bool {
 	return true
-}
-
-func (self Alloc) IsConst() bool {
-	return false
 }
 
 // GetInterfaceField 获取接口成员
@@ -639,10 +527,6 @@ func (self GetInterfaceField) IsTemporary() bool {
 	return true
 }
 
-func (self GetInterfaceField) IsConst() bool {
-	return false
-}
-
 // InterfaceFieldCall 接口成员调用
 type InterfaceFieldCall struct {
 	Field *GetInterfaceField
@@ -661,10 +545,6 @@ func (self InterfaceFieldCall) GetMut() bool {
 
 func (self InterfaceFieldCall) IsTemporary() bool {
 	return true
-}
-
-func (self InterfaceFieldCall) IsConst() bool {
-	return false
 }
 
 // *********************************************************************************************************************
