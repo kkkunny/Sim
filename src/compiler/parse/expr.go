@@ -159,14 +159,16 @@ func (self Null) Expr() {}
 
 // Ident 标识符
 type Ident struct {
-	Pkg  *lex.Token
-	Name lex.Token
+	Pkg       *lex.Token
+	Name      lex.Token
+	Templates []Type
 }
 
-func NewIdent(pkg *lex.Token, name lex.Token) *Ident {
+func NewIdent(pkg *lex.Token, name lex.Token, templates []Type) *Ident {
 	return &Ident{
-		Pkg:  pkg,
-		Name: name,
+		Pkg:       pkg,
+		Name:      name,
+		Templates: templates,
 	}
 }
 
@@ -420,12 +422,22 @@ func (self *Parser) parsePrimaryExpr() Expr {
 		return NewNull(self.curTok)
 	case lex.IDENT:
 		self.next()
-		pkg := self.curTok
+		var pkg *lex.Token
+		name := self.curTok
+		var templates []Type
 		if self.skipNextIs(lex.CLL) {
-			name := self.expectNextIs(lex.IDENT)
-			return NewIdent(&pkg, name)
+			if !self.nextIs(lex.LT) {
+				tmp := name
+				pkg = &tmp
+				name = self.expectNextIs(lex.IDENT)
+				if self.skipNextIs(lex.CLL) {
+					templates = self.parseTemplateParams()
+				}
+			} else {
+				templates = self.parseTemplateParams()
+			}
 		}
-		return NewIdent(nil, pkg)
+		return NewIdent(pkg, name, templates)
 	case lex.LPA:
 		self.next()
 		begin := self.curTok.Pos

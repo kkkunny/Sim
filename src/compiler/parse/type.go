@@ -14,14 +14,16 @@ type Type interface {
 
 // TypeIdent 标识符类型
 type TypeIdent struct {
-	Pkg  *lex.Token
-	Name lex.Token
+	Pkg       *lex.Token
+	Name      lex.Token
+	Templates []Type
 }
 
-func NewTypeIdent(pkg *lex.Token, name lex.Token) *TypeIdent {
+func NewTypeIdent(pkg *lex.Token, name lex.Token, templates []Type) *TypeIdent {
 	return &TypeIdent{
-		Pkg:  pkg,
-		Name: name,
+		Pkg:       pkg,
+		Name:      name,
+		Templates: templates,
 	}
 }
 
@@ -231,12 +233,22 @@ func (self *Parser) parsParamTypeList() (toks []Type, varArg bool) {
 
 // 标识符类型
 func (self *Parser) parseTypeIdent() *TypeIdent {
-	pkg := self.expectNextIs(lex.IDENT)
+	var pkg *lex.Token
+	name := self.expectNextIs(lex.IDENT)
+	var templates []Type
 	if self.skipNextIs(lex.CLL) {
-		name := self.expectNextIs(lex.IDENT)
-		return NewTypeIdent(&pkg, name)
+		if !self.nextIs(lex.LT) {
+			tmp := name
+			pkg = &tmp
+			name = self.expectNextIs(lex.IDENT)
+			if self.skipNextIs(lex.CLL) {
+				templates = self.parseTemplateParams()
+			}
+		} else {
+			templates = self.parseTemplateParams()
+		}
 	}
-	return NewTypeIdent(nil, pkg)
+	return NewTypeIdent(pkg, name, templates)
 }
 
 // 指针类型
@@ -299,4 +311,23 @@ func (self *Parser) parseTypeInterface() *TypeInterface {
 	}
 	end := self.expectNextIs(lex.RBR).Pos
 	return NewTypeInterface(utils.MixPosition(begin, end), fields...)
+}
+
+// 模板参数
+func (self *Parser) parseTemplateParams() (params []Type) {
+	self.expectNextIs(lex.LT)
+	params = self.parseTypeList()
+	if self.skipNextIs(lex.SHR) {
+		token := self.curTok
+		token.Pos.SetBegin(token.Pos.Begin+1, token.Pos.BeginRow, token.Pos.BeginCol+1)
+		token.Kind = lex.GT
+		token.Source = lex.GT.String()
+		self.backToNextToken(token)
+		self.curTok.Pos.SetEnd(token.Pos.End-1, token.Pos.EndRow, token.Pos.EndCol-1)
+		self.curTok.Kind = lex.GT
+		self.curTok.Source = lex.GT.String()
+	} else {
+		self.expectNextIs(lex.GT)
+	}
+	return params
 }
