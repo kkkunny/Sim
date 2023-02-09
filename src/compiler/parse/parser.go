@@ -3,7 +3,6 @@ package parse
 import (
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/utils"
-	"github.com/kkkunny/stl/list"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/kkkunny/stl/queue"
 )
@@ -11,32 +10,6 @@ import (
 // Ast 抽象语法树
 type Ast interface {
 	Position() utils.Position // 获取位置
-}
-
-// Package 文件
-type Package struct {
-	Path  stlos.Path
-	Files []*File
-}
-
-func NewPackage(path stlos.Path, file ...*File) *Package {
-	return &Package{
-		Path:  path,
-		Files: file,
-	}
-}
-
-// File 文件
-type File struct {
-	Path    stlos.Path
-	Globals *list.SingleLinkedList[Global]
-}
-
-func NewFile(path stlos.Path) *File {
-	return &File{
-		Path:    path,
-		Globals: list.NewSingleLinkedList[Global](),
-	}
 }
 
 // NameAndType 名字和类型
@@ -79,17 +52,22 @@ func (self NameOrNilAndType) Position() utils.Position {
 
 // ****************************************************************
 
-// Parser 语法分析器
-type Parser struct {
+// 所有导入的包，包括main包
+var pkgs = make(map[stlos.Path]*Package)
+
+// 语法分析器
+type parser struct {
+	pkg       *Package
 	lexer     *lex.Lexer              // 词法分析器
 	curTok    lex.Token               // 当前token
 	nextTok   lex.Token               // 待分析token
 	tokenPool *queue.Queue[lex.Token] // token缓存池
 }
 
-// NewParser 新建语法分析器
-func NewParser(lexer *lex.Lexer) *Parser {
-	parser := &Parser{
+// 新建语法分析器
+func newParser(pkg *Package, lexer *lex.Lexer) *parser {
+	parser := &parser{
+		pkg:       pkg,
 		lexer:     lexer,
 		tokenPool: queue.NewQueue[lex.Token](),
 	}
@@ -98,7 +76,7 @@ func NewParser(lexer *lex.Lexer) *Parser {
 }
 
 // 从词法分析器或token池中获取一个token
-func (self *Parser) scanToken() lex.Token {
+func (self *parser) scanToken() lex.Token {
 	if !self.tokenPool.Empty() {
 		return self.tokenPool.Pop()
 	} else {
@@ -107,7 +85,7 @@ func (self *Parser) scanToken() lex.Token {
 }
 
 // 读取下一个token
-func (self *Parser) next() {
+func (self *parser) next() {
 	self.curTok = self.nextTok
 	token := self.scanToken()
 	for token.Kind == lex.COMMENT {
@@ -117,12 +95,12 @@ func (self *Parser) next() {
 }
 
 // 下一个token是否是
-func (self *Parser) nextIs(kind lex.TokenKind) bool {
+func (self *parser) nextIs(kind lex.TokenKind) bool {
 	return self.nextTok.Kind == kind
 }
 
 // 如果下一个token是，则跳过
-func (self *Parser) skipNextIs(kind lex.TokenKind) bool {
+func (self *parser) skipNextIs(kind lex.TokenKind) bool {
 	if self.nextIs(kind) {
 		self.next()
 		return true
@@ -131,7 +109,7 @@ func (self *Parser) skipNextIs(kind lex.TokenKind) bool {
 }
 
 // 如果下一个token是，则跳过，若不是，则报错
-func (self *Parser) expectNextIs(kind lex.TokenKind) lex.Token {
+func (self *parser) expectNextIs(kind lex.TokenKind) lex.Token {
 	if !self.skipNextIs(kind) {
 		self.throwErrorf(self.nextTok.Pos, "expect token `%s`", kind)
 	}
@@ -139,31 +117,31 @@ func (self *Parser) expectNextIs(kind lex.TokenKind) lex.Token {
 }
 
 // 跳过分隔符
-func (self *Parser) skipSem() {
+func (self *parser) skipSem() {
 	for self.nextIs(lex.SEM) {
 		self.next()
 	}
 }
 
 // 至少有一个分隔符，跳过多余的分隔符
-func (self *Parser) skipSemAtLeastOne() {
+func (self *parser) skipSemAtLeastOne() {
 	self.expectNextIs(lex.SEM)
 	self.skipSem()
 }
 
 // 退回一个token到token池
-func (self *Parser) backToTokenPool(tok lex.Token) {
+func (self *parser) backToTokenPool(tok lex.Token) {
 	self.tokenPool.Push(tok)
 }
 
 // 退回一个token到nextToken
-func (self *Parser) backToNextToken(tok lex.Token) {
+func (self *parser) backToNextToken(tok lex.Token) {
 	self.backToTokenPool(self.nextTok)
 	self.nextTok = tok
 }
 
-// Parse 语法分析
-func (self *Parser) Parse() (file *File, err utils.Error) {
+// 语法分析
+func (self *parser) parse() (err utils.Error) {
 	defer func() {
 		if ea := recover(); ea != nil {
 			if e, ok := ea.(utils.Error); ok {
@@ -172,30 +150,29 @@ func (self *Parser) Parse() (file *File, err utils.Error) {
 			panic(ea)
 		}
 	}()
-	return self.parseFile(), nil
+	self.parseFile()
+	return nil
 }
 
 // 抛出异常
-func (self *Parser) throwErrorf(pos utils.Position, f string, a ...any) {
+func (self *parser) throwErrorf(pos utils.Position, f string, a ...any) {
 	panic(utils.Errorf(pos, f, a...))
 }
 
 // 文件
-func (self *Parser) parseFile() *File {
-	file := NewFile(self.lexer.GetFilepath())
-
+func (self *parser) parseFile() {
 	for self.skipSem(); !self.nextIs(lex.EOF); self.skipSem() {
-		file.Globals.Add(self.parseGlobal())
+		if global := self.parseGlobal(); global != nil {
+			self.pkg.Globals.Add(global)
+		}
 		if !self.nextIs(lex.EOF) {
 			self.expectNextIs(lex.SEM)
 		}
 	}
-
-	return file
 }
 
 // token列表
-func (self *Parser) parseTokenList(sep lex.TokenKind) (toks []lex.Token) {
+func (self *parser) parseTokenList(sep lex.TokenKind) (toks []lex.Token) {
 	for {
 		if len(toks) == 0 {
 			if !self.skipNextIs(lex.IDENT) {
@@ -213,7 +190,7 @@ func (self *Parser) parseTokenList(sep lex.TokenKind) (toks []lex.Token) {
 }
 
 // token列表（至少一个）
-func (self *Parser) parseTokenListAtLeastOne(sep lex.TokenKind) (toks []lex.Token) {
+func (self *parser) parseTokenListAtLeastOne(sep lex.TokenKind) (toks []lex.Token) {
 	for {
 		toks = append(toks, self.expectNextIs(lex.IDENT))
 		if !self.skipNextIs(sep) {
@@ -224,7 +201,7 @@ func (self *Parser) parseTokenListAtLeastOne(sep lex.TokenKind) (toks []lex.Toke
 }
 
 // 名字和类型
-func (self *Parser) parseNameAndType(ft bool) *NameAndType {
+func (self *parser) parseNameAndType(ft bool) *NameAndType {
 	name := self.expectNextIs(lex.IDENT)
 	self.expectNextIs(lex.COL)
 	var typ Type
@@ -237,7 +214,7 @@ func (self *Parser) parseNameAndType(ft bool) *NameAndType {
 }
 
 // 函数参数列表
-func (self *Parser) parseParamList() (pairs []*NameOrNilAndType, varArg bool) {
+func (self *parser) parseParamList() (pairs []*NameOrNilAndType, varArg bool) {
 	for {
 		if self.skipNextIs(lex.ELL) {
 			varArg = true
@@ -248,7 +225,7 @@ func (self *Parser) parseParamList() (pairs []*NameOrNilAndType, varArg bool) {
 			break
 		}
 		var name *lex.Token
-		if ident, ok := typ.(*TypeIdent); ok && ident.Pkg == nil && self.skipNextIs(lex.COL) {
+		if ident, ok := typ.(*TypeIdent); ok && ident.Pkg.Path == self.pkg.Path && self.skipNextIs(lex.COL) {
 			name = &ident.Name
 			typ = self.parseType()
 		}

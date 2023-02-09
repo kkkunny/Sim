@@ -121,7 +121,7 @@ func (self AttrFini) Attr() {}
 
 // ****************************************************************
 
-func (self *Parser) parseAttr() Attr {
+func (self *parser) parseAttr() Attr {
 	attrName := self.expectNextIs(lex.Attr)
 	switch attrName.Source {
 	case "@extern":

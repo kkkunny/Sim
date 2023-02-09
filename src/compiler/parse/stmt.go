@@ -161,7 +161,7 @@ func (self Switch) Stmt() {}
 // ****************************************************************
 
 // 语句
-func (self *Parser) parseStmt() Stmt {
+func (self *parser) parseStmt() Stmt {
 	switch self.nextTok.Kind {
 	case lex.RETURN:
 		return self.parseReturn()
@@ -184,7 +184,7 @@ func (self *Parser) parseStmt() Stmt {
 }
 
 // 代码块
-func (self *Parser) parseBlock() *Block {
+func (self *parser) parseBlock() *Block {
 	block := NewBlock(utils.Position{})
 	begin := self.expectNextIs(lex.LBR).Pos
 
@@ -199,7 +199,7 @@ func (self *Parser) parseBlock() *Block {
 }
 
 // 变量
-func (self *Parser) parseVariable() *Variable {
+func (self *parser) parseVariable() *Variable {
 	begin := self.expectNextIs(lex.LET).Pos
 	name := self.expectNextIs(lex.IDENT)
 	var t Type
@@ -217,7 +217,7 @@ func (self *Parser) parseVariable() *Variable {
 }
 
 // 函数返回
-func (self *Parser) parseReturn() *Return {
+func (self *parser) parseReturn() *Return {
 	begin := self.expectNextIs(lex.RETURN).Pos
 	var value Expr
 	if !self.nextIs(lex.SEM) {
@@ -227,7 +227,7 @@ func (self *Parser) parseReturn() *Return {
 }
 
 // ifelse
-func (self *Parser) parseIfElse() *IfElse {
+func (self *parser) parseIfElse() *IfElse {
 	begin := self.expectNextIs(lex.IF).Pos
 	cond := self.parseExpr()
 	body := self.parseBlock()
@@ -244,7 +244,7 @@ func (self *Parser) parseIfElse() *IfElse {
 }
 
 // 循环
-func (self *Parser) parseFor() *Loop {
+func (self *parser) parseFor() *Loop {
 	begin := self.expectNextIs(lex.FOR).Pos
 	cond := self.parseExpr()
 	body := self.parseBlock()
@@ -252,7 +252,7 @@ func (self *Parser) parseFor() *Loop {
 }
 
 // 分支
-func (self *Parser) parseSwitch() *Switch {
+func (self *parser) parseSwitch() *Switch {
 	begin := self.expectNextIs(lex.SWITCH).Pos
 	from := self.parseExpr()
 	self.expectNextIs(lex.LBR)

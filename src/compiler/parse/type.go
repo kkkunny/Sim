@@ -14,25 +14,19 @@ type Type interface {
 
 // TypeIdent 标识符类型
 type TypeIdent struct {
-	Pkg       *lex.Token
-	Name      lex.Token
-	Templates []Type
+	Pkg  *Package
+	Name lex.Token
 }
 
-func NewTypeIdent(pkg *lex.Token, name lex.Token, templates []Type) *TypeIdent {
+func NewTypeIdent(pkg *Package, name lex.Token) *TypeIdent {
 	return &TypeIdent{
-		Pkg:       pkg,
-		Name:      name,
-		Templates: templates,
+		Pkg:  pkg,
+		Name: name,
 	}
 }
 
 func (self TypeIdent) Position() utils.Position {
-	if self.Pkg == nil {
-		return self.Name.Pos
-	} else {
-		return utils.MixPosition(self.Pkg.Pos, self.Name.Pos)
-	}
+	return self.Name.Pos
 }
 
 func (self TypeIdent) Type() {}
@@ -160,7 +154,7 @@ func (self TypeInterface) Type() {}
 // ****************************************************************
 
 // 类型或空
-func (self *Parser) parseTypeOrNil() Type {
+func (self *parser) parseTypeOrNil() Type {
 	switch self.nextTok.Kind {
 	case lex.IDENT:
 		return self.parseTypeIdent()
@@ -182,7 +176,7 @@ func (self *Parser) parseTypeOrNil() Type {
 }
 
 // 类型
-func (self *Parser) parseType() Type {
+func (self *parser) parseType() Type {
 	typ := self.parseTypeOrNil()
 	if typ == nil {
 		self.throwErrorf(self.nextTok.Pos, "unknown type")
@@ -191,7 +185,7 @@ func (self *Parser) parseType() Type {
 }
 
 // 类型列表
-func (self *Parser) parseTypeList() (toks []Type) {
+func (self *parser) parseTypeList() (toks []Type) {
 	for {
 		if len(toks) == 0 {
 			typ := self.parseTypeOrNil()
@@ -210,7 +204,7 @@ func (self *Parser) parseTypeList() (toks []Type) {
 }
 
 // 函数参数类型列表
-func (self *Parser) parsParamTypeList() (toks []Type, varArg bool) {
+func (self *parser) parsParamTypeList() (toks []Type, varArg bool) {
 	for {
 		if self.skipNextIs(lex.ELL) {
 			varArg = true
@@ -232,34 +226,40 @@ func (self *Parser) parsParamTypeList() (toks []Type, varArg bool) {
 }
 
 // 标识符类型
-func (self *Parser) parseTypeIdent() *TypeIdent {
-	var pkg *lex.Token
+func (self *parser) parseTypeIdent() *TypeIdent {
+	// 语法解析
+	var pkgPath *lex.Token
 	name := self.expectNextIs(lex.IDENT)
-	var templates []Type
 	if self.skipNextIs(lex.CLL) {
-		if !self.nextIs(lex.LT) {
-			tmp := name
-			pkg = &tmp
-			name = self.expectNextIs(lex.IDENT)
-			if self.skipNextIs(lex.CLL) {
-				templates = self.parseTemplateParams()
-			}
+		tmp := name
+		pkgPath = &tmp
+		name = self.expectNextIs(lex.IDENT)
+	}
+
+	// 包解析
+	var pkg *Package
+	if pkgPath == nil {
+		pkg = self.pkg
+	} else {
+		if dstPkg, ok := self.pkg.importMap[pkgPath.Source]; !ok {
+			self.throwErrorf(pkgPath.Pos, "unknown package name")
 		} else {
-			templates = self.parseTemplateParams()
+			pkg = dstPkg
 		}
 	}
-	return NewTypeIdent(pkg, name, templates)
+
+	return NewTypeIdent(pkg, name)
 }
 
 // 指针类型
-func (self *Parser) parseTypePtr() *TypePtr {
+func (self *parser) parseTypePtr() *TypePtr {
 	begin := self.expectNextIs(lex.MUL).Pos
 	elem := self.parseType()
 	return NewTypePtr(utils.MixPosition(begin, elem.Position()), elem)
 }
 
 // 函数类型
-func (self *Parser) parseTypeFunc() *TypeFunc {
+func (self *parser) parseTypeFunc() *TypeFunc {
 	begin := self.expectNextIs(lex.FUNC).Pos
 	self.expectNextIs(lex.LPA)
 	params, varArg := self.parsParamTypeList()
@@ -269,7 +269,7 @@ func (self *Parser) parseTypeFunc() *TypeFunc {
 }
 
 // 数组类型
-func (self *Parser) parseTypeArray() *TypeArray {
+func (self *parser) parseTypeArray() *TypeArray {
 	begin := self.expectNextIs(lex.LBA).Pos
 	size := self.parseIntExpr()
 	self.expectNextIs(lex.RBA)
@@ -278,7 +278,7 @@ func (self *Parser) parseTypeArray() *TypeArray {
 }
 
 // 元组类型
-func (self *Parser) parseTypeTuple() *TypeTuple {
+func (self *parser) parseTypeTuple() *TypeTuple {
 	begin := self.expectNextIs(lex.LPA).Pos
 	elems := self.parseTypeList()
 	end := self.expectNextIs(lex.RPA).Pos
@@ -286,7 +286,7 @@ func (self *Parser) parseTypeTuple() *TypeTuple {
 }
 
 // 结构体类型
-func (self *Parser) parseTypeStruct() *TypeStruct {
+func (self *parser) parseTypeStruct() *TypeStruct {
 	begin := self.expectNextIs(lex.STRUCT).Pos
 	self.expectNextIs(lex.LBR)
 	var fields []types.Pair[bool, *NameAndType]
@@ -300,7 +300,7 @@ func (self *Parser) parseTypeStruct() *TypeStruct {
 }
 
 // 接口类型
-func (self *Parser) parseTypeInterface() *TypeInterface {
+func (self *parser) parseTypeInterface() *TypeInterface {
 	begin := self.expectNextIs(lex.INTERFACE).Pos
 	self.expectNextIs(lex.LBR)
 	var fields []*NameAndType
@@ -311,23 +311,4 @@ func (self *Parser) parseTypeInterface() *TypeInterface {
 	}
 	end := self.expectNextIs(lex.RBR).Pos
 	return NewTypeInterface(utils.MixPosition(begin, end), fields...)
-}
-
-// 模板参数
-func (self *Parser) parseTemplateParams() (params []Type) {
-	self.expectNextIs(lex.LT)
-	params = self.parseTypeList()
-	if self.skipNextIs(lex.SHR) {
-		token := self.curTok
-		token.Pos.SetBegin(token.Pos.Begin+1, token.Pos.BeginRow, token.Pos.BeginCol+1)
-		token.Kind = lex.GT
-		token.Source = lex.GT.String()
-		self.backToNextToken(token)
-		self.curTok.Pos.SetEnd(token.Pos.End-1, token.Pos.EndRow, token.Pos.EndCol-1)
-		self.curTok.Kind = lex.GT
-		self.curTok.Source = lex.GT.String()
-	} else {
-		self.expectNextIs(lex.GT)
-	}
-	return params
 }

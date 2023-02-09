@@ -881,7 +881,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 	case *parse.Call:
 		f, err := analyseExpr(ctx, nil, expr.Func)
 		if err != nil {
-			if ident, ok := expr.Func.(*parse.Ident); ok && ident.Pkg == nil {
+			if ident, ok := expr.Func.(*parse.Ident); ok && ident.Pkg.Path == ctx.GetPackagePath() {
 				return analyseBuildInFuncCall(ctx, ident, expr.Args)
 			}
 			return nil, err
@@ -1255,23 +1255,19 @@ func analyseExprList(ctx *blockContext, expects []Type, asts []parse.Expr) ([]Ex
 
 // 标识符
 func analyseIdent(ctx *blockContext, ast *parse.Ident) (Expr, utils.Error) {
-	if ast.Pkg == nil {
-		v := ctx.GetValue(ast.Name.Source)
-		if v == nil {
-			return nil, utils.Errorf(ast.Position(), "unknown identifier")
+	if ast.Pkg.Path == ctx.GetPackagePath() {
+		value := ctx.GetValue(ast.Name.Source)
+		if value != nil {
+			return value, nil
 		}
-		return v, nil
 	} else {
-		pkg := ctx.GetPackageContext().externs[ast.Pkg.Source]
-		if pkg == nil {
-			return nil, utils.Errorf(ast.Pkg.Pos, "unknown identifier")
-		}
+		pkg := ctx.GetPackageContext().f.Pkgs[ast.Pkg.Path]
 		value := pkg.GetValue(ast.Name.Source)
-		if !value.First || value.Second == nil {
-			return nil, utils.Errorf(ast.Name.Pos, "unknown identifier")
+		if value.Second != nil && value.First {
+			return value.Second, nil
 		}
-		return value.Second, nil
 	}
+	return nil, utils.Errorf(ast.Name.Pos, "unknown identifier")
 }
 
 // 内置函数调用

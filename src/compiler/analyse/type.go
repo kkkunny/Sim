@@ -2,13 +2,15 @@ package analyse
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/kkkunny/stl/set"
 	"github.com/kkkunny/stl/table"
 	"github.com/kkkunny/stl/types"
-	"strings"
 )
 
 type Type interface {
@@ -478,7 +480,7 @@ func analyseType(ctx *packageContext, ast parse.Type) (Type, utils.Error) {
 	}
 	switch typ := ast.(type) {
 	case *parse.TypeIdent:
-		return analyseTypeIdent(ctx, typ, false)
+		return analyseTypeIdent(ctx, typ.Pkg.Path, typ.Name)
 	case *parse.TypeFunc:
 		ret, err := analyseType(ctx, typ.Ret)
 		if err != nil {
@@ -642,9 +644,9 @@ func checkTypeCircle(tmp *set.LinkedHashSet[*Typedef], t Type) bool {
 }
 
 // 标识符类型
-func analyseTypeIdent(ctx *packageContext, ast *parse.TypeIdent, isImport bool) (Type, utils.Error) {
-	if ast.Pkg == nil {
-		switch ast.Name.Source {
+func analyseTypeIdent(ctx *packageContext, pkgPath stlos.Path, name lex.Token) (Type, utils.Error) {
+	if pkgPath == ctx.path {
+		switch name.Source {
 		case "i8":
 			return I8, nil
 		case "i16":
@@ -671,18 +673,13 @@ func analyseTypeIdent(ctx *packageContext, ast *parse.TypeIdent, isImport bool) 
 			return F64, nil
 		case "bool":
 			return Bool, nil
-		default:
-			// 类型定义
-			if td, ok := ctx.typedefs[ast.Name.Source]; ok && (!isImport || td.First) {
-				return td.Second, nil
-			}
-			return nil, utils.Errorf(ast.Position(), "unknown identifier")
 		}
-	} else {
-		pkg := ctx.externs[ast.Pkg.Source]
-		if pkg == nil {
-			return nil, utils.Errorf(ast.Pkg.Pos, "unknown `%s`", ast.Pkg.Source)
-		}
-		return analyseTypeIdent(pkg, parse.NewTypeIdent(nil, ast.Name), true)
 	}
+
+	// 类型定义
+	pkg := ctx.f.Pkgs[pkgPath]
+	if td, ok := pkg.typedefs[name.Source]; ok && (pkgPath == ctx.path || td.First) {
+		return td.Second, nil
+	}
+	return nil, utils.Errorf(name.Pos, "unknown identifier")
 }

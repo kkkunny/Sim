@@ -4,135 +4,42 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/stl/list"
-	stlos "github.com/kkkunny/stl/os"
 	"github.com/kkkunny/stl/set"
 	"github.com/kkkunny/stl/types"
 )
 
 // *********************************************************************************************************************
 
-// AnalyseMain 作为主包进行语义分析
-func AnalyseMain(ast *parse.Package) (*ProgramContext, error) {
+// Analyse 语义分析
+func Analyse(pkgs []*parse.Package) (*ProgramContext, utils.Error) {
 	ctx := newProgramContext()
-	// 包
-	pkgCtx := newPackageContext(ctx, ast.Path)
-	ctx.importedPackageSet[ast.Path] = pkgCtx
-	if err := analyseNoMain(pkgCtx, ast); err != nil {
-		return nil, err
-	}
-	return ctx, nil
-}
-
-// 作为辅包进行语义分析
-func analyseNoMain(ctx *packageContext, ast *parse.Package) error {
-	// 包导入
-	rootPath, err := utils.GetRootPath()
-	if err != nil {
-		return err
-	}
-	for _, fileAst := range ast.Files {
-		for iter := fileAst.Globals.Iterator(); iter.HasValue(); iter.Next() {
-			// 获取包路径
-			importAst, ok := iter.Value().(*parse.Import)
-			if !ok {
-				continue
-			}
-			var pkgPath stlos.Path
-			for _, p := range importAst.Packages {
-				pkgPath = pkgPath.Join(stlos.Path(p.Source))
-			}
-			pkgPath = rootPath.Join(pkgPath)
-			if !pkgPath.IsExist() {
-				return utils.Errorf(importAst.Position(), "unknown package `%s`", pkgPath)
-			}
-			// 包名
-			var pkgName string
-			var pkgPos utils.Position
-			if importAst.Suffix == nil {
-				pkgName = pkgPath.GetBase().String()
-				pkgPos = importAst.Packages[len(importAst.Packages)-1].Pos
-			} else if importAst.Suffix.IsRight() {
-				pkgName = importAst.Suffix.Right().Source
-				pkgPos = importAst.Suffix.Right().Pos
-			}
-			// 导入包
-			if pkgCtx, ok := ctx.f.importedPackageSet[pkgPath]; !ok {
-				// 从没导入过
-				if importAst.Suffix != nil && importAst.Suffix.IsLeft() {
-					ctx.f.importedPackageSet[pkgPath] = nil
-					pkgCtx = newPackageContext(ctx.f, pkgPath)
-					ctx.includes = append(ctx.includes, pkgCtx)
-				} else {
-					if _, ok := ctx.externs[pkgName]; ok {
-						return utils.Errorf(pkgPos, "duplicate identifier")
-					}
-					ctx.f.importedPackageSet[pkgPath] = nil
-					pkgCtx = newPackageContext(ctx.f, pkgPath)
-					ctx.externs[pkgName] = pkgCtx
-				}
-				// 语法分析
-				pkgAst, err := parse.ParsePackage(pkgPath)
-				if err != nil {
-					return err
-				}
-				if err = analyseNoMain(pkgCtx, pkgAst); err != nil {
-					return err
-				}
-				ctx.f.importedPackageSet[pkgPath] = pkgCtx
-			} else {
-				// 以前导入过
-				if pkgCtx == nil {
-					return utils.Errorf(importAst.Position(), "circular reference package `%s`", pkgPath)
-				}
-				if importAst.Suffix != nil && importAst.Suffix.IsLeft() {
-					ctx.includes = append(ctx.includes, pkgCtx)
-				} else {
-					if c, ok := ctx.externs[pkgName]; ok && pkgCtx != c {
-						return utils.Errorf(pkgPos, "duplicate identifier")
-					}
-					ctx.externs[pkgName] = pkgCtx
-				}
-			}
+	for _, pkg := range pkgs {
+		pkgCtx := newPackageContext(ctx, pkg.Path)
+		ctx.Pkgs[pkg.Path] = pkgCtx
+		if err := analysePackage(pkgCtx, pkg); err != nil {
+			return nil, err
 		}
 	}
-	// 包体
-	if err := analysePackage(ctx, ast); err != nil {
-		return err
-	}
-	return nil
+	return ctx, nil
 }
 
 // 包
 func analysePackage(ctx *packageContext, ast *parse.Package) utils.Error {
 	// 类型定义
-	for _, file := range ast.Files {
-		err := analysePackageTypeDef(ctx, file.Globals)
-		if err != nil {
-			return err
-		}
+	err := analysePackageTypeDef(ctx, ast.Globals)
+	if err != nil {
+		return err
 	}
 	// 变量声明
-	for _, file := range ast.Files {
-		err := analysePackageVariableDecl(ctx, file.Globals)
-		if err != nil {
-			return err
-		}
+	if err = analysePackageVariableDecl(ctx, ast.Globals); err != nil {
+		return err
 	}
 	// 接口
-	for _, file := range ast.Files {
-		err := analysePackageInterfaceImpl(ctx, file.Globals)
-		if err != nil {
-			return err
-		}
+	if err = analysePackageInterfaceImpl(ctx, ast.Globals); err != nil {
+		return err
 	}
 	// 变量定义
-	for _, file := range ast.Files {
-		err := analysePackageVariableDef(ctx, file.Globals)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return analysePackageVariableDef(ctx, ast.Globals)
 }
 
 // 包 类型定义

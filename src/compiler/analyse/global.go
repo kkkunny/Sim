@@ -301,7 +301,7 @@ func analyseGlobalVariableDef(ctx *packageContext, v *GlobalVariable, ast *parse
 
 // 方法声明
 func analyseMethodDecl(ctx *packageContext, ast *parse.Method) (*Function, utils.Error) {
-	_selfTypeObj, err := analyseType(ctx, parse.NewTypeIdent(nil, ast.Self))
+	_selfTypeObj, err := analyseTypeIdent(ctx, ctx.path, ast.Self)
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +367,7 @@ func analyseMethodDecl(ctx *packageContext, ast *parse.Method) (*Function, utils
 
 // 方法定义
 func analyseMethodDef(ctx *packageContext, ast *parse.Method) utils.Error {
-	_selfTypeObj, err := analyseType(ctx, parse.NewTypeIdent(nil, ast.Self))
+	_selfTypeObj, err := analyseTypeIdent(ctx, ctx.path, ast.Self)
 	if err != nil {
 		return err
 	}

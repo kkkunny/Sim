@@ -3,18 +3,19 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/kkkunny/Sim/src/compiler/analyse"
-	"github.com/kkkunny/Sim/src/compiler/codegen"
-	"github.com/kkkunny/Sim/src/compiler/parse"
-	"github.com/kkkunny/llvm"
-	stlos "github.com/kkkunny/stl/os"
-	stlutil "github.com/kkkunny/stl/util"
 	"io"
 	"math/rand"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/kkkunny/Sim/src/compiler/analyse"
+	"github.com/kkkunny/Sim/src/compiler/codegen"
+	"github.com/kkkunny/Sim/src/compiler/parse"
+	"github.com/kkkunny/llvm"
+	stlos "github.com/kkkunny/stl/os"
+	stlutil "github.com/kkkunny/stl/util"
 )
 
 // LookupCmd 查找命令
@@ -52,26 +53,21 @@ func RandomString(n uint8) string {
 
 // 编译到ir
 func compileToLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.TargetMachine, error) {
-	var ast *parse.Package
 	var err error
-	if from.IsDir() {
-		ast, err = parse.ParsePackage(from)
-	} else {
-		ast, err = parse.ParseFile(from)
-	}
+	ast, err := parse.Parse(from)
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	mean, err := analyse.AnalyseMain(ast)
+	mean, err := analyse.Analyse(ast)
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
 	module := codegen.NewCodeGenerator().Codegen(*mean)
 
-	if err = llvm.InitializeNativeTarget(); err != nil {
+	if err := llvm.InitializeNativeTarget(); err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	if err = llvm.InitializeNativeAsmPrinter(); err != nil {
+	if err := llvm.InitializeNativeAsmPrinter(); err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
 	module.SetTarget(llvm.DefaultTargetTriple())

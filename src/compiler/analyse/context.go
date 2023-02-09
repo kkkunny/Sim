@@ -22,15 +22,15 @@ func newCompilerContext() *CompilerContext {
 // ProgramContext 程序环境
 type ProgramContext struct {
 	*CompilerContext
-	importedPackageSet map[stlos.Path]*packageContext
-	Globals            []Global
+	Pkgs    map[stlos.Path]*packageContext
+	Globals []Global
 }
 
 // 新建程序环境
 func newProgramContext() *ProgramContext {
 	return &ProgramContext{
-		CompilerContext:    newCompilerContext(),
-		importedPackageSet: make(map[stlos.Path]*packageContext),
+		Pkgs:            make(map[stlos.Path]*packageContext),
+		CompilerContext: newCompilerContext(),
 	}
 }
 
@@ -41,9 +41,6 @@ type packageContext struct {
 
 	globals  map[string]types.Pair[bool, Ident]
 	typedefs map[string]types.Pair[bool, *Typedef]
-
-	externs  map[string]*packageContext
-	includes []*packageContext
 }
 
 // 新建包环境
@@ -53,7 +50,6 @@ func newPackageContext(f *ProgramContext, path stlos.Path) *packageContext {
 		path:     path,
 		globals:  make(map[string]types.Pair[bool, Ident]),
 		typedefs: make(map[string]types.Pair[bool, *Typedef]),
-		externs:  make(map[string]*packageContext),
 	}
 }
 
@@ -65,12 +61,6 @@ func (self packageContext) GetProgramContext() *ProgramContext {
 func (self packageContext) GetValue(name string) types.Pair[bool, Ident] {
 	if v, ok := self.globals[name]; ok {
 		return v
-	}
-	// 从后向前遍历import *的包
-	for i := len(self.includes) - 1; i >= 0; i-- {
-		if v, ok := self.includes[i].globals[name]; ok {
-			return v
-		}
 	}
 	return types.NewPair[bool, Ident](false, nil)
 }
@@ -91,6 +81,7 @@ type localContext interface {
 	GetPackageContext() *packageContext
 	SetEnd()
 	IsEnd() bool
+	GetPackagePath() stlos.Path
 }
 
 // 函数环境
@@ -140,6 +131,10 @@ func (self *functionContext) SetEnd() {
 
 func (self functionContext) IsEnd() bool {
 	return self.end
+}
+
+func (self functionContext) GetPackagePath() stlos.Path {
+	return self.GetPackageContext().path
 }
 
 // 代码块环境
@@ -197,4 +192,8 @@ func (self *blockContext) SetEnd() {
 
 func (self blockContext) IsEnd() bool {
 	return self.end
+}
+
+func (self blockContext) GetPackagePath() stlos.Path {
+	return self.GetPackageContext().path
 }

@@ -1,11 +1,12 @@
 package utils
 
 import (
-	stlos "github.com/kkkunny/stl/os"
-	"golang.org/x/exp/constraints"
 	"os"
 	"path/filepath"
 	"unsafe"
+
+	stlos "github.com/kkkunny/stl/os"
+	"golang.org/x/exp/constraints"
 )
 
 // PtrByte 指针大小
@@ -19,11 +20,10 @@ func AlignTo[T constraints.Integer | constraints.Float](n, align T) T {
 	return (n + align - 1) / align * align
 }
 
-// GetRootPath 获取语言根目录
-func GetRootPath() (stlos.Path, error) {
+var StdPath = func() stlos.Path {
 	exe, err := os.Executable()
 	if err != nil {
-		return "", err
+		panic(err)
 	}
-	return stlos.Path(filepath.Dir(exe)), err
-}
+	return stlos.Path(filepath.Dir(exe))
+}()

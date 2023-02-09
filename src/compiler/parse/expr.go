@@ -1,9 +1,10 @@
 package parse
 
 import (
+	"strconv"
+
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/utils"
-	"strconv"
 )
 
 // Expr 表达式
@@ -159,25 +160,19 @@ func (self Null) Expr() {}
 
 // Ident 标识符
 type Ident struct {
-	Pkg       *lex.Token
-	Name      lex.Token
-	Templates []Type
+	Pkg  *Package
+	Name lex.Token
 }
 
-func NewIdent(pkg *lex.Token, name lex.Token, templates []Type) *Ident {
+func NewIdent(pkg *Package, name lex.Token) *Ident {
 	return &Ident{
-		Pkg:       pkg,
-		Name:      name,
-		Templates: templates,
+		Pkg:  pkg,
+		Name: name,
 	}
 }
 
 func (self Ident) Position() utils.Position {
-	if self.Pkg != nil {
-		return utils.MixPosition(self.Pkg.Pos, self.Name.Pos)
-	} else {
-		return self.Name.Pos
-	}
+	return self.Name.Pos
 }
 
 func (self Ident) Stmt() {}
@@ -379,12 +374,12 @@ func (self Binary) Expr() {}
 // ****************************************************************
 
 // 表达式
-func (self *Parser) parseExpr() Expr {
+func (self *parser) parseExpr() Expr {
 	return self.parseBinaryExpr(0)
 }
 
 // 表达式列表（至少一个）
-func (self *Parser) parseExprListAtLeastOne(sep lex.TokenKind) (toks []Expr) {
+func (self *parser) parseExprListAtLeastOne(sep lex.TokenKind) (toks []Expr) {
 	for {
 		toks = append(toks, self.parseExpr())
 		if !self.skipNextIs(sep) {
@@ -395,7 +390,7 @@ func (self *Parser) parseExprListAtLeastOne(sep lex.TokenKind) (toks []Expr) {
 }
 
 // 单表达式
-func (self *Parser) parsePrimaryExpr() Expr {
+func (self *parser) parsePrimaryExpr() Expr {
 	switch self.nextTok.Kind {
 	case lex.INT:
 		return self.parseIntExpr()
@@ -421,23 +416,29 @@ func (self *Parser) parsePrimaryExpr() Expr {
 		self.next()
 		return NewNull(self.curTok)
 	case lex.IDENT:
+		// 语法解析
 		self.next()
-		var pkg *lex.Token
+		var pkgPath *lex.Token
 		name := self.curTok
-		var templates []Type
 		if self.skipNextIs(lex.CLL) {
-			if !self.nextIs(lex.LT) {
-				tmp := name
-				pkg = &tmp
-				name = self.expectNextIs(lex.IDENT)
-				if self.skipNextIs(lex.CLL) {
-					templates = self.parseTemplateParams()
-				}
+			tmp := name
+			pkgPath = &tmp
+			name = self.expectNextIs(lex.IDENT)
+		}
+
+		// 包解析
+		var pkg *Package
+		if pkgPath == nil {
+			pkg = self.pkg
+		} else {
+			if dstPkg, ok := self.pkg.importMap[pkgPath.Source]; !ok {
+				self.throwErrorf(pkgPath.Pos, "unknown package name")
 			} else {
-				templates = self.parseTemplateParams()
+				pkg = dstPkg
 			}
 		}
-		return NewIdent(pkg, name, templates)
+
+		return NewIdent(pkg, name)
 	case lex.LPA:
 		self.next()
 		begin := self.curTok.Pos
@@ -472,7 +473,7 @@ func (self *Parser) parsePrimaryExpr() Expr {
 }
 
 // 整数
-func (self *Parser) parseIntExpr() *Int {
+func (self *parser) parseIntExpr() *Int {
 	tok := self.expectNextIs(lex.INT)
 	v, err := strconv.ParseInt(tok.Source, 10, 64)
 	if err != nil {
@@ -482,13 +483,13 @@ func (self *Parser) parseIntExpr() *Int {
 }
 
 // 字符串
-func (self *Parser) parseStringExpr() *String {
+func (self *parser) parseStringExpr() *String {
 	tok := self.expectNextIs(lex.STRING)
 	return NewString(tok, tok.Source[1:len(tok.Source)-1])
 }
 
 // 一元表达式前缀
-func (self *Parser) parsePrefixUnaryExpr() Expr {
+func (self *parser) parsePrefixUnaryExpr() Expr {
 	switch self.nextTok.Kind {
 	case lex.SUB:
 		self.next()
@@ -512,7 +513,7 @@ func (self *Parser) parsePrefixUnaryExpr() Expr {
 }
 
 // 一元表达式后缀
-func (self *Parser) parseSuffixUnaryExpr(front Expr) Expr {
+func (self *parser) parseSuffixUnaryExpr(front Expr) Expr {
 	switch self.nextTok.Kind {
 	case lex.DOT:
 		self.next()
@@ -538,7 +539,7 @@ func (self *Parser) parseSuffixUnaryExpr(front Expr) Expr {
 }
 
 // 一元表达式末尾
-func (self *Parser) parseUnaryTailExpr(front Expr) Expr {
+func (self *parser) parseUnaryTailExpr(front Expr) Expr {
 	switch self.nextTok.Kind {
 	case lex.AS:
 		self.next()
@@ -557,14 +558,14 @@ func (self *Parser) parseUnaryTailExpr(front Expr) Expr {
 }
 
 // 一元表达式
-func (self *Parser) parseUnaryExpr() Expr {
+func (self *parser) parseUnaryExpr() Expr {
 	front := self.parsePrefixUnaryExpr()
 	front = self.parseSuffixUnaryExpr(front)
 	return self.parseUnaryTailExpr(front)
 }
 
 // 二元表达式
-func (self *Parser) parseBinaryExpr(prior uint8) Expr {
+func (self *parser) parseBinaryExpr(prior uint8) Expr {
 	left := self.parseUnaryExpr()
 
 	for {
