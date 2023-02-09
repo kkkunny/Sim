@@ -1,13 +1,13 @@
 package codegen
 
 import (
-	"github.com/kkkunny/Sim/src/compiler/analyse"
+	"github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/llvm"
 	stlutil "github.com/kkkunny/stl/util"
 )
 
 // 代码块
-func (self *CodeGenerator) codegenBlock(mean analyse.Block) bool {
+func (self *CodeGenerator) codegenBlock(mean hir.Block) bool {
 	for _, stmt := range mean.Stmts {
 		if !self.codegenStmt(stmt) {
 			return false
@@ -17,27 +17,27 @@ func (self *CodeGenerator) codegenBlock(mean analyse.Block) bool {
 }
 
 // 语句
-func (self *CodeGenerator) codegenStmt(mean analyse.Stmt) bool {
+func (self *CodeGenerator) codegenStmt(mean hir.Stmt) bool {
 	switch meanStmt := mean.(type) {
-	case *analyse.Return:
+	case *hir.Return:
 		self.codegenReturn(*meanStmt)
 		return false
-	case *analyse.Variable:
+	case *hir.Variable:
 		self.codegenVariable(meanStmt)
-	case analyse.Expr:
+	case hir.Expr:
 		self.codegenExpr(meanStmt, true)
-	case *analyse.Block:
+	case *hir.Block:
 		if !self.codegenBlock(*meanStmt) {
 			return false
 		}
-	case *analyse.IfElse:
+	case *hir.IfElse:
 		self.codegenIfElse(*meanStmt)
-	case *analyse.Loop:
+	case *hir.Loop:
 		self.codegenLoop(*meanStmt)
-	case *analyse.LoopControl:
+	case *hir.LoopControl:
 		self.codegenLoopControl(*meanStmt)
 		return false
-	case *analyse.Switch:
+	case *hir.Switch:
 		self.codegenSwitch(*meanStmt)
 	default:
 		panic("")
@@ -46,7 +46,7 @@ func (self *CodeGenerator) codegenStmt(mean analyse.Stmt) bool {
 }
 
 // 函数返回
-func (self *CodeGenerator) codegenReturn(mean analyse.Return) {
+func (self *CodeGenerator) codegenReturn(mean hir.Return) {
 	if mean.Value == nil {
 		self.builder.CreateRetVoid()
 	} else {
@@ -56,7 +56,7 @@ func (self *CodeGenerator) codegenReturn(mean analyse.Return) {
 }
 
 // 变量
-func (self *CodeGenerator) codegenVariable(mean *analyse.Variable) {
+func (self *CodeGenerator) codegenVariable(mean *hir.Variable) {
 	typ := self.codegenType(mean.Type)
 	alloca := self.builder.CreateAlloca(typ, "")
 	value := self.codegenExpr(mean.Value, true)
@@ -65,7 +65,7 @@ func (self *CodeGenerator) codegenVariable(mean *analyse.Variable) {
 }
 
 // 条件分支
-func (self *CodeGenerator) codegenIfElse(mean analyse.IfElse) {
+func (self *CodeGenerator) codegenIfElse(mean hir.IfElse) {
 	cond := self.builder.CreateIntCast(self.codegenExpr(mean.Cond, true), self.ctx.Int1Type(), "")
 	tb := llvm.AddBasicBlock(self.function, "")
 	if mean.False == nil {
@@ -97,7 +97,7 @@ func (self *CodeGenerator) codegenIfElse(mean analyse.IfElse) {
 }
 
 // 循环
-func (self *CodeGenerator) codegenLoop(mean analyse.Loop) {
+func (self *CodeGenerator) codegenLoop(mean hir.Loop) {
 	cb := llvm.AddBasicBlock(self.function, "")
 	self.builder.CreateBr(cb)
 
@@ -118,7 +118,7 @@ func (self *CodeGenerator) codegenLoop(mean analyse.Loop) {
 }
 
 // 循环控制
-func (self *CodeGenerator) codegenLoopControl(mean analyse.LoopControl) {
+func (self *CodeGenerator) codegenLoopControl(mean hir.LoopControl) {
 	if mean.Type == "break" {
 		self.builder.CreateBr(self.eb)
 	} else {
@@ -127,7 +127,7 @@ func (self *CodeGenerator) codegenLoopControl(mean analyse.LoopControl) {
 }
 
 // 分支
-func (self *CodeGenerator) codegenSwitch(mean analyse.Switch) {
+func (self *CodeGenerator) codegenSwitch(mean hir.Switch) {
 	if len(mean.Cases) == 0 && mean.Default == nil {
 		return
 	} else if len(mean.Cases) == 0 {

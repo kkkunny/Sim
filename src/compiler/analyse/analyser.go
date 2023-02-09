@@ -1,14 +1,13 @@
 package analyse
 
 import (
+	. "github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/stl/list"
 	"github.com/kkkunny/stl/set"
 	"github.com/kkkunny/stl/types"
 )
-
-// *********************************************************************************************************************
 
 // Analyse 语义分析
 func Analyse(pkgs []*parse.Package) (*ProgramContext, utils.Error) {

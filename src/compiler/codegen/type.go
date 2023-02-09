@@ -1,24 +1,24 @@
 package codegen
 
 import (
-	"github.com/kkkunny/Sim/src/compiler/analyse"
+	"github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/llvm"
 )
 
 // 类型
-func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
+func (self *CodeGenerator) codegenType(mean hir.Type) llvm.Type {
 	switch typ := mean.(type) {
-	case *analyse.TypeFunc:
+	case *hir.TypeFunc:
 		ret := self.codegenType(typ.Ret)
 		params := make([]llvm.Type, len(typ.Params))
 		for i, p := range typ.Params {
 			params[i] = self.codegenType(p)
 		}
 		return llvm.PointerType(llvm.FunctionType(ret, params, typ.VarArg), 0)
-	case *analyse.TypeArray:
+	case *hir.TypeArray:
 		elem := self.codegenType(typ.Elem)
 		return llvm.ArrayType(elem, int(typ.Size))
-	case *analyse.TypeTuple:
+	case *hir.TypeTuple:
 		if len(typ.Elems) <= 3 {
 			elems := make([]llvm.Type, len(typ.Elems))
 			for i, e := range typ.Elems {
@@ -39,7 +39,7 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 			self.types[key] = td
 			return td
 		}
-	case *analyse.TypeStruct:
+	case *hir.TypeStruct:
 		if typ.Fields.Length() <= 3 {
 			elems := make([]llvm.Type, typ.Fields.Length())
 			for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
@@ -60,10 +60,10 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 			self.types[key] = td
 			return td
 		}
-	case *analyse.TypePtr:
+	case *hir.TypePtr:
 		return llvm.PointerType(self.codegenType(typ.Elem), 0)
-	case *analyse.Typedef:
-		if !analyse.IsTupleType(typ.Dst) && !analyse.IsStructType(typ.Dst) {
+	case *hir.Typedef:
+		if !hir.IsTupleType(typ.Dst) && !hir.IsStructType(typ.Dst) {
 			return self.codegenType(typ.Dst)
 		}
 		key := typ.String()
@@ -73,13 +73,13 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 		td := self.ctx.StructCreateNamed("")
 		self.types[key] = td
 		switch dst := typ.Dst.(type) {
-		case *analyse.TypeTuple:
+		case *hir.TypeTuple:
 			elems := make([]llvm.Type, len(dst.Elems))
 			for i, e := range dst.Elems {
 				elems[i] = self.codegenType(e)
 			}
 			td.StructSetBody(elems, false)
-		case *analyse.TypeStruct:
+		case *hir.TypeStruct:
 			elems := make([]llvm.Type, dst.Fields.Length())
 			for iter := dst.Fields.Begin(); iter.HasValue(); iter.Next() {
 				elems[iter.Index()] = self.codegenType(iter.Value().Second)
@@ -89,7 +89,7 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 			panic("")
 		}
 		return td
-	case *analyse.TypeInterface:
+	case *hir.TypeInterface:
 		key := typ.String()
 		if t, ok := self.types[key]; ok {
 			return t
@@ -101,7 +101,13 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 		i := 2
 		for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
 			ft := self.codegenType(iter.Value()).ElementType()
-			elems[i] = llvm.PointerType(llvm.FunctionType(ft.ReturnType(), append([]llvm.Type{elems[1]}, ft.ParamTypes()...), ft.IsFunctionVarArg()), 0)
+			elems[i] = llvm.PointerType(
+				llvm.FunctionType(
+					ft.ReturnType(),
+					append([]llvm.Type{elems[1]}, ft.ParamTypes()...),
+					ft.IsFunctionVarArg(),
+				), 0,
+			)
 			i++
 		}
 		td.StructSetBody(elems, false)
@@ -109,33 +115,33 @@ func (self *CodeGenerator) codegenType(mean analyse.Type) llvm.Type {
 		return td
 	default:
 		switch {
-		case analyse.IsNoneType(typ):
+		case hir.IsNoneType(typ):
 			return self.ctx.VoidType()
-		case analyse.IsIntType(typ):
+		case hir.IsIntType(typ):
 			switch typ {
-			case analyse.I8, analyse.U8:
+			case hir.I8, hir.U8:
 				return self.ctx.Int8Type()
-			case analyse.I16, analyse.U16:
+			case hir.I16, hir.U16:
 				return self.ctx.Int16Type()
-			case analyse.I32, analyse.U32:
+			case hir.I32, hir.U32:
 				return self.ctx.Int32Type()
-			case analyse.I64, analyse.U64:
+			case hir.I64, hir.U64:
 				return self.ctx.Int64Type()
-			case analyse.Isize, analyse.Usize:
+			case hir.Isize, hir.Usize:
 				return t_size
 			default:
 				panic("")
 			}
-		case analyse.IsFloatType(typ):
+		case hir.IsFloatType(typ):
 			switch typ {
-			case analyse.F32:
+			case hir.F32:
 				return self.ctx.FloatType()
-			case analyse.F64:
+			case hir.F64:
 				return self.ctx.DoubleType()
 			default:
 				panic("")
 			}
-		case analyse.IsBoolType(typ):
+		case hir.IsBoolType(typ):
 			return t_bool
 		default:
 			panic("")

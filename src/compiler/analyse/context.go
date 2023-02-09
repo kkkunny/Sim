@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	. "github.com/kkkunny/Sim/src/compiler/hir"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/kkkunny/stl/types"
 )
