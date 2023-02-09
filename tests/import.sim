@@ -1,10 +1,9 @@
 import std.c
-import std.io as out
-import std.container.string
+import std.c as b
 
 @extern(main)
 func main()u8{
-    let i: c::int = 1
-    out::println(string::new("Hello World"))
+    let s: *c::char = "Hello World"
+    b::puts(s)
     return 0
 }

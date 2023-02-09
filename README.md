@@ -75,12 +75,11 @@ Sim是一门简洁的、强类型的编译型语言
 examples/hello_world.sim
 
 ```go
-import std.io
-import std.container.string
+import std.c
 
 @extern(main)
 func main()u8{
-    io::println(string::new("Hello World"))
+    c::puts("Hello World")
     return 0
 }
 ```

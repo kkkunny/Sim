@@ -1,14 +1,13 @@
-import std.io
-import std.container.string
+import std.c
 
-let s: string::String = get_string()
+let s: *i8 = get_string()
 
-func get_string()string::String{
-    return string::new("Hello World")
+func get_string()*i8{
+    return "Hello World"
 }
 
 @extern(main)
 func main()u8{
-    io::println(s)
+    c::puts(s as *c::char)
     return 0
 }

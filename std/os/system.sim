@@ -1,6 +1,0 @@
-import std.c
-
-@noreturn
-pub func exit(code: u8){
-    c::exit(code as c::int)
-}

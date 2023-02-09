@@ -1,24 +1,23 @@
-import std.io
-import std.container.string
+import std.c
 
 @init
 func init(){
-    io::println(string::new("init"))
+    c::puts("init")
 }
 
 @extern(main)
 func main()u8{
-    io::println(string::new("main"))
+    c::puts("main")
     return 0
 }
 
 @fini
 func fini(){
-    io::println(string::new("fini"))
+    c::puts("fini")
 }
 
 @init
 @fini
 func init_and_fini(){
-    io::println(string::new("init && fini"))
+    c::puts("init && fini")
 }
