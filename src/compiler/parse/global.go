@@ -17,16 +17,18 @@ type Global interface {
 
 // 包导入
 type importAst struct {
-	Pos      utils.Position
-	Packages []lex.Token
-	Alias    *lex.Token
+	Pos         utils.Position
+	Packages    []lex.Token
+	Alias       *lex.Token // 别名（可能为空，与IsImportAll互斥）
+	IsImportAll *lex.Token // 是否导入全部（可能为空，与Alias互斥）
 }
 
-func newImportAst(pos utils.Position, pkgs []lex.Token, alias *lex.Token) *importAst {
+func newImportAst(pos utils.Position, pkgs []lex.Token, alias *lex.Token, isImportAll *lex.Token) *importAst {
 	return &importAst{
-		Pos:      pos,
-		Packages: pkgs,
-		Alias:    alias,
+		Pos:         pos,
+		Packages:    pkgs,
+		Alias:       alias,
+		IsImportAll: isImportAll,
 	}
 }
 
@@ -268,11 +270,17 @@ func (self *parser) parseImport() {
 	begin := self.expectNextIs(lex.IMPORT).Pos
 	paths := self.parseTokenListAtLeastOne(lex.DOT)
 	var alias *lex.Token
+	var isImportAll *lex.Token
 	if self.skipNextIs(lex.AS) {
-		name := self.expectNextIs(lex.IDENT)
-		alias = &name
+		if self.skipNextIs(lex.MUL) {
+			name := self.curTok
+			isImportAll = &name
+		} else {
+			name := self.expectNextIs(lex.IDENT)
+			alias = &name
+		}
 	}
-	ast := newImportAst(utils.MixPosition(begin, paths[len(paths)-1].Pos), paths, alias)
+	ast := newImportAst(utils.MixPosition(begin, paths[len(paths)-1].Pos), paths, alias, isImportAll)
 
 	// 导入包
 	self.importImport(ast)
@@ -293,17 +301,6 @@ func (self *parser) importImport(ast *importAst) *Package {
 		path = absPath
 	}
 
-	// 包名
-	var name string
-	var namePos utils.Position
-	if ast.Alias != nil {
-		name = ast.Alias.Source
-		namePos = ast.Alias.Pos
-	} else {
-		name = path.GetBase().String()
-		namePos = ast.Packages[len(ast.Packages)-1].Pos
-	}
-
 	// 解析包
 	pkg, err := self.importPath(path)
 	if err != nil {
@@ -315,12 +312,31 @@ func (self *parser) importImport(ast *importAst) *Package {
 		}
 	}
 
-	// 包名冲突
-	if pkgTmp, ok := self.pkg.importMap[name]; ok && pkgTmp.Path != pkg.Path {
-		self.throwErrorf(namePos, "duplicate package name")
-	}
+	// 建立包关联
+	if ast.IsImportAll == nil {
+		// 包名
+		var name string
+		var namePos utils.Position
+		if ast.Alias != nil {
+			name = ast.Alias.Source
+			namePos = ast.Alias.Pos
+		} else {
+			name = path.GetBase().String()
+			namePos = ast.Packages[len(ast.Packages)-1].Pos
+		}
 
-	self.pkg.importMap[name] = pkg
+		// 包名冲突
+		if pkgTmp, ok := self.pkg.importMap[name]; ok && pkgTmp.Path != pkg.Path {
+			self.throwErrorf(namePos, "duplicate package name")
+		}
+
+		self.pkg.importMap[name] = pkg
+	} else {
+		if self.pkg.includeMap.Contain(pkg) {
+			self.pkg.includeMap.Remove(pkg)
+		}
+		self.pkg.includeMap.Add(pkg)
+	}
 
 	return pkg
 }

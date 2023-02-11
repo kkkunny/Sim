@@ -225,7 +225,7 @@ func (self *parser) parseParamList() (pairs []*NameOrNilAndType, varArg bool) {
 			break
 		}
 		var name *lex.Token
-		if ident, ok := typ.(*TypeIdent); ok && ident.Pkg.Path == self.pkg.Path && self.skipNextIs(lex.COL) {
+		if ident, ok := typ.(*TypeIdent); ok && ident.Pkgs[0].Path == self.pkg.Path && self.skipNextIs(lex.COL) {
 			name = &ident.Name
 			typ = self.parseType()
 		}

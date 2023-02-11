@@ -13,8 +13,8 @@ import (
 func Analyse(pkgs []*parse.Package) (*ProgramContext, utils.Error) {
 	ctx := newProgramContext()
 	for _, pkg := range pkgs {
-		pkgCtx := newPackageContext(ctx, pkg.Path)
-		ctx.Pkgs[pkg.Path] = pkgCtx
+		pkgCtx := newPackageContext(pkg, ctx)
+		ctx.Pkgs[pkg] = pkgCtx
 		if err := analysePackage(pkgCtx, pkg); err != nil {
 			return nil, err
 		}
@@ -56,7 +56,7 @@ func analysePackageTypeDef(ctx *packageContext, asts *list.SingleLinkedList[pars
 			continue
 		}
 
-		ctx.typedefs[ast.Name.Source] = types.NewPair(ast.Public, NewTypedef(ctx.path, ast.Name.Source, nil))
+		ctx.typedefs[ast.Name.Source] = types.NewPair(ast.Public, NewTypedef(ctx.ast.Path, ast.Name.Source, nil))
 		typedefs.Add(ast)
 	}
 	if len(errors) == 1 {

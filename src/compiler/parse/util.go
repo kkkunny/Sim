@@ -8,23 +8,26 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/stl/list"
 	stlos "github.com/kkkunny/stl/os"
+	"github.com/kkkunny/stl/set"
 )
 
 // Package 包
 type Package struct {
-	Priority  uint                           // 优先级，优先级越高越应该优先处理
-	Path      stlos.Path                     // 包路径
-	Globals   *list.SingleLinkedList[Global] // 全局语句
-	importMap map[string]*Package            // 导入的包
+	Priority   uint                           // 优先级，优先级越高越应该优先处理
+	Path       stlos.Path                     // 包路径
+	Globals    *list.SingleLinkedList[Global] // 全局语句
+	importMap  map[string]*Package            // 导入的包
+	includeMap *set.LinkedHashSet[*Package]   // 包含的包，最后面的包应该最先查找
 }
 
 // NewPackage 新建包
 func NewPackage(path stlos.Path) *Package {
 	return &Package{
-		Priority:  0,
-		Path:      path,
-		Globals:   list.NewSingleLinkedList[Global](),
-		importMap: make(map[string]*Package),
+		Priority:   0,
+		Path:       path,
+		Globals:    list.NewSingleLinkedList[Global](),
+		importMap:  make(map[string]*Package),
+		includeMap: set.NewLinkedHashSet[*Package](),
 	}
 }
 

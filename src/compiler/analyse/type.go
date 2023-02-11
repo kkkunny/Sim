@@ -5,7 +5,6 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
-	stlos "github.com/kkkunny/stl/os"
 	"github.com/kkkunny/stl/set"
 	"github.com/kkkunny/stl/table"
 	"github.com/kkkunny/stl/types"
@@ -18,7 +17,7 @@ func analyseType(ctx *packageContext, ast parse.Type) (Type, utils.Error) {
 	}
 	switch typ := ast.(type) {
 	case *parse.TypeIdent:
-		return analyseTypeIdent(ctx, typ.Pkg.Path, typ.Name)
+		return analyseTypeIdent(ctx, typ.Pkgs, typ.Name)
 	case *parse.TypeFunc:
 		ret, err := analyseType(ctx, typ.Ret)
 		if err != nil {
@@ -182,8 +181,8 @@ func checkTypeCircle(tmp *set.LinkedHashSet[*Typedef], t Type) bool {
 }
 
 // 标识符类型
-func analyseTypeIdent(ctx *packageContext, pkgPath stlos.Path, name lex.Token) (Type, utils.Error) {
-	if pkgPath == ctx.path {
+func analyseTypeIdent(ctx *packageContext, pkgs []*parse.Package, name lex.Token) (Type, utils.Error) {
+	if pkgs[0].Path == ctx.ast.Path {
 		switch name.Source {
 		case "i8":
 			return I8, nil
@@ -215,9 +214,11 @@ func analyseTypeIdent(ctx *packageContext, pkgPath stlos.Path, name lex.Token) (
 	}
 
 	// 类型定义
-	pkg := ctx.f.Pkgs[pkgPath]
-	if td, ok := pkg.typedefs[name.Source]; ok && (pkgPath == ctx.path || td.First) {
-		return td.Second, nil
+	for _, astPkg := range pkgs {
+		pkg := ctx.f.Pkgs[astPkg]
+		if td, ok := pkg.typedefs[name.Source]; ok && (astPkg.Path == ctx.ast.Path || td.First) {
+			return td.Second, nil
+		}
 	}
 	return nil, utils.Errorf(name.Pos, "unknown identifier")
 }

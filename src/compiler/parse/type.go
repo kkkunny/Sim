@@ -14,13 +14,13 @@ type Type interface {
 
 // TypeIdent 标识符类型
 type TypeIdent struct {
-	Pkg  *Package
+	Pkgs []*Package // 可能存在于的包，按顺序查找
 	Name lex.Token
 }
 
-func NewTypeIdent(pkg *Package, name lex.Token) *TypeIdent {
+func NewTypeIdent(pkgs []*Package, name lex.Token) *TypeIdent {
 	return &TypeIdent{
-		Pkg:  pkg,
+		Pkgs: pkgs,
 		Name: name,
 	}
 }
@@ -237,18 +237,20 @@ func (self *parser) parseTypeIdent() *TypeIdent {
 	}
 
 	// 包解析
-	var pkg *Package
-	if pkgPath == nil {
-		pkg = self.pkg
-	} else {
-		if dstPkg, ok := self.pkg.importMap[pkgPath.Source]; !ok {
+	if pkgPath != nil {
+		pkg, ok := self.pkg.importMap[pkgPath.Source]
+		if !ok {
 			self.throwErrorf(pkgPath.Pos, "unknown package name")
-		} else {
-			pkg = dstPkg
 		}
+		return NewTypeIdent([]*Package{pkg}, name)
+	} else {
+		pkgs := make([]*Package, self.pkg.includeMap.Length()+1)
+		pkgs[0] = self.pkg
+		for iter := self.pkg.includeMap.Begin(); iter.HasValue(); iter.Next() {
+			pkgs[self.pkg.includeMap.Length()-iter.Index()] = iter.Value()
+		}
+		return NewTypeIdent(pkgs, name)
 	}
-
-	return NewTypeIdent(pkg, name)
 }
 
 // 指针类型

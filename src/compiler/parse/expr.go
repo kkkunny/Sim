@@ -160,13 +160,13 @@ func (self Null) Expr() {}
 
 // Ident 标识符
 type Ident struct {
-	Pkg  *Package
+	Pkgs []*Package // 可能存在于的包，按顺序查找
 	Name lex.Token
 }
 
-func NewIdent(pkg *Package, name lex.Token) *Ident {
+func NewIdent(pkgs []*Package, name lex.Token) *Ident {
 	return &Ident{
-		Pkg:  pkg,
+		Pkgs: pkgs,
 		Name: name,
 	}
 }
@@ -427,18 +427,20 @@ func (self *parser) parsePrimaryExpr() Expr {
 		}
 
 		// 包解析
-		var pkg *Package
-		if pkgPath == nil {
-			pkg = self.pkg
-		} else {
-			if dstPkg, ok := self.pkg.importMap[pkgPath.Source]; !ok {
+		if pkgPath != nil {
+			pkg, ok := self.pkg.importMap[pkgPath.Source]
+			if !ok {
 				self.throwErrorf(pkgPath.Pos, "unknown package name")
-			} else {
-				pkg = dstPkg
 			}
+			return NewIdent([]*Package{pkg}, name)
+		} else {
+			pkgs := make([]*Package, self.pkg.includeMap.Length()+1)
+			pkgs[0] = self.pkg
+			for iter := self.pkg.includeMap.Begin(); iter.HasValue(); iter.Next() {
+				pkgs[self.pkg.includeMap.Length()-iter.Index()] = iter.Value()
+			}
+			return NewIdent(pkgs, name)
 		}
-
-		return NewIdent(pkg, name)
 	case lex.LPA:
 		self.next()
 		begin := self.curTok.Pos

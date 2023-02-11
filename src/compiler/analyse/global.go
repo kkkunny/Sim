@@ -47,7 +47,7 @@ func analyseExternFunction(ctx *packageContext, ast *parse.ExternFunction) (*Fun
 			for _, asm := range attr.Asms {
 				linkPath := stlos.Path(asm.Value)
 				if !linkPath.IsAbsolute() {
-					linkPath = ctx.path.Join(linkPath)
+					linkPath = ctx.ast.Path.Join(linkPath)
 				}
 				if !linkPath.IsExist() {
 					errors = append(errors, utils.Errorf(asm.Position(), "can not find path `%s`", linkPath))
@@ -186,7 +186,7 @@ func analyseGlobalVariableDecl(ctx *packageContext, ast *parse.GlobalValue) (*Gl
 			for _, asm := range attr.Asms {
 				linkPath := stlos.Path(asm.Value)
 				if !linkPath.IsAbsolute() {
-					linkPath = ctx.path.Join(linkPath)
+					linkPath = ctx.ast.Path.Join(linkPath)
 				}
 				if !linkPath.IsExist() {
 					errs = append(errs, utils.Errorf(asm.Position(), "can not find path `%s`", linkPath))
@@ -225,7 +225,7 @@ func analyseGlobalVariableDef(ctx *packageContext, v *GlobalVariable, ast *parse
 
 // 方法声明
 func analyseMethodDecl(ctx *packageContext, ast *parse.Method) (*Function, utils.Error) {
-	_selfTypeObj, err := analyseTypeIdent(ctx, ctx.path, ast.Self)
+	_selfTypeObj, err := analyseTypeIdent(ctx, []*parse.Package{ctx.ast}, ast.Self)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func analyseMethodDecl(ctx *packageContext, ast *parse.Method) (*Function, utils
 
 // 方法定义
 func analyseMethodDef(ctx *packageContext, ast *parse.Method) utils.Error {
-	_selfTypeObj, err := analyseTypeIdent(ctx, ctx.path, ast.Self)
+	_selfTypeObj, err := analyseTypeIdent(ctx, []*parse.Package{ctx.ast}, ast.Self)
 	if err != nil {
 		return err
 	}

@@ -424,7 +424,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 	case *parse.Call:
 		f, err := analyseExpr(ctx, nil, expr.Func)
 		if err != nil {
-			if ident, ok := expr.Func.(*parse.Ident); ok && ident.Pkg.Path == ctx.GetPackagePath() {
+			if ident, ok := expr.Func.(*parse.Ident); ok && ident.Pkgs[0].Path == ctx.GetPackageContext().ast.Path {
 				return analyseBuildInFuncCall(ctx, ident, expr.Args)
 			}
 			return nil, err
@@ -564,7 +564,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 		case *TypeStruct:
 			if !t.Fields.ContainKey(expr.End.Source) {
 				return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
-			} else if td, ok := prefixType.(*Typedef); ok && ctx.GetPackageContext().path != td.Pkg && !t.Fields.Get(expr.End.Source).First {
+			} else if td, ok := prefixType.(*Typedef); ok && ctx.GetPackageContext().ast.Path != td.Pkg && !t.Fields.Get(expr.End.Source).First {
 				return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
 			}
 			return &GetField{
@@ -583,7 +583,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			if st, ok := GetBaseType(t.Elem).(*TypeStruct); ok {
 				if !st.Fields.ContainKey(expr.End.Source) {
 					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
-				} else if td, ok := t.Elem.(*Typedef); ok && ctx.GetPackageContext().path != td.Pkg && !st.Fields.Get(expr.End.Source).First {
+				} else if td, ok := t.Elem.(*Typedef); ok && ctx.GetPackageContext().ast.Path != td.Pkg && !st.Fields.Get(expr.End.Source).First {
 					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
 				}
 				return &GetField{
@@ -781,16 +781,19 @@ func analyseExprList(ctx *blockContext, expects []Type, asts []parse.Expr) ([]Ex
 
 // 标识符
 func analyseIdent(ctx *blockContext, ast *parse.Ident) (Expr, utils.Error) {
-	if ast.Pkg.Path == ctx.GetPackagePath() {
+	curPkg := ctx.GetPackageContext()
+	if ast.Pkgs[0].Path == curPkg.ast.Path {
 		value := ctx.GetValue(ast.Name.Source)
 		if value != nil {
 			return value, nil
 		}
 	} else {
-		pkg := ctx.GetPackageContext().f.Pkgs[ast.Pkg.Path]
-		value := pkg.GetValue(ast.Name.Source)
-		if value.Second != nil && value.First {
-			return value.Second, nil
+		for _, astPkg := range ast.Pkgs {
+			pkg := curPkg.f.Pkgs[astPkg]
+			value := pkg.GetValue(ast.Name.Source)
+			if value.Second != nil && value.First {
+				return value.Second, nil
+			}
 		}
 	}
 	return nil, utils.Errorf(ast.Name.Pos, "unknown identifier")

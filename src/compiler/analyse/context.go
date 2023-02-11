@@ -2,6 +2,7 @@ package analyse
 
 import (
 	. "github.com/kkkunny/Sim/src/compiler/hir"
+	"github.com/kkkunny/Sim/src/compiler/parse"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/kkkunny/stl/types"
 )
@@ -23,32 +24,32 @@ func newCompilerContext() *CompilerContext {
 // ProgramContext 程序环境
 type ProgramContext struct {
 	*CompilerContext
-	Pkgs    map[stlos.Path]*packageContext
+	Pkgs    map[*parse.Package]*packageContext
 	Globals []Global
 }
 
 // 新建程序环境
 func newProgramContext() *ProgramContext {
 	return &ProgramContext{
-		Pkgs:            make(map[stlos.Path]*packageContext),
+		Pkgs:            make(map[*parse.Package]*packageContext),
 		CompilerContext: newCompilerContext(),
 	}
 }
 
 // 包环境
 type packageContext struct {
-	f    *ProgramContext
-	path stlos.Path
+	ast *parse.Package
+	f   *ProgramContext
 
 	globals  map[string]types.Pair[bool, Ident]
 	typedefs map[string]types.Pair[bool, *Typedef]
 }
 
 // 新建包环境
-func newPackageContext(f *ProgramContext, path stlos.Path) *packageContext {
+func newPackageContext(ast *parse.Package, f *ProgramContext) *packageContext {
 	return &packageContext{
+		ast:      ast,
 		f:        f,
-		path:     path,
 		globals:  make(map[string]types.Pair[bool, Ident]),
 		typedefs: make(map[string]types.Pair[bool, *Typedef]),
 	}
@@ -82,7 +83,6 @@ type localContext interface {
 	GetPackageContext() *packageContext
 	SetEnd()
 	IsEnd() bool
-	GetPackagePath() stlos.Path
 }
 
 // 函数环境
@@ -132,10 +132,6 @@ func (self *functionContext) SetEnd() {
 
 func (self functionContext) IsEnd() bool {
 	return self.end
-}
-
-func (self functionContext) GetPackagePath() stlos.Path {
-	return self.GetPackageContext().path
 }
 
 // 代码块环境
@@ -193,8 +189,4 @@ func (self *blockContext) SetEnd() {
 
 func (self blockContext) IsEnd() bool {
 	return self.end
-}
-
-func (self blockContext) GetPackagePath() stlos.Path {
-	return self.GetPackageContext().path
 }

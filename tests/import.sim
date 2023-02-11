@@ -1,9 +1,11 @@
 import std.c
 import std.c as b
+import std.c as *
 
 @extern(main)
 func main()u8{
     let s: *c::char = "Hello World"
-    b::puts(s)
+    let s2: *char = s
+    b::puts(s2)
     return 0
 }
