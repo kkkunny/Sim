@@ -14,14 +14,16 @@ type Type interface {
 
 // TypeIdent 标识符类型
 type TypeIdent struct {
-	Pkgs []*Package // 可能存在于的包，按顺序查找
-	Name lex.Token
+	Pkgs      []*Package // 可能存在于的包，按顺序查找
+	Name      lex.Token
+	Templates []Type
 }
 
-func NewTypeIdent(pkgs []*Package, name lex.Token) *TypeIdent {
+func NewTypeIdent(pkgs []*Package, name lex.Token, templates []Type) *TypeIdent {
 	return &TypeIdent{
-		Pkgs: pkgs,
-		Name: name,
+		Pkgs:      pkgs,
+		Name:      name,
+		Templates: templates,
 	}
 }
 
@@ -231,10 +233,15 @@ func (self *parser) parseTypeIdent() *TypeIdent {
 	var pkgPath *lex.Token
 	name := self.expectNextIs(lex.IDENT)
 	if self.skipNextIs(lex.CLL) {
-		tmp := name
-		pkgPath = &tmp
-		name = self.expectNextIs(lex.IDENT)
+		if !self.nextIs(lex.LT) {
+			tmp := name
+			pkgPath = &tmp
+			name = self.expectNextIs(lex.IDENT)
+		} else {
+			self.backToCurToken(name)
+		}
 	}
+	templates := self.parseTemplateArgList()
 
 	// 包解析
 	if pkgPath != nil {
@@ -242,14 +249,14 @@ func (self *parser) parseTypeIdent() *TypeIdent {
 		if !ok {
 			self.throwErrorf(pkgPath.Pos, "unknown package name")
 		}
-		return NewTypeIdent([]*Package{pkg}, name)
+		return NewTypeIdent([]*Package{pkg}, name, templates)
 	} else {
 		pkgs := make([]*Package, self.pkg.includeMap.Length()+1)
 		pkgs[0] = self.pkg
 		for iter := self.pkg.includeMap.Begin(); iter.HasValue(); iter.Next() {
 			pkgs[self.pkg.includeMap.Length()-iter.Index()] = iter.Value()
 		}
-		return NewTypeIdent(pkgs, name)
+		return NewTypeIdent(pkgs, name, templates)
 	}
 }
 

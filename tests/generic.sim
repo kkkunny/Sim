@@ -1,0 +1,22 @@
+import std.c
+
+type ArrayList<T> struct{
+    len: usize
+    cap: usize
+    data: *T
+}
+
+func new_arraylist<T>()ArrayList::<T>{
+    let ptr = c::malloc(4) as *T
+    return {0, 1, ptr}
+}
+
+func (ArrayList<T>) length()usize{
+    return self.len
+}
+
+@extern(main)
+func main()u8{
+    let a: ArrayList::<i32> = new_arraylist::<i32>()
+    return a.length() as u8
+}
