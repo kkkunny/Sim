@@ -14,7 +14,7 @@ type CodeGenerator struct {
 	builder  llvm.Builder
 	function llvm.Value
 
-	vars  map[hir.Expr]llvm.Value
+	vars  map[hir.Ident]llvm.Value
 	types map[string]llvm.Type
 
 	// loop
@@ -37,7 +37,7 @@ func NewCodeGenerator() *CodeGenerator {
 		ctx:         ctx,
 		module:      ctx.NewModule(""),
 		builder:     ctx.NewBuilder(),
-		vars:        make(map[hir.Expr]llvm.Value),
+		vars:        make(map[hir.Ident]llvm.Value),
 		types:       make(map[string]llvm.Type),
 		stringPool:  make(map[string]llvm.Value),
 		cstringPool: make(map[string]llvm.Value),

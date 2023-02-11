@@ -177,11 +177,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			if err != nil {
 				return nil, err
 			}
-			return &Binary{
-				Opera: "-",
-				Left:  left,
-				Right: value,
-			}, nil
+			return &Subtract{Left: left, Right: value}, nil
 		case lex.NEG:
 			value, err := analyseExpr(ctx, expect, expr.Value)
 			if err != nil {
@@ -190,9 +186,8 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			if !IsSintTypeAndSon(value.GetType()) {
 				return nil, utils.Errorf(expr.Value.Position(), "expect a signed integer")
 			}
-			return &Binary{
-				Opera: "^",
-				Left:  value,
+			return &Xor{
+				Left: value,
 				Right: &Integer{
 					Type:  value.GetType(),
 					Value: -1,
@@ -206,12 +201,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			if err != nil {
 				return nil, err
 			}
-			return &Unary{
-				Mutable: false,
-				Type:    value.GetType(),
-				Opera:   "!",
-				Value:   value,
-			}, nil
+			return &Not{Value: value}, nil
 		case lex.AND:
 			if expect != nil && IsPtrTypeAndSon(expect) {
 				expect = GetBaseType(expect).(*TypePtr).Elem
@@ -223,12 +213,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			if value.IsTemporary() {
 				return nil, utils.Errorf(expr.Value.Position(), "not expect a temporary value")
 			}
-			return &Unary{
-				Mutable: false,
-				Type:    NewPtrType(value.GetType()),
-				Opera:   "&",
-				Value:   value,
-			}, nil
+			return &GetPointer{Value: value}, nil
 		case lex.MUL:
 			if expect != nil {
 				expect = NewPtrType(expect)
@@ -241,12 +226,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			if !IsPtrTypeAndSon(vt) {
 				return nil, utils.Errorf(expr.Value.Position(), "expect a pointer")
 			}
-			return &Unary{
-				Mutable: value.GetMut(),
-				Type:    GetBaseType(vt).(*TypePtr).Elem,
-				Opera:   "*",
-				Value:   value,
-			}, nil
+			return &GetValue{Value: value}, nil
 		default:
 			panic("")
 		}
@@ -261,63 +241,168 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			return nil, err
 		}
 		switch expr.Opera.Kind {
-		case lex.ASS, lex.ADS, lex.SUS, lex.MUS, lex.DIS, lex.MOS, lex.ANS, lex.ORS, lex.XOS, lex.SLS, lex.SRS:
+		case lex.ASS:
 			if !left.GetMut() {
 				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
 			}
-			switch expr.Opera.Kind {
-			case lex.ASS:
-			case lex.ADS, lex.SUS, lex.MUS, lex.DIS, lex.MOS:
-				if !IsNumberTypeAndSon(lt) {
-					return nil, utils.Errorf(expr.Left.Position(), "expect a number")
-				}
-			case lex.ANS, lex.ORS, lex.XOS, lex.SLS, lex.SRS:
-				if !IsIntTypeAndSon(lt) {
-					return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
-				}
-			default:
-				panic("unknown binary")
-			}
-			return &Assign{
-				Opera: expr.Opera.Source,
-				Left:  left,
-				Right: right,
-			}, nil
-		case lex.LAN, lex.LOR:
+			return &Assign{Left: left, Right: right}, nil
+		case lex.LAN:
 			if !IsBoolTypeAndSon(lt) {
 				return nil, utils.Errorf(expr.Left.Position(), "expect a boolean")
 			}
-		case lex.EQ, lex.NE:
-			return &Equal{
-				Opera: expr.Opera.Source,
-				Left:  left,
-				Right: right,
-			}, nil
-		case lex.LT, lex.LE, lex.GT, lex.GE:
+			return &LogicAnd{Left: left, Right: right}, nil
+		case lex.LOR:
+			if !IsBoolTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a boolean")
+			}
+			return &LogicOr{Left: left, Right: right}, nil
+		case lex.EQ:
+			return &Equal{Left: left, Right: right}, nil
+		case lex.NE:
+			return &NotEqual{Left: left, Right: right}, nil
+		case lex.LT:
 			if !IsNumberTypeAndSon(lt) {
 				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
 			}
-			return &Equal{
-				Opera: expr.Opera.Source,
-				Left:  left,
-				Right: right,
-			}, nil
-		case lex.ADD, lex.SUB, lex.MUL, lex.DIV, lex.MOD:
+			return &LessThan{Left: left, Right: right}, nil
+		case lex.LE:
 			if !IsNumberTypeAndSon(lt) {
 				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
 			}
-		case lex.AND, lex.OR, lex.XOR, lex.SHL, lex.SHR:
+			return &LessOrEqualThan{Left: left, Right: right}, nil
+		case lex.GT:
+			if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &LessThan{Left: right, Right: left}, nil
+		case lex.GE:
+			if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &LessOrEqualThan{Left: right, Right: left}, nil
+		case lex.ADD:
+			if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Add{Left: left, Right: right}, nil
+		case lex.ADS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Assign{Left: left, Right: &Add{Left: left, Right: right}}, nil
+		case lex.SUB:
+			if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Subtract{Left: left, Right: right}, nil
+		case lex.SUS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Assign{Left: left, Right: &Subtract{Left: left, Right: right}}, nil
+		case lex.MUL:
+			if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Multiply{Left: left, Right: right}, nil
+		case lex.MUS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Assign{Left: left, Right: &Multiply{Left: left, Right: right}}, nil
+		case lex.DIV:
+			if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Divide{Left: left, Right: right}, nil
+		case lex.DIS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Assign{Left: left, Right: &Divide{Left: left, Right: right}}, nil
+		case lex.MOD:
+			if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Mod{Left: left, Right: right}, nil
+		case lex.MOS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsNumberTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a number")
+			}
+			return &Assign{Left: left, Right: &Mod{Left: left, Right: right}}, nil
+		case lex.AND:
 			if !IsIntTypeAndSon(lt) {
 				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
 			}
+			return &And{Left: left, Right: right}, nil
+		case lex.ANS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &Assign{Left: left, Right: &And{Left: left, Right: right}}, nil
+		case lex.OR:
+			if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &Or{Left: left, Right: right}, nil
+		case lex.ORS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &Assign{Left: left, Right: &Or{Left: left, Right: right}}, nil
+		case lex.XOR:
+			if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &Xor{Left: left, Right: right}, nil
+		case lex.XOS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &Assign{Left: left, Right: &Xor{Left: left, Right: right}}, nil
+		case lex.SHL:
+			if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &ShiftLeft{Left: left, Right: right}, nil
+		case lex.SLS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &Assign{Left: left, Right: &ShiftLeft{Left: left, Right: right}}, nil
+		case lex.SHR:
+			if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &ShiftRight{Left: left, Right: right}, nil
+		case lex.SRS:
+			if !left.GetMut() {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a mutable value")
+			} else if !IsIntTypeAndSon(lt) {
+				return nil, utils.Errorf(expr.Left.Position(), "expect a integer")
+			}
+			return &Assign{Left: left, Right: &ShiftRight{Left: left, Right: right}}, nil
 		default:
 			panic("unknown binary")
 		}
-		return &Binary{
-			Opera: expr.Opera.Source,
-			Left:  left,
-			Right: right,
-		}, nil
 	case *parse.Ternary:
 		cond, err := expectExprAndSon(ctx, Bool, expr.Cond)
 		if err != nil {
@@ -502,12 +587,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
 				}
 				return &GetField{
-					From: &Unary{
-						Mutable: prefix.GetMut(),
-						Type:    t.Elem,
-						Opera:   "*",
-						Value:   prefix,
-					},
+					From:  &GetValue{Value: prefix},
 					Index: expr.End.Source,
 				}, nil
 			} else if st, ok := GetBaseType(t.Elem).(*TypeInterface); ok {
@@ -515,12 +595,7 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
 				}
 				return &GetInterfaceField{
-					From: &Unary{
-						Mutable: prefix.GetMut(),
-						Type:    t.Elem,
-						Opera:   "*",
-						Value:   prefix,
-					},
+					From:  &GetValue{Value: prefix},
 					Index: expr.End.Source,
 				}, nil
 			}
@@ -537,21 +612,13 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			if err != nil {
 				return nil, err
 			}
-			return &Index{
-				Type:  pt.Elem,
-				From:  prefix,
-				Index: index,
-			}, nil
+			return &ArrayIndex{From: prefix, Index: index}, nil
 		case *TypePtr:
 			index, err := autoExpectExpr(ctx, Usize, expr.Index)
 			if err != nil {
 				return nil, err
 			}
-			return &Index{
-				Type:  pt.Elem,
-				From:  prefix,
-				Index: index,
-			}, nil
+			return &PointerIndex{From: prefix, Index: index}, nil
 		case *TypeTuple:
 			index, err := analyseExpr(ctx, Usize, expr.Index)
 			if err != nil {
@@ -560,12 +627,13 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			literal, ok := index.(*Integer)
 			if !ok {
 				return nil, utils.Errorf(expr.Index.Position(), "expect a integer literal")
+			} else if literal.Value < 0 || literal.Value >= int64(len(pt.Elems)) {
+				return nil, utils.Errorf(
+					expr.Index.Position(), "expect a integer literal between `0` and `%d`",
+					len(pt.Elems),
+				)
 			}
-			return &Index{
-				Type:  pt.Elems[literal.Value],
-				From:  prefix,
-				Index: literal,
-			}, nil
+			return &TupleIndex{From: prefix, Index: uint(literal.Value)}, nil
 		default:
 			return nil, utils.Errorf(expr.Front.Position(), "expect a array or tuple")
 		}
@@ -775,7 +843,7 @@ func analyseBuildInFuncCall(ctx *blockContext, ident *parse.Ident, paramAsts []p
 }
 
 // 类型转换
-func analyseCovert(v Expr, t Type) *Covert {
+func analyseCovert(v Expr, t Type) Covert {
 	if vv := analyseAutoCovert(v, t); vv != nil {
 		return vv
 	}
@@ -783,32 +851,28 @@ func analyseCovert(v Expr, t Type) *Covert {
 	ft := v.GetType()
 	switch {
 	case GetDepthBaseType(ft).Equal(GetDepthBaseType(t)):
+		return &WrapCovert{From: v, To: t}
 	case IsNumberTypeAndSon(ft) && IsNumberTypeAndSon(t):
+		return &NumberCovert{From: v, To: t}
 	case GetBaseType(ft).Equal(Usize) && (IsPtrTypeAndSon(t) || IsFuncTypeAndSon(t)):
+		return &Usize2PtrCovert{From: v, To: t}
 	case (IsPtrTypeAndSon(ft) || IsFuncTypeAndSon(ft)) && GetBaseType(t).Equal(Usize):
+		return &Ptr2UsizeCovert{From: v, To: t}
 	case (IsPtrTypeAndSon(ft) || IsFuncTypeAndSon(ft)) && (IsPtrTypeAndSon(t) || IsFuncTypeAndSon(t)):
+		return &PtrCovert{From: v, To: t}
 	default:
 		return nil
-	}
-
-	return &Covert{
-		From: v,
-		To:   t,
 	}
 }
 
 // 自动类型转换
-func analyseAutoCovert(v Expr, t Type) *Covert {
+func analyseAutoCovert(v Expr, t Type) Covert {
 	ft := v.GetType()
 	switch {
 	case IsPtrTypeAndSon(ft) && IsTypedef(GetBaseType(ft).(*TypePtr).Elem) && IsInterfaceTypeAndSon(t) && GetBaseType(ft).(*TypePtr).Elem.(*Typedef).IsImpl(GetBaseType(t).(*TypeInterface)):
 		// 类型定义指针 --> 接口类型定义
+		return &UpCovert{From: v, To: t}
 	default:
 		return nil
-	}
-
-	return &Covert{
-		From: v,
-		To:   t,
 	}
 }
