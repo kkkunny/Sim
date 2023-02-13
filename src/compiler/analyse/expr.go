@@ -422,6 +422,98 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			False: fv,
 		}, nil
 	case *parse.Call:
+		if astDot, ok := expr.Func.(*parse.Dot); ok {
+			prefix, err := analyseExpr(ctx, nil, astDot.Front)
+			if err != nil {
+				return nil, err
+			}
+			prefixType := prefix.GetType()
+			if IsTypedef(prefixType) || (IsPtrType(prefixType) && IsTypedef(prefixType.(*TypePtr).Elem)) {
+				// 方法调用
+				var tt *Typedef
+				if t, ok := prefixType.(*Typedef); ok {
+					tt = t
+				} else {
+					tt = prefixType.(*TypePtr).Elem.(*Typedef)
+				}
+				if fun, ok := tt.Methods[astDot.End.Source]; ok {
+					ft := fun.GetMethodType()
+					if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
+						(ft.VarArg && len(ft.Params) > len(expr.Args)) {
+						return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
+					}
+					args := make([]Expr, len(expr.Args))
+					var errs []utils.Error
+					for i, a := range expr.Args {
+						var arg Expr
+						var err utils.Error
+						if i < len(ft.Params) {
+							arg, err = expectExpr(ctx, ft.Params[i], a)
+						} else {
+							arg, err = analyseExpr(ctx, nil, a)
+						}
+						if err != nil {
+							errs = append(errs, err)
+						} else {
+							args[i] = arg
+						}
+					}
+					if len(errs) == 1 {
+						return nil, errs[0]
+					} else if len(errs) > 1 {
+						return nil, utils.NewMultiError(errs...)
+					}
+					return &MethodCall{
+						Self:   prefix,
+						Method: fun,
+						Args:   args,
+					}, nil
+				}
+			}
+			if IsInterfaceTypeAndSon(prefixType) || (IsPtrType(prefixType) && IsInterfaceTypeAndSon(prefixType.(*TypePtr).Elem)) {
+				// 接口方法调用
+				var it *TypeInterface
+				if t, ok := GetBaseType(prefixType).(*TypeInterface); ok {
+					it = t
+				} else {
+					it = GetBaseType(prefixType.(*TypePtr).Elem).(*TypeInterface)
+				}
+				if it.Fields.ContainKey(astDot.End.Source) {
+					ft := it.Fields.Get(astDot.End.Source)
+					if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
+						(ft.VarArg && len(ft.Params) > len(expr.Args)) {
+						return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
+					}
+					args := make([]Expr, len(expr.Args))
+					var errs []utils.Error
+					for i, a := range expr.Args {
+						var arg Expr
+						var err utils.Error
+						if i < len(ft.Params) {
+							arg, err = expectExpr(ctx, ft.Params[i], a)
+						} else {
+							arg, err = analyseExpr(ctx, nil, a)
+						}
+						if err != nil {
+							errs = append(errs, err)
+						} else {
+							args[i] = arg
+						}
+					}
+					if len(errs) == 1 {
+						return nil, errs[0]
+					} else if len(errs) > 1 {
+						return nil, utils.NewMultiError(errs...)
+					}
+					return &InterfaceFieldCall{
+						From:  prefix,
+						Index: astDot.End.Source,
+						Args:  args,
+					}, nil
+				}
+			}
+		}
+
 		f, err := analyseExpr(ctx, nil, expr.Func)
 		if err != nil {
 			if ident, ok := expr.Func.(*parse.Ident); ok && ident.Pkgs[0].Path == ctx.GetPackageContext().ast.Path {
@@ -430,134 +522,47 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 			return nil, err
 		}
 
-		if method, ok := f.(*Method); ok {
-			// 方法调用
-			ft := method.GetMethodType()
-			if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
-				(ft.VarArg && len(ft.Params) > len(expr.Args)) {
-				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
-			}
-
-			args := make([]Expr, len(expr.Args))
-			var errs []utils.Error
-			for i, a := range expr.Args {
-				var arg Expr
-				var err utils.Error
-				if i < len(ft.Params) {
-					arg, err = expectExpr(ctx, ft.Params[i], a)
-				} else {
-					arg, err = analyseExpr(ctx, nil, a)
-				}
-				if err != nil {
-					errs = append(errs, err)
-				} else {
-					args[i] = arg
-				}
-			}
-			if len(errs) == 1 {
-				return nil, errs[0]
-			} else if len(errs) > 1 {
-				return nil, utils.NewMultiError(errs...)
-			}
-
-			return &MethodCall{
-				Method: method,
-				Args:   args,
-			}, nil
-		} else if im, ok := f.(*GetInterfaceField); ok {
-			// 接口成员方法调用
-			ft := im.GetMethodType()
-			if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
-				(ft.VarArg && len(ft.Params) > len(expr.Args)) {
-				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
-			}
-
-			args := make([]Expr, len(expr.Args))
-			var errs []utils.Error
-			for i, a := range expr.Args {
-				var arg Expr
-				var err utils.Error
-				if i < len(ft.Params) {
-					arg, err = expectExpr(ctx, ft.Params[i], a)
-				} else {
-					arg, err = analyseExpr(ctx, nil, a)
-				}
-				if err != nil {
-					errs = append(errs, err)
-				} else {
-					args[i] = arg
-				}
-			}
-			if len(errs) == 1 {
-				return nil, errs[0]
-			} else if len(errs) > 1 {
-				return nil, utils.NewMultiError(errs...)
-			}
-
-			return &InterfaceFieldCall{
-				Field: im,
-				Args:  args,
-			}, nil
-		} else {
-			// 函数调用
-			ft, ok := GetBaseType(f.GetType()).(*TypeFunc)
-			if !ok {
-				return nil, utils.Errorf(expr.Func.Position(), "expect a function")
-			} else if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
-				(ft.VarArg && len(ft.Params) > len(expr.Args)) {
-				return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
-			}
-
-			args := make([]Expr, len(expr.Args))
-			var errs []utils.Error
-			for i, a := range expr.Args {
-				var arg Expr
-				var err utils.Error
-				if i < len(ft.Params) {
-					arg, err = expectExpr(ctx, ft.Params[i], a)
-				} else {
-					arg, err = analyseExpr(ctx, nil, a)
-				}
-				if err != nil {
-					errs = append(errs, err)
-				} else {
-					args[i] = arg
-				}
-			}
-			if len(errs) == 1 {
-				return nil, errs[0]
-			} else if len(errs) > 1 {
-				return nil, utils.NewMultiError(errs...)
-			}
-
-			return &FuncCall{
-				Func: f,
-				Args: args,
-			}, nil
+		// 函数调用
+		ft, ok := GetBaseType(f.GetType()).(*TypeFunc)
+		if !ok {
+			return nil, utils.Errorf(expr.Func.Position(), "expect a function")
+		} else if (!ft.VarArg && len(ft.Params) != len(expr.Args)) ||
+			(ft.VarArg && len(ft.Params) > len(expr.Args)) {
+			return nil, utils.Errorf(expr.Func.Position(), "expect %d arguments", len(ft.Params))
 		}
+
+		args := make([]Expr, len(expr.Args))
+		var errs []utils.Error
+		for i, a := range expr.Args {
+			var arg Expr
+			var err utils.Error
+			if i < len(ft.Params) {
+				arg, err = expectExpr(ctx, ft.Params[i], a)
+			} else {
+				arg, err = analyseExpr(ctx, nil, a)
+			}
+			if err != nil {
+				errs = append(errs, err)
+			} else {
+				args[i] = arg
+			}
+		}
+		if len(errs) == 1 {
+			return nil, errs[0]
+		} else if len(errs) > 1 {
+			return nil, utils.NewMultiError(errs...)
+		}
+
+		return &FuncCall{
+			Func: f,
+			Args: args,
+		}, nil
 	case *parse.Dot:
 		prefix, err := analyseExpr(ctx, nil, expr.Front)
 		if err != nil {
 			return nil, err
 		}
-
-		// 方法
 		prefixType := prefix.GetType()
-		if IsTypedef(prefixType) || (IsPtrType(prefixType) && IsTypedef(prefixType.(*TypePtr).Elem)) {
-			var _selfType *Typedef
-			if td, ok := prefixType.(*Typedef); ok {
-				_selfType = td
-			} else {
-				_selfType = prefixType.(*TypePtr).Elem.(*Typedef)
-			}
-
-			if fun, ok := _selfType.Methods[expr.End.Source]; ok {
-				return &Method{
-					Self: prefix,
-					Func: fun,
-				}, nil
-			}
-		}
 
 		// 属性
 		switch t := GetBaseType(prefixType).(type) {
@@ -571,14 +576,6 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 				From:  prefix,
 				Index: expr.End.Source,
 			}, nil
-		case *TypeInterface:
-			if !t.Fields.ContainKey(expr.End.Source) {
-				return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
-			}
-			return &GetInterfaceField{
-				From:  prefix,
-				Index: expr.End.Source,
-			}, nil
 		case *TypePtr:
 			if st, ok := GetBaseType(t.Elem).(*TypeStruct); ok {
 				if !st.Fields.ContainKey(expr.End.Source) {
@@ -587,14 +584,6 @@ func analyseExpr(ctx *blockContext, expect Type, ast parse.Expr) (Expr, utils.Er
 					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
 				}
 				return &GetField{
-					From:  &GetValue{Value: prefix},
-					Index: expr.End.Source,
-				}, nil
-			} else if st, ok := GetBaseType(t.Elem).(*TypeInterface); ok {
-				if !st.Fields.ContainKey(expr.End.Source) {
-					return nil, utils.Errorf(expr.End.Pos, "unknown identifier")
-				}
-				return &GetInterfaceField{
 					From:  &GetValue{Value: prefix},
 					Index: expr.End.Source,
 				}, nil

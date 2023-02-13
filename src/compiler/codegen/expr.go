@@ -191,14 +191,14 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			}
 			return self.builder.CreateCall(f, args, "")
 		case *hir.MethodCall:
-			f := self.codegenExpr(call.Method.Func, true)
+			f := self.vars[call.Method]
 			args := make([]llvm.Value, len(call.Args)+1)
-			if hir.IsPtrType(call.Method.Self.GetType()) {
-				args[0] = self.codegenExpr(call.Method.Self, true)
-			} else if call.Method.Self.GetMut() {
-				args[0] = self.codegenExpr(call.Method.Self, false)
+			if hir.IsPtrType(call.Self.GetType()) {
+				args[0] = self.codegenExpr(call.Self, true)
+			} else if call.Self.GetMut() {
+				args[0] = self.codegenExpr(call.Self, false)
 			} else {
-				selfArg := self.codegenExpr(call.Method.Self, true)
+				selfArg := self.codegenExpr(call.Self, true)
 				args[0] = self.builder.CreateAlloca(selfArg.Type(), "")
 				self.builder.CreateStore(selfArg, args[0])
 			}
@@ -206,15 +206,31 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 				args[i+1] = self.codegenExpr(a, true)
 			}
 			v := self.builder.CreateCall(f, args, "")
-			if call.Method.Func.NoReturn {
+			if call.Method.NoReturn {
 				self.builder.CreateUnreachable()
 			}
 			return v
 		case *hir.InterfaceFieldCall:
-			f := self.codegenExpr(call.Field, true)
+			var i llvm.Value
+			var it *hir.TypeInterface
+			if hir.IsPtrType(call.From.GetType()) {
+				i = self.codegenExpr(&hir.GetValue{Value: call.From}, true)
+				it = hir.GetBaseType(call.From.GetType().(*hir.TypePtr).Elem).(*hir.TypeInterface)
+			} else {
+				i = self.codegenExpr(call.From, true)
+				it = hir.GetBaseType(call.From.GetType()).(*hir.TypeInterface)
+			}
+			var index uint = 2
+			for iter := it.Fields.Begin(); iter.HasValue(); iter.Next() {
+				if iter.Key() == call.Index {
+					break
+				}
+				index++
+			}
+			f := self.createStructIndex(i, index, true)
 
 			args := make([]llvm.Value, len(call.Args)+1)
-			args[0] = self.createStructIndex(self.codegenExpr(call.Field.From, true), 1, true)
+			args[0] = self.createStructIndex(i, 1, true)
 			for i, a := range call.Args {
 				args[i+1] = self.codegenExpr(a, true)
 			}
@@ -223,8 +239,6 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		default:
 			panic("")
 		}
-	case *hir.Method:
-		return self.vars[expr.Func]
 	case hir.Unary:
 		switch unary := expr.(type) {
 		case *hir.Not:
@@ -414,16 +428,6 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		size := self.codegenExpr(expr.Size, true)
 		ptr := self.builder.CreateArrayAlloca(self.ctx.Int8Type(), size, "")
 		return self.builder.CreatePointerCast(ptr, llvm.PointerType(t_size, 0), "")
-	case *hir.GetInterfaceField:
-		f := self.codegenExpr(expr.From, false)
-		var index uint = 2
-		for iter := hir.GetBaseType(expr.From.GetType()).(*hir.TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
-			if iter.Key() == expr.Index {
-				break
-			}
-			index++
-		}
-		return self.createStructIndex(f, index, true)
 	default:
 		panic("")
 	}

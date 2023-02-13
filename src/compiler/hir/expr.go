@@ -596,7 +596,8 @@ func (self FuncCall) call() {}
 
 // MethodCall 方法调用
 type MethodCall struct {
-	Method *Method
+	Self   Expr // 类型定义 || 类型定义指针
+	Method *Function
 	Args   []Expr
 }
 
@@ -618,14 +619,15 @@ func (self MethodCall) call() {}
 
 // InterfaceFieldCall 接口成员调用
 type InterfaceFieldCall struct {
-	Field *GetInterfaceField
+	From  Expr
+	Index string
 	Args  []Expr
 }
 
 func (self InterfaceFieldCall) stmt() {}
 
 func (self InterfaceFieldCall) GetType() Type {
-	return self.Field.GetMethodType().Ret
+	return GetBaseType(self.From.GetType()).(*TypeInterface).Fields.Get(self.Index).Ret
 }
 
 func (self InterfaceFieldCall) GetMut() bool {
@@ -1002,30 +1004,6 @@ func (self UpCovert) IsTemporary() bool {
 
 func (self UpCovert) covert() {}
 
-// Method 方法
-type Method struct {
-	Self Expr // 类型定义 || 类型定义指针
-	Func *Function
-}
-
-func (self Method) stmt() {}
-
-func (self Method) GetType() Type {
-	return self.Func.GetType()
-}
-
-func (self Method) GetMethodType() *TypeFunc {
-	return self.Func.GetMethodType()
-}
-
-func (self Method) GetMut() bool {
-	return false
-}
-
-func (self Method) IsTemporary() bool {
-	return true
-}
-
 // Alloc 栈内存分配
 type Alloc struct {
 	Size Expr
@@ -1042,31 +1020,5 @@ func (self Alloc) GetMut() bool {
 }
 
 func (self Alloc) IsTemporary() bool {
-	return true
-}
-
-// GetInterfaceField 获取接口成员
-type GetInterfaceField struct {
-	From  Expr
-	Index string
-}
-
-func (self GetInterfaceField) stmt() {}
-
-func (self GetInterfaceField) GetType() Type {
-	ft := self.GetType().(*TypeFunc)
-	ft.Params = append([]Type{NewPtrType(Usize)}, ft.Params...)
-	return ft
-}
-
-func (self GetInterfaceField) GetMethodType() *TypeFunc {
-	return GetBaseType(self.From.GetType()).(*TypeInterface).Fields.Get(self.Index)
-}
-
-func (self GetInterfaceField) GetMut() bool {
-	return false
-}
-
-func (self GetInterfaceField) IsTemporary() bool {
 	return true
 }
