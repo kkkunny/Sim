@@ -3,7 +3,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -15,7 +14,6 @@ import (
 
 func main() {
 	ast := util.MustValue(parse.Parse(stlos.Path(os.Args[1])))
-	mean := util.MustValue(analyse.Analyse(ast))
-	out := string(util.MustValue(json.MarshalIndent(mean, "", "  ")))
-	fmt.Println(out)
+	hir := util.MustValue(analyse.NewAnalyser().Analyse(ast))
+	fmt.Println(hir.Globals.Length())
 }

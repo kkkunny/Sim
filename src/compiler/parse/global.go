@@ -65,37 +65,6 @@ func (self TypeDef) Position() utils.Position {
 
 func (self TypeDef) Global() {}
 
-// ExternFunction 外部函数声明
-type ExternFunction struct {
-	Pos    utils.Position
-	Attrs  []Attr
-	Public bool
-	Ret    Type
-	Name   lex.Token
-	Params []*NameOrNilAndType
-	VarArg bool
-}
-
-func NewExternFunction(
-	pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*NameOrNilAndType, varArg bool,
-) *ExternFunction {
-	return &ExternFunction{
-		Pos:    pos,
-		Attrs:  attrs,
-		Public: pub,
-		Ret:    ret,
-		Name:   name,
-		Params: params,
-		VarArg: varArg,
-	}
-}
-
-func (self ExternFunction) Position() utils.Position {
-	return self.Pos
-}
-
-func (self ExternFunction) Global() {}
-
 // Function 函数
 type Function struct {
 	Pos    utils.Position
@@ -105,7 +74,7 @@ type Function struct {
 	Name   lex.Token
 	Params []*NameOrNilAndType
 	VarArg bool
-	Body   *Block
+	Body   *Block // （可能为空）
 }
 
 func NewFunction(
@@ -430,7 +399,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 				return nil
 			}
 		}
-		return NewExternFunction(pos, attrs, pub != nil, ret, name, params, varArg)
+		return NewFunction(pos, attrs, pub != nil, ret, name, params, varArg, nil)
 	} else {
 		for _, attr := range attrs {
 			switch attr.(type) {
