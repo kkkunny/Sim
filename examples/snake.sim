@@ -110,8 +110,8 @@ func main()u8{
 				}
 			}
 
-			c::printf("\e[%iB\e[%iC·", y[tail] as c::int + 1, x[tail] as c::int + 1)
-			c::printf("\e[%iF", y[tail] as c::int + 1, 0)
+			c::printf("\e[%iB\e[%iC·", y[tail as usize] as c::int + 1, x[tail as usize] as c::int + 1)
+			c::printf("\e[%iF", y[tail as usize] as c::int + 1, 0)
 
 			if x[head as usize] == applex && y[head as usize] == appley{
 				applex = -1
@@ -133,8 +133,8 @@ func main()u8{
 				i = (i + 1) % 1000
 			}
 
-			c::printf("\e[%iB\e[%iC▓", y[head] as c::int + 1, x[head] as c::int + 1)
-			c::printf("\e[%iF", y[head] as c::int + 1, 0)
+			c::printf("\e[%iB\e[%iC▓", y[head as usize] as c::int + 1, x[head as usize] as c::int + 1)
+			c::printf("\e[%iF", y[head as usize] as c::int + 1, 0)
 			c::fflush(c::stdout)
 
 			usleep(5 as c::unsigned_int * 1000000 / 60)

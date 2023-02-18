@@ -169,6 +169,10 @@ func (self *Analyser) analyseGlobalValueDef(ast parse.GlobalValue) utils.Error {
 	}
 	ident := _ident.data.(*hir.GlobalValue)
 
+	if ident.Name != "" && ast.Value == nil {
+		return nil
+	}
+
 	// 值
 	var value hir.Expr
 	var err utils.Error

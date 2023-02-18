@@ -2,12 +2,12 @@ pub type size_t unsigned_long
 pub type FILE struct{}
 pub type fpos_t struct{}
 
-//@extern(stdin)
-//pub let stdin: *FILE
-//@extern(stdout)
-//pub let stdout: *FILE
-//@extern(stderr)
-//pub let stderr: *FILE
+@extern(stdin)
+pub let stdin: *FILE
+@extern(stdout)
+pub let stdout: *FILE
+@extern(stderr)
+pub let stderr: *FILE
 
 @extern(fclose)
 pub func fclose(stream: *FILE)int

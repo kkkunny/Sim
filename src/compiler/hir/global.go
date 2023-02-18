@@ -43,7 +43,7 @@ func (self *Typedef) LookupMethod(name string) (*Method, bool) {
 type GlobalValue struct {
 	Typ   Type   // 类型
 	Name  string // 名
-	Value Expr   // 值
+	Value Expr   // 值（可能为空）
 }
 
 func NewGlobalValue(t Type, name string, v Expr) *GlobalValue {

@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/kkkunny/Sim/src/compiler/hir"
@@ -380,6 +381,7 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		ptr := self.builder.CreateArrayAlloca(self.ctx.Int8Type(), size, "")
 		return self.builder.CreatePointerCast(ptr, llvm.PointerType(t_size, 0), "")
 	default:
+		fmt.Printf("%+v\n", expr)
 		panic("unreachable")
 	}
 }

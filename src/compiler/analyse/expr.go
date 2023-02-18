@@ -652,8 +652,12 @@ func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
 	// 实参
 	var errs []utils.Error
 	args := make([]hir.Expr, len(ast.Args))
-	for i, at := range paramTypes {
-		args[i], err = self.expectExpr(at, ast.Args[i])
+	for i, a := range ast.Args {
+		if i < len(paramTypes) {
+			args[i], err = self.expectExpr(paramTypes[i], a)
+		} else {
+			args[i], err = self.analyseExpr(nil, a)
+		}
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -698,9 +702,13 @@ func (self *Analyser) analyseCallMethod(
 	// 实参
 	var errs []utils.Error
 	args := make([]hir.Expr, len(argAsts))
-	for i, at := range paramTypes {
+	for i, a := range argAsts {
 		var err utils.Error
-		args[i], err = self.expectExpr(at, argAsts[i])
+		if i < len(paramTypes) {
+			args[i], err = self.expectExpr(paramTypes[i], a)
+		} else {
+			args[i], err = self.analyseExpr(nil, a)
+		}
 		if err != nil {
 			errs = append(errs, err)
 		}

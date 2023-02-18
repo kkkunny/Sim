@@ -50,7 +50,6 @@ func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
 	for iter := pkg.Globals.Iterator(); iter.HasValue(); iter.Next() {
 		switch global := iter.Value().(type) {
 		case *hir.Typedef:
-			// TODO:
 		case *hir.Function:
 			ft := self.codegenType(global.Type()).ElementType()
 			f := llvm.AddFunction(self.module, global.Name, ft)
@@ -94,8 +93,7 @@ func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
 			v := llvm.AddGlobal(self.module, vt, global.Name)
 			if global.Name == "" {
 				v.SetLinkage(llvm.InternalLinkage)
-			} else if global.Value == nil {
-				// TODO: 全局变量声明
+			} else {
 				v.SetLinkage(llvm.ExternalLinkage)
 			}
 			if global.Value != nil {
