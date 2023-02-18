@@ -4,466 +4,522 @@ import (
 	"fmt"
 	"strings"
 
-	stlos "github.com/kkkunny/stl/os"
-	"github.com/kkkunny/stl/set"
-	"github.com/kkkunny/stl/table"
 	"github.com/kkkunny/stl/types"
 )
 
-type Type interface {
-	fmt.Stringer
-	Equal(Type) bool
-}
+type TypeKind uint8
 
-var (
-	None = &TypeBasic{Name: "none"}
+const (
+	TNone TypeKind = iota
 
-	I8    = &TypeBasic{Name: "i8"}
-	I16   = &TypeBasic{Name: "i16"}
-	I32   = &TypeBasic{Name: "i32"}
-	I64   = &TypeBasic{Name: "i64"}
-	Isize = &TypeBasic{Name: "isize"}
+	TBool
 
-	U8    = &TypeBasic{Name: "u8"}
-	U16   = &TypeBasic{Name: "u16"}
-	U32   = &TypeBasic{Name: "u32"}
-	U64   = &TypeBasic{Name: "u64"}
-	Usize = &TypeBasic{Name: "usize"}
+	TI8
+	TU8
+	TI16
+	TU16
+	TI32
+	TU32
+	TI64
+	TU64
+	TIsize
+	TUsize
 
-	F32 = &TypeBasic{Name: "f32"}
-	F64 = &TypeBasic{Name: "f64"}
+	TF32
+	TF64
 
-	Bool = &TypeBasic{Name: "bool"}
+	TPtr
+	TFunc
+	TArray
+	TTuple
+	TStruct
+
+	TTypedef
 )
 
-// TypeBasic 基础类型
-type TypeBasic struct {
-	Name string
+// Type 类型
+type Type struct {
+	Kind      TypeKind // 类型
+	elems     []Type   // 子类型
+	elemNames []string // 子类型名
+	elemPubs  []bool   // 子类型公开性
+	number    uint     // 数量
+	typedef   *Typedef // 类型定义
+	varArg    bool     // 是否是不定参数
 }
 
-// IsBasicType 是否是基础类型
-func IsBasicType(t Type) bool {
-	_, ok := t.(*TypeBasic)
-	return ok
+func NewTypeNone() Type         { return Type{Kind: TNone} }
+func NewTypeBool() Type         { return Type{Kind: TBool} }
+func NewTypeI8() Type           { return Type{Kind: TI8} }
+func NewTypeU8() Type           { return Type{Kind: TU8} }
+func NewTypeI16() Type          { return Type{Kind: TI16} }
+func NewTypeU16() Type          { return Type{Kind: TU16} }
+func NewTypeI32() Type          { return Type{Kind: TI32} }
+func NewTypeU32() Type          { return Type{Kind: TU32} }
+func NewTypeI64() Type          { return Type{Kind: TI64} }
+func NewTypeU64() Type          { return Type{Kind: TU64} }
+func NewTypeIsize() Type        { return Type{Kind: TIsize} }
+func NewTypeUsize() Type        { return Type{Kind: TUsize} }
+func NewTypeF32() Type          { return Type{Kind: TF32} }
+func NewTypeF64() Type          { return Type{Kind: TF64} }
+func NewTypePtr(elem Type) Type { return Type{Kind: TPtr, elems: []Type{elem}} }
+func NewTypeFunc(isVarArg bool, ret Type, params ...Type) Type {
+	return Type{Kind: TFunc, elems: append([]Type{ret}, params...), varArg: isVarArg}
 }
-
-// IsNoneType 是否是空类型
-func IsNoneType(t Type) bool {
-	return t == None
+func NewTypeArray(size uint, elem Type) Type {
+	return Type{Kind: TArray, elems: []Type{elem}, number: size}
 }
-
-// IsNumberType 是否是数字类型
-func IsNumberType(t Type) bool {
-	return IsIntType(t) || IsFloatType(t)
-}
-
-// IsNumberTypeAndSon 是否是数字类型及其子类型
-func IsNumberTypeAndSon(t Type) bool {
-	return IsNumberType(GetBaseType(t))
-}
-
-// IsIntType 是否是整型
-func IsIntType(t Type) bool {
-	return IsSintType(t) || IsUintType(t)
-}
-
-// IsIntTypeAndSon 是否是整型及其子类型
-func IsIntTypeAndSon(t Type) bool {
-	return IsIntType(GetBaseType(t))
-}
-
-// IsSintType 是否是有符号整型
-func IsSintType(t Type) bool {
-	return t == I8 || t == I16 || t == I32 || t == I64 || t == Isize
-}
-
-// IsSintTypeAndSon 是否是有符号整型及其子类型
-func IsSintTypeAndSon(t Type) bool {
-	return IsSintType(GetBaseType(t))
-}
-
-// IsUintType 是否是无符号整型
-func IsUintType(t Type) bool {
-	return t == U8 || t == U16 || t == U32 || t == U64 || t == Usize
-}
-
-// IsUintTypeAndSon 是否是无符号整型及其子类型
-func IsUintTypeAndSon(t Type) bool {
-	return IsUintType(GetBaseType(t))
-}
-
-// IsFloatType 是否是浮点型
-func IsFloatType(t Type) bool {
-	return t == F32 || t == F64
-}
-
-// IsFloatTypeAndSon 是否是浮点型及其子类型
-func IsFloatTypeAndSon(t Type) bool {
-	return IsFloatType(GetBaseType(t))
-}
-
-// IsBoolType 是否是布尔类型
-func IsBoolType(t Type) bool {
-	return t == Bool
-}
-
-// IsBoolTypeAndSon 是否是布尔类型及其子类型
-func IsBoolTypeAndSon(t Type) bool {
-	return IsBoolType(GetBaseType(t))
-}
-
-func (self TypeBasic) String() string {
-	return self.Name
-}
-
-func (self TypeBasic) Equal(t Type) bool {
-	if b, ok := t.(*TypeBasic); ok {
-		return self.Name == b.Name
+func NewTypeTuple(elems ...Type) Type { return Type{Kind: TTuple, elems: elems} }
+func NewTypeStruct(elems ...types.ThreePair[bool, string, Type]) Type {
+	ps := make([]bool, len(elems))
+	ns := make([]string, len(elems))
+	ts := make([]Type, len(elems))
+	for i, p := range elems {
+		ps[i], ns[i], ts[i] = p.First, p.Second, p.Third
 	}
-	return false
-}
-
-// TypeFunc 函数类型
-type TypeFunc struct {
-	Ret    Type
-	Params []Type
-	VarArg bool
-}
-
-// NewFuncType 新建函数类型
-func NewFuncType(ret Type, params []Type, varArg bool) *TypeFunc {
-	return &TypeFunc{
-		Ret:    ret,
-		Params: params,
-		VarArg: varArg,
+	return Type{
+		Kind:      TStruct,
+		elems:     ts,
+		elemNames: ns,
+		elemPubs:  ps,
 	}
 }
+func NewTypeTypedef(def *Typedef) Type { return Type{Kind: TTypedef, typedef: def} }
 
-// IsFuncType 是否是函数类型
-func IsFuncType(t Type) bool {
-	_, ok := t.(*TypeFunc)
-	return ok
+func (self Type) IsNone() bool { return self.Kind == TNone }
+func (self Type) IsBool() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsBool()
+	}
+	return self.Kind == TBool
 }
-
-// IsFuncTypeAndSon 是否是函数类型及其子类型
-func IsFuncTypeAndSon(t Type) bool {
-	return IsFuncType(GetBaseType(t))
+func (self Type) IsI8() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsI8()
+	}
+	return self.Kind == TI8
 }
-
-func (self TypeFunc) String() string {
-	var buf strings.Builder
-	buf.WriteString("func(")
-	buf.WriteByte(')')
-	buf.WriteString(self.Ret.String())
-	return buf.String()
+func (self Type) IsU8() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsU8()
+	}
+	return self.Kind == TU8
 }
+func (self Type) IsI16() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsI16()
+	}
+	return self.Kind == TI16
+}
+func (self Type) IsU16() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsU16()
+	}
+	return self.Kind == TU16
+}
+func (self Type) IsI32() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsI32()
+	}
+	return self.Kind == TI32
+}
+func (self Type) IsU32() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsU32()
+	}
+	return self.Kind == TU32
+}
+func (self Type) IsI64() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsI64()
+	}
+	return self.Kind == TI64
+}
+func (self Type) IsU64() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsU64()
+	}
+	return self.Kind == TU64
+}
+func (self Type) IsIsize() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsIsize()
+	}
+	return self.Kind == TIsize
+}
+func (self Type) IsUsize() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsUsize()
+	}
+	return self.Kind == TUsize
+}
+func (self Type) IsF32() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsF32()
+	}
+	return self.Kind == TF32
+}
+func (self Type) IsF64() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsF64()
+	}
+	return self.Kind == TF64
+}
+func (self Type) IsPtr() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsPtr()
+	}
+	return self.Kind == TPtr
+}
+func (self Type) IsFunc() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsFunc()
+	}
+	return self.Kind == TFunc
+}
+func (self Type) IsArray() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsArray()
+	}
+	return self.Kind == TArray
+}
+func (self Type) IsTuple() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsTuple()
+	}
+	return self.Kind == TTuple
+}
+func (self Type) IsStruct() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsStruct()
+	}
+	return self.Kind == TStruct
+}
+func (self Type) IsTypedef() bool { return self.Kind == TTypedef }
 
-func (self TypeFunc) Equal(t Type) bool {
-	if f, ok := t.(*TypeFunc); ok && self.Ret.Equal(f.Ret) && len(self.Params) == len(f.Params) && self.VarArg == f.VarArg {
-		for i, p := range self.Params {
-			if !p.Equal(f.Params[i]) {
-				return false
+func (self Type) IsSint() bool {
+	return self.IsI8() || self.IsI16() || self.IsI32() || self.IsI64() || self.IsIsize()
+}
+func (self Type) IsUint() bool {
+	return self.IsU8() || self.IsU16() || self.IsU32() || self.IsU64() || self.IsUsize()
+}
+func (self Type) IsInt() bool    { return self.IsSint() || self.IsUint() }
+func (self Type) IsFloat() bool  { return self.IsF32() || self.IsF64() }
+func (self Type) IsNumber() bool { return self.IsInt() || self.IsFloat() }
+
+func (self Type) String() string {
+	switch self.Kind {
+	case TBool:
+		return "bool"
+	case TI8:
+		return "i8"
+	case TU8:
+		return "u8"
+	case TI16:
+		return "i16"
+	case TU16:
+		return "u16"
+	case TI32:
+		return "i32"
+	case TU32:
+		return "u32"
+	case TI64:
+		return "i64"
+	case TU64:
+		return "u64"
+	case TIsize:
+		return "isize"
+	case TUsize:
+		return "usize"
+	case TF32:
+		return "f32"
+	case TF64:
+		return "f64"
+	case TPtr:
+		return "*" + self.GetPtr().String()
+	case TFunc:
+		var buf strings.Builder
+		buf.WriteString("func(")
+		params := self.GetFuncParams()
+		for i, p := range params {
+			buf.WriteString(p.String())
+			if i < len(params)-1 {
+				buf.WriteString(", ")
 			}
 		}
+		buf.WriteByte(')')
+		ret := self.GetFuncRet()
+		if !ret.IsNone() {
+			buf.WriteString(ret.String())
+		}
+		return buf.String()
+	case TArray:
+		return fmt.Sprintf("[%d]%s", self.GetArraySize(), self.GetArrayElem().String())
+	case TTuple:
+		var buf strings.Builder
+		buf.WriteByte('(')
+		elems := self.GetTupleElems()
+		for i, e := range elems {
+			buf.WriteString(e.String())
+			if i < len(elems)-1 {
+				buf.WriteString(", ")
+			}
+		}
+		buf.WriteByte(')')
+		return buf.String()
+	case TStruct:
+		var buf strings.Builder
+		buf.WriteByte('{')
+		fields := self.GetStructFields()
+		for i, f := range fields {
+			buf.WriteString(f.Second)
+			buf.WriteString(": ")
+			buf.WriteString(f.Third.String())
+			if i < len(fields)-1 {
+				buf.WriteString(", ")
+			}
+		}
+		buf.WriteByte('}')
+		return buf.String()
+	case TTypedef:
+		def := self.GetTypedef()
+		return fmt.Sprintf("%s.%s", def.Pkg, def.Name)
+	default:
+		panic("unreachable")
+	}
+}
+
+// GetPtr 获取指针指向
+func (self Type) GetPtr() Type {
+	if !self.IsPtr() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetPtr()
+	}
+	return self.elems[0]
+}
+
+// GetFuncRet 获取函数返回值
+func (self Type) GetFuncRet() Type {
+	if !self.IsFunc() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetFuncRet()
+	}
+	return self.elems[0]
+}
+
+// GetFuncParams 获取函数参数
+func (self Type) GetFuncParams() []Type {
+	if !self.IsFunc() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetFuncParams()
+	}
+	return self.elems[1:]
+}
+
+// GetFuncVarArg 获取函数是否是不定参数
+func (self Type) GetFuncVarArg() bool {
+	return self.varArg
+}
+
+// GetArraySize 获取数组大小
+func (self Type) GetArraySize() uint {
+	if !self.IsArray() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetArraySize()
+	}
+	return self.number
+}
+
+// GetArrayElem 获取数组元素
+func (self Type) GetArrayElem() Type {
+	if !self.IsArray() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetArrayElem()
+	}
+	return self.elems[0]
+}
+
+// GetTupleElems 获取元组元素
+func (self Type) GetTupleElems() []Type {
+	if !self.IsTuple() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetTupleElems()
+	}
+	return self.elems
+}
+
+// GetStructFields 获取结构体字段
+func (self Type) GetStructFields() []types.ThreePair[bool, string, Type] {
+	if !self.IsStruct() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetStructFields()
+	}
+	pairs := make([]types.ThreePair[bool, string, Type], len(self.elems))
+	for i, t := range self.elems {
+		pairs[i] = types.NewThreePair(self.elemPubs[i], self.elemNames[i], t)
+	}
+	return pairs
+}
+
+// GetTypedef 获取定义类型
+func (self Type) GetTypedef() *Typedef {
+	if !self.IsTypedef() {
+		panic("unreachable")
+	}
+	return self.typedef
+}
+
+// GetDeepTypedefTarget 获取深度定义类型目标
+func (self Type) GetDeepTypedefTarget() Type {
+	if !self.IsTypedef() {
+		panic("unreachable")
+	}
+
+	cursor := self
+	for cursor.IsTypedef() {
+		cursor = cursor.GetTypedef().Target
+	}
+	return cursor
+}
+
+// Equal 比较
+func (self Type) Equal(dst Type) bool {
+	if self.Kind != dst.Kind {
+		return false
+	}
+
+	switch self.Kind {
+	case TNone, TBool, TI8, TU8, TI16, TU16, TI32, TU32, TI64, TU64, TIsize, TUsize, TF32, TF64:
 		return true
-	}
-	return false
-}
-
-// TypeArray 数组类型
-type TypeArray struct {
-	Size uint
-	Elem Type
-}
-
-// NewArrayType 新建数组类型
-func NewArrayType(size uint, elem Type) *TypeArray {
-	return &TypeArray{
-		Size: size,
-		Elem: elem,
-	}
-}
-
-// IsArrayType 是否是数组类型
-func IsArrayType(t Type) bool {
-	_, ok := t.(*TypeArray)
-	return ok
-}
-
-// IsArrayTypeAndSon 是否是数组类型及其子类型
-func IsArrayTypeAndSon(t Type) bool {
-	return IsArrayType(GetBaseType(t))
-}
-
-func (self TypeArray) String() string {
-	return fmt.Sprintf("[%d]%s", self.Size, self.Elem)
-}
-
-func (self TypeArray) Equal(t Type) bool {
-	if a, ok := t.(*TypeArray); ok {
-		return self.Size == a.Size && self.Elem.Equal(a.Elem)
-	}
-	return false
-}
-
-// TypeTuple 元组类型
-type TypeTuple struct {
-	Elems []Type
-}
-
-// NewTupleType 新建元组类型
-func NewTupleType(elems ...Type) *TypeTuple {
-	return &TypeTuple{Elems: elems}
-}
-
-// IsTupleType 是否是元组类型
-func IsTupleType(t Type) bool {
-	_, ok := t.(*TypeTuple)
-	return ok
-}
-
-// IsTupleTypeAndSon 是否是元组类型及其子类型
-func IsTupleTypeAndSon(t Type) bool {
-	return IsTupleType(GetBaseType(t))
-}
-
-func (self TypeTuple) String() string {
-	types := make([]string, len(self.Elems))
-	for i, t := range self.Elems {
-		types[i] = t.String()
-	}
-	return fmt.Sprintf("(%s)", strings.Join(types, ","))
-}
-
-func (self TypeTuple) Equal(t Type) bool {
-	if t, ok := t.(*TypeTuple); ok {
-		if len(self.Elems) != len(t.Elems) {
+	case TPtr:
+		return self.GetPtr().Equal(dst.GetPtr())
+	case TFunc:
+		if !self.GetFuncRet().Equal(dst.GetFuncRet()) {
 			return false
 		}
-		for i, e := range self.Elems {
-			if !e.Equal(t.Elems[i]) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}
-
-// TypeStruct 结构体类型
-type TypeStruct struct {
-	Fields *table.LinkedHashMap[string, types.Pair[bool, Type]]
-}
-
-// NewStructType 新建结构体类型
-func NewStructType(fields *table.LinkedHashMap[string, types.Pair[bool, Type]]) *TypeStruct {
-	return &TypeStruct{Fields: fields}
-}
-
-// IsStructType 是否是结构体类型
-func IsStructType(t Type) bool {
-	_, ok := t.(*TypeStruct)
-	return ok
-}
-
-// IsStructTypeAndSon 是否是结构体类型及其子类型
-func IsStructTypeAndSon(t Type) bool {
-	return IsStructType(GetBaseType(t))
-}
-
-func (self TypeStruct) String() string {
-	var buf strings.Builder
-	buf.WriteByte('{')
-	for iter := self.Fields.Begin(); iter.HasValue(); iter.Next() {
-		buf.WriteString(fmt.Sprintf("%s: %s", iter.Key(), iter.Value()))
-		if iter.HasNext() {
-			buf.WriteString(", ")
-		}
-	}
-	buf.WriteByte('}')
-	return buf.String()
-}
-
-func (self TypeStruct) Equal(t Type) bool {
-	if s, ok := t.(*TypeStruct); ok {
-		if self.Fields.Length() != s.Fields.Length() {
+		params1, params2 := self.GetFuncParams(), dst.GetFuncParams()
+		if len(params1) != len(params2) {
 			return false
 		}
-		for iter := self.Fields.Begin(); iter.HasValue(); iter.Next() {
-			sk, sv := s.Fields.GetByIndex(iter.Index())
-			if iter.Key() != sk || iter.Value().First != sv.First || !iter.Value().Second.Equal(sv.Second) {
+		for i, p := range params1 {
+			if !p.Equal(params2[i]) {
 				return false
 			}
 		}
 		return true
-	}
-	return false
-}
-
-// TypePtr 指针类型
-type TypePtr struct {
-	Elem Type
-}
-
-// NewPtrType 新建指针类型
-func NewPtrType(elem Type) *TypePtr {
-	return &TypePtr{
-		Elem: elem,
-	}
-}
-
-// IsPtrType 是否是指针类型
-func IsPtrType(t Type) bool {
-	_, ok := t.(*TypePtr)
-	return ok
-}
-
-// IsPtrTypeAndSon 是否是指针类型及其子类型
-func IsPtrTypeAndSon(t Type) bool {
-	return IsPtrType(GetBaseType(t))
-}
-
-func (self TypePtr) String() string {
-	return "*" + self.Elem.String()
-}
-
-func (self TypePtr) Equal(t Type) bool {
-	if a, ok := t.(*TypePtr); ok {
-		return self.Elem.Equal(a.Elem)
-	}
-	return false
-}
-
-// Typedef 类型定义
-type Typedef struct {
-	Pkg     stlos.Path
-	Name    string
-	Impls   *set.HashSet[*TypeInterface]
-	Dst     Type
-	Methods map[string]*Function
-}
-
-// NewTypedef 新建类型定义
-func NewTypedef(pkg stlos.Path, name string, dst Type) *Typedef {
-	return &Typedef{
-		Pkg:     pkg,
-		Name:    name,
-		Impls:   set.NewHashSet[*TypeInterface](),
-		Dst:     dst,
-		Methods: make(map[string]*Function),
-	}
-}
-
-// IsTypedef 是否是类型定义
-func IsTypedef(t Type) bool {
-	_, ok := t.(*Typedef)
-	return ok
-}
-
-func (self Typedef) String() string {
-	return self.Pkg.String() + "." + self.Name
-}
-
-func (self Typedef) Equal(t Type) bool {
-	if td, ok := t.(*Typedef); ok && self.Pkg == td.Pkg && self.Name == td.Name {
-		return true
-	}
-	return false
-}
-
-// IsImpl 是否实现了某个接口
-func (self Typedef) IsImpl(dst *TypeInterface) bool {
-	return self.Impls.Contain(dst)
-}
-
-// GetBaseType 获取底层类型
-func GetBaseType(t Type) Type {
-	switch typ := t.(type) {
-	case *Typedef:
-		return GetBaseType(typ.Dst)
-	default:
-		return typ
-	}
-}
-
-// GetDepthBaseType 获取最底层类型
-func GetDepthBaseType(t Type) Type {
-	switch typ := t.(type) {
-	case *TypeBasic:
-		return typ
-	case *TypeFunc:
-		params := make([]Type, len(typ.Params))
-		for i, p := range typ.Params {
-			params[i] = GetBaseType(p)
+	case TArray:
+		return self.GetArraySize() == dst.GetArraySize() && self.GetArrayElem().Equal(dst.GetArrayElem())
+	case TTuple:
+		elems1, elems2 := self.GetTupleElems(), dst.GetTupleElems()
+		if len(elems1) != len(elems2) {
+			return false
 		}
-		return NewFuncType(GetBaseType(typ.Ret), params, typ.VarArg)
-	case *TypePtr:
-		return NewPtrType(GetBaseType(typ.Elem))
-	case *TypeArray:
-		return NewArrayType(typ.Size, GetBaseType(typ.Elem))
-	case *TypeTuple:
-		elems := make([]Type, len(typ.Elems))
-		for i, p := range typ.Elems {
-			elems[i] = GetBaseType(p)
-		}
-		return NewTupleType(elems...)
-	case *TypeStruct:
-		fields := table.NewLinkedHashMap[string, types.Pair[bool, Type]]()
-		for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
-			fields.Set(iter.Key(), types.NewPair(iter.Value().First, GetBaseType(iter.Value().Second)))
-		}
-		return NewStructType(fields)
-	case *Typedef:
-		return GetBaseType(typ.Dst)
-	default:
-		panic(fmt.Sprintf("unknown type: %+v", t))
-	}
-}
-
-// TypeInterface 接口类型
-type TypeInterface struct {
-	Fields *table.LinkedHashMap[string, *TypeFunc]
-}
-
-// NewTypeInterface 新建接口类型
-func NewTypeInterface(fields *table.LinkedHashMap[string, *TypeFunc]) *TypeInterface {
-	return &TypeInterface{Fields: fields}
-}
-
-// IsInterfaceType 是否是结构体类型
-func IsInterfaceType(t Type) bool {
-	_, ok := t.(*TypeInterface)
-	return ok
-}
-
-// IsInterfaceTypeAndSon 是否是结构体类型及其子类型
-func IsInterfaceTypeAndSon(t Type) bool {
-	return IsInterfaceType(GetBaseType(t))
-}
-
-func (self TypeInterface) String() string {
-	var buf strings.Builder
-	buf.WriteString("interface(")
-	for iter := self.Fields.Begin(); iter.HasValue(); iter.Next() {
-		n, t := iter.Key(), iter.Value()
-		buf.WriteString(fmt.Sprintf("%s: %s", n, t))
-		if iter.HasNext() {
-			buf.WriteString(", ")
-		}
-	}
-	buf.WriteByte(')')
-	return buf.String()
-}
-
-func (self TypeInterface) Equal(t Type) bool {
-	if i, ok := t.(*TypeInterface); ok && self.Fields.Length() == i.Fields.Length() {
-		for iter := self.Fields.Begin(); iter.HasValue(); iter.Next() {
-			it := i.Fields.Get(iter.Key())
-			if it == nil || !iter.Value().Equal(it) {
+		for i, e := range elems1 {
+			if !e.Equal(elems2[i]) {
 				return false
 			}
 		}
 		return true
+	case TStruct:
+		fields1, fields2 := self.GetStructFields(), dst.GetStructFields()
+		if len(fields1) != len(fields2) {
+			return false
+		}
+		for i, f := range fields1 {
+			if f.Second != fields2[i].Second || !f.Third.Equal(fields2[i].Third) {
+				return false
+			}
+		}
+		return true
+	case TTypedef:
+		def1, def2 := self.GetTypedef(), dst.GetTypedef()
+		return def1.Pkg.Equal(def2.Pkg) && def1.Name == def2.Name
+	default:
+		panic("unreachable")
 	}
-	return false
+}
+
+// Like 近似
+func (self Type) Like(dst Type) bool {
+	for self.IsTypedef() && self.GetTypedef().Target.IsTypedef() {
+		self = self.GetTypedef().Target
+	}
+	for dst.IsTypedef() && dst.GetTypedef().Target.IsTypedef() {
+		dst = self.GetTypedef().Target
+	}
+	if self.IsTypedef() && dst.IsTypedef() && self.Equal(dst) {
+		return true
+	}
+
+	if self.IsTypedef() {
+		self = self.GetTypedef().Target
+	}
+	if dst.IsTypedef() {
+		dst = dst.GetTypedef().Target
+	}
+
+	if self.Kind != dst.Kind {
+		return false
+	}
+
+	switch self.Kind {
+	case TNone, TBool, TI8, TU8, TI16, TU16, TI32, TU32, TI64, TU64, TIsize, TUsize, TF32, TF64:
+		return true
+	case TPtr:
+		return self.GetPtr().Like(dst.GetPtr())
+	case TFunc:
+		if !self.GetFuncRet().Like(dst.GetFuncRet()) {
+			return false
+		}
+		params1, params2 := self.GetFuncParams(), dst.GetFuncParams()
+		if len(params1) != len(params2) {
+			return false
+		}
+		for i, p := range params1 {
+			if !p.Like(params2[i]) {
+				return false
+			}
+		}
+		return true
+	case TArray:
+		return self.GetArraySize() == dst.GetArraySize() && self.GetArrayElem().Like(dst.GetArrayElem())
+	case TTuple:
+		elems1, elems2 := self.GetTupleElems(), dst.GetTupleElems()
+		if len(elems1) != len(elems2) {
+			return false
+		}
+		for i, e := range elems1 {
+			if !e.Like(elems2[i]) {
+				return false
+			}
+		}
+		return true
+	case TStruct:
+		fields1, fields2 := self.GetStructFields(), dst.GetStructFields()
+		if len(fields1) != len(fields2) {
+			return false
+		}
+		for i, f := range fields1 {
+			if f.Second != fields2[i].Second || !f.Third.Like(fields2[i].Third) {
+				return false
+			}
+		}
+		return true
+	default:
+		panic("unreachable")
+	}
 }

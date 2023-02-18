@@ -58,11 +58,11 @@ func compileToLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.Targ
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	mean, err := analyse.Analyse(ast)
+	hirs, err := analyse.NewAnalyser().Analyse(ast)
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	module := codegen.NewCodeGenerator().Codegen(*mean)
+	module := codegen.NewCodeGenerator().Codegen(*hirs)
 
 	if err := llvm.InitializeNativeTarget(); err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
@@ -84,13 +84,6 @@ func compileToLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.Targ
 		llvm.CodeModelDefault,
 	)
 	module.SetDataLayout(tm.CreateTargetData().String())
-
-	for l := range mean.Links {
-		config.Linkages = append(config.Linkages, l)
-	}
-	for l := range mean.Libs {
-		config.Libraries = append(config.Libraries, l)
-	}
 	return module, tm, nil
 }
 

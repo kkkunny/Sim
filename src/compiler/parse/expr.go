@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/utils"
+	"github.com/kkkunny/stl/types"
 )
 
 // Expr 表达式
@@ -226,10 +227,10 @@ func (self TupleOrExpr) Expr() {}
 // Struct 结构体
 type Struct struct {
 	Pos    utils.Position
-	Fields []Expr
+	Fields []types.Pair[lex.Token, Expr]
 }
 
-func NewStruct(pos utils.Position, field ...Expr) *Struct {
+func NewStruct(pos utils.Position, field ...types.Pair[lex.Token, Expr]) *Struct {
 	return &Struct{
 		Pos:    pos,
 		Fields: field,
@@ -380,9 +381,9 @@ func (self *parser) parseExpr() Expr {
 	return self.parseBinaryExpr(0)
 }
 
-// 表达式列表（至少一个）
-func (self *parser) parseExprListAtLeastOne(sep lex.TokenKind) (toks []Expr) {
-	for {
+// 表达式列表
+func (self *parser) parseExprList(sep, end lex.TokenKind) (toks []Expr) {
+	for !self.nextIs(end) {
 		toks = append(toks, self.parseExpr())
 		if !self.skipNextIs(sep) {
 			break
@@ -451,27 +452,27 @@ func (self *parser) parsePrimaryExpr() Expr {
 	case lex.LPA:
 		self.next()
 		begin := self.curTok.Pos
-		var elems []Expr
-		if !self.nextIs(lex.RPA) {
-			elems = self.parseExprListAtLeastOne(lex.COM)
-		}
+		elems := self.parseExprList(lex.COM, lex.RPA)
 		end := self.expectNextIs(lex.RPA).Pos
 		return NewTuple(utils.MixPosition(begin, end), elems...)
 	case lex.LBA:
 		self.next()
 		begin := self.curTok.Pos
-		var elems []Expr
-		if !self.nextIs(lex.RBA) {
-			elems = self.parseExprListAtLeastOne(lex.COM)
-		}
+		elems := self.parseExprList(lex.COM, lex.RBA)
 		end := self.expectNextIs(lex.RBA).Pos
 		return NewArray(utils.MixPosition(begin, end), elems...)
 	case lex.LBR:
 		self.next()
 		begin := self.curTok.Pos
-		var fields []Expr
-		if !self.nextIs(lex.RBR) {
-			fields = self.parseExprListAtLeastOne(lex.COM)
+		var fields []types.Pair[lex.Token, Expr]
+		for !self.nextIs(lex.RBR) {
+			name := self.expectNextIs(lex.IDENT)
+			self.expectNextIs(lex.COL)
+			value := self.parseExpr()
+			fields = append(fields, types.NewPair(name, value))
+			if !self.skipNextIs(lex.COM) {
+				break
+			}
 		}
 		end := self.expectNextIs(lex.RBR).Pos
 		return NewStruct(utils.MixPosition(begin, end), fields...)
@@ -530,10 +531,7 @@ func (self *parser) parseSuffixUnaryExpr(front Expr) Expr {
 		front = NewDot(front, end)
 	case lex.LPA:
 		self.next()
-		var args []Expr
-		if !self.nextIs(lex.RPA) {
-			args = self.parseExprListAtLeastOne(lex.COM)
-		}
+		args := self.parseExprList(lex.COM, lex.RPA)
 		end := self.expectNextIs(lex.RPA).Pos
 		front = NewCall(utils.MixPosition(front.Position(), end), front, args...)
 	case lex.LBA:

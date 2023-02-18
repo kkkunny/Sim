@@ -44,19 +44,17 @@ type TypeDef struct {
 	Public    bool
 	Name      lex.Token
 	Templates []lex.Token
-	Impls     []Type
 	Target    Type
 }
 
 func NewTypeDef(
-	pos utils.Position, pub bool, name lex.Token, templates []lex.Token, impls []Type, target Type,
+	pos utils.Position, pub bool, name lex.Token, templates []lex.Token, target Type,
 ) *TypeDef {
 	return &TypeDef{
 		Pos:       pos,
 		Public:    pub,
 		Name:      name,
 		Templates: templates,
-		Impls:     impls,
 		Target:    target,
 	}
 }
@@ -66,37 +64,6 @@ func (self TypeDef) Position() utils.Position {
 }
 
 func (self TypeDef) Global() {}
-
-// ExternFunction 外部函数声明
-type ExternFunction struct {
-	Pos    utils.Position
-	Attrs  []Attr
-	Public bool
-	Ret    Type
-	Name   lex.Token
-	Params []*NameOrNilAndType
-	VarArg bool
-}
-
-func NewExternFunction(
-	pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*NameOrNilAndType, varArg bool,
-) *ExternFunction {
-	return &ExternFunction{
-		Pos:    pos,
-		Attrs:  attrs,
-		Public: pub,
-		Ret:    ret,
-		Name:   name,
-		Params: params,
-		VarArg: varArg,
-	}
-}
-
-func (self ExternFunction) Position() utils.Position {
-	return self.Pos
-}
-
-func (self ExternFunction) Global() {}
 
 // Function 函数
 type Function struct {
@@ -108,7 +75,7 @@ type Function struct {
 	Templates []lex.Token
 	Params    []*NameOrNilAndType
 	VarArg    bool
-	Body      *Block
+	Body      *Block // （可能为空）
 }
 
 func NewFunction(
@@ -368,18 +335,8 @@ func (self *parser) parseTypeDef(pub *lex.Token) *TypeDef {
 	begin := self.expectNextIs(lex.TYPE).Pos
 	name := self.expectNextIs(lex.IDENT)
 	templates := self.parseTemplateParamList()
-	var impls []Type
-	if self.skipNextIs(lex.LPA) {
-		for {
-			impls = append(impls, self.parseType())
-			if !self.skipNextIs(lex.COM) {
-				break
-			}
-		}
-		self.expectNextIs(lex.RPA)
-	}
 	target := self.parseType()
-	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, templates, impls, target)
+	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, templates, target)
 }
 
 // 函数
@@ -389,7 +346,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 		switch attr.(type) {
 		case *AttrExtern:
 			isExtern = true
-		case *AttrLink, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
+		case *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
 		default:
 			self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 			return nil
@@ -434,33 +391,23 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 	if isExtern && body == nil {
 		for _, attr := range attrs {
 			switch attr.(type) {
-			case *AttrExtern, *AttrLink, *AttrNoReturn, *AttrInit, *AttrFini:
+			case *AttrExtern, *AttrNoReturn, *AttrInit, *AttrFini:
 			default:
 				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 				return nil
 			}
 		}
-		return NewExternFunction(pos, attrs, pub != nil, ret, name, params, varArg)
-	} else if len(templates) != 0 {
+		return NewFunction(pos, attrs, pub != nil, ret, name, nil, params, varArg, nil)
+	} else {
 		for _, attr := range attrs {
 			switch attr.(type) {
-			case *AttrNoReturn, *AttrInline:
+			case *AttrExtern, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
 			default:
 				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 				return nil
 			}
 		}
 		return NewFunction(pos, attrs, pub != nil, ret, name, templates, params, varArg, body)
-	} else {
-		for _, attr := range attrs {
-			switch attr.(type) {
-			case *AttrExtern, *AttrLink, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
-			default:
-				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
-				return nil
-			}
-		}
-		return NewFunction(pos, attrs, pub != nil, ret, name, nil, params, varArg, body)
 	}
 }
 
@@ -507,7 +454,7 @@ func (self *parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 func (self *parser) parseGlobalValue(pub *lex.Token, attrs []Attr) *GlobalValue {
 	for _, attr := range attrs {
 		switch attr.(type) {
-		case *AttrExtern, *AttrLink:
+		case *AttrExtern:
 		default:
 			self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 			return nil

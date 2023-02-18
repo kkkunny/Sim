@@ -1,224 +1,236 @@
 package analyse
 
 import (
-	. "github.com/kkkunny/Sim/src/compiler/hir"
-	"github.com/kkkunny/Sim/src/compiler/lex"
+	"math"
+
+	"github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/stl/set"
-	"github.com/kkkunny/stl/table"
 	"github.com/kkkunny/stl/types"
 )
 
 // 类型
-func analyseType(ctx *packageContext, ast parse.Type) (Type, utils.Error) {
+func (self *Analyser) analyseType(ast parse.Type) (hir.Type, utils.Error) {
 	if ast == nil {
-		return None, nil
+		return hir.NewTypeNone(), nil
 	}
+
 	switch typ := ast.(type) {
 	case *parse.TypeIdent:
-		return analyseTypeIdent(ctx, typ.Pkgs, typ.Name)
-	case *parse.TypeFunc:
-		ret, err := analyseType(ctx, typ.Ret)
-		if err != nil {
-			return nil, err
-		}
-		params := make([]Type, len(typ.Params))
-		var errors []utils.Error
-		for i, p := range typ.Params {
-			param, err := analyseType(ctx, p)
-			if err != nil {
-				errors = append(errors, err)
-			} else {
-				params[i] = param
-			}
-		}
-		if len(errors) == 0 {
-			return NewFuncType(ret, params, typ.VarArg), nil
-		} else if len(errors) == 1 {
-			return nil, errors[0]
-		} else {
-			return nil, utils.NewMultiError(errors...)
-		}
-	case *parse.TypeArray:
-		elem, err := analyseType(ctx, typ.Elem)
-		if err != nil {
-			return nil, err
-		}
-		return NewArrayType(uint(typ.Size.Value), elem), nil
-	case *parse.TypeTuple:
-		elems := make([]Type, len(typ.Elems))
-		var errors []utils.Error
-		for i, e := range typ.Elems {
-			elem, err := analyseType(ctx, e)
-			if err != nil {
-				errors = append(errors, err)
-			} else {
-				elems[i] = elem
-			}
-		}
-		if len(errors) == 0 {
-			return NewTupleType(elems...), nil
-		} else if len(errors) == 1 {
-			return nil, errors[0]
-		} else {
-			return nil, utils.NewMultiError(errors...)
-		}
-	case *parse.TypeStruct:
-		fields := table.NewLinkedHashMap[string, types.Pair[bool, Type]]()
-		var errors []utils.Error
-		for _, f := range typ.Fields {
-			ft, err := analyseType(ctx, f.Second.Type)
-			if err != nil {
-				errors = append(errors, err)
-			} else if fields.ContainKey(f.Second.Name.Source) {
-				errors = append(errors, utils.Errorf(f.Second.Name.Pos, "duplicate identifier"))
-			} else {
-				fields.Set(f.Second.Name.Source, types.NewPair(f.First, ft))
-			}
-		}
-		if len(errors) == 0 {
-			return NewStructType(fields), nil
-		} else if len(errors) == 1 {
-			return nil, errors[0]
-		} else {
-			return nil, utils.NewMultiError(errors...)
-		}
+		return self.analyseTypeIdent(*typ)
 	case *parse.TypePtr:
-		elem, err := analyseType(ctx, typ.Elem)
-		if err != nil {
-			return nil, err
-		}
-		return NewPtrType(elem), nil
-	case *parse.TypeInterface:
-		fields := table.NewLinkedHashMap[string, *TypeFunc]()
-		var errs []utils.Error
-		for _, f := range typ.Fields {
-			t, err := analyseType(ctx, f.Type)
-			if err != nil {
-				errs = append(errs, err)
-			} else if fields.ContainKey(f.Name.Source) {
-				errs = append(errs, utils.Errorf(f.Name.Pos, "duplicate identifier"))
-			} else if ft, ok := t.(*TypeFunc); !ok {
-				errs = append(errs, utils.Errorf(f.Name.Pos, "expect a function type"))
-			} else {
-				fields.Set(f.Name.Source, ft)
-			}
-		}
-		if len(errs) == 0 {
-			return NewTypeInterface(fields), nil
-		} else if len(errs) == 1 {
-			return nil, errs[0]
-		} else {
-			return nil, utils.NewMultiError(errs...)
-		}
+		return self.analyseTypePtr(*typ)
+	case *parse.TypeFunc:
+		return self.analyseTypeFunc(*typ)
+	case *parse.TypeArray:
+		return self.analyseTypeArray(*typ)
+	case *parse.TypeTuple:
+		return self.analyseTypeTuple(*typ)
+	case *parse.TypeStruct:
+		return self.analyseTypeStruct(*typ)
 	default:
-		panic("")
-	}
-}
-
-// 检查类型循环引用
-// 只允许元组和结构体循环引用指针
-func checkTypeCircle(tmp *set.LinkedHashSet[*Typedef], t Type) bool {
-	if t == nil {
-		return false
-	}
-	switch typ := t.(type) {
-	case *TypeBasic:
-		return false
-	case *TypeFunc:
-		if IsTupleType(tmp.Last().Dst) || IsStructType(tmp.Last().Dst) {
-			return false
-		}
-		if checkTypeCircle(tmp, typ.Ret) {
-			return true
-		}
-		for _, p := range typ.Params {
-			if checkTypeCircle(tmp, p) {
-				return true
-			}
-		}
-		return false
-	case *TypePtr:
-		if IsTupleType(tmp.Last().Dst) || IsStructType(tmp.Last().Dst) {
-			return false
-		}
-		return checkTypeCircle(tmp, typ.Elem)
-	case *TypeArray:
-		return checkTypeCircle(tmp, typ.Elem)
-	case *TypeTuple:
-		for _, e := range typ.Elems {
-			if checkTypeCircle(tmp, e) {
-				return true
-			}
-		}
-		return false
-	case *TypeStruct:
-		for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
-			if checkTypeCircle(tmp, iter.Value().Second) {
-				return true
-			}
-		}
-		return false
-	case *Typedef:
-		if !tmp.Add(typ) {
-			return true
-		}
-		defer func() {
-			tmp.Remove(typ)
-		}()
-		return checkTypeCircle(tmp, typ.Dst)
-	case *TypeInterface:
-		for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
-			if checkTypeCircle(tmp, iter.Value()) {
-				return true
-			}
-		}
-		return false
-	default:
-		panic("")
+		panic("unreachable")
 	}
 }
 
 // 标识符类型
-func analyseTypeIdent(ctx *packageContext, pkgs []*parse.Package, name lex.Token) (Type, utils.Error) {
-	if pkgs[0].Path == ctx.ast.Path {
-		switch name.Source {
-		case "i8":
-			return I8, nil
-		case "i16":
-			return I16, nil
-		case "i32":
-			return I32, nil
-		case "i64":
-			return I64, nil
-		case "isize":
-			return Isize, nil
-		case "u8":
-			return U8, nil
-		case "u16":
-			return U16, nil
-		case "u32":
-			return U32, nil
-		case "u64":
-			return U64, nil
-		case "usize":
-			return Usize, nil
-		case "f32":
-			return F32, nil
-		case "f64":
-			return F64, nil
-		case "bool":
-			return Bool, nil
+func (self *Analyser) analyseTypeIdent(ast parse.TypeIdent) (hir.Type, utils.Error) {
+	// 内置类型
+	switch ast.Name.Source {
+	case "bool":
+		return hir.NewTypeBool(), nil
+	case "i8":
+		return hir.NewTypeI8(), nil
+	case "u8":
+		return hir.NewTypeU8(), nil
+	case "i16":
+		return hir.NewTypeI16(), nil
+	case "u16":
+		return hir.NewTypeU16(), nil
+	case "i32":
+		return hir.NewTypeI32(), nil
+	case "u32":
+		return hir.NewTypeU32(), nil
+	case "i64":
+		return hir.NewTypeI64(), nil
+	case "u64":
+		return hir.NewTypeU64(), nil
+	case "isize":
+		return hir.NewTypeIsize(), nil
+	case "usize":
+		return hir.NewTypeUsize(), nil
+	case "f32":
+		return hir.NewTypeF32(), nil
+	case "f64":
+		return hir.NewTypeF64(), nil
+	}
+
+	// 自定义类型
+	for _, pkg := range ast.Pkgs {
+		symbol := self.symbols[pkg]
+		t, ok := symbol.lookupType(ast.Name.Source)
+		if !ok {
+			continue
+		}
+		if self.symbol.getPkgSymbolTable() == symbol || t.pub {
+			return hir.NewTypeTypedef(t.data), nil
 		}
 	}
 
-	// 类型定义
-	for _, astPkg := range pkgs {
-		pkg := ctx.f.Pkgs[astPkg]
-		if td, ok := pkg.typedefs[name.Source]; ok && (astPkg.Path == ctx.ast.Path || td.First) {
-			return td.Second, nil
+	return hir.Type{}, utils.Errorf(ast.Name.Pos, errUnknownIdentifier)
+}
+
+// 指针类型
+func (self *Analyser) analyseTypePtr(ast parse.TypePtr) (hir.Type, utils.Error) {
+	elem, err := self.analyseType(ast.Elem)
+	if err != nil {
+		return hir.Type{}, err
+	}
+	return hir.NewTypePtr(elem), nil
+}
+
+// 函数类型
+func (self *Analyser) analyseTypeFunc(ast parse.TypeFunc) (hir.Type, utils.Error) {
+	// 返回值
+	ret, err := self.analyseType(ast.Ret)
+	if err != nil {
+		return hir.Type{}, nil
+	}
+	// 参数
+	var errs []utils.Error
+	params := make([]hir.Type, len(ast.Params))
+	for i, p := range ast.Params {
+		params[i], err = self.analyseType(p)
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
-	return nil, utils.Errorf(name.Pos, "unknown identifier")
+	if len(errs) == 1 {
+		return hir.Type{}, errs[0]
+	} else if len(errs) > 1 {
+		return hir.Type{}, utils.NewMultiError(errs...)
+	}
+
+	return hir.NewTypeFunc(ast.VarArg, ret, params...), nil
+}
+
+// 数组类型
+func (self *Analyser) analyseTypeArray(ast parse.TypeArray) (hir.Type, utils.Error) {
+	// 大小
+	size := ast.Size.Value
+	if size < 0 || size > math.MaxInt {
+		return hir.Type{}, utils.Errorf(ast.Size.Position(), errDataOverflow)
+	}
+	// 元组类型
+	elem, err := self.analyseType(ast.Elem)
+	if err != nil {
+		return hir.Type{}, nil
+	}
+	return hir.NewTypeArray(uint(size), elem), nil
+}
+
+// 元组类型
+func (self *Analyser) analyseTypeTuple(ast parse.TypeTuple) (hir.Type, utils.Error) {
+	var errs []utils.Error
+	elems := make([]hir.Type, len(ast.Elems))
+	for i, e := range ast.Elems {
+		elem, err := self.analyseType(e)
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			elems[i] = elem
+		}
+	}
+	if len(errs) == 1 {
+		return hir.Type{}, errs[0]
+	} else if len(errs) > 1 {
+		return hir.Type{}, utils.NewMultiError(errs...)
+	}
+
+	return hir.NewTypeTuple(elems...), nil
+}
+
+// 结构体类型
+func (self *Analyser) analyseTypeStruct(ast parse.TypeStruct) (hir.Type, utils.Error) {
+	var errs []utils.Error
+	fieldSet := make(map[string]struct{})
+	fields := make([]types.ThreePair[bool, string, hir.Type], len(ast.Fields))
+	for i, f := range ast.Fields {
+		if _, ok := fieldSet[f.Second.Name.Source]; ok {
+			errs = append(errs, utils.Errorf(f.Second.Name.Pos, errDuplicateDeclaration))
+			continue
+		}
+		fieldSet[f.Second.Name.Source] = struct{}{}
+		field, err := self.analyseType(f.Second.Type)
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			fields[i] = types.NewThreePair(f.First, f.Second.Name.Source, field)
+		}
+	}
+	if len(errs) == 1 {
+		return hir.Type{}, errs[0]
+	} else if len(errs) > 1 {
+		return hir.Type{}, utils.NewMultiError(errs...)
+	}
+
+	return hir.NewTypeStruct(fields...), nil
+}
+
+// 类型循环检测
+func (self *Analyser) checkTypeCircle(temp *set.LinkedHashSet[*hir.Typedef], t hir.Type) bool {
+	switch t.Kind {
+	case hir.TNone, hir.TBool, hir.TI8, hir.TU8, hir.TI16, hir.TU16, hir.TI32, hir.TU32, hir.TI64, hir.TU64, hir.TIsize, hir.TUsize, hir.TF32, hir.TF64:
+		return false
+	case hir.TPtr:
+		// TODO: 允许任何指针类型循环引用
+		lastTarget := temp.Last().Target
+		if lastTarget.IsTuple() || lastTarget.IsStruct() {
+			return false
+		}
+		return self.checkTypeCircle(temp, t.GetPtr())
+	case hir.TFunc:
+		// TODO: 允许任何指针类型循环引用
+		lastTarget := temp.Last().Target
+		if lastTarget.IsTuple() || lastTarget.IsStruct() {
+			return false
+		}
+		if self.checkTypeCircle(temp, t.GetFuncRet()) {
+			return true
+		}
+		for _, p := range t.GetFuncParams() {
+			if self.checkTypeCircle(temp, p) {
+				return true
+			}
+		}
+		return false
+	case hir.TArray:
+		return self.checkTypeCircle(temp, t.GetArrayElem())
+	case hir.TTuple:
+		for _, e := range t.GetTupleElems() {
+			if self.checkTypeCircle(temp, e) {
+				return true
+			}
+		}
+		return false
+	case hir.TStruct:
+		for _, f := range t.GetStructFields() {
+			if self.checkTypeCircle(temp, f.Third) {
+				return true
+			}
+		}
+		return false
+	case hir.TTypedef:
+		def := t.GetTypedef()
+		if !temp.Add(def) {
+			return true
+		}
+		defer func() {
+			temp.Remove(def)
+		}()
+		return self.checkTypeCircle(temp, def.Target)
+	default:
+		panic("unreachable")
+	}
 }

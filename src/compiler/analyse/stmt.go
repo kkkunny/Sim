@@ -1,263 +1,244 @@
 package analyse
 
 import (
-	. "github.com/kkkunny/Sim/src/compiler/hir"
+	"github.com/kkkunny/Sim/src/compiler/hir"
+	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
-	"github.com/kkkunny/stl/types"
+	"github.com/kkkunny/stl/list"
 )
 
-// 代码块
-func analyseBlock(ctx localContext, ast *parse.Block, inLoop bool) (*blockContext, *Block, utils.Error) {
-	bctx := newBlockContext(ctx, inLoop)
-
-	var stmts []Stmt
-
-	var errors []utils.Error
-	for iter := ast.Stmts.Iterator(); iter.HasValue(); iter.Next() {
-		if bctx.IsEnd() {
-			break
-		}
-		stmt, err := analyseStmt(bctx, iter.Value())
-		if err != nil {
-			errors = append(errors, err)
-		} else {
-			stmts = append(stmts, stmt)
-		}
-	}
-
-	block := &Block{Stmts: stmts}
-	if len(errors) == 0 {
-		return bctx, block, nil
-	} else if len(errors) == 1 {
-		return nil, nil, errors[0]
-	} else {
-		return nil, nil, utils.NewMultiError(errors...)
+// 语句
+func (self *Analyser) analyseStmt(astObj parse.Stmt) (hir.Stmt, bool, utils.Error) {
+	switch ast := astObj.(type) {
+	case *parse.Block:
+		return self.analyseBlock(*ast)
+	case *parse.IfElse:
+		return self.analyseIfElse(*ast)
+	case *parse.Loop:
+		stmt, err := self.analyseLoop(*ast)
+		return stmt, false, err
+	case *parse.LoopControl:
+		stmt, err := self.analyseLoopControl(*ast)
+		return stmt, false, err
+	case *parse.Return:
+		stmt, err := self.analyseReturn(*ast)
+		return stmt, true, err
+	case *parse.Switch:
+		return self.analyseSwitch(*ast)
+	case *parse.Variable:
+		stmt, err := self.analyseVariable(*ast)
+		return stmt, false, err
+	case parse.Expr:
+		expr, err := self.analyseExpr(nil, ast)
+		return expr, false, err
+	default:
+		panic("unreachable")
 	}
 }
 
-// 语句
-func analyseStmt(ctx *blockContext, ast parse.Stmt) (Stmt, utils.Error) {
-	switch stmt := ast.(type) {
-	case *parse.Return:
-		res, err := analyseReturn(ctx, stmt)
-		ctx.SetEnd()
-		return res, err
-	case *parse.Variable:
-		return analyseVariable(ctx, stmt)
-	case parse.Expr:
-		return analyseExpr(ctx, nil, stmt)
-	case *parse.Block:
-		bctx, res, err := analyseBlock(ctx, stmt, false)
+// 代码块
+func (self *Analyser) analyseBlock(ast parse.Block, pro ...func(symbol *symbolTable) utils.Error) (
+	*hir.Block, bool, utils.Error,
+) {
+	self.symbol = newBlockSymbolTable(self.symbol)
+	defer func() {
+		self.symbol = self.symbol.f
+	}()
+
+	for _, f := range pro {
+		if err := f(self.symbol); err != nil {
+			return nil, false, err
+		}
+	}
+
+	stmts := list.NewSingleLinkedList[hir.Stmt]()
+	var ret bool
+
+loop:
+	for iter := ast.Stmts.Iterator(); iter.HasValue(); iter.Next() {
+		stmt, stmtRet, err := self.analyseStmt(iter.Value())
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		if bctx.IsEnd() {
-			ctx.SetEnd()
+		stmts.PushBack(stmt)
+		ret = ret || stmtRet
+
+		switch stmt.(type) {
+		case *hir.Break, *hir.Continue, *hir.Return:
+			break loop
 		}
-		return res, nil
-	case *parse.IfElse:
-		res, err, end := analyseIfElse(ctx, stmt)
+	}
+
+	return hir.NewBlock(stmts), ret, nil
+}
+
+// 条件分支
+func (self *Analyser) analyseIfElse(ast parse.IfElse) (*hir.IfElse, bool, utils.Error) {
+	// 条件
+	cond, err := self.expectLikeExpr(hir.NewTypeBool(), ast.Cond)
+	if err != nil {
+		return nil, false, err
+	}
+
+	// true
+	tb, tr, err := self.analyseBlock(*ast.Body)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if ast.Next == nil {
+		return hir.NewIfElse(cond, tb, nil), false, nil
+	}
+
+	// else
+	if ast.Next.Cond == nil {
+		fb, fr, err := self.analyseBlock(*ast.Next.Body)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		if end {
-			ctx.SetEnd()
-		}
-		return res, nil
-	case *parse.Loop:
-		return analyseFor(ctx, stmt)
-	case *parse.LoopControl:
-		if !ctx.IsInLoop() {
-			return nil, utils.Errorf(stmt.Position(), "must in a loop")
-		}
-		ctx.SetEnd()
-		return &LoopControl{Type: stmt.Kind.Source}, nil
-	case *parse.Switch:
-		return analyseSwitch(ctx, stmt)
+		return hir.NewIfElse(cond, tb, fb), tr && fr, nil
+	}
+
+	// else if
+	fb, fr, err := self.analyseIfElse(*ast.Next)
+	if err != nil {
+		return nil, false, err
+	}
+	return hir.NewIfElse(cond, tb, hir.NewBlock(list.NewSingleLinkedList[hir.Stmt](fb))), tr && fr, nil
+}
+
+// 循环
+func (self *Analyser) analyseLoop(ast parse.Loop) (*hir.Loop, utils.Error) {
+	// TODO: 循环体内函数返回判断
+	// 条件
+	cond, err := self.expectLikeExpr(hir.NewTypeBool(), ast.Cond)
+	if err != nil {
+		return nil, err
+	}
+
+	// 循环体
+	body, _, err := self.analyseBlock(
+		*ast.Body, func(symbol *symbolTable) utils.Error {
+			symbol.inLoop = true
+			return nil
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return hir.NewLoop(cond, body), nil
+}
+
+// 循环控制
+func (self *Analyser) analyseLoopControl(ast parse.LoopControl) (hir.LoopControl, utils.Error) {
+	if !self.symbol.inLoop {
+		return nil, utils.Errorf(ast.Position(), "must in a loop")
+	}
+	switch ast.Kind.Kind {
+	case lex.BREAK:
+		return hir.NewBreak(), nil
+	case lex.CONTINUE:
+		return hir.NewContinue(), nil
 	default:
-		panic("unknown stmt")
+		panic("unreachable")
 	}
 }
 
 // 函数返回
-func analyseReturn(ctx *blockContext, ast *parse.Return) (*Return, utils.Error) {
-	ret := ctx.GetRetType()
-	if ast.Value == nil {
-		if ret.Equal(None) {
-			return &Return{}, nil
-		} else {
-			return nil, utils.Errorf(ast.Position(), "expect a return value")
+func (self *Analyser) analyseReturn(ast parse.Return) (*hir.Return, utils.Error) {
+	if ast.Value != nil && !self.symbol.ret.IsNone() {
+		value, err := self.expectExpr(self.symbol.ret, ast.Value)
+		if err != nil {
+			return nil, err
 		}
+		return hir.NewReturn(value), nil
+	} else if ast.Value != nil {
+		return nil, utils.Errorf(ast.Value.Position(), "do not expect any value")
+	} else if !self.symbol.ret.IsNone() {
+		return nil, utils.Errorf(ast.Position(), "expect a value")
 	} else {
-		if ret.Equal(None) {
-			return nil, utils.Errorf(ast.Position(), "not expect a return value")
-		} else {
-			value, err := expectExpr(ctx, ret, ast.Value)
-			if err != nil {
-				return nil, err
-			}
-			return &Return{Value: value}, nil
-		}
+		return hir.NewReturn(nil), nil
 	}
-}
-
-// 变量
-func analyseVariable(ctx *blockContext, ast *parse.Variable) (*Variable, utils.Error) {
-	if ast.Type == nil && ast.Value == nil {
-		return nil, utils.Errorf(ast.Name.Pos, "expect a type or a value")
-	}
-
-	var typ Type
-	var err utils.Error
-	if ast.Type != nil {
-		typ, err = analyseType(ctx.GetPackageContext(), ast.Type)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var value Expr
-	if ast.Type != nil && ast.Value != nil {
-		value, err = expectExpr(ctx, typ, ast.Value)
-		if err != nil {
-			return nil, err
-		}
-	} else if ast.Type == nil && ast.Value != nil {
-		value, err = analyseExpr(ctx, nil, ast.Value)
-		if err != nil {
-			return nil, err
-		} else if IsNoneType(value.GetType()) {
-			return nil, utils.Errorf(ast.Value.Position(), "expect a value")
-		}
-		typ = value.GetType()
-	} else {
-		value, err = getDefaultExprByType(ast.Type.Position(), typ)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	v := &Variable{
-		Type:  typ,
-		Value: value,
-	}
-	if !ctx.AddValue(ast.Name.Source, v) {
-		return nil, utils.Errorf(ast.Name.Pos, "duplicate identifier")
-	}
-	return v, nil
-}
-
-// 条件分支
-func analyseIfElse(ctx *blockContext, ast *parse.IfElse) (*IfElse, utils.Error, bool) {
-	cond, err := expectExprAndSon(ctx, Bool, ast.Cond)
-	if err != nil {
-		return nil, err, false
-	}
-
-	tctx, tb, te := analyseBlock(ctx, ast.Body, false)
-
-	if ast.Next == nil {
-		if te != nil {
-			return nil, te, false
-		}
-		return &IfElse{
-			Cond: cond,
-			True: tb,
-		}, nil, false
-	} else if ast.Next != nil && ast.Next.Cond == nil {
-		fctx, fb, fe := analyseBlock(ctx, ast.Next.Body, false)
-		if te != nil && fe != nil {
-			return nil, utils.NewMultiError(te, fe), false
-		} else if te != nil {
-			return nil, te, false
-		} else if fe != nil {
-			return nil, fe, false
-		}
-		return &IfElse{
-			Cond:  cond,
-			True:  tb,
-			False: fb,
-		}, nil, tctx.IsEnd() && fctx.IsEnd()
-	} else {
-		nb, ne, nret := analyseIfElse(ctx, ast.Next)
-		if te != nil && ne != nil {
-			return nil, utils.NewMultiError(te, ne), false
-		} else if te != nil {
-			return nil, te, false
-		} else if ne != nil {
-			return nil, ne, false
-		}
-		return &IfElse{
-			Cond:  cond,
-			True:  tb,
-			False: &Block{Stmts: []Stmt{nb}},
-		}, nil, tctx.IsEnd() && nret
-	}
-}
-
-// 循环
-func analyseFor(ctx *blockContext, ast *parse.Loop) (*Loop, utils.Error) {
-	cond, err := expectExprAndSon(ctx, Bool, ast.Cond)
-	if err != nil {
-		return nil, err
-	}
-
-	_, body, err := analyseBlock(ctx, ast.Body, true)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Loop{
-		Cond: cond,
-		Body: body,
-	}, nil
 }
 
 // 分支
-func analyseSwitch(ctx *blockContext, ast *parse.Switch) (*Switch, utils.Error) {
-	from, err := analyseExpr(ctx, nil, ast.From)
+func (self *Analyser) analyseSwitch(ast parse.Switch) (*hir.Switch, bool, utils.Error) {
+	// 判断值
+	from, err := self.analyseExpr(nil, ast.From)
+	if err != nil {
+		return nil, false, err
+	}
+	fromType := from.Type()
+
+	// 分支
+	var errs []utils.Error
+	cas, cbs := make([]hir.Expr, len(ast.Cases)), make([]*hir.Block, len(ast.Cases))
+	for i, c := range ast.Cases {
+		v, err := self.expectExpr(fromType, c.First)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		b, _, err := self.analyseBlock(*c.Second)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		cas[i], cbs[i] = v, b
+	}
+
+	// 默认分支
+	var db *hir.Block
+	var ret bool
+	if ast.Default != nil {
+		db, ret, err = self.analyseBlock(*ast.Default)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) == 1 {
+		return nil, false, errs[0]
+	} else if len(errs) > 1 {
+		return nil, false, utils.NewMultiError(errs...)
+	}
+
+	return hir.NewSwitch(from, cas, cbs, db), ret, nil
+}
+
+// 变量定义
+func (self *Analyser) analyseVariable(ast parse.Variable) (*hir.Variable, utils.Error) {
+	// 类型
+	var typ hir.Type
+	var err utils.Error
+	if ast.Type != nil {
+		typ, err = self.analyseType(ast.Type)
+	}
 	if err != nil {
 		return nil, err
 	}
-	ft := from.GetType()
 
-	cases := make([]types.Pair[Expr, *Block], len(ast.Cases))
-	end := ast.Default != nil
-	var errs []utils.Error
-	for i, c := range ast.Cases {
-		cv, err := expectExpr(ctx, ft, c.First)
-		if err != nil {
-			errs = append(errs, err)
-			continue
+	// 值
+	var value hir.Expr
+	if ast.Value != nil && ast.Type != nil {
+		value, err = self.expectExpr(typ, ast.Value)
+	} else if ast.Value != nil {
+		value, err = self.analyseExpr(nil, ast.Value)
+		if err == nil {
+			typ = value.Type()
 		}
-		cbCtx, cb, err := analyseBlock(ctx, c.Second, false)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		end = end && cbCtx.end
-		cases[i] = types.NewPair(cv, cb)
-	}
-	var de *Block
-	if ast.Default != nil {
-		var deCtx *blockContext
-		deCtx, de, err = analyseBlock(ctx, ast.Default, false)
-		if err != nil {
-			errs = append(errs, err)
-		} else {
-			end = end && deCtx.end
-		}
-	}
-	if len(errs) == 0 {
-		return &Switch{
-			From:    from,
-			Cases:   cases,
-			Default: de,
-		}, nil
-	} else if len(errs) == 1 {
-		return nil, errs[0]
 	} else {
-		return nil, utils.NewMultiError(errs...)
+		value, err = self.getDefaultValue(typ)
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	// 定义
+	ident := hir.NewVariable(typ, value)
+	self.symbol.defValue(false, ast.Name.Source, ident)
+
+	return ident, nil
 }

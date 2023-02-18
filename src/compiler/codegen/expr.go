@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/kkkunny/Sim/src/compiler/hir"
@@ -11,7 +12,7 @@ import (
 // 表达式
 func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value {
 	switch expr := mean.(type) {
-	case *hir.Null, *hir.Integer, *hir.Float, *hir.Boolean, *hir.String, *hir.EmptyStruct, *hir.EmptyArray, *hir.EmptyTuple:
+	case *hir.Integer, *hir.Float, *hir.Boolean, *hir.String, *hir.EmptyFunc, *hir.EmptyPtr, *hir.EmptyStruct, *hir.EmptyArray, *hir.EmptyTuple:
 		return self.codegenConstantExpr(mean)
 	case hir.Ident:
 		switch ident := expr.(type) {
@@ -23,20 +24,22 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			return v
 		case *hir.Function:
 			return self.vars[ident]
+		case *hir.Method:
+			return self.vars[ident]
 		case *hir.Variable:
 			v := self.vars[ident]
 			if getValue {
 				v = self.builder.CreateLoad(v, "")
 			}
 			return v
-		case *hir.GlobalVariable:
+		case *hir.GlobalValue:
 			v := self.vars[ident]
 			if getValue {
 				v = self.builder.CreateLoad(v, "")
 			}
 			return v
 		default:
-			panic("")
+			panic("unreachable")
 		}
 	case hir.Binary:
 		switch binary := expr.(type) {
@@ -52,23 +55,23 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			left = self.equal(left, right)
 			v := self.builder.CreateXor(left, llvm.ConstInt(left.Type(), 1, true), "")
 			return self.builder.CreateIntCast(v, t_bool, "")
-		case *hir.LessThan:
+		case *hir.Lt:
 			left, right := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
 			var v llvm.Value
-			if hir.IsSintTypeAndSon(binary.Left.GetType()) {
+			if binary.Left.Type().IsSint() {
 				v = self.builder.CreateICmp(llvm.IntSLT, left, right, "")
-			} else if hir.IsUintTypeAndSon(binary.Left.GetType()) {
+			} else if binary.Left.Type().IsUint() {
 				v = self.builder.CreateICmp(llvm.IntULT, left, right, "")
 			} else {
 				v = self.builder.CreateFCmp(llvm.FloatOLT, left, right, "")
 			}
 			return self.builder.CreateIntCast(v, t_bool, "")
-		case *hir.LessOrEqualThan:
+		case *hir.Le:
 			left, right := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
 			var v llvm.Value
-			if hir.IsSintTypeAndSon(binary.Left.GetType()) {
+			if binary.Left.Type().IsSint() {
 				v = self.builder.CreateICmp(llvm.IntSLE, left, right, "")
-			} else if hir.IsUintTypeAndSon(binary.Left.GetType()) {
+			} else if binary.Left.Type().IsUint() {
 				v = self.builder.CreateICmp(llvm.IntULE, left, right, "")
 			} else {
 				v = self.builder.CreateFCmp(llvm.FloatOLE, left, right, "")
@@ -76,45 +79,45 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			return self.builder.CreateIntCast(v, t_bool, "")
 		case *hir.Add:
 			l, r := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
-			if hir.IsSintTypeAndSon(binary.GetType()) {
+			if binary.Left.Type().IsSint() {
 				return self.builder.CreateNSWAdd(l, r, "")
-			} else if hir.IsUintTypeAndSon(binary.GetType()) {
+			} else if binary.Left.Type().IsUint() {
 				return self.builder.CreateNUWAdd(l, r, "")
 			} else {
 				return self.builder.CreateFAdd(l, r, "")
 			}
-		case *hir.Subtract:
+		case *hir.Sub:
 			l, r := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
-			if hir.IsSintTypeAndSon(binary.GetType()) {
+			if binary.Left.Type().IsSint() {
 				return self.builder.CreateNSWSub(l, r, "")
-			} else if hir.IsUintTypeAndSon(binary.GetType()) {
+			} else if binary.Left.Type().IsUint() {
 				return self.builder.CreateNUWSub(l, r, "")
 			} else {
 				return self.builder.CreateFSub(l, r, "")
 			}
-		case *hir.Multiply:
+		case *hir.Mul:
 			l, r := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
-			if hir.IsSintTypeAndSon(binary.GetType()) {
+			if binary.Left.Type().IsSint() {
 				return self.builder.CreateNSWMul(l, r, "")
-			} else if hir.IsUintTypeAndSon(binary.GetType()) {
+			} else if binary.Left.Type().IsUint() {
 				return self.builder.CreateNUWMul(l, r, "")
 			} else {
 				return self.builder.CreateFMul(l, r, "")
 			}
-		case *hir.Divide:
+		case *hir.Div:
 			l, r := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
-			if hir.IsSintTypeAndSon(binary.GetType()) {
+			if binary.Left.Type().IsSint() {
 				return self.builder.CreateSDiv(l, r, "")
-			} else if hir.IsUintTypeAndSon(binary.GetType()) {
+			} else if binary.Left.Type().IsUint() {
 				return self.builder.CreateUDiv(l, r, "")
 			} else {
 				return self.builder.CreateFDiv(l, r, "")
 			}
 		case *hir.Mod:
 			l, r := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
-			if hir.IsSintTypeAndSon(binary.GetType()) {
+			if binary.Left.Type().IsSint() {
 				return self.builder.CreateSRem(l, r, "")
-			} else if hir.IsUintTypeAndSon(binary.GetType()) {
+			} else if binary.Left.Type().IsUint() {
 				return self.builder.CreateURem(l, r, "")
 			} else {
 				return self.builder.CreateFRem(l, r, "")
@@ -128,12 +131,12 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		case *hir.Xor:
 			l, r := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
 			return self.builder.CreateXor(l, r, "")
-		case *hir.ShiftLeft:
+		case *hir.Shl:
 			l, r := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
 			return self.builder.CreateShl(l, r, "")
-		case *hir.ShiftRight:
+		case *hir.Shr:
 			l, r := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
-			if hir.IsSintTypeAndSon(binary.GetType()) {
+			if binary.Left.Type().IsSint() {
 				return self.builder.CreateAShr(l, r, "")
 			} else {
 				return self.builder.CreateLShr(l, r, "")
@@ -179,7 +182,7 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			phi.AddIncoming([]llvm.Value{llvm.ConstInt(self.ctx.Int1Type(), 1, true), nv}, []llvm.BasicBlock{pb, nb})
 			return self.builder.CreateIntCast(phi, t_bool, "")
 		default:
-			panic("")
+			panic("unreachable")
 		}
 	case hir.Call:
 		switch call := expr.(type) {
@@ -191,14 +194,14 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			}
 			return self.builder.CreateCall(f, args, "")
 		case *hir.MethodCall:
-			f := self.codegenExpr(call.Method.Func, true)
+			f := self.vars[call.Method]
 			args := make([]llvm.Value, len(call.Args)+1)
-			if hir.IsPtrType(call.Method.Self.GetType()) {
-				args[0] = self.codegenExpr(call.Method.Self, true)
-			} else if call.Method.Self.GetMut() {
-				args[0] = self.codegenExpr(call.Method.Self, false)
+			if call.Self.Type().IsPtr() {
+				args[0] = self.codegenExpr(call.Self, true)
+			} else if !call.Self.Immediate() {
+				args[0] = self.codegenExpr(call.Self, false)
 			} else {
-				selfArg := self.codegenExpr(call.Method.Self, true)
+				selfArg := self.codegenExpr(call.Self, true)
 				args[0] = self.builder.CreateAlloca(selfArg.Type(), "")
 				self.builder.CreateStore(selfArg, args[0])
 			}
@@ -206,25 +209,13 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 				args[i+1] = self.codegenExpr(a, true)
 			}
 			v := self.builder.CreateCall(f, args, "")
-			if call.Method.Func.NoReturn {
+			if call.Method.NoReturn {
 				self.builder.CreateUnreachable()
 			}
 			return v
-		case *hir.InterfaceFieldCall:
-			f := self.codegenExpr(call.Field, true)
-
-			args := make([]llvm.Value, len(call.Args)+1)
-			args[0] = self.createStructIndex(self.codegenExpr(call.Field.From, true), 1, true)
-			for i, a := range call.Args {
-				args[i+1] = self.codegenExpr(a, true)
-			}
-
-			return self.builder.CreateCall(f, args, "")
 		default:
-			panic("")
+			panic("unreachable")
 		}
-	case *hir.Method:
-		return self.vars[expr.Func]
 	case hir.Unary:
 		switch unary := expr.(type) {
 		case *hir.Not:
@@ -239,7 +230,7 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			}
 			return value
 		default:
-			panic("")
+			panic("unreachable")
 		}
 	case hir.Index:
 		switch index := expr.(type) {
@@ -253,9 +244,9 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			from := self.codegenExpr(index.From, false)
 			return self.createStructIndex(from, index.Index, getValue)
 		default:
-			panic("")
+			panic("unreachable")
 		}
-	case *hir.Select:
+	case *hir.Ternary:
 		cond := self.builder.CreateIntCast(self.codegenExpr(expr.Cond, true), self.ctx.Int1Type(), "")
 		tb, fb, eb := llvm.AddBasicBlock(self.function, ""), llvm.AddBasicBlock(
 			self.function,
@@ -285,9 +276,9 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			}
 		}
 		if isConst {
-			return llvm.ConstArray(self.codegenType(expr.Type), elems)
+			return llvm.ConstArray(self.codegenType(expr.Type()), elems)
 		} else {
-			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type), "")
+			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type()), "")
 			for i, e := range elems {
 				index := self.createArrayIndex(tmp, llvm.ConstInt(t_size, uint64(i), false), false)
 				self.builder.CreateStore(e, index)
@@ -306,7 +297,7 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		if isConst {
 			return self.ctx.ConstStruct(elems, false)
 		} else {
-			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type), "")
+			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type()), "")
 			for i, e := range elems {
 				index := self.createStructIndex(tmp, uint(i), false)
 				self.builder.CreateStore(e, index)
@@ -325,7 +316,7 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		if isConst {
 			return self.ctx.ConstStruct(elems, false)
 		} else {
-			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type), "")
+			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type()), "")
 			for i, e := range elems {
 				index := self.createStructIndex(tmp, uint(i), false)
 				self.builder.CreateStore(e, index)
@@ -334,121 +325,87 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		}
 	case *hir.GetField:
 		f := self.codegenExpr(expr.From, false)
-		var index uint
-		for iter := hir.GetBaseType(expr.From.GetType()).(*hir.TypeStruct).Fields.Begin(); iter.HasValue(); iter.Next() {
-			if iter.Key() == expr.Index {
-				break
-			}
-			index++
-		}
+		index := expr.GetFieldIndex()
 		return self.createStructIndex(f, index, getValue)
 	case hir.Covert:
 		switch covert := expr.(type) {
 		case *hir.WrapCovert:
 			return self.codegenExpr(covert.From, true)
-		case *hir.NumberCovert:
+		case *hir.Int2Int:
 			from := self.codegenExpr(covert.From, true)
-			meanFt, meanTo := covert.From.GetType(), covert.To
-			to := self.codegenType(covert.GetType())
+			to := self.codegenType(covert.Type())
+			return self.builder.CreateIntCast(from, to, "")
+		case *hir.Float2Float:
+			from := self.codegenExpr(covert.From, true)
+			to := self.codegenType(covert.Type())
+			return self.builder.CreateFPCast(from, to, "")
+		case *hir.Int2Float:
+			from := self.codegenExpr(covert.From, true)
+			to := self.codegenType(covert.Type())
 			switch {
-			case hir.IsIntTypeAndSon(meanFt) && hir.IsIntTypeAndSon(meanTo):
-				return self.builder.CreateIntCast(from, to, "")
-			case hir.IsFloatTypeAndSon(meanFt) && hir.IsFloatTypeAndSon(meanTo):
-				return self.builder.CreateFPCast(from, to, "")
-			case hir.IsSintTypeAndSon(meanFt) && hir.IsFloatTypeAndSon(meanTo):
+			case covert.From.Type().IsSint():
 				return self.builder.CreateSIToFP(from, to, "")
-			case hir.IsUintTypeAndSon(meanFt) && hir.IsFloatTypeAndSon(meanTo):
+			case covert.From.Type().IsUint():
 				return self.builder.CreateUIToFP(from, to, "")
-			case hir.IsFloatTypeAndSon(meanFt) && hir.IsSintTypeAndSon(meanTo):
+			default:
+				panic("unreachable")
+			}
+		case *hir.Float2Int:
+			from := self.codegenExpr(covert.From, true)
+			to := self.codegenType(covert.Type())
+			switch {
+			case covert.Type().IsSint():
 				return self.builder.CreateFPToSI(from, to, "")
-			case hir.IsFloatTypeAndSon(meanFt) && hir.IsUintTypeAndSon(meanTo):
+			case covert.Type().IsUint():
 				return self.builder.CreateFPToUI(from, to, "")
 			default:
-				panic("")
+				panic("unreachable")
 			}
-		case *hir.Usize2PtrCovert:
+		case *hir.Usize2Ptr:
 			from := self.codegenExpr(covert.From, true)
-			to := self.codegenType(covert.GetType())
+			to := self.codegenType(covert.Type())
 			return self.builder.CreateIntToPtr(from, to, "")
-		case *hir.Ptr2UsizeCovert:
+		case *hir.Ptr2Usize:
 			from := self.codegenExpr(covert.From, true)
-			to := self.codegenType(covert.GetType())
+			to := self.codegenType(covert.Type())
 			return self.builder.CreatePtrToInt(from, to, "")
-		case *hir.PtrCovert:
+		case *hir.Ptr2Ptr:
 			from := self.codegenExpr(covert.From, true)
-			to := self.codegenType(covert.GetType())
+			to := self.codegenType(covert.Type())
 			return self.builder.CreatePointerCast(from, to, "")
-		case *hir.UpCovert:
-			from := self.codegenExpr(covert.From, true)
-			meanFt, meanTo := covert.From.GetType(), covert.To
-			to := self.codegenType(covert.GetType())
-
-			ft := hir.GetBaseType(meanFt).(*hir.TypePtr).Elem.(*hir.Typedef)
-			it := hir.GetBaseType(meanTo).(*hir.TypeInterface)
-			toParams := to.StructElementTypes()
-			alloca := self.builder.CreateAlloca(to, "")
-
-			index := self.createStructIndex(alloca, 0, false)
-			self.builder.CreateStore(
-				self.codegenExpr(
-					&hir.String{
-						Type:  hir.NewPtrType(hir.I8),
-						Value: ft.String(),
-					}, false,
-				), index,
-			)
-			index = self.createStructIndex(alloca, 1, false)
-			self.builder.CreateStore(self.builder.CreatePointerCast(from, toParams[1], ""), index)
-			for iter := it.Fields.Begin(); iter.HasValue(); iter.Next() {
-				index = self.createStructIndex(alloca, uint(iter.Index()+2), false)
-				f := self.codegenExpr(ft.Methods[iter.Key()], true)
-				ptr := self.builder.CreatePointerCast(f, toParams[iter.Index()+2], "")
-				self.builder.CreateStore(ptr, index)
-			}
-
-			return self.builder.CreateLoad(alloca, "")
 		default:
-			panic("")
+			panic("unreachable")
 		}
 	case *hir.Alloc:
 		size := self.codegenExpr(expr.Size, true)
 		ptr := self.builder.CreateArrayAlloca(self.ctx.Int8Type(), size, "")
 		return self.builder.CreatePointerCast(ptr, llvm.PointerType(t_size, 0), "")
-	case *hir.GetInterfaceField:
-		f := self.codegenExpr(expr.From, false)
-		var index uint = 2
-		for iter := hir.GetBaseType(expr.From.GetType()).(*hir.TypeInterface).Fields.Begin(); iter.HasValue(); iter.Next() {
-			if iter.Key() == expr.Index {
-				break
-			}
-			index++
-		}
-		return self.createStructIndex(f, index, true)
 	default:
-		panic("")
+		fmt.Printf("%+v\n", expr)
+		panic("unreachable")
 	}
 }
 
 // 常量表达式
 func (self *CodeGenerator) codegenConstantExpr(mean hir.Expr) llvm.Value {
 	switch expr := mean.(type) {
-	case *hir.Null:
-		return llvm.ConstPointerNull(self.codegenType(expr.Type))
 	case *hir.Integer:
 		value := *(*uint64)(unsafe.Pointer(&expr.Value))
-		return llvm.ConstInt(self.codegenType(expr.Type), value, hir.IsSintType(expr.Type))
+		return llvm.ConstInt(self.codegenType(expr.Typ), value, expr.Typ.IsSint())
 	case *hir.Float:
-		return llvm.ConstFloat(self.codegenType(expr.Type), expr.Value)
+		return llvm.ConstFloat(self.codegenType(expr.Typ), expr.Value)
 	case *hir.Boolean:
 		return stlutil.Ternary(expr.Value, v_true, v_false)
+	case *hir.EmptyFunc, *hir.EmptyPtr:
+		return llvm.ConstPointerNull(self.codegenType(expr.Type()))
 	case *hir.EmptyArray, *hir.EmptyTuple, *hir.EmptyStruct:
-		return llvm.ConstAggregateZero(self.codegenType(expr.GetType()))
+		return llvm.ConstAggregateZero(self.codegenType(expr.Type()))
 	case *hir.Array:
 		elems := make([]llvm.Value, len(expr.Elems))
 		for i, e := range expr.Elems {
 			elems[i] = self.codegenConstantExpr(e)
 		}
-		return llvm.ConstArray(self.codegenType(expr.Type), elems)
+		return llvm.ConstArray(self.codegenType(expr.Typ), elems)
 	case *hir.Tuple:
 		elems := make([]llvm.Value, len(expr.Elems))
 		for i, e := range expr.Elems {
@@ -469,7 +426,7 @@ func (self *CodeGenerator) codegenConstantExpr(mean hir.Expr) llvm.Value {
 			vv.SetGlobalConstant(true)
 			vv.SetLinkage(llvm.PrivateLinkage)
 			vv.SetInitializer(init)
-			v = llvm.AddGlobal(self.module, self.codegenType(expr.GetType()), "")
+			v = llvm.AddGlobal(self.module, self.codegenType(expr.Type()), "")
 			v.SetGlobalConstant(true)
 			v.SetLinkage(llvm.PrivateLinkage)
 			v.SetInitializer(llvm.ConstPointerCast(vv, v.Type().ElementType()))
@@ -477,7 +434,7 @@ func (self *CodeGenerator) codegenConstantExpr(mean hir.Expr) llvm.Value {
 		}
 		return self.builder.CreateLoad(v, "")
 	default:
-		panic("")
+		panic("unreachable")
 	}
 }
 
@@ -492,7 +449,7 @@ func (self *CodeGenerator) equal(left, right llvm.Value) llvm.Value {
 		if left.Type().ArrayLength() == 0 {
 			return llvm.ConstInt(self.ctx.Int8Type(), 1, true)
 		}
-		i := self.builder.CreateAlloca(self.codegenType(hir.Usize), "")
+		i := self.builder.CreateAlloca(self.codegenType(hir.NewTypeUsize()), "")
 		self.builder.CreateStore(llvm.ConstInt(i.Type().ElementType(), 0, false), i)
 		cb := llvm.AddBasicBlock(self.function, "")
 		self.builder.CreateBr(cb)

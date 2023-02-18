@@ -1,203 +1,71 @@
 package analyse
 
 import (
-	. "github.com/kkkunny/Sim/src/compiler/hir"
+	"github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
-	stlos "github.com/kkkunny/stl/os"
 )
 
-// 外部函数声明
-func analyseExternFunction(ctx *packageContext, ast *parse.ExternFunction) (*Function, utils.Error) {
-	retType, err := analyseType(ctx, ast.Ret)
+// 类型定义
+func (self *Analyser) analyseTypedef(ast parse.TypeDef) (*hir.Typedef, utils.Error) {
+	def, ok := self.symbol.lookupType(ast.Name.Source)
+	if !ok {
+		panic("unreachable")
+	}
+
+	elem, err := self.analyseType(ast.Target)
 	if err != nil {
 		return nil, err
 	}
 
-	params := make([]*Param, len(ast.Params))
-	var errors []utils.Error
-	for i, p := range ast.Params {
-		pt, err := analyseType(ctx, p.Type)
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
-		params[i] = &Param{Type: pt}
-	}
-	if len(errors) == 1 {
-		return nil, errors[0]
-	} else if len(errors) > 1 {
-		return nil, utils.NewMultiError(errors...)
-	}
+	self.symbol.defType(ast.Name.Source, elem)
+	delete(self.typedefTemp, ast.Name.Source)
 
-	f := &Function{
-		Ret:    retType,
-		Params: params,
-		VarArg: ast.VarArg,
-	}
-
-	// 属性
-	errors = make([]utils.Error, 0)
-	for _, astAttr := range ast.Attrs {
-		switch attr := astAttr.(type) {
-		case *parse.AttrExtern:
-			f.ExternName = attr.Name.Source
-		case *parse.AttrLink:
-			for _, asm := range attr.Asms {
-				linkPath := stlos.Path(asm.Value)
-				if !linkPath.IsAbsolute() {
-					linkPath = ctx.ast.Path.Join(linkPath)
-				}
-				if !linkPath.IsExist() {
-					errors = append(errors, utils.Errorf(asm.Position(), "can not find path `%s`", linkPath))
-				}
-				ctx.f.Links[linkPath] = struct{}{}
-			}
-			for _, lib := range attr.Libs {
-				ctx.f.Libs[lib.Value] = struct{}{}
-			}
-		case *parse.AttrNoReturn:
-			f.NoReturn = true
-		case *parse.AttrInit:
-			f.Init = true
-		case *parse.AttrFini:
-			f.Fini = true
-		default:
-			panic("unknown attr")
-		}
-	}
-	if len(errors) == 1 {
-		return nil, errors[0]
-	} else if len(errors) > 1 {
-		return nil, utils.NewMultiError(errors...)
-	}
-
-	if !ctx.AddValue(ast.Public, ast.Name.Source, f) {
-		return nil, utils.Errorf(ast.Name.Pos, "duplicate identifier")
-	}
-	return f, nil
-}
-
-// 函数声明
-func analyseFunctionDecl(ctx *packageContext, ast *parse.Function) (*Function, utils.Error) {
-	retType, err := analyseType(ctx, ast.Ret)
-	if err != nil {
-		return nil, err
-	}
-
-	params := make([]*Param, len(ast.Params))
-	var errors []utils.Error
-	for i, p := range ast.Params {
-		pt, err := analyseType(ctx, p.Type)
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
-		params[i] = &Param{Type: pt}
-	}
-	if len(errors) == 1 {
-		return nil, errors[0]
-	} else if len(errors) > 1 {
-		return nil, utils.NewMultiError(errors...)
-	}
-
-	f := &Function{
-		Ret:    retType,
-		Params: params,
-		VarArg: ast.VarArg,
-	}
-
-	// 属性
-	for _, astAttr := range ast.Attrs {
-		switch attr := astAttr.(type) {
-		case *parse.AttrExtern:
-			f.ExternName = attr.Name.Source
-		case *parse.AttrNoReturn:
-			f.NoReturn = true
-		case *parse.AttrInline:
-			var v bool
-			if attr.Value.Kind == lex.TRUE {
-				v = true
-			} else {
-				v = false
-			}
-			f.Inline = &v
-		case *parse.AttrInit:
-			f.Init = true
-		case *parse.AttrFini:
-			f.Fini = true
-		default:
-			panic("unknown attr")
-		}
-	}
-
-	if !ctx.AddValue(ast.Public, ast.Name.Source, f) {
-		return nil, utils.Errorf(ast.Name.Pos, "duplicate identifier")
-	}
-	return f, nil
-}
-
-// 函数定义
-func analyseFunctionDef(ctx *packageContext, f *Function, ast *parse.Function) utils.Error {
-	fctx := newFunctionContext(ctx, f.Ret)
-	for i, p := range f.Params {
-		name := ast.Params[i].Name
-		if name != nil {
-			if !fctx.AddValue(name.Source, p) {
-				return utils.Errorf(name.Pos, "duplicate identifier")
-			}
-		}
-	}
-
-	bctx, body, err := analyseBlock(fctx, ast.Body, false)
-	if err != nil {
-		return err
-	} else if !bctx.IsEnd() {
-		if f.Ret.Equal(None) {
-			body.Stmts = append(body.Stmts, &Return{})
-			bctx.SetEnd()
-		} else {
-			return utils.Errorf(ast.Name.Pos, "function missing return")
-		}
-	}
-	f.Body = body
-	return nil
+	return def.data, nil
 }
 
 // 全局变量声明
-func analyseGlobalVariableDecl(ctx *packageContext, ast *parse.GlobalValue) (*GlobalVariable, utils.Error) {
-	typ, err := analyseType(ctx, ast.Type)
+func (self *Analyser) analyseGlobalValueDecl(ast parse.GlobalValue) (*hir.GlobalValue, utils.Error) {
+	// 类型
+	typ, err := self.analyseType(ast.Type)
 	if err != nil {
 		return nil, err
 	}
 
-	v := &GlobalVariable{
-		Type: typ,
+	// 声明
+	ident := hir.NewGlobalValue(typ, "", nil)
+	if !self.symbol.defValue(ast.Public, ast.Name.Source, ident) {
+		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
 
 	// 属性
-	var errs []utils.Error
-	for _, astAttr := range ast.Attrs {
-		switch attr := astAttr.(type) {
+	for _, attrObj := range ast.Attrs {
+		switch attr := attrObj.(type) {
 		case *parse.AttrExtern:
-			v.ExternName = attr.Name.Source
-		case *parse.AttrLink:
-			for _, asm := range attr.Asms {
-				linkPath := stlos.Path(asm.Value)
-				if !linkPath.IsAbsolute() {
-					linkPath = ctx.ast.Path.Join(linkPath)
-				}
-				if !linkPath.IsExist() {
-					errs = append(errs, utils.Errorf(asm.Position(), "can not find path `%s`", linkPath))
-				}
-				ctx.f.Links[linkPath] = struct{}{}
-			}
-			for _, lib := range attr.Libs {
-				ctx.f.Libs[lib.Value] = struct{}{}
-			}
+			// TODO: 链接名重复
+			ident.Name = attr.Name.Source
 		default:
-			panic("unknown attr")
+			panic("unreachable")
+		}
+	}
+
+	return ident, nil
+}
+
+// 函数声明
+func (self *Analyser) analyseFunctionDecl(ast parse.Function) (*hir.Function, utils.Error) {
+	// 类型
+	ret, err := self.analyseType(ast.Ret)
+	if err != nil {
+		return nil, err
+	}
+	params := make([]hir.Type, len(ast.Params))
+	var errs []utils.Error
+	for i, p := range ast.Params {
+		params[i], err = self.analyseType(p.Type)
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
 	if len(errs) == 1 {
@@ -205,124 +73,214 @@ func analyseGlobalVariableDecl(ctx *packageContext, ast *parse.GlobalValue) (*Gl
 	} else if len(errs) > 1 {
 		return nil, utils.NewMultiError(errs...)
 	}
+	ft := hir.NewTypeFunc(ast.VarArg, ret, params...)
 
-	if !ctx.AddValue(ast.Public, ast.Name.Source, v) {
-		return nil, utils.Errorf(ast.Name.Pos, "duplicate identifier")
-	}
-	return v, nil
-}
-
-// 全局变量定义
-func analyseGlobalVariableDef(ctx *packageContext, v *GlobalVariable, ast *parse.GlobalValue) utils.Error {
-	var err utils.Error
-	if ast.Value != nil {
-		v.Value, err = expectExpr(newBlockContext(newFunctionContext(ctx, None), false), v.Type, ast.Value)
-	} else if v.ExternName == "" {
-		v.Value, err = getDefaultExprByType(ast.Type.Position(), v.Type)
-	}
-	return err
-}
-
-// 方法声明
-func analyseMethodDecl(ctx *packageContext, ast *parse.Method) (*Function, utils.Error) {
-	_selfTypeObj, err := analyseTypeIdent(ctx, []*parse.Package{ctx.ast}, ast.Self)
-	if err != nil {
-		return nil, err
-	}
-	_selfType, ok := _selfTypeObj.(*Typedef)
-	if !ok {
-		return nil, utils.Errorf(ast.Self.Pos, "expect a typedef")
-	}
-	selfType := NewPtrType(_selfType)
-
-	retType, err := analyseType(ctx, ast.Ret)
-	if err != nil {
-		return nil, err
-	}
-
-	params := make([]*Param, len(ast.Params)+1)
-	params[0] = &Param{Type: selfType}
-	var errors []utils.Error
-	for i, p := range ast.Params {
-		pt, err := analyseType(ctx, p.Type)
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
-		params[i+1] = &Param{Type: pt}
-	}
-	if len(errors) == 1 {
-		return nil, errors[0]
-	} else if len(errors) > 1 {
-		return nil, utils.NewMultiError(errors...)
-	}
-
-	f := &Function{
-		Ret:    retType,
-		Params: params,
-		VarArg: ast.VarArg,
+	// 声明
+	ident := hir.NewFunction(ft, "", nil, nil)
+	if !self.symbol.defValue(ast.Public, ast.Name.Source, ident) {
+		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
 
 	// 属性
-	for _, astAttr := range ast.Attrs {
-		switch attr := astAttr.(type) {
+	for _, attrObj := range ast.Attrs {
+		switch attr := attrObj.(type) {
+		case *parse.AttrExtern:
+			// TODO: 链接名重复
+			ident.Name = attr.Name.Source
 		case *parse.AttrNoReturn:
-			f.NoReturn = true
+			ident.NoReturn = true
 		case *parse.AttrInline:
-			var v bool
 			if attr.Value.Kind == lex.TRUE {
-				v = true
+				ident.MustInline = true
 			} else {
-				v = false
+				ident.MustNoInline = true
 			}
-			f.Inline = &v
+		case *parse.AttrInit:
+			ident.Init = true
+		case *parse.AttrFini:
+			ident.Fini = true
 		default:
-			panic("unknown attr")
+			panic("unreachable")
 		}
 	}
 
-	name := _selfType.String() + "." + ast.Name.Source
-	if !ctx.AddValue(ast.Public, name, f) {
-		return nil, utils.Errorf(ast.Name.Pos, "duplicate identifier")
+	return ident, nil
+}
+
+// 方法声明
+func (self *Analyser) analyseMethodDecl(ast parse.Method) (*hir.Method, utils.Error) {
+	// self
+	_t, ok := self.symbol.lookupType(ast.Self.Source)
+	if !ok {
+		return nil, utils.Errorf(ast.Self.Pos, errUnknownIdentifier)
 	}
-	_selfType.Methods[ast.Name.Source] = f
-	return f, nil
+	selfDef := _t.data
+
+	// 类型
+	ret, err := self.analyseType(ast.Ret)
+	if err != nil {
+		return nil, err
+	}
+	params := make([]hir.Type, len(ast.Params))
+	var errs []utils.Error
+	for i, p := range ast.Params {
+		params[i], err = self.analyseType(p.Type)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+	ft := hir.NewTypeFunc(ast.VarArg, ret, params...)
+
+	// 声明
+	ident := hir.NewMethod(ft, selfDef, nil, nil)
+	if selfDef.Target.Kind == hir.TStruct {
+		for _, f := range selfDef.Target.GetStructFields() {
+			if f.Second == ast.Name.Source {
+				return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+			}
+		}
+	}
+	if !selfDef.DeclMethod(ast.Name.Source, ident) {
+		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+	}
+
+	// 属性
+	for _, attrObj := range ast.Attrs {
+		switch attr := attrObj.(type) {
+		case *parse.AttrNoReturn:
+			ident.NoReturn = true
+		case *parse.AttrInline:
+			if attr.Value.Kind == lex.TRUE {
+				ident.MustInline = true
+			} else {
+				ident.MustNoInline = true
+			}
+		default:
+			panic("unreachable")
+		}
+	}
+
+	return ident, nil
+}
+
+// 全局变量定义
+func (self *Analyser) analyseGlobalValueDef(ast parse.GlobalValue) utils.Error {
+	_ident, ok := self.symbol.lookupValue(ast.Name.Source)
+	if !ok {
+		panic("unreachable")
+	}
+	ident := _ident.data.(*hir.GlobalValue)
+
+	if ident.Name != "" && ast.Value == nil {
+		return nil
+	}
+
+	// 值
+	var value hir.Expr
+	var err utils.Error
+	if ast.Value == nil {
+		value, err = self.getDefaultValue(ident.Typ)
+	} else {
+		value, err = self.expectExpr(ident.Typ, ast.Value)
+	}
+	if err != nil {
+		return err
+	}
+
+	ident.Value = value
+	return nil
+}
+
+// 函数定义
+func (self *Analyser) analyseFunctionDef(ast parse.Function) utils.Error {
+	if ast.Body == nil {
+		return nil
+	}
+
+	_ident, ok := self.symbol.lookupValue(ast.Name.Source)
+	if !ok {
+		panic("unreachable")
+	}
+	ident := _ident.data.(*hir.Function)
+	ft := ident.Type()
+
+	// 参数
+	ident.Params = make([]*hir.Param, len(ast.Params))
+	pro := func(symbol *symbolTable) utils.Error {
+		paramTypes := ft.GetFuncParams()
+		for i, p := range ast.Params {
+			ident.Params[i] = hir.NewParam(paramTypes[i])
+			if p.Name != nil {
+				symbol.defValue(false, p.Name.Source, ident.Params[i])
+			}
+		}
+		symbol.ret = ft.GetFuncRet()
+		return nil
+	}
+
+	// 函数体
+	block, ret, err := self.analyseBlock(*ast.Body, pro)
+	if err != nil {
+		return err
+	} else if !ret {
+		if !ft.GetFuncRet().IsNone() {
+			return utils.Errorf(ast.Name.Pos, "expect a return value")
+		}
+		block.Stmts.PushBack(hir.NewReturn(nil))
+	}
+	ident.Body = block
+
+	return nil
 }
 
 // 方法定义
-func analyseMethodDef(ctx *packageContext, ast *parse.Method) utils.Error {
-	_selfTypeObj, err := analyseTypeIdent(ctx, []*parse.Package{ctx.ast}, ast.Self)
-	if err != nil {
-		return err
+func (self *Analyser) analyseMethodDef(ast parse.Method) utils.Error {
+	// self
+	_t, ok := self.symbol.lookupType(ast.Self.Source)
+	if !ok {
+		panic("unreachable")
 	}
-	_selfType := _selfTypeObj.(*Typedef)
+	selfDef := _t.data
 
-	f := _selfType.Methods[ast.Name.Source]
-	fctx := newFunctionContext(ctx, f.Ret)
-	for i, p := range f.Params {
-		if i == 0 {
-			fctx.AddValue("self", p)
-		} else {
-			pn := ast.Params[i-1].Name
-			if pn != nil {
-				if !fctx.AddValue(pn.Source, p) {
-					return utils.Errorf(pn.Pos, "duplicate identifier")
-				}
+	ident, ok := selfDef.LookupMethod(ast.Name.Source)
+	if !ok {
+		panic("unreachable")
+	}
+	ft := ident.FunctionType()
+
+	// 参数
+	ident.Params = make([]*hir.Param, len(ast.Params)+1)
+	pro := func(symbol *symbolTable) utils.Error {
+		paramTypes := ft.GetFuncParams()
+		ident.Params[0] = hir.NewParam(paramTypes[0])
+		symbol.defValue(false, "self", ident.Params[0])
+		paramTypes = paramTypes[1:]
+		for i, p := range ast.Params {
+			ident.Params[i+1] = hir.NewParam(paramTypes[i])
+			if p.Name != nil {
+				symbol.defValue(false, p.Name.Source, ident.Params[i+1])
 			}
 		}
+		symbol.ret = ft.GetFuncRet()
+		return nil
 	}
 
-	bctx, body, err := analyseBlock(fctx, ast.Body, false)
+	// 函数体
+	block, ret, err := self.analyseBlock(*ast.Body, pro)
 	if err != nil {
 		return err
-	} else if !bctx.IsEnd() {
-		if f.Ret.Equal(None) {
-			body.Stmts = append(body.Stmts, &Return{})
-			bctx.SetEnd()
-		} else {
-			return utils.Errorf(ast.Name.Pos, "function missing return")
+	} else if !ret {
+		if !ft.GetFuncRet().IsNone() {
+			return utils.Errorf(ast.Name.Pos, "expect a return value")
 		}
+		block.Stmts.PushBack(hir.NewReturn(nil))
 	}
-	f.Body = body
+	ident.Body = block
+
 	return nil
 }

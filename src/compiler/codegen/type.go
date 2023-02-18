@@ -7,144 +7,113 @@ import (
 
 // 类型
 func (self *CodeGenerator) codegenType(mean hir.Type) llvm.Type {
-	switch typ := mean.(type) {
-	case *hir.TypeFunc:
-		ret := self.codegenType(typ.Ret)
-		params := make([]llvm.Type, len(typ.Params))
-		for i, p := range typ.Params {
+	switch mean.Kind {
+	case hir.TNone:
+		return self.ctx.VoidType()
+	case hir.TBool:
+		return t_bool
+	case hir.TI8, hir.TU8:
+		return self.ctx.Int8Type()
+	case hir.TI16, hir.TU16:
+		return self.ctx.Int16Type()
+	case hir.TI32, hir.TU32:
+		return self.ctx.Int32Type()
+	case hir.TI64, hir.TU64:
+		return self.ctx.Int64Type()
+	case hir.TIsize, hir.TUsize:
+		return t_size
+	case hir.TF32:
+		return self.ctx.FloatType()
+	case hir.TF64:
+		return self.ctx.DoubleType()
+	case hir.TPtr:
+		return llvm.PointerType(self.codegenType(mean.GetPtr()), 0)
+	case hir.TFunc:
+		ret := self.codegenType(mean.GetFuncRet())
+		paramHirs := mean.GetFuncParams()
+		params := make([]llvm.Type, len(paramHirs))
+		for i, p := range paramHirs {
 			params[i] = self.codegenType(p)
 		}
-		return llvm.PointerType(llvm.FunctionType(ret, params, typ.VarArg), 0)
-	case *hir.TypeArray:
-		elem := self.codegenType(typ.Elem)
-		return llvm.ArrayType(elem, int(typ.Size))
-	case *hir.TypeTuple:
-		if len(typ.Elems) <= 3 {
-			elems := make([]llvm.Type, len(typ.Elems))
-			for i, e := range typ.Elems {
+		return llvm.PointerType(llvm.FunctionType(ret, params, mean.GetFuncVarArg()), 0)
+	case hir.TArray:
+		elem := self.codegenType(mean.GetArrayElem())
+		return llvm.ArrayType(elem, int(mean.GetArraySize()))
+	case hir.TTuple:
+		elemHirs := mean.GetTupleElems()
+		if len(elemHirs) <= 3 {
+			elems := make([]llvm.Type, len(elemHirs))
+			for i, e := range elemHirs {
 				elems[i] = self.codegenType(e)
 			}
 			return self.ctx.StructType(elems, false)
 		} else {
-			key := typ.String()
+			key := mean.String()
 			if t, ok := self.types[key]; ok {
 				return t
 			}
 			td := self.ctx.StructCreateNamed("")
-			elems := make([]llvm.Type, len(typ.Elems))
-			for i, e := range typ.Elems {
+			elems := make([]llvm.Type, len(elemHirs))
+			for i, e := range elemHirs {
 				elems[i] = self.codegenType(e)
 			}
 			td.StructSetBody(elems, false)
 			self.types[key] = td
 			return td
 		}
-	case *hir.TypeStruct:
-		if typ.Fields.Length() <= 3 {
-			elems := make([]llvm.Type, typ.Fields.Length())
-			for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
-				elems[iter.Index()] = self.codegenType(iter.Value().Second)
+	case hir.TStruct:
+		fieldHirs := mean.GetStructFields()
+		if len(fieldHirs) <= 3 {
+			elems := make([]llvm.Type, len(fieldHirs))
+			for i, f := range fieldHirs {
+				elems[i] = self.codegenType(f.Third)
 			}
 			return self.ctx.StructType(elems, false)
 		} else {
-			key := typ.String()
+			key := mean.String()
 			if t, ok := self.types[key]; ok {
 				return t
 			}
 			td := self.ctx.StructCreateNamed("")
-			elems := make([]llvm.Type, typ.Fields.Length())
-			for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
-				elems[iter.Index()] = self.codegenType(iter.Value().Second)
+			elems := make([]llvm.Type, len(fieldHirs))
+			for i, f := range fieldHirs {
+				elems[i] = self.codegenType(f.Third)
 			}
 			td.StructSetBody(elems, false)
 			self.types[key] = td
 			return td
 		}
-	case *hir.TypePtr:
-		return llvm.PointerType(self.codegenType(typ.Elem), 0)
-	case *hir.Typedef:
-		if !hir.IsTupleType(typ.Dst) && !hir.IsStructType(typ.Dst) {
-			return self.codegenType(typ.Dst)
+	case hir.TTypedef:
+		def := mean.GetTypedef()
+		if def.Target.Kind != hir.TTuple && def.Target.Kind != hir.TStruct {
+			return self.codegenType(def.Target)
 		}
-		key := typ.String()
+		key := mean.String()
 		if t, ok := self.types[key]; ok {
 			return t
 		}
 		td := self.ctx.StructCreateNamed("")
 		self.types[key] = td
-		switch dst := typ.Dst.(type) {
-		case *hir.TypeTuple:
-			elems := make([]llvm.Type, len(dst.Elems))
-			for i, e := range dst.Elems {
+		switch def.Target.Kind {
+		case hir.TTuple:
+			elemHirs := def.Target.GetTupleElems()
+			elems := make([]llvm.Type, len(elemHirs))
+			for i, e := range elemHirs {
 				elems[i] = self.codegenType(e)
 			}
 			td.StructSetBody(elems, false)
-		case *hir.TypeStruct:
-			elems := make([]llvm.Type, dst.Fields.Length())
-			for iter := dst.Fields.Begin(); iter.HasValue(); iter.Next() {
-				elems[iter.Index()] = self.codegenType(iter.Value().Second)
+		case hir.TStruct:
+			fieldHirs := def.Target.GetStructFields()
+			elems := make([]llvm.Type, len(fieldHirs))
+			for i, f := range fieldHirs {
+				elems[i] = self.codegenType(f.Third)
 			}
 			td.StructSetBody(elems, false)
 		default:
-			panic("")
+			panic("unreachable")
 		}
-		return td
-	case *hir.TypeInterface:
-		key := typ.String()
-		if t, ok := self.types[key]; ok {
-			return t
-		}
-		td := self.ctx.StructCreateNamed("")
-		elems := make([]llvm.Type, typ.Fields.Length()+2)
-		elems[0] = llvm.PointerType(self.ctx.Int8Type(), 0) // 类型
-		elems[1] = llvm.PointerType(self.ctx.Int8Type(), 0) // self
-		i := 2
-		for iter := typ.Fields.Begin(); iter.HasValue(); iter.Next() {
-			ft := self.codegenType(iter.Value()).ElementType()
-			elems[i] = llvm.PointerType(
-				llvm.FunctionType(
-					ft.ReturnType(),
-					append([]llvm.Type{elems[1]}, ft.ParamTypes()...),
-					ft.IsFunctionVarArg(),
-				), 0,
-			)
-			i++
-		}
-		td.StructSetBody(elems, false)
-		self.types[key] = td
 		return td
 	default:
-		switch {
-		case hir.IsNoneType(typ):
-			return self.ctx.VoidType()
-		case hir.IsIntType(typ):
-			switch typ {
-			case hir.I8, hir.U8:
-				return self.ctx.Int8Type()
-			case hir.I16, hir.U16:
-				return self.ctx.Int16Type()
-			case hir.I32, hir.U32:
-				return self.ctx.Int32Type()
-			case hir.I64, hir.U64:
-				return self.ctx.Int64Type()
-			case hir.Isize, hir.Usize:
-				return t_size
-			default:
-				panic("")
-			}
-		case hir.IsFloatType(typ):
-			switch typ {
-			case hir.F32:
-				return self.ctx.FloatType()
-			case hir.F64:
-				return self.ctx.DoubleType()
-			default:
-				panic("")
-			}
-		case hir.IsBoolType(typ):
-			return t_bool
-		default:
-			panic("")
-		}
+		panic("unreachable")
 	}
 }

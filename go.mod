@@ -13,3 +13,5 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 )
+
+replace github.com/kkkunny/stl v0.0.0-20230108132724-b828446f586c => /mnt/code/go/src/github.com/kkkunny/stl

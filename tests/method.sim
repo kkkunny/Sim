@@ -1,14 +1,16 @@
 import std.c
 
-type A i32
+type A struct{
+    v: i32
+}
 
 func (A) get()i32{
-    return *self as i32
+    return self.v
 }
 
 @extern(main)
 func main()u8{
-    let a: A = 1
+    let a: A = {v: 1}
     if a.get() != 1{
         return 1
     }

@@ -3,108 +3,8 @@ package hir
 // Expr 表达式
 type Expr interface {
 	Stmt
-	GetType() Type
-	GetMut() bool
-	IsTemporary() bool
-}
-
-// Integer 整数
-type Integer struct {
-	Type  Type
-	Value int64
-}
-
-func (self Integer) stmt() {}
-
-func (self Integer) GetType() Type {
-	return self.Type
-}
-
-func (self Integer) GetMut() bool {
-	return false
-}
-
-func (self Integer) IsTemporary() bool {
-	return true
-}
-
-// Float 浮点数
-type Float struct {
-	Type  Type
-	Value float64
-}
-
-func (self Float) stmt() {}
-
-func (self Float) GetType() Type {
-	return self.Type
-}
-
-func (self Float) GetMut() bool {
-	return false
-}
-
-func (self Float) IsTemporary() bool {
-	return true
-}
-
-// Boolean 布尔数
-type Boolean struct {
-	Type  Type
-	Value bool
-}
-
-func (self Boolean) stmt() {}
-
-func (self Boolean) GetType() Type {
-	return self.Type
-}
-
-func (self Boolean) GetMut() bool {
-	return false
-}
-
-func (self Boolean) IsTemporary() bool {
-	return true
-}
-
-// String 字符串
-type String struct {
-	Type  Type
-	Value string
-}
-
-func (self String) stmt() {}
-
-func (self String) GetType() Type {
-	return self.Type
-}
-
-func (self String) GetMut() bool {
-	return false
-}
-
-func (self String) IsTemporary() bool {
-	return true
-}
-
-// Null 空指针
-type Null struct {
-	Type Type
-}
-
-func (self Null) stmt() {}
-
-func (self Null) GetType() Type {
-	return self.Type
-}
-
-func (self Null) GetMut() bool {
-	return false
-}
-
-func (self Null) IsTemporary() bool {
-	return true
+	Type() Type      // 获取类型
+	Immediate() bool // 是否是立即数
 }
 
 // Ident 标识符
@@ -115,23 +15,291 @@ type Ident interface {
 
 // Param 参数
 type Param struct {
-	Type Type
+	Typ Type // 类型
+}
+
+func NewParam(t Type) *Param {
+	return &Param{
+		Typ: t,
+	}
 }
 
 func (self Param) stmt() {}
 
-func (self Param) ident() {}
-
-func (self Param) GetType() Type {
-	return self.Type
+func (self Param) Type() Type {
+	return self.Typ
 }
 
-func (self Param) GetMut() bool {
+func (self Param) Immediate() bool {
+	return false
+}
+
+func (self Param) ident() {}
+
+// Boolean 布尔数
+type Boolean struct {
+	Typ   Type
+	Value bool
+}
+
+func NewBoolean(t Type, v bool) *Boolean {
+	return &Boolean{
+		Typ:   t,
+		Value: v,
+	}
+}
+
+func (self Boolean) stmt() {}
+
+func (self Boolean) Type() Type {
+	return self.Typ
+}
+
+func (self Boolean) Immediate() bool {
 	return true
 }
 
-func (self Param) IsTemporary() bool {
-	return false
+// Integer 整数
+type Integer struct {
+	Typ   Type
+	Value int64
+}
+
+func NewInteger(t Type, v int64) *Integer {
+	return &Integer{
+		Typ:   t,
+		Value: v,
+	}
+}
+
+func (self Integer) stmt() {}
+
+func (self Integer) Type() Type {
+	return self.Typ
+}
+
+func (self Integer) Immediate() bool {
+	return true
+}
+
+// Float 浮点数
+type Float struct {
+	Typ   Type
+	Value float64
+}
+
+func NewFloat(t Type, v float64) *Float {
+	return &Float{
+		Typ:   t,
+		Value: v,
+	}
+}
+
+func (self Float) stmt() {}
+
+func (self Float) Type() Type {
+	return self.Typ
+}
+
+func (self Float) Immediate() bool {
+	return true
+}
+
+// String 字符串
+type String struct {
+	Typ   Type
+	Value string
+}
+
+func NewString(t Type, v string) *String {
+	return &String{
+		Typ:   t,
+		Value: v,
+	}
+}
+
+func (self String) stmt() {}
+
+func (self String) Type() Type {
+	return self.Typ
+}
+
+func (self String) Immediate() bool {
+	return true
+}
+
+// EmptyPtr 空指针
+type EmptyPtr struct {
+	Typ Type
+}
+
+func NewEmptyPtr(t Type) *EmptyPtr {
+	return &EmptyPtr{
+		Typ: t,
+	}
+}
+
+func (self EmptyPtr) stmt() {}
+
+func (self EmptyPtr) Type() Type {
+	return self.Typ
+}
+
+func (self EmptyPtr) Immediate() bool {
+	return true
+}
+
+// EmptyFunc 空函数
+type EmptyFunc struct {
+	Typ Type
+}
+
+func NewEmptyFunc(t Type) *EmptyFunc {
+	return &EmptyFunc{
+		Typ: t,
+	}
+}
+
+func (self EmptyFunc) stmt() {}
+
+func (self EmptyFunc) Type() Type {
+	return self.Typ
+}
+
+func (self EmptyFunc) Immediate() bool {
+	return true
+}
+
+// EmptyArray 空数组
+type EmptyArray struct {
+	Typ Type
+}
+
+func NewEmptyArray(t Type) *EmptyArray {
+	return &EmptyArray{
+		Typ: t,
+	}
+}
+
+func (self EmptyArray) stmt() {}
+
+func (self EmptyArray) Type() Type {
+	return self.Typ
+}
+
+func (self EmptyArray) Immediate() bool {
+	return true
+}
+
+// EmptyTuple 空元组
+type EmptyTuple struct {
+	Typ Type
+}
+
+func NewEmptyTuple(t Type) *EmptyTuple {
+	return &EmptyTuple{
+		Typ: t,
+	}
+}
+
+func (self EmptyTuple) stmt() {}
+
+func (self EmptyTuple) Type() Type {
+	return self.Typ
+}
+
+func (self EmptyTuple) Immediate() bool {
+	return true
+}
+
+// EmptyStruct 空结构体
+type EmptyStruct struct {
+	Typ Type
+}
+
+func NewEmptyStruct(t Type) *EmptyStruct {
+	return &EmptyStruct{
+		Typ: t,
+	}
+}
+
+func (self EmptyStruct) stmt() {}
+
+func (self EmptyStruct) Type() Type {
+	return self.Typ
+}
+
+func (self EmptyStruct) Immediate() bool {
+	return true
+}
+
+// Array 数组
+type Array struct {
+	Typ   Type
+	Elems []Expr
+}
+
+func NewArray(t Type, elem ...Expr) *Array {
+	return &Array{
+		Typ:   t,
+		Elems: elem,
+	}
+}
+
+func (self Array) stmt() {}
+
+func (self Array) Type() Type {
+	return self.Typ
+}
+
+func (self Array) Immediate() bool {
+	return true
+}
+
+// Tuple 元组
+type Tuple struct {
+	Typ   Type
+	Elems []Expr
+}
+
+func NewTuple(t Type, elem ...Expr) *Tuple {
+	return &Tuple{
+		Typ:   t,
+		Elems: elem,
+	}
+}
+
+func (self Tuple) stmt() {}
+
+func (self Tuple) Type() Type {
+	return self.Typ
+}
+
+func (self Tuple) Immediate() bool {
+	return true
+}
+
+// Struct 结构体
+type Struct struct {
+	Typ    Type
+	Fields []Expr
+}
+
+func NewStruct(t Type, field ...Expr) *Struct {
+	return &Struct{
+		Typ:    t,
+		Fields: field,
+	}
+}
+
+func (self Struct) stmt() {}
+
+func (self Struct) Type() Type {
+	return self.Typ
+}
+
+func (self Struct) Immediate() bool {
+	return true
 }
 
 // Unary 一元表达式
@@ -140,322 +308,196 @@ type Unary interface {
 	unary()
 }
 
-// Not 逻辑相反
+// Not 布尔取反
 type Not struct {
 	Value Expr
 }
 
+func NewNot(v Expr) *Not {
+	return &Not{
+		Value: v,
+	}
+}
+
 func (self Not) stmt() {}
 
-func (self Not) GetType() Type {
-	return Bool
+func (self Not) Type() Type {
+	return self.Value.Type()
 }
 
-func (self Not) GetMut() bool {
-	return false
-}
-
-func (self Not) IsTemporary() bool {
+func (self Not) Immediate() bool {
 	return true
 }
 
 func (self Not) unary() {}
 
-// GetPointer 取指针
+// GetPointer 获取指针
 type GetPointer struct {
 	Value Expr
 }
 
+func NewGetPointer(v Expr) *GetPointer {
+	return &GetPointer{
+		Value: v,
+	}
+}
+
 func (self GetPointer) stmt() {}
 
-func (self GetPointer) GetType() Type {
-	return NewPtrType(self.Value.GetType())
+func (self GetPointer) Type() Type {
+	return NewTypePtr(self.Value.Type())
 }
 
-func (self GetPointer) GetMut() bool {
-	return false
-}
-
-func (self GetPointer) IsTemporary() bool {
+func (self GetPointer) Immediate() bool {
 	return true
 }
 
 func (self GetPointer) unary() {}
 
-// GetValue 取值
+// GetValue 获取值
 type GetValue struct {
 	Value Expr
 }
 
+func NewGetValue(v Expr) *GetValue {
+	return &GetValue{
+		Value: v,
+	}
+}
+
 func (self GetValue) stmt() {}
 
-func (self GetValue) GetType() Type {
-	return GetBaseType(self.Value.GetType()).(*TypePtr).Elem
+func (self GetValue) Type() Type {
+	return self.Value.Type().GetPtr()
 }
 
-func (self GetValue) GetMut() bool {
-	return self.Value.GetMut()
-}
-
-func (self GetValue) IsTemporary() bool {
-	return true
+func (self GetValue) Immediate() bool {
+	return self.Value.Immediate()
 }
 
 func (self GetValue) unary() {}
 
-// Binary 二元运算
+// Binary 二元表达式
 type Binary interface {
 	Expr
 	binary()
 }
-
-// Assign 赋值
-type Assign struct {
-	Left, Right Expr
-}
-
-func (self Assign) stmt() {}
-
-func (self Assign) GetType() Type {
-	return None
-}
-
-func (self Assign) GetMut() bool {
-	return false
-}
-
-func (self Assign) IsTemporary() bool {
-	return true
-}
-
-func (self Assign) binary() {}
-
-// LogicAnd 逻辑与
-type LogicAnd struct {
-	Left, Right Expr
-}
-
-func (self LogicAnd) stmt() {}
-
-func (self LogicAnd) GetType() Type {
-	return self.Left.GetType()
-}
-
-func (self LogicAnd) GetMut() bool {
-	return false
-}
-
-func (self LogicAnd) IsTemporary() bool {
-	return true
-}
-
-func (self LogicAnd) binary() {}
-
-// LogicOr 逻辑或
-type LogicOr struct {
-	Left, Right Expr
-}
-
-func (self LogicOr) stmt() {}
-
-func (self LogicOr) GetType() Type {
-	return self.Left.GetType()
-}
-
-func (self LogicOr) GetMut() bool {
-	return false
-}
-
-func (self LogicOr) IsTemporary() bool {
-	return true
-}
-
-func (self LogicOr) binary() {}
-
-// Equal 相等
-type Equal struct {
-	Left, Right Expr
-}
-
-func (self Equal) stmt() {}
-
-func (self Equal) GetType() Type {
-	return Bool
-}
-
-func (self Equal) GetMut() bool {
-	return false
-}
-
-func (self Equal) IsTemporary() bool {
-	return true
-}
-
-func (self Equal) binary() {}
-
-// NotEqual 不等
-type NotEqual struct {
-	Left, Right Expr
-}
-
-func (self NotEqual) stmt() {}
-
-func (self NotEqual) GetType() Type {
-	return Bool
-}
-
-func (self NotEqual) GetMut() bool {
-	return false
-}
-
-func (self NotEqual) IsTemporary() bool {
-	return true
-}
-
-func (self NotEqual) binary() {}
-
-// LessThan 小于
-type LessThan struct {
-	Left, Right Expr
-}
-
-func (self LessThan) stmt() {}
-
-func (self LessThan) GetType() Type {
-	return Bool
-}
-
-func (self LessThan) GetMut() bool {
-	return false
-}
-
-func (self LessThan) IsTemporary() bool {
-	return true
-}
-
-func (self LessThan) binary() {}
-
-// LessOrEqualThan 小于等于
-type LessOrEqualThan struct {
-	Left, Right Expr
-}
-
-func (self LessOrEqualThan) stmt() {}
-
-func (self LessOrEqualThan) GetType() Type {
-	return Bool
-}
-
-func (self LessOrEqualThan) GetMut() bool {
-	return false
-}
-
-func (self LessOrEqualThan) IsTemporary() bool {
-	return true
-}
-
-func (self LessOrEqualThan) binary() {}
 
 // Add 加
 type Add struct {
 	Left, Right Expr
 }
 
+func NewAdd(l, r Expr) *Add {
+	return &Add{
+		Left:  l,
+		Right: r,
+	}
+}
+
 func (self Add) stmt() {}
 
-func (self Add) GetType() Type {
-	return self.Left.GetType()
+func (self Add) Type() Type {
+	return self.Left.Type()
 }
 
-func (self Add) GetMut() bool {
-	return false
-}
-
-func (self Add) IsTemporary() bool {
+func (self Add) Immediate() bool {
 	return true
 }
 
 func (self Add) binary() {}
 
-// Subtract 减
-type Subtract struct {
+// Sub 减
+type Sub struct {
 	Left, Right Expr
 }
 
-func (self Subtract) stmt() {}
-
-func (self Subtract) GetType() Type {
-	return self.Left.GetType()
+func NewSub(l, r Expr) *Sub {
+	return &Sub{
+		Left:  l,
+		Right: r,
+	}
 }
 
-func (self Subtract) GetMut() bool {
-	return false
+func (self Sub) stmt() {}
+
+func (self Sub) Type() Type {
+	return self.Left.Type()
 }
 
-func (self Subtract) IsTemporary() bool {
+func (self Sub) Immediate() bool {
 	return true
 }
 
-func (self Subtract) binary() {}
+func (self Sub) binary() {}
 
-// Multiply 乘
-type Multiply struct {
+// Mul 乘
+type Mul struct {
 	Left, Right Expr
 }
 
-func (self Multiply) stmt() {}
-
-func (self Multiply) GetType() Type {
-	return self.Left.GetType()
+func NewMul(l, r Expr) *Mul {
+	return &Mul{
+		Left:  l,
+		Right: r,
+	}
 }
 
-func (self Multiply) GetMut() bool {
-	return false
+func (self Mul) stmt() {}
+
+func (self Mul) Type() Type {
+	return self.Left.Type()
 }
 
-func (self Multiply) IsTemporary() bool {
+func (self Mul) Immediate() bool {
 	return true
 }
 
-func (self Multiply) binary() {}
+func (self Mul) binary() {}
 
-// Divide 除
-type Divide struct {
+// Div 除
+type Div struct {
 	Left, Right Expr
 }
 
-func (self Divide) stmt() {}
-
-func (self Divide) GetType() Type {
-	return self.Left.GetType()
+func NewDiv(l, r Expr) *Div {
+	return &Div{
+		Left:  l,
+		Right: r,
+	}
 }
 
-func (self Divide) GetMut() bool {
-	return false
+func (self Div) stmt() {}
+
+func (self Div) Type() Type {
+	return self.Left.Type()
 }
 
-func (self Divide) IsTemporary() bool {
+func (self Div) Immediate() bool {
 	return true
 }
 
-func (self Divide) binary() {}
+func (self Div) binary() {}
 
 // Mod 取余
 type Mod struct {
 	Left, Right Expr
 }
 
+func NewMod(l, r Expr) *Mod {
+	return &Mod{
+		Left:  l,
+		Right: r,
+	}
+}
+
 func (self Mod) stmt() {}
 
-func (self Mod) GetType() Type {
-	return self.Left.GetType()
+func (self Mod) Type() Type {
+	return self.Left.Type()
 }
 
-func (self Mod) GetMut() bool {
-	return false
-}
-
-func (self Mod) IsTemporary() bool {
+func (self Mod) Immediate() bool {
 	return true
 }
 
@@ -466,17 +508,20 @@ type And struct {
 	Left, Right Expr
 }
 
+func NewAnd(l, r Expr) *And {
+	return &And{
+		Left:  l,
+		Right: r,
+	}
+}
+
 func (self And) stmt() {}
 
-func (self And) GetType() Type {
-	return self.Left.GetType()
+func (self And) Type() Type {
+	return self.Left.Type()
 }
 
-func (self And) GetMut() bool {
-	return false
-}
-
-func (self And) IsTemporary() bool {
+func (self And) Immediate() bool {
 	return true
 }
 
@@ -487,17 +532,20 @@ type Or struct {
 	Left, Right Expr
 }
 
+func NewOr(l, r Expr) *Or {
+	return &Or{
+		Left:  l,
+		Right: r,
+	}
+}
+
 func (self Or) stmt() {}
 
-func (self Or) GetType() Type {
-	return self.Left.GetType()
+func (self Or) Type() Type {
+	return self.Left.Type()
 }
 
-func (self Or) GetMut() bool {
-	return false
-}
-
-func (self Or) IsTemporary() bool {
+func (self Or) Immediate() bool {
 	return true
 }
 
@@ -508,63 +556,271 @@ type Xor struct {
 	Left, Right Expr
 }
 
+func NewXor(l, r Expr) *Xor {
+	return &Xor{
+		Left:  l,
+		Right: r,
+	}
+}
+
 func (self Xor) stmt() {}
 
-func (self Xor) GetType() Type {
-	return self.Left.GetType()
+func (self Xor) Type() Type {
+	return self.Left.Type()
 }
 
-func (self Xor) GetMut() bool {
-	return false
-}
-
-func (self Xor) IsTemporary() bool {
+func (self Xor) Immediate() bool {
 	return true
 }
 
 func (self Xor) binary() {}
 
-// ShiftLeft 左移
-type ShiftLeft struct {
+// Shl 左移
+type Shl struct {
 	Left, Right Expr
 }
 
-func (self ShiftLeft) stmt() {}
-
-func (self ShiftLeft) GetType() Type {
-	return self.Left.GetType()
+func NewShl(l, r Expr) *Shl {
+	return &Shl{
+		Left:  l,
+		Right: r,
+	}
 }
 
-func (self ShiftLeft) GetMut() bool {
-	return false
+func (self Shl) stmt() {}
+
+func (self Shl) Type() Type {
+	return self.Left.Type()
 }
 
-func (self ShiftLeft) IsTemporary() bool {
+func (self Shl) Immediate() bool {
 	return true
 }
 
-func (self ShiftLeft) binary() {}
+func (self Shl) binary() {}
 
-// ShiftRight 右移
-type ShiftRight struct {
+// Shr 右移
+type Shr struct {
 	Left, Right Expr
 }
 
-func (self ShiftRight) stmt() {}
-
-func (self ShiftRight) GetType() Type {
-	return self.Left.GetType()
+func NewShr(l, r Expr) *Shr {
+	return &Shr{
+		Left:  l,
+		Right: r,
+	}
 }
 
-func (self ShiftRight) GetMut() bool {
-	return false
+func (self Shr) stmt() {}
+
+func (self Shr) Type() Type {
+	return self.Left.Type()
 }
 
-func (self ShiftRight) IsTemporary() bool {
+func (self Shr) Immediate() bool {
 	return true
 }
 
-func (self ShiftRight) binary() {}
+func (self Shr) binary() {}
+
+// LogicAnd 逻辑与
+type LogicAnd struct {
+	Left, Right Expr
+}
+
+func NewLogicAnd(l, r Expr) *LogicAnd {
+	return &LogicAnd{
+		Left:  l,
+		Right: r,
+	}
+}
+
+func (self LogicAnd) stmt() {}
+
+func (self LogicAnd) Type() Type {
+	return self.Left.Type()
+}
+
+func (self LogicAnd) Immediate() bool {
+	return true
+}
+
+func (self LogicAnd) binary() {}
+
+// LogicOr 逻辑或
+type LogicOr struct {
+	Left, Right Expr
+}
+
+func NewLogicOr(l, r Expr) *LogicOr {
+	return &LogicOr{
+		Left:  l,
+		Right: r,
+	}
+}
+
+func (self LogicOr) stmt() {}
+
+func (self LogicOr) Type() Type {
+	return self.Left.Type()
+}
+
+func (self LogicOr) Immediate() bool {
+	return true
+}
+
+func (self LogicOr) binary() {}
+
+// Equal 相等
+type Equal struct {
+	Typ         Type
+	Left, Right Expr
+}
+
+func NewEqual(t Type, l, r Expr) *Equal {
+	return &Equal{
+		Typ:   t,
+		Left:  l,
+		Right: r,
+	}
+}
+
+func (self Equal) stmt() {}
+
+func (self Equal) Type() Type {
+	return self.Typ
+}
+
+func (self Equal) Immediate() bool {
+	return true
+}
+
+func (self Equal) binary() {}
+
+// NotEqual 不相等
+type NotEqual struct {
+	Typ         Type
+	Left, Right Expr
+}
+
+func NewNotEqual(t Type, l, r Expr) *NotEqual {
+	return &NotEqual{
+		Typ:   t,
+		Left:  l,
+		Right: r,
+	}
+}
+
+func (self NotEqual) stmt() {}
+
+func (self NotEqual) Type() Type {
+	return self.Typ
+}
+
+func (self NotEqual) Immediate() bool {
+	return true
+}
+
+func (self NotEqual) binary() {}
+
+// Lt 小于
+type Lt struct {
+	Typ         Type
+	Left, Right Expr
+}
+
+func NewLt(t Type, l, r Expr) *Lt {
+	return &Lt{
+		Typ:   t,
+		Left:  l,
+		Right: r,
+	}
+}
+
+func (self Lt) stmt() {}
+
+func (self Lt) Type() Type {
+	return self.Typ
+}
+
+func (self Lt) Immediate() bool {
+	return true
+}
+
+func (self Lt) binary() {}
+
+// Le 小于等于
+type Le struct {
+	Typ         Type
+	Left, Right Expr
+}
+
+func NewLe(t Type, l, r Expr) *Le {
+	return &Le{
+		Typ:   t,
+		Left:  l,
+		Right: r,
+	}
+}
+
+func (self Le) stmt() {}
+
+func (self Le) Type() Type {
+	return self.Typ
+}
+
+func (self Le) Immediate() bool {
+	return true
+}
+
+func (self Le) binary() {}
+
+// Assign 赋值
+type Assign struct {
+	Left, Right Expr
+}
+
+func NewAssign(l, r Expr) *Assign {
+	return &Assign{
+		Left:  l,
+		Right: r,
+	}
+}
+
+func (self Assign) stmt() {}
+
+func (self Assign) Type() Type {
+	return NewTypeNone()
+}
+
+func (self Assign) Immediate() bool {
+	return true
+}
+
+func (self Assign) binary() {}
+
+// Ternary 三元表达式
+type Ternary struct {
+	Cond, True, False Expr
+}
+
+func NewTernary(c, t, f Expr) *Ternary {
+	return &Ternary{
+		Cond:  c,
+		True:  t,
+		False: f,
+	}
+}
+
+func (self Ternary) stmt() {}
+
+func (self Ternary) Type() Type {
+	return self.True.Type()
+}
+
+func (self Ternary) Immediate() bool {
+	return true
+}
 
 // Call 调用
 type Call interface {
@@ -578,17 +834,20 @@ type FuncCall struct {
 	Args []Expr
 }
 
+func NewFuncCall(f Expr, arg ...Expr) *FuncCall {
+	return &FuncCall{
+		Func: f,
+		Args: arg,
+	}
+}
+
 func (self FuncCall) stmt() {}
 
-func (self FuncCall) GetType() Type {
-	return GetBaseType(self.Func.GetType()).(*TypeFunc).Ret
+func (self FuncCall) Type() Type {
+	return self.Func.Type().GetFuncRet()
 }
 
-func (self FuncCall) GetMut() bool {
-	return false
-}
-
-func (self FuncCall) IsTemporary() bool {
+func (self FuncCall) Immediate() bool {
 	return true
 }
 
@@ -597,85 +856,29 @@ func (self FuncCall) call() {}
 // MethodCall 方法调用
 type MethodCall struct {
 	Method *Method
+	Self   Expr
 	Args   []Expr
+}
+
+func NewMethodCall(m *Method, s Expr, arg ...Expr) *MethodCall {
+	return &MethodCall{
+		Method: m,
+		Self:   s,
+		Args:   arg,
+	}
 }
 
 func (self MethodCall) stmt() {}
 
-func (self MethodCall) GetType() Type {
-	return self.Method.GetMethodType().Ret
+func (self MethodCall) Type() Type {
+	return self.Method.Type().GetFuncRet()
 }
 
-func (self MethodCall) GetMut() bool {
-	return false
-}
-
-func (self MethodCall) IsTemporary() bool {
+func (self MethodCall) Immediate() bool {
 	return true
 }
 
 func (self MethodCall) call() {}
-
-// InterfaceFieldCall 接口成员调用
-type InterfaceFieldCall struct {
-	Field *GetInterfaceField
-	Args  []Expr
-}
-
-func (self InterfaceFieldCall) stmt() {}
-
-func (self InterfaceFieldCall) GetType() Type {
-	return self.Field.GetMethodType().Ret
-}
-
-func (self InterfaceFieldCall) GetMut() bool {
-	return false
-}
-
-func (self InterfaceFieldCall) IsTemporary() bool {
-	return true
-}
-
-func (self InterfaceFieldCall) call() {}
-
-// Array 数组
-type Array struct {
-	Type  Type
-	Elems []Expr
-}
-
-func (self Array) stmt() {}
-
-func (self Array) GetType() Type {
-	return self.Type
-}
-
-func (self Array) GetMut() bool {
-	return false
-}
-
-func (self Array) IsTemporary() bool {
-	return true
-}
-
-// EmptyArray 空数组
-type EmptyArray struct {
-	Type Type
-}
-
-func (self EmptyArray) stmt() {}
-
-func (self EmptyArray) GetType() Type {
-	return self.Type
-}
-
-func (self EmptyArray) GetMut() bool {
-	return false
-}
-
-func (self EmptyArray) IsTemporary() bool {
-	return true
-}
 
 // Index 索引
 type Index interface {
@@ -688,42 +891,24 @@ type ArrayIndex struct {
 	From, Index Expr
 }
 
+func NewArrayIndex(f, i Expr) *ArrayIndex {
+	return &ArrayIndex{
+		From:  f,
+		Index: i,
+	}
+}
+
 func (self ArrayIndex) stmt() {}
 
-func (self ArrayIndex) GetType() Type {
-	return GetBaseType(self.From.GetType()).(*TypeArray).Elem
+func (self ArrayIndex) Type() Type {
+	return self.From.Type().GetArrayElem()
 }
 
-func (self ArrayIndex) GetMut() bool {
-	return self.From.GetMut()
-}
-
-func (self ArrayIndex) IsTemporary() bool {
-	return self.From.IsTemporary()
+func (self ArrayIndex) Immediate() bool {
+	return self.From.Immediate()
 }
 
 func (self ArrayIndex) index() {}
-
-// PointerIndex 指针索引
-type PointerIndex struct {
-	From, Index Expr
-}
-
-func (self PointerIndex) stmt() {}
-
-func (self PointerIndex) GetType() Type {
-	return GetBaseType(self.From.GetType()).(*TypePtr).Elem
-}
-
-func (self PointerIndex) GetMut() bool {
-	return self.From.GetMut()
-}
-
-func (self PointerIndex) IsTemporary() bool {
-	return self.From.IsTemporary()
-}
-
-func (self PointerIndex) index() {}
 
 // TupleIndex 元组索引
 type TupleIndex struct {
@@ -731,137 +916,84 @@ type TupleIndex struct {
 	Index uint
 }
 
+func NewTupleIndex(f Expr, i uint) *TupleIndex {
+	return &TupleIndex{
+		From:  f,
+		Index: i,
+	}
+}
+
 func (self TupleIndex) stmt() {}
 
-func (self TupleIndex) GetType() Type {
-	return GetBaseType(self.From.GetType()).(*TypeTuple).Elems[self.Index]
+func (self TupleIndex) Type() Type {
+	return self.From.Type().GetTupleElems()[self.Index]
 }
 
-func (self TupleIndex) GetMut() bool {
-	return self.From.GetMut()
-}
-
-func (self TupleIndex) IsTemporary() bool {
-	return self.From.IsTemporary()
+func (self TupleIndex) Immediate() bool {
+	return self.From.Immediate()
 }
 
 func (self TupleIndex) index() {}
 
-// Select 选择
-type Select struct {
-	Cond, True, False Expr
+// PointerIndex 指针索引
+type PointerIndex struct {
+	From, Index Expr
 }
 
-func (self Select) stmt() {}
-
-func (self Select) GetType() Type {
-	return self.True.GetType()
+func NewPointerIndex(f, i Expr) *PointerIndex {
+	return &PointerIndex{
+		From:  f,
+		Index: i,
+	}
 }
 
-func (self Select) GetMut() bool {
-	return self.True.GetMut() && self.False.GetMut()
+func (self PointerIndex) stmt() {}
+
+func (self PointerIndex) Type() Type {
+	return self.From.Type().GetPtr()
 }
 
-func (self Select) IsTemporary() bool {
-	return self.True.IsTemporary() || self.False.IsTemporary()
+func (self PointerIndex) Immediate() bool {
+	return self.From.Immediate()
 }
 
-// Tuple 元组
-type Tuple struct {
-	Type  Type
-	Elems []Expr
-}
+func (self PointerIndex) index() {}
 
-func (self Tuple) stmt() {}
-
-func (self Tuple) GetType() Type {
-	return self.Type
-}
-
-func (self Tuple) GetMut() bool {
-	return false
-}
-
-func (self Tuple) IsTemporary() bool {
-	return true
-}
-
-// EmptyTuple 空元组
-type EmptyTuple struct {
-	Type Type
-}
-
-func (self EmptyTuple) stmt() {}
-
-func (self EmptyTuple) GetType() Type {
-	return self.Type
-}
-
-func (self EmptyTuple) GetMut() bool {
-	return false
-}
-
-func (self EmptyTuple) IsTemporary() bool {
-	return true
-}
-
-// Struct 结构体
-type Struct struct {
-	Type   Type
-	Fields []Expr
-}
-
-func (self Struct) stmt() {}
-
-func (self Struct) GetType() Type {
-	return self.Type
-}
-
-func (self Struct) GetMut() bool {
-	return false
-}
-
-func (self Struct) IsTemporary() bool {
-	return true
-}
-
-// EmptyStruct 空结构体
-type EmptyStruct struct {
-	Type Type
-}
-
-func (self EmptyStruct) stmt() {}
-
-func (self EmptyStruct) GetType() Type {
-	return self.Type
-}
-
-func (self EmptyStruct) GetMut() bool {
-	return false
-}
-
-func (self EmptyStruct) IsTemporary() bool {
-	return true
-}
-
-// GetField 获取成员
+// GetField 获取结构体字段
 type GetField struct {
-	From  Expr
-	Index string
+	From Expr
+	Attr string
+}
+
+func NewGetField(f Expr, a string) *GetField {
+	return &GetField{
+		From: f,
+		Attr: a,
+	}
 }
 
 func (self GetField) stmt() {}
 
-func (self GetField) GetType() Type {
-	return GetBaseType(self.From.GetType()).(*TypeStruct).Fields.Get(self.Index).Second
+func (self GetField) Type() Type {
+	for _, f := range self.From.Type().GetStructFields() {
+		if f.Second == self.Attr {
+			return f.Third
+		}
+	}
+	panic("unreachable")
 }
 
-func (self GetField) GetMut() bool {
-	return self.From.GetMut()
+func (self GetField) Immediate() bool {
+	return self.From.Immediate()
 }
 
-func (self GetField) IsTemporary() bool {
-	return self.From.IsTemporary()
+func (self GetField) GetFieldIndex() uint {
+	for i, f := range self.From.Type().GetStructFields() {
+		if f.Second == self.Attr {
+			return uint(i)
+		}
+	}
+	panic("unreachable")
 }
 
 // Covert 类型转换
@@ -870,203 +1002,223 @@ type Covert interface {
 	covert()
 }
 
+// Int2Int 整型转整型
+type Int2Int struct {
+	From Expr
+	To   Type
+}
+
+func NewInt2Int(f Expr, t Type) *Int2Int {
+	return &Int2Int{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self Int2Int) stmt() {}
+
+func (self Int2Int) Type() Type {
+	return self.To
+}
+
+func (self Int2Int) Immediate() bool {
+	return true
+}
+
+func (self Int2Int) covert() {}
+
+// Float2Float 浮点型转浮点型
+type Float2Float struct {
+	From Expr
+	To   Type
+}
+
+func NewFloat2Float(f Expr, t Type) *Float2Float {
+	return &Float2Float{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self Float2Float) stmt() {}
+
+func (self Float2Float) Type() Type {
+	return self.To
+}
+
+func (self Float2Float) Immediate() bool {
+	return true
+}
+
+func (self Float2Float) covert() {}
+
+// Int2Float 整型转浮点型
+type Int2Float struct {
+	From Expr
+	To   Type
+}
+
+func NewInt2Float(f Expr, t Type) *Int2Float {
+	return &Int2Float{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self Int2Float) stmt() {}
+
+func (self Int2Float) Type() Type {
+	return self.To
+}
+
+func (self Int2Float) Immediate() bool {
+	return true
+}
+
+func (self Int2Float) covert() {}
+
+// Float2Int 浮点型转整型
+type Float2Int struct {
+	From Expr
+	To   Type
+}
+
+func NewFloat2Int(f Expr, t Type) *Float2Int {
+	return &Float2Int{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self Float2Int) stmt() {}
+
+func (self Float2Int) Type() Type {
+	return self.To
+}
+
+func (self Float2Int) Immediate() bool {
+	return true
+}
+
+func (self Float2Int) covert() {}
+
+// Ptr2Ptr 指针转指针
+type Ptr2Ptr struct {
+	From Expr
+	To   Type
+}
+
+func NewPtr2Ptr(f Expr, t Type) *Ptr2Ptr {
+	return &Ptr2Ptr{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self Ptr2Ptr) stmt() {}
+
+func (self Ptr2Ptr) Type() Type {
+	return self.To
+}
+
+func (self Ptr2Ptr) Immediate() bool {
+	return true
+}
+
+func (self Ptr2Ptr) covert() {}
+
+// Usize2Ptr usize转指针
+type Usize2Ptr struct {
+	From Expr
+	To   Type
+}
+
+func NewUsize2Ptr(f Expr, t Type) *Usize2Ptr {
+	return &Usize2Ptr{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self Usize2Ptr) stmt() {}
+
+func (self Usize2Ptr) Type() Type {
+	return self.To
+}
+
+func (self Usize2Ptr) Immediate() bool {
+	return true
+}
+
+func (self Usize2Ptr) covert() {}
+
+// Ptr2Usize 指针转usize
+type Ptr2Usize struct {
+	From Expr
+	To   Type
+}
+
+func NewPtr2Usize(f Expr, t Type) *Ptr2Usize {
+	return &Ptr2Usize{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self Ptr2Usize) stmt() {}
+
+func (self Ptr2Usize) Type() Type {
+	return self.To
+}
+
+func (self Ptr2Usize) Immediate() bool {
+	return true
+}
+
+func (self Ptr2Usize) covert() {}
+
 // WrapCovert 包装转换
 type WrapCovert struct {
 	From Expr
 	To   Type
 }
 
+func NewWrapCovert(f Expr, t Type) *WrapCovert {
+	return &WrapCovert{
+		From: f,
+		To:   t,
+	}
+}
+
 func (self WrapCovert) stmt() {}
 
-func (self WrapCovert) GetType() Type {
+func (self WrapCovert) Type() Type {
 	return self.To
 }
 
-func (self WrapCovert) GetMut() bool {
-	return false
-}
-
-func (self WrapCovert) IsTemporary() bool {
+func (self WrapCovert) Immediate() bool {
 	return true
 }
 
 func (self WrapCovert) covert() {}
 
-// NumberCovert 数字转换
-type NumberCovert struct {
-	From Expr
-	To   Type
-}
-
-func (self NumberCovert) stmt() {}
-
-func (self NumberCovert) GetType() Type {
-	return self.To
-}
-
-func (self NumberCovert) GetMut() bool {
-	return false
-}
-
-func (self NumberCovert) IsTemporary() bool {
-	return true
-}
-
-func (self NumberCovert) covert() {}
-
-// Ptr2UsizeCovert 指针转换成usize
-type Ptr2UsizeCovert struct {
-	From Expr
-	To   Type
-}
-
-func (self Ptr2UsizeCovert) stmt() {}
-
-func (self Ptr2UsizeCovert) GetType() Type {
-	return self.To
-}
-
-func (self Ptr2UsizeCovert) GetMut() bool {
-	return false
-}
-
-func (self Ptr2UsizeCovert) IsTemporary() bool {
-	return true
-}
-
-func (self Ptr2UsizeCovert) covert() {}
-
-// Usize2PtrCovert usize转换成指针
-type Usize2PtrCovert struct {
-	From Expr
-	To   Type
-}
-
-func (self Usize2PtrCovert) stmt() {}
-
-func (self Usize2PtrCovert) GetType() Type {
-	return self.To
-}
-
-func (self Usize2PtrCovert) GetMut() bool {
-	return false
-}
-
-func (self Usize2PtrCovert) IsTemporary() bool {
-	return true
-}
-
-func (self Usize2PtrCovert) covert() {}
-
-// PtrCovert 指针转换
-type PtrCovert struct {
-	From Expr
-	To   Type
-}
-
-func (self PtrCovert) stmt() {}
-
-func (self PtrCovert) GetType() Type {
-	return self.To
-}
-
-func (self PtrCovert) GetMut() bool {
-	return false
-}
-
-func (self PtrCovert) IsTemporary() bool {
-	return true
-}
-
-func (self PtrCovert) covert() {}
-
-// UpCovert 向上转型
-type UpCovert struct {
-	From Expr
-	To   Type
-}
-
-func (self UpCovert) stmt() {}
-
-func (self UpCovert) GetType() Type {
-	return self.To
-}
-
-func (self UpCovert) GetMut() bool {
-	return false
-}
-
-func (self UpCovert) IsTemporary() bool {
-	return true
-}
-
-func (self UpCovert) covert() {}
-
-// Method 方法
-type Method struct {
-	Self Expr // 类型定义 || 类型定义指针
-	Func *Function
-}
-
-func (self Method) stmt() {}
-
-func (self Method) GetType() Type {
-	return self.Func.GetType()
-}
-
-func (self Method) GetMethodType() *TypeFunc {
-	return self.Func.GetMethodType()
-}
-
-func (self Method) GetMut() bool {
-	return false
-}
-
-func (self Method) IsTemporary() bool {
-	return true
-}
-
-// Alloc 栈内存分配
+// Alloc 分配栈内存
 type Alloc struct {
 	Size Expr
 }
 
+func NewAlloc(s Expr) *Alloc {
+	return &Alloc{
+		Size: s,
+	}
+}
+
 func (self Alloc) stmt() {}
 
-func (self Alloc) GetType() Type {
-	return NewPtrType(Usize)
+func (self Alloc) Type() Type {
+	return NewTypePtr(NewTypeI8())
 }
 
-func (self Alloc) GetMut() bool {
-	return false
-}
-
-func (self Alloc) IsTemporary() bool {
-	return true
-}
-
-// GetInterfaceField 获取接口成员
-type GetInterfaceField struct {
-	From  Expr
-	Index string
-}
-
-func (self GetInterfaceField) stmt() {}
-
-func (self GetInterfaceField) GetType() Type {
-	ft := self.GetType().(*TypeFunc)
-	ft.Params = append([]Type{NewPtrType(Usize)}, ft.Params...)
-	return ft
-}
-
-func (self GetInterfaceField) GetMethodType() *TypeFunc {
-	return GetBaseType(self.From.GetType()).(*TypeInterface).Fields.Get(self.Index)
-}
-
-func (self GetInterfaceField) GetMut() bool {
-	return false
-}
-
-func (self GetInterfaceField) IsTemporary() bool {
+func (self Alloc) Immediate() bool {
 	return true
 }

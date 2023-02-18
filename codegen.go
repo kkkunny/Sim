@@ -15,7 +15,7 @@ import (
 
 func main() {
 	ast := util.MustValue(parse.Parse(stlos.Path(os.Args[1])))
-	mean := util.MustValue(analyse.Analyse(ast))
-	module := codegen.NewCodeGenerator().Codegen(*mean)
+	hirs := util.MustValue(analyse.NewAnalyser().Analyse(ast))
+	module := codegen.NewCodeGenerator().Codegen(*hirs)
 	fmt.Println(module)
 }

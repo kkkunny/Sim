@@ -1,10 +1,8 @@
 package codegen
 
 import (
-	"github.com/kkkunny/Sim/src/compiler/analyse"
 	"github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/llvm"
-	stlutil "github.com/kkkunny/stl/util"
 )
 
 // CodeGenerator 代码生成器
@@ -47,21 +45,27 @@ func NewCodeGenerator() *CodeGenerator {
 }
 
 // Codegen 代码生成
-func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
+func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
 	// 声明
-	for _, g := range mean.Globals {
-		switch global := g.(type) {
+	for iter := pkg.Globals.Iterator(); iter.HasValue(); iter.Next() {
+		switch global := iter.Value().(type) {
+		case *hir.Typedef:
 		case *hir.Function:
-			ft := self.codegenType(global.GetType()).ElementType()
-			f := llvm.AddFunction(self.module, global.ExternName, ft)
-			if global.ExternName == "" {
+			ft := self.codegenType(global.Type()).ElementType()
+			f := llvm.AddFunction(self.module, global.Name, ft)
+			if global.Name == "" {
 				f.SetLinkage(llvm.InternalLinkage)
+			} else {
+				f.SetLinkage(llvm.ExternalLinkage)
 			}
 			if global.NoReturn {
 				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(31, 0))
 			}
-			if global.Inline != nil {
-				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(stlutil.Ternary[uint](*global.Inline, 1, 26), 0))
+			if global.MustInline {
+				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(1, 0))
+			}
+			if global.MustNoInline {
+				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(26, 0))
 			}
 			if global.Init {
 				self.inits = append(self.inits, f)
@@ -70,12 +74,26 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 				self.finis = append(self.finis, f)
 			}
 			self.vars[global] = f
-		case *hir.GlobalVariable:
-			vt := self.codegenType(global.GetType())
-			v := llvm.AddGlobal(self.module, vt, global.ExternName)
-			if global.ExternName == "" {
+		case *hir.Method:
+			ft := self.codegenType(global.FunctionType()).ElementType()
+			f := llvm.AddFunction(self.module, "", ft)
+			f.SetLinkage(llvm.InternalLinkage)
+			if global.NoReturn {
+				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(31, 0))
+			}
+			if global.MustInline {
+				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(1, 0))
+			}
+			if global.MustNoInline {
+				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(26, 0))
+			}
+			self.vars[global] = f
+		case *hir.GlobalValue:
+			vt := self.codegenType(global.Type())
+			v := llvm.AddGlobal(self.module, vt, global.Name)
+			if global.Name == "" {
 				v.SetLinkage(llvm.InternalLinkage)
-			} else if global.Value == nil {
+			} else {
 				v.SetLinkage(llvm.ExternalLinkage)
 			}
 			if global.Value != nil {
@@ -83,12 +101,13 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 			}
 			self.vars[global] = v
 		default:
-			panic("")
+			panic("unreachable")
 		}
 	}
 	// 定义
-	for _, g := range mean.Globals {
-		switch global := g.(type) {
+	for iter := pkg.Globals.Iterator(); iter.HasValue(); iter.Next() {
+		switch global := iter.Value().(type) {
+		case *hir.Typedef:
 		case *hir.Function:
 			if global.Body == nil {
 				continue
@@ -99,13 +118,26 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 			self.builder.SetInsertPointAtEnd(entry)
 
 			for i, p := range global.Params {
-				param := self.builder.CreateAlloca(self.codegenType(p.GetType()), "")
+				param := self.builder.CreateAlloca(self.codegenType(p.Type()), "")
 				self.builder.CreateStore(f.Param(i), param)
 				self.vars[p] = param
 			}
 
 			self.codegenBlock(*global.Body)
-		case *hir.GlobalVariable:
+		case *hir.Method:
+			f := self.vars[global]
+			self.function = f
+			entry := llvm.AddBasicBlock(f, "")
+			self.builder.SetInsertPointAtEnd(entry)
+
+			for i, p := range global.Params {
+				param := self.builder.CreateAlloca(self.codegenType(p.Type()), "")
+				self.builder.CreateStore(f.Param(i), param)
+				self.vars[p] = param
+			}
+
+			self.codegenBlock(*global.Body)
+		case *hir.GlobalValue:
 			if global.Value == nil {
 				continue
 			}
@@ -128,7 +160,7 @@ func (self *CodeGenerator) Codegen(mean analyse.ProgramContext) llvm.Module {
 			}
 			self.globalLastBlock = self.builder.GetInsertBlock()
 		default:
-			panic("")
+			panic("unreachable")
 		}
 	}
 	if !self.globalLastBlock.IsNil() {
