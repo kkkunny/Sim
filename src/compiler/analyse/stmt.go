@@ -133,6 +133,9 @@ func (self *Analyser) analyseLoop(ast parse.Loop) (*hir.Loop, utils.Error) {
 
 // 循环控制
 func (self *Analyser) analyseLoopControl(ast parse.LoopControl) (hir.LoopControl, utils.Error) {
+	if !self.symbol.inLoop {
+		return nil, utils.Errorf(ast.Position(), "must in a loop")
+	}
 	switch ast.Kind.Kind {
 	case lex.BREAK:
 		return hir.NewBreak(), nil
@@ -223,7 +226,7 @@ func (self *Analyser) analyseVariable(ast parse.Variable) (*hir.Variable, utils.
 		value, err = self.expectExpr(typ, ast.Value)
 	} else if ast.Value != nil {
 		value, err = self.analyseExpr(nil, ast.Value)
-		if err != nil {
+		if err == nil {
 			typ = value.Type()
 		}
 	} else {

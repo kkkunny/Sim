@@ -104,7 +104,7 @@ func (self *Analyser) expectLikeExpr(expect hir.Type, ast parse.Expr) (hir.Expr,
 func (self *Analyser) analyseIdent(ast parse.Ident) (hir.Ident, utils.Error) {
 	for _, astPkg := range ast.Pkgs {
 		symbol := self.symbols[astPkg]
-		if symbol == self.symbol.getSymbolTable() {
+		if symbol == self.symbol.getPkgSymbolTable() {
 			symbol = self.symbol
 		}
 		if v, ok := symbol.lookupValue(ast.Name.Source); ok {
@@ -612,15 +612,22 @@ func (self *Analyser) analyseTernary(expect *hir.Type, ast parse.Ternary) (*hir.
 }
 
 // 调用
-func (self *Analyser) analyseCall(ast parse.Call) (hir.Call, utils.Error) {
+func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
 	if dot, ok := ast.Func.(*parse.Dot); ok {
 		// 方法调用
 		selfExpr, err := self.analyseExpr(nil, dot.Front)
 		if err != nil {
 			return nil, err
 		}
-		if selfExpr.Type().IsTypedef() {
+		if selfExpr.Type().IsTypedef() || (selfExpr.Type().Kind == hir.TPtr && selfExpr.Type().GetPtr().IsTypedef()) {
 			return self.analyseCallMethod(selfExpr, dot.End, ast.Args)
+		}
+	} else if ident, ok := ast.Func.(*parse.Ident); ok && self.symbols[ident.Pkgs[0]] == self.symbol.getPkgSymbolTable() {
+		v, err := self.analyseCallBuildin(ident.Name, ast.Args)
+		if err != nil {
+			return nil, err
+		} else if v != nil {
+			return v, nil
 		}
 	}
 
@@ -633,7 +640,7 @@ func (self *Analyser) analyseCall(ast parse.Call) (hir.Call, utils.Error) {
 
 	// 参数数量
 	paramTypes := ft.GetFuncParams()
-	if len(paramTypes) != len(ast.Args) {
+	if len(ast.Args) < len(paramTypes) || (!ft.GetFuncVarArg() && len(ast.Args) > len(paramTypes)) {
 		return nil, utils.Errorf(
 			ast.Func.Position(),
 			"expect `%d` arguments but there is `%d`",
@@ -645,8 +652,8 @@ func (self *Analyser) analyseCall(ast parse.Call) (hir.Call, utils.Error) {
 	// 实参
 	var errs []utils.Error
 	args := make([]hir.Expr, len(ast.Args))
-	for i, a := range ast.Args {
-		args[i], err = self.expectExpr(paramTypes[i], a)
+	for i, at := range paramTypes {
+		args[i], err = self.expectExpr(at, ast.Args[i])
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -665,7 +672,13 @@ func (self *Analyser) analyseCallMethod(
 	selfExpr hir.Expr, methodNameToken lex.Token, argAsts []parse.Expr,
 ) (*hir.MethodCall, utils.Error) {
 	// 方法
-	m, ok := selfExpr.Type().GetTypedef().LookupMethod(methodNameToken.Source)
+	var def *hir.Typedef
+	if selfExpr.Type().IsPtr() {
+		def = selfExpr.Type().GetPtr().GetTypedef()
+	} else {
+		def = selfExpr.Type().GetTypedef()
+	}
+	m, ok := def.LookupMethod(methodNameToken.Source)
 	if !ok {
 		return nil, utils.Errorf(methodNameToken.Pos, errUnknownIdentifier)
 	}
@@ -673,7 +686,7 @@ func (self *Analyser) analyseCallMethod(
 
 	// 参数数量
 	paramTypes := ft.GetFuncParams()
-	if len(paramTypes) != len(argAsts) {
+	if len(argAsts) < len(paramTypes) || (!ft.GetFuncVarArg() && len(argAsts) > len(paramTypes)) {
 		return nil, utils.Errorf(
 			methodNameToken.Pos,
 			"expect `%d` arguments but there is `%d`",
@@ -685,9 +698,9 @@ func (self *Analyser) analyseCallMethod(
 	// 实参
 	var errs []utils.Error
 	args := make([]hir.Expr, len(argAsts))
-	for i, a := range argAsts {
+	for i, at := range paramTypes {
 		var err utils.Error
-		args[i], err = self.expectExpr(paramTypes[i], a)
+		args[i], err = self.expectExpr(at, argAsts[i])
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -701,8 +714,51 @@ func (self *Analyser) analyseCallMethod(
 	return hir.NewMethodCall(m, selfExpr, args...), nil
 }
 
+// 调用内置函数
+func (self *Analyser) analyseCallBuildin(nameToken lex.Token, argAsts []parse.Expr) (hir.Expr, utils.Error) {
+	switch nameToken.Source {
+	case "len":
+		if len(argAsts) != 1 {
+			return nil, utils.Errorf(nameToken.Pos, "expect `%d` arguments but there is `%d`", 1, len(argAsts))
+		}
+		arg, err := self.analyseExpr(nil, argAsts[0])
+		if err != nil {
+			return nil, err
+		}
+		at := arg.Type()
+		switch {
+		case at.IsArray():
+			return hir.NewInteger(hir.NewTypeUsize(), int64(at.GetArraySize())), nil
+		case at.IsTuple():
+			return hir.NewInteger(hir.NewTypeUsize(), int64(len(at.GetTupleElems()))), nil
+		default:
+			return nil, utils.Errorf(argAsts[0].Position(), "expect a array or a tuple")
+		}
+	case "typename":
+		if len(argAsts) != 1 {
+			return nil, utils.Errorf(nameToken.Pos, "expect `%d` arguments but there is `%d`", 1, len(argAsts))
+		}
+		arg, err := self.analyseExpr(nil, argAsts[0])
+		if err != nil {
+			return nil, err
+		}
+		return hir.NewString(hir.NewTypePtr(hir.NewTypeI8()), arg.Type().String()), nil
+	case "alloc":
+		if len(argAsts) != 1 {
+			return nil, utils.Errorf(nameToken.Pos, "expect `%d` arguments but there is `%d`", 1, len(argAsts))
+		}
+		arg, err := self.expectExpr(hir.NewTypeUsize(), argAsts[0])
+		if err != nil {
+			return nil, err
+		}
+		return hir.NewAlloc(arg), nil
+	default:
+		return nil, nil
+	}
+}
+
 // 点
-func (self *Analyser) analyseDot(ast parse.Dot) (*hir.GetAttr, utils.Error) {
+func (self *Analyser) analyseDot(ast parse.Dot) (*hir.GetField, utils.Error) {
 	from, err := self.analyseExpr(nil, ast.Front)
 	if err != nil {
 		return nil, err
@@ -714,7 +770,7 @@ func (self *Analyser) analyseDot(ast parse.Dot) (*hir.GetAttr, utils.Error) {
 		fields := ft.GetStructFields()
 		for _, f := range fields {
 			if f.Second == ast.End.Source {
-				return hir.NewGetAttr(from, ast.End.Source), nil
+				return hir.NewGetField(from, ast.End.Source), nil
 			}
 		}
 		return nil, utils.Errorf(ast.End.Pos, errUnknownIdentifier)
@@ -722,7 +778,7 @@ func (self *Analyser) analyseDot(ast parse.Dot) (*hir.GetAttr, utils.Error) {
 		fields := ft.GetPtr().GetStructFields()
 		for _, f := range fields {
 			if f.Second == ast.End.Source {
-				return hir.NewGetAttr(hir.NewGetValue(from), ast.End.Source), nil
+				return hir.NewGetField(hir.NewGetValue(from), ast.End.Source), nil
 			}
 		}
 		return nil, utils.Errorf(ast.End.Pos, errUnknownIdentifier)

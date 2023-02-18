@@ -959,22 +959,22 @@ func (self PointerIndex) Immediate() bool {
 
 func (self PointerIndex) index() {}
 
-// GetAttr 获取结构体属性
-type GetAttr struct {
+// GetField 获取结构体字段
+type GetField struct {
 	From Expr
 	Attr string
 }
 
-func NewGetAttr(f Expr, a string) *GetAttr {
-	return &GetAttr{
+func NewGetField(f Expr, a string) *GetField {
+	return &GetField{
 		From: f,
 		Attr: a,
 	}
 }
 
-func (self GetAttr) stmt() {}
+func (self GetField) stmt() {}
 
-func (self GetAttr) Type() Type {
+func (self GetField) Type() Type {
 	for _, f := range self.From.Type().GetStructFields() {
 		if f.Second == self.Attr {
 			return f.Third
@@ -983,8 +983,17 @@ func (self GetAttr) Type() Type {
 	panic("unreachable")
 }
 
-func (self GetAttr) Immediate() bool {
+func (self GetField) Immediate() bool {
 	return self.From.Immediate()
+}
+
+func (self GetField) GetFieldIndex() uint {
+	for i, f := range self.From.Type().GetStructFields() {
+		if f.Second == self.Attr {
+			return uint(i)
+		}
+	}
+	panic("unreachable")
 }
 
 // Covert 类型转换
@@ -1192,3 +1201,24 @@ func (self WrapCovert) Immediate() bool {
 }
 
 func (self WrapCovert) covert() {}
+
+// Alloc 分配栈内存
+type Alloc struct {
+	Size Expr
+}
+
+func NewAlloc(s Expr) *Alloc {
+	return &Alloc{
+		Size: s,
+	}
+}
+
+func (self Alloc) stmt() {}
+
+func (self Alloc) Type() Type {
+	return NewTypePtr(NewTypeI8())
+}
+
+func (self Alloc) Immediate() bool {
+	return true
+}

@@ -73,7 +73,7 @@ func (self *Analyser) analyseTypeIdent(ast parse.TypeIdent) (hir.Type, utils.Err
 		if !ok {
 			continue
 		}
-		if self.symbol == symbol || t.pub {
+		if self.symbol.getPkgSymbolTable() == symbol || t.pub {
 			return hir.NewTypeTypedef(t.data), nil
 		}
 	}
@@ -112,7 +112,7 @@ func (self *Analyser) analyseTypeFunc(ast parse.TypeFunc) (hir.Type, utils.Error
 		return hir.Type{}, utils.NewMultiError(errs...)
 	}
 
-	return hir.NewTypeFunc(ret, params...), nil
+	return hir.NewTypeFunc(ast.VarArg, ret, params...), nil
 }
 
 // 数组类型

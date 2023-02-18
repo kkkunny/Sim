@@ -110,9 +110,9 @@ func (self symbolTable) lookupValue(name string) (symbolObject[hir.Ident], bool)
 }
 
 // 获取包符号表
-func (self *symbolTable) getSymbolTable() *symbolTable {
+func (self *symbolTable) getPkgSymbolTable() *symbolTable {
 	if self.isPkg() {
 		return self
 	}
-	return self.f.getSymbolTable()
+	return self.f.getPkgSymbolTable()
 }

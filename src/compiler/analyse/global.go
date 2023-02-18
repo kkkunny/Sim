@@ -75,10 +75,10 @@ func (self *Analyser) analyseFunctionDecl(ast parse.Function) (*hir.Function, ut
 	} else if len(errs) > 1 {
 		return nil, utils.NewMultiError(errs...)
 	}
-	ft := hir.NewTypeFunc(ret, params...)
+	ft := hir.NewTypeFunc(ast.VarArg, ret, params...)
 
 	// 声明
-	ident := hir.NewFunction(ft, "", nil)
+	ident := hir.NewFunction(ft, "", nil, nil)
 	if !self.symbol.defValue(ast.Public, ast.Name.Source, ident) {
 		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
@@ -138,10 +138,10 @@ func (self *Analyser) analyseMethodDecl(ast parse.Method) (*hir.Method, utils.Er
 	} else if len(errs) > 1 {
 		return nil, utils.NewMultiError(errs...)
 	}
-	ft := hir.NewTypeFunc(ret, params...)
+	ft := hir.NewTypeFunc(ast.VarArg, ret, params...)
 
 	// 声明
-	ident := hir.NewMethod(ft, selfDef, nil)
+	ident := hir.NewMethod(ft, selfDef, nil, nil)
 	if !selfDef.DeclMethod(ast.Name.Source, ident) {
 		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
@@ -203,11 +203,13 @@ func (self *Analyser) analyseFunctionDef(ast parse.Function) utils.Error {
 	ft := ident.Type()
 
 	// 参数
+	ident.Params = make([]*hir.Param, len(ast.Params))
 	pro := func(symbol *symbolTable) utils.Error {
 		paramTypes := ft.GetFuncParams()
 		for i, p := range ast.Params {
 			if p.Name != nil {
-				symbol.defValue(false, p.Name.Source, hir.NewParam(paramTypes[i]))
+				ident.Params[i] = hir.NewParam(paramTypes[i])
+				symbol.defValue(false, p.Name.Source, ident.Params[i])
 			}
 		}
 		symbol.ret = ft.GetFuncRet()
@@ -218,8 +220,11 @@ func (self *Analyser) analyseFunctionDef(ast parse.Function) utils.Error {
 	block, ret, err := self.analyseBlock(*ast.Body, pro)
 	if err != nil {
 		return err
-	} else if !ret && !ft.GetFuncRet().IsNone() {
-		return utils.Errorf(ast.Name.Pos, "expect a return value")
+	} else if !ret {
+		if !ft.GetFuncRet().IsNone() {
+			return utils.Errorf(ast.Name.Pos, "expect a return value")
+		}
+		block.Stmts.PushBack(hir.NewReturn(nil))
 	}
 	ident.Body = block
 
@@ -242,13 +247,16 @@ func (self *Analyser) analyseMethodDef(ast parse.Method) utils.Error {
 	ft := ident.FunctionType()
 
 	// 参数
+	ident.Params = make([]*hir.Param, len(ast.Params)+1)
 	pro := func(symbol *symbolTable) utils.Error {
 		paramTypes := ft.GetFuncParams()
-		symbol.defValue(false, "self", hir.NewParam(paramTypes[0]))
+		ident.Params[0] = hir.NewParam(paramTypes[0])
+		symbol.defValue(false, "self", ident.Params[0])
 		paramTypes = paramTypes[1:]
 		for i, p := range ast.Params {
 			if p.Name != nil {
-				symbol.defValue(false, p.Name.Source, hir.NewParam(paramTypes[i]))
+				ident.Params[i+1] = hir.NewParam(paramTypes[i])
+				symbol.defValue(false, p.Name.Source, ident.Params[i+1])
 			}
 		}
 		symbol.ret = ft.GetFuncRet()
@@ -259,8 +267,11 @@ func (self *Analyser) analyseMethodDef(ast parse.Method) utils.Error {
 	block, ret, err := self.analyseBlock(*ast.Body, pro)
 	if err != nil {
 		return err
-	} else if !ret && !ft.GetFuncRet().IsNone() {
-		return utils.Errorf(ast.Name.Pos, "expect a return value")
+	} else if !ret {
+		if !ft.GetFuncRet().IsNone() {
+			return utils.Errorf(ast.Name.Pos, "expect a return value")
+		}
+		block.Stmts.PushBack(hir.NewReturn(nil))
 	}
 	ident.Body = block
 

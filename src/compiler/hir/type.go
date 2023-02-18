@@ -45,6 +45,7 @@ type Type struct {
 	elemPubs  []bool   // 子类型公开性
 	number    uint     // 数量
 	typedef   *Typedef // 类型定义
+	varArg    bool     // 是否是不定参数
 }
 
 func NewTypeNone() Type         { return Type{Kind: TNone} }
@@ -62,8 +63,8 @@ func NewTypeUsize() Type        { return Type{Kind: TUsize} }
 func NewTypeF32() Type          { return Type{Kind: TF32} }
 func NewTypeF64() Type          { return Type{Kind: TF64} }
 func NewTypePtr(elem Type) Type { return Type{Kind: TPtr, elems: []Type{elem}} }
-func NewTypeFunc(ret Type, params ...Type) Type {
-	return Type{Kind: TFunc, elems: append([]Type{ret}, params...)}
+func NewTypeFunc(isVarArg bool, ret Type, params ...Type) Type {
+	return Type{Kind: TFunc, elems: append([]Type{ret}, params...), varArg: isVarArg}
 }
 func NewTypeArray(size uint, elem Type) Type {
 	return Type{Kind: TArray, elems: []Type{elem}, number: size}
@@ -319,6 +320,11 @@ func (self Type) GetFuncParams() []Type {
 		return self.GetTypedef().Target.GetFuncParams()
 	}
 	return self.elems[1:]
+}
+
+// GetFuncVarArg 获取函数是否是不定参数
+func (self Type) GetFuncVarArg() bool {
+	return self.varArg
 }
 
 // GetArraySize 获取数组大小

@@ -14,6 +14,6 @@ import (
 
 func main() {
 	ast := util.MustValue(parse.Parse(stlos.Path(os.Args[1])))
-	hir := util.MustValue(analyse.NewAnalyser().Analyse(ast))
-	fmt.Println(hir.Globals.Length())
+	hirs := util.MustValue(analyse.NewAnalyser().Analyse(ast))
+	fmt.Println(hirs.Globals.Length())
 }

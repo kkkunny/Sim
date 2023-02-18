@@ -8,8 +8,8 @@ import (
 
 // 代码块
 func (self *CodeGenerator) codegenBlock(mean hir.Block) bool {
-	for _, stmt := range mean.Stmts {
-		if !self.codegenStmt(stmt) {
+	for iter := mean.Stmts.Iterator(); iter.HasValue(); iter.Next() {
+		if !self.codegenStmt(iter.Value()) {
 			return false
 		}
 	}
@@ -34,8 +34,11 @@ func (self *CodeGenerator) codegenStmt(mean hir.Stmt) bool {
 		self.codegenIfElse(*meanStmt)
 	case *hir.Loop:
 		self.codegenLoop(*meanStmt)
-	case *hir.LoopControl:
-		self.codegenLoopControl(*meanStmt)
+	case *hir.Break:
+		self.builder.CreateBr(self.eb)
+		return false
+	case *hir.Continue:
+		self.builder.CreateBr(self.cb)
 		return false
 	case *hir.Switch:
 		self.codegenSwitch(*meanStmt)
@@ -57,7 +60,7 @@ func (self *CodeGenerator) codegenReturn(mean hir.Return) {
 
 // 变量
 func (self *CodeGenerator) codegenVariable(mean *hir.Variable) {
-	typ := self.codegenType(mean.Type)
+	typ := self.codegenType(mean.Type())
 	alloca := self.builder.CreateAlloca(typ, "")
 	value := self.codegenExpr(mean.Value, true)
 	self.vars[mean] = alloca
@@ -103,7 +106,11 @@ func (self *CodeGenerator) codegenLoop(mean hir.Loop) {
 
 	self.builder.SetInsertPointAtEnd(cb)
 	lb, eb := llvm.AddBasicBlock(self.function, ""), llvm.AddBasicBlock(self.function, "")
-	self.builder.CreateCondBr(self.builder.CreateIntCast(self.codegenExpr(mean.Cond, true), self.ctx.Int1Type(), ""), lb, eb)
+	self.builder.CreateCondBr(
+		self.builder.CreateIntCast(self.codegenExpr(mean.Cond, true), self.ctx.Int1Type(), ""),
+		lb,
+		eb,
+	)
 
 	cbBk, ebBk := self.cb, self.eb
 	self.cb, self.eb = cb, eb
@@ -117,35 +124,26 @@ func (self *CodeGenerator) codegenLoop(mean hir.Loop) {
 	self.builder.SetInsertPointAtEnd(eb)
 }
 
-// 循环控制
-func (self *CodeGenerator) codegenLoopControl(mean hir.LoopControl) {
-	if mean.Type == "break" {
-		self.builder.CreateBr(self.eb)
-	} else {
-		self.builder.CreateBr(self.cb)
-	}
-}
-
 // 分支
 func (self *CodeGenerator) codegenSwitch(mean hir.Switch) {
-	if len(mean.Cases) == 0 && mean.Default == nil {
+	if len(mean.CaseValues) == 0 && mean.Default == nil {
 		return
-	} else if len(mean.Cases) == 0 {
+	} else if len(mean.CaseValues) == 0 {
 		self.codegenBlock(*mean.Default)
 	} else {
 		from := self.codegenExpr(mean.From, true)
 
 		eb := llvm.AddBasicBlock(self.function, "")
 		db := stlutil.Ternary(mean.Default == nil, eb, llvm.AddBasicBlock(self.function, ""))
-		for i, c := range mean.Cases {
-			cv := self.codegenExpr(c.First, true)
+		for i, c := range mean.CaseValues {
+			cv := self.codegenExpr(c, true)
 			cc := self.equal(from, cv)
 			ct := llvm.AddBasicBlock(self.function, "")
-			cf := stlutil.Ternary(i == len(mean.Cases)-1, db, llvm.AddBasicBlock(self.function, ""))
+			cf := stlutil.Ternary(i == len(mean.CaseValues)-1, db, llvm.AddBasicBlock(self.function, ""))
 			self.builder.CreateCondBr(cc, ct, cf)
 
 			self.builder.SetInsertPointAtEnd(ct)
-			if self.codegenBlock(*c.Second) {
+			if self.codegenBlock(*mean.CaseBodies[i]) {
 				self.builder.CreateBr(eb)
 			}
 

@@ -83,8 +83,8 @@ func main()u8{
 
 		let head: i32
 		let tail: i32
-		x[head] = SIZE[0] / 2
-		y[head] = SIZE[1] / 2
+		x[head as usize] = SIZE[0] / 2
+		y[head as usize] = SIZE[1] / 2
 		let gameover: bool
 		let xdir: i32 = 1
 		let ydir: i32
@@ -98,7 +98,7 @@ func main()u8{
 
 				i = tail
 				for i != head{
-					if x[i] == applex && y[i] == appley{
+					if x[i as usize] == applex && y[i as usize] == appley{
 						applex = -1
 					}
 					i = (i + 1) % 1000
@@ -113,7 +113,7 @@ func main()u8{
 			c::printf("\e[%iB\e[%iC·", y[tail] as c::int + 1, x[tail] as c::int + 1)
 			c::printf("\e[%iF", y[tail] as c::int + 1, 0)
 
-			if x[head] == applex && y[head] == appley{
+			if x[head as usize] == applex && y[head as usize] == appley{
 				applex = -1
 				c::printf("\a", 0, 0)
 			}else{
@@ -121,13 +121,13 @@ func main()u8{
 			}
 
 			let newhead: i32 = (head + 1) % 1000
-			x[newhead] = (x[head] + xdir + SIZE[0]) % SIZE[0]
-			y[newhead] = (y[head] + ydir + SIZE[1]) % SIZE[1]
+			x[newhead as usize] = (x[head as usize] + xdir + SIZE[0]) % SIZE[0]
+			y[newhead as usize] = (y[head as usize] + ydir + SIZE[1]) % SIZE[1]
 			head = newhead
 
 			i = tail
 			for i != head{
-				if x[i] == x[head] && y[i] == y[head]{
+				if x[i as usize] == x[head as usize] && y[i as usize] == y[head as usize]{
 					gameover = true
 				}
 				i = (i + 1) % 1000

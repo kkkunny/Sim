@@ -70,9 +70,10 @@ func (self GlobalValue) ident() {}
 
 // Function 函数
 type Function struct {
-	Typ  Type   // 类型
-	Name string // 名
-	Body *Block // 函数体（可能为空）
+	Typ    Type     // 类型
+	Name   string   // 名
+	Params []*Param // 参数
+	Body   *Block   // 函数体（可能为空）
 
 	// 属性
 	NoReturn     bool // 函数不返回
@@ -82,11 +83,12 @@ type Function struct {
 	Fini         bool // 是否是fini
 }
 
-func NewFunction(t Type, name string, b *Block) *Function {
+func NewFunction(t Type, name string, params []*Param, b *Block) *Function {
 	return &Function{
-		Typ:  t,
-		Name: name,
-		Body: b,
+		Typ:    t,
+		Name:   name,
+		Params: params,
+		Body:   b,
 	}
 }
 
@@ -106,9 +108,10 @@ func (self Function) ident() {}
 
 // Method 方法
 type Method struct {
-	Typ  Type     // 类型
-	Self *Typedef // self
-	Body *Block   // 函数体
+	Typ    Type     // 类型
+	Self   *Typedef // self
+	Params []*Param // 参数
+	Body   *Block   // 函数体
 
 	// 属性
 	NoReturn     bool // 函数不返回
@@ -116,11 +119,12 @@ type Method struct {
 	MustNoInline bool // 强制不内联
 }
 
-func NewMethod(t Type, self *Typedef, b *Block) *Method {
+func NewMethod(t Type, self *Typedef, params []*Param, b *Block) *Method {
 	return &Method{
-		Typ:  t,
-		Self: self,
-		Body: b,
+		Typ:    t,
+		Self:   self,
+		Params: params,
+		Body:   b,
 	}
 }
 
@@ -141,6 +145,7 @@ func (self Method) ident() {}
 // FunctionType 获取真实函数类型
 func (self Method) FunctionType() Type {
 	return NewTypeFunc(
+		self.Typ.GetFuncVarArg(),
 		self.Typ.GetFuncRet(),
 		append([]Type{NewTypePtr(NewTypeTypedef(self.Self))}, self.Typ.GetFuncParams()...)...,
 	)
