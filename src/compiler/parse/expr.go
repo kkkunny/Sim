@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/utils"
+	"github.com/kkkunny/stl/types"
 )
 
 // Expr 表达式
@@ -224,10 +225,10 @@ func (self TupleOrExpr) Expr() {}
 // Struct 结构体
 type Struct struct {
 	Pos    utils.Position
-	Fields []Expr
+	Fields []types.Pair[lex.Token, Expr]
 }
 
-func NewStruct(pos utils.Position, field ...Expr) *Struct {
+func NewStruct(pos utils.Position, field ...types.Pair[lex.Token, Expr]) *Struct {
 	return &Struct{
 		Pos:    pos,
 		Fields: field,
@@ -462,9 +463,17 @@ func (self *parser) parsePrimaryExpr() Expr {
 	case lex.LBR:
 		self.next()
 		begin := self.curTok.Pos
-		var fields []Expr
+		var fields []types.Pair[lex.Token, Expr]
 		if !self.nextIs(lex.RBR) {
-			fields = self.parseExprListAtLeastOne(lex.COM)
+			for {
+				name := self.expectNextIs(lex.IDENT)
+				self.expectNextIs(lex.COL)
+				value := self.parseExpr()
+				fields = append(fields, types.NewPair(name, value))
+				if !self.skipNextIs(lex.COM) {
+					break
+				}
+			}
 		}
 		end := self.expectNextIs(lex.RBR).Pos
 		return NewStruct(utils.MixPosition(begin, end), fields...)

@@ -138,6 +138,13 @@ func (self *Analyser) analyseMethodDecl(ast parse.Method) (*hir.Method, utils.Er
 
 	// 声明
 	ident := hir.NewMethod(ft, selfDef, nil, nil)
+	if selfDef.Target.Kind == hir.TStruct {
+		for _, f := range selfDef.Target.GetStructFields() {
+			if f.Second == ast.Name.Source {
+				return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+			}
+		}
+	}
 	if !selfDef.DeclMethod(ast.Name.Source, ident) {
 		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
@@ -207,8 +214,8 @@ func (self *Analyser) analyseFunctionDef(ast parse.Function) utils.Error {
 	pro := func(symbol *symbolTable) utils.Error {
 		paramTypes := ft.GetFuncParams()
 		for i, p := range ast.Params {
+			ident.Params[i] = hir.NewParam(paramTypes[i])
 			if p.Name != nil {
-				ident.Params[i] = hir.NewParam(paramTypes[i])
 				symbol.defValue(false, p.Name.Source, ident.Params[i])
 			}
 		}
@@ -254,8 +261,8 @@ func (self *Analyser) analyseMethodDef(ast parse.Method) utils.Error {
 		symbol.defValue(false, "self", ident.Params[0])
 		paramTypes = paramTypes[1:]
 		for i, p := range ast.Params {
+			ident.Params[i+1] = hir.NewParam(paramTypes[i])
 			if p.Name != nil {
-				ident.Params[i+1] = hir.NewParam(paramTypes[i])
 				symbol.defValue(false, p.Name.Source, ident.Params[i+1])
 			}
 		}

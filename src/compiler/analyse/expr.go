@@ -206,24 +206,62 @@ func (self *Analyser) analyseTuple(expect *hir.Type, ast parse.TupleOrExpr) (hir
 
 // 结构体
 func (self *Analyser) analyseStruct(expect *hir.Type, ast parse.Struct) (*hir.Struct, utils.Error) {
-	expectElemTypes := make([]hir.Type, len(ast.Fields))
-	if expect != nil && expect.IsStruct() && len(expect.GetStructFields()) == len(ast.Fields) {
-		for i, f := range expect.GetStructFields() {
-			expectElemTypes[i] = f.Third
-		}
+	var st hir.Type
+	if expect != nil && expect.IsStruct() {
+		st = expect.GetDeepTypedefTarget()
 	} else {
 		return nil, utils.Errorf(ast.Position(), "expect a struct type")
 	}
+	fieldDefs := st.GetStructFields()
 
-	// 元素
-	fields := make([]hir.Expr, len(ast.Fields))
+	// 用户给出的字段值
+	giveFieldMap := make(map[string]hir.Expr)
 	var errs []utils.Error
-	for i, e := range ast.Fields {
-		var err utils.Error
-		fields[i], err = self.expectExpr(expectElemTypes[i], e)
+	for i, f := range ast.Fields {
+		// 字段是否已经赋过值
+		if _, ok := giveFieldMap[f.First.Source]; ok {
+			errs = append(errs, utils.Errorf(f.First.Pos, errDuplicateDeclaration))
+			continue
+		}
+		// 获取字段下标
+		index := -1
+		for i, def := range fieldDefs {
+			if def.Second == f.First.Source {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			errs = append(errs, utils.Errorf(f.First.Pos, errUnknownIdentifier))
+			continue
+		}
+		// 类型检查
+		field, err := self.expectExpr(fieldDefs[i].Third, f.Second)
 		if err != nil {
 			errs = append(errs, err)
+			continue
 		}
+		giveFieldMap[f.First.Source] = field
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+
+	// 填充字段默认值
+	fields := make([]hir.Expr, len(fieldDefs))
+	for i, def := range fieldDefs {
+		if v, ok := giveFieldMap[def.Second]; ok {
+			fields[i] = v
+			continue
+		}
+		v, err := self.getDefaultValue(def.Third)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		fields[i] = v
 	}
 	if len(errs) == 1 {
 		return nil, errs[0]
