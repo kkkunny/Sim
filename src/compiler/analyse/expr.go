@@ -115,10 +115,16 @@ func (self *Analyser) analyseIdent(ast parse.Ident) (hir.Ident, utils.Error) {
 }
 
 // 数组
-func (self *Analyser) analyseArray(expect *hir.Type, ast parse.Array) (*hir.Array, utils.Error) {
+func (self *Analyser) analyseArray(expect *hir.Type, ast parse.Array) (hir.Expr, utils.Error) {
 	var expectElemType hir.Type
-	if expect != nil && expect.IsArray() && expect.GetArraySize() == uint(len(ast.Elems)) {
-		expectElemType = expect.GetArrayElem()
+	if expect != nil && expect.IsArray() {
+		if expect.GetArraySize() == uint(len(ast.Elems)) {
+			expectElemType = expect.GetArrayElem()
+		} else if len(ast.Elems) == 0 {
+			return hir.NewEmptyArray(*expect), nil
+		}
+	} else if len(ast.Elems) == 0 {
+		return nil, utils.Errorf(ast.Position(), "expect a array type")
 	}
 
 	// 元素
@@ -159,9 +165,14 @@ func (self *Analyser) analyseArray(expect *hir.Type, ast parse.Array) (*hir.Arra
 // 元组
 func (self *Analyser) analyseTuple(expect *hir.Type, ast parse.TupleOrExpr) (hir.Expr, utils.Error) {
 	expectElemTypes := make([]hir.Type, len(ast.Elems))
-	if expect != nil && expect.IsTuple() && len(expect.GetTupleElems()) == len(ast.Elems) {
-		expectElemTypes = expect.GetTupleElems()
-	} else if len(ast.Elems) == 1 {
+	if expect != nil && expect.IsTuple() {
+		if len(expect.GetTupleElems()) == len(ast.Elems) {
+			expectElemTypes = expect.GetTupleElems()
+		} else if len(ast.Elems) == 0 {
+			return hir.NewEmptyTuple(*expect), nil
+		}
+	}
+	if len(ast.Elems) == 1 {
 		// 括号表达式
 		return self.analyseExpr(expect, ast.Elems[0])
 	}

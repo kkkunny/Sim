@@ -379,9 +379,9 @@ func (self *parser) parseExpr() Expr {
 	return self.parseBinaryExpr(0)
 }
 
-// 表达式列表（至少一个）
-func (self *parser) parseExprListAtLeastOne(sep lex.TokenKind) (toks []Expr) {
-	for {
+// 表达式列表
+func (self *parser) parseExprList(sep, end lex.TokenKind) (toks []Expr) {
+	for !self.nextIs(end) {
 		toks = append(toks, self.parseExpr())
 		if !self.skipNextIs(sep) {
 			break
@@ -445,34 +445,26 @@ func (self *parser) parsePrimaryExpr() Expr {
 	case lex.LPA:
 		self.next()
 		begin := self.curTok.Pos
-		var elems []Expr
-		if !self.nextIs(lex.RPA) {
-			elems = self.parseExprListAtLeastOne(lex.COM)
-		}
+		elems := self.parseExprList(lex.COM, lex.RPA)
 		end := self.expectNextIs(lex.RPA).Pos
 		return NewTuple(utils.MixPosition(begin, end), elems...)
 	case lex.LBA:
 		self.next()
 		begin := self.curTok.Pos
-		var elems []Expr
-		if !self.nextIs(lex.RBA) {
-			elems = self.parseExprListAtLeastOne(lex.COM)
-		}
+		elems := self.parseExprList(lex.COM, lex.RBA)
 		end := self.expectNextIs(lex.RBA).Pos
 		return NewArray(utils.MixPosition(begin, end), elems...)
 	case lex.LBR:
 		self.next()
 		begin := self.curTok.Pos
 		var fields []types.Pair[lex.Token, Expr]
-		if !self.nextIs(lex.RBR) {
-			for {
-				name := self.expectNextIs(lex.IDENT)
-				self.expectNextIs(lex.COL)
-				value := self.parseExpr()
-				fields = append(fields, types.NewPair(name, value))
-				if !self.skipNextIs(lex.COM) {
-					break
-				}
+		for !self.nextIs(lex.RBR) {
+			name := self.expectNextIs(lex.IDENT)
+			self.expectNextIs(lex.COL)
+			value := self.parseExpr()
+			fields = append(fields, types.NewPair(name, value))
+			if !self.skipNextIs(lex.COM) {
+				break
 			}
 		}
 		end := self.expectNextIs(lex.RBR).Pos
@@ -532,10 +524,7 @@ func (self *parser) parseSuffixUnaryExpr(front Expr) Expr {
 		front = NewDot(front, end)
 	case lex.LPA:
 		self.next()
-		var args []Expr
-		if !self.nextIs(lex.RPA) {
-			args = self.parseExprListAtLeastOne(lex.COM)
-		}
+		args := self.parseExprList(lex.COM, lex.RPA)
 		end := self.expectNextIs(lex.RPA).Pos
 		front = NewCall(utils.MixPosition(front.Position(), end), front, args...)
 	case lex.LBA:
