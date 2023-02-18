@@ -30,27 +30,6 @@ func (self AttrExtern) Position() utils.Position {
 
 func (self AttrExtern) Attr() {}
 
-// AttrLink @link
-type AttrLink struct {
-	Pos  utils.Position
-	Asms []*String
-	Libs []*String
-}
-
-func NewAttrLink(pos utils.Position, asms, libs []*String) *AttrLink {
-	return &AttrLink{
-		Pos:  pos,
-		Asms: asms,
-		Libs: libs,
-	}
-}
-
-func (self AttrLink) Position() utils.Position {
-	return self.Pos
-}
-
-func (self AttrLink) Attr() {}
-
 // AttrNoReturn @noreturn
 type AttrNoReturn struct {
 	Pos utils.Position
@@ -129,27 +108,6 @@ func (self *parser) parseAttr() Attr {
 		name := self.expectNextIs(lex.IDENT)
 		end := self.expectNextIs(lex.RPA).Pos
 		return NewAttrExtern(utils.MixPosition(attrName.Pos, end), name)
-	case "@link":
-		self.expectNextIs(lex.LPA)
-		var asms, libs []*String
-		for {
-			linkname := self.expectNextIs(lex.IDENT)
-			switch linkname.Source {
-			case "asm":
-				self.expectNextIs(lex.ASS)
-				asms = append(asms, self.parseStringExpr())
-			case "lib":
-				self.expectNextIs(lex.ASS)
-				libs = append(libs, self.parseStringExpr())
-			default:
-				self.throwErrorf(linkname.Pos, "unknown link")
-			}
-			if !self.skipNextIs(lex.COM) {
-				break
-			}
-		}
-		end := self.expectNextIs(lex.RPA).Pos
-		return NewAttrLink(utils.MixPosition(attrName.Pos, end), asms, libs)
 	case "@noreturn":
 		return NewAttrNoReturn(attrName.Pos)
 	case "@inline":

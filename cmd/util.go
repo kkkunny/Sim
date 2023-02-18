@@ -84,13 +84,6 @@ func compileToLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.Targ
 		llvm.CodeModelDefault,
 	)
 	module.SetDataLayout(tm.CreateTargetData().String())
-
-	// for l := range mean.Links {
-	// 	config.Linkages = append(config.Linkages, l)
-	// }
-	// for l := range mean.Libs {
-	// 	config.Libraries = append(config.Libraries, l)
-	// }
 	return module, tm, nil
 }
 

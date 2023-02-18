@@ -337,7 +337,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 		switch attr.(type) {
 		case *AttrExtern:
 			isExtern = true
-		case *AttrLink, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
+		case *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
 		default:
 			self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 			return nil
@@ -381,7 +381,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 	if isExtern && body == nil {
 		for _, attr := range attrs {
 			switch attr.(type) {
-			case *AttrExtern, *AttrLink, *AttrNoReturn, *AttrInit, *AttrFini:
+			case *AttrExtern, *AttrNoReturn, *AttrInit, *AttrFini:
 			default:
 				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 				return nil
@@ -391,7 +391,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 	} else {
 		for _, attr := range attrs {
 			switch attr.(type) {
-			case *AttrExtern, *AttrLink, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
+			case *AttrExtern, *AttrNoReturn, *AttrInline, *AttrInit, *AttrFini:
 			default:
 				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 				return nil
@@ -442,7 +442,7 @@ func (self *parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 func (self *parser) parseGlobalValue(pub *lex.Token, attrs []Attr) *GlobalValue {
 	for _, attr := range attrs {
 		switch attr.(type) {
-		case *AttrExtern, *AttrLink:
+		case *AttrExtern:
 		default:
 			self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
 			return nil

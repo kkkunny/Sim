@@ -45,8 +45,6 @@ func (self *Analyser) analyseGlobalValueDecl(ast parse.GlobalValue) (*hir.Global
 		case *parse.AttrExtern:
 			// TODO: 链接名重复
 			ident.Name = attr.Name.Source
-		case *parse.AttrLink:
-			// TODO: 链接
 		default:
 			panic("unreachable")
 		}
@@ -89,8 +87,6 @@ func (self *Analyser) analyseFunctionDecl(ast parse.Function) (*hir.Function, ut
 		case *parse.AttrExtern:
 			// TODO: 链接名重复
 			ident.Name = attr.Name.Source
-		case *parse.AttrLink:
-			// TODO: 链接
 		case *parse.AttrNoReturn:
 			ident.NoReturn = true
 		case *parse.AttrInline:
