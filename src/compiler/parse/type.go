@@ -132,25 +132,6 @@ func (self TypeStruct) Position() utils.Position {
 
 func (self TypeStruct) Type() {}
 
-// TypeInterface 接口类型
-type TypeInterface struct {
-	Pos    utils.Position
-	Fields []*NameAndType
-}
-
-func NewTypeInterface(pos utils.Position, field ...*NameAndType) *TypeInterface {
-	return &TypeInterface{
-		Pos:    pos,
-		Fields: field,
-	}
-}
-
-func (self TypeInterface) Position() utils.Position {
-	return self.Pos
-}
-
-func (self TypeInterface) Type() {}
-
 // ****************************************************************
 
 // 类型或空
@@ -168,8 +149,6 @@ func (self *parser) parseTypeOrNil() Type {
 		return self.parseTypeTuple()
 	case lex.STRUCT:
 		return self.parseTypeStruct()
-	case lex.INTERFACE:
-		return self.parseTypeInterface()
 	default:
 		return nil
 	}
@@ -299,18 +278,4 @@ func (self *parser) parseTypeStruct() *TypeStruct {
 	}
 	end := self.expectNextIs(lex.RBR).Pos
 	return NewTypeStruct(utils.MixPosition(begin, end), fields...)
-}
-
-// 接口类型
-func (self *parser) parseTypeInterface() *TypeInterface {
-	begin := self.expectNextIs(lex.INTERFACE).Pos
-	self.expectNextIs(lex.LBR)
-	var fields []*NameAndType
-	for self.skipSem(); !self.nextIs(lex.RBR); self.skipSem() {
-		field := self.parseNameAndType(true)
-		fields = append(fields, field)
-		self.expectNextIs(lex.SEM)
-	}
-	end := self.expectNextIs(lex.RBR).Pos
-	return NewTypeInterface(utils.MixPosition(begin, end), fields...)
 }

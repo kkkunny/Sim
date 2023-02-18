@@ -43,18 +43,16 @@ type TypeDef struct {
 	Pos    utils.Position
 	Public bool
 	Name   lex.Token
-	Impls  []Type
 	Target Type
 }
 
 func NewTypeDef(
-	pos utils.Position, pub bool, name lex.Token, impls []Type, target Type,
+	pos utils.Position, pub bool, name lex.Token, target Type,
 ) *TypeDef {
 	return &TypeDef{
 		Pos:    pos,
 		Public: pub,
 		Name:   name,
-		Impls:  impls,
 		Target: target,
 	}
 }
@@ -328,18 +326,8 @@ func (self *parser) importPath(path stlos.Path) (*Package, error) {
 func (self *parser) parseTypeDef(pub *lex.Token) *TypeDef {
 	begin := self.expectNextIs(lex.TYPE).Pos
 	name := self.expectNextIs(lex.IDENT)
-	var impls []Type
-	if self.skipNextIs(lex.LPA) {
-		for {
-			impls = append(impls, self.parseType())
-			if !self.skipNextIs(lex.COM) {
-				break
-			}
-		}
-		self.expectNextIs(lex.RPA)
-	}
 	target := self.parseType()
-	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, impls, target)
+	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, target)
 }
 
 // 函数
