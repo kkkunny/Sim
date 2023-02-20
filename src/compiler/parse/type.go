@@ -14,16 +14,14 @@ type Type interface {
 
 // TypeIdent 标识符类型
 type TypeIdent struct {
-	Pkgs      []*Package // 可能存在于的包，按顺序查找
-	Name      lex.Token
-	Templates []Type
+	Pkgs []*Package // 可能存在于的包，按顺序查找
+	Name lex.Token
 }
 
-func NewTypeIdent(pkgs []*Package, name lex.Token, templates []Type) *TypeIdent {
+func NewTypeIdent(pkgs []*Package, name lex.Token) *TypeIdent {
 	return &TypeIdent{
-		Pkgs:      pkgs,
-		Name:      name,
-		Templates: templates,
+		Pkgs: pkgs,
+		Name: name,
 	}
 }
 
@@ -115,7 +113,7 @@ func (self TypeTuple) Position() utils.Position {
 
 func (self TypeTuple) Type() {}
 
-// TypeStruct 元组类型
+// TypeStruct 结构体类型
 type TypeStruct struct {
 	Pos    utils.Position
 	Fields []types.Pair[bool, *NameAndType]
@@ -134,6 +132,25 @@ func (self TypeStruct) Position() utils.Position {
 
 func (self TypeStruct) Type() {}
 
+// TypeEnum 枚举类型
+type TypeEnum struct {
+	Pos    utils.Position
+	Fields []types.Pair[bool, *NameAndType] // （类型可能为空）
+}
+
+func NewTypeEnum(pos utils.Position, field ...types.Pair[bool, *NameAndType]) *TypeEnum {
+	return &TypeEnum{
+		Pos:    pos,
+		Fields: field,
+	}
+}
+
+func (self TypeEnum) Position() utils.Position {
+	return self.Pos
+}
+
+func (self TypeEnum) Type() {}
+
 // ****************************************************************
 
 // 类型或空
@@ -151,6 +168,8 @@ func (self *parser) parseTypeOrNil() Type {
 		return self.parseTypeTuple()
 	case lex.STRUCT:
 		return self.parseTypeStruct()
+	case lex.ENUM:
+		return self.parseTypeEnum()
 	default:
 		return nil
 	}
@@ -212,15 +231,10 @@ func (self *parser) parseTypeIdent() *TypeIdent {
 	var pkgPath *lex.Token
 	name := self.expectNextIs(lex.IDENT)
 	if self.skipNextIs(lex.CLL) {
-		if !self.nextIs(lex.LT) {
-			tmp := name
-			pkgPath = &tmp
-			name = self.expectNextIs(lex.IDENT)
-		} else {
-			self.backToCurToken(name)
-		}
+		tmp := name
+		pkgPath = &tmp
+		name = self.expectNextIs(lex.IDENT)
 	}
-	templates := self.parseTemplateArgList()
 
 	// 包解析
 	if pkgPath != nil {
@@ -228,14 +242,14 @@ func (self *parser) parseTypeIdent() *TypeIdent {
 		if !ok {
 			self.throwErrorf(pkgPath.Pos, "unknown package name")
 		}
-		return NewTypeIdent([]*Package{pkg}, name, templates)
+		return NewTypeIdent([]*Package{pkg}, name)
 	} else {
 		pkgs := make([]*Package, self.pkg.includeMap.Length()+1)
 		pkgs[0] = self.pkg
 		for iter := self.pkg.includeMap.Begin(); iter.HasValue(); iter.Next() {
 			pkgs[self.pkg.includeMap.Length()-iter.Index()] = iter.Value()
 		}
-		return NewTypeIdent(pkgs, name, templates)
+		return NewTypeIdent(pkgs, name)
 	}
 }
 
@@ -278,11 +292,38 @@ func (self *parser) parseTypeStruct() *TypeStruct {
 	begin := self.expectNextIs(lex.STRUCT).Pos
 	self.expectNextIs(lex.LBR)
 	var fields []types.Pair[bool, *NameAndType]
-	for self.skipSem(); !self.nextIs(lex.RBR); self.skipSem() {
+	for self.skipSem(); !self.nextIs(lex.RBR); {
 		pub := self.skipNextIs(lex.PUB)
 		fields = append(fields, types.NewPair(pub, self.parseNameAndType(false)))
-		self.expectNextIs(lex.SEM)
+		com := self.skipNextIs(lex.COM)
+		self.skipSem()
+		if !com {
+			break
+		}
 	}
 	end := self.expectNextIs(lex.RBR).Pos
 	return NewTypeStruct(utils.MixPosition(begin, end), fields...)
+}
+
+// 枚举类型
+func (self *parser) parseTypeEnum() *TypeEnum {
+	begin := self.expectNextIs(lex.ENUM).Pos
+	self.expectNextIs(lex.LBR)
+	var fields []types.Pair[bool, *NameAndType]
+	for self.skipSem(); !self.nextIs(lex.RBR); {
+		pub := self.skipNextIs(lex.PUB)
+		name := self.expectNextIs(lex.IDENT)
+		var typ Type
+		if self.skipNextIs(lex.COL) {
+			typ = self.parseType()
+		}
+		fields = append(fields, types.NewPair(pub, NewNameAndType(name, typ)))
+		com := self.skipNextIs(lex.COM)
+		self.skipSem()
+		if !com {
+			break
+		}
+	}
+	end := self.expectNextIs(lex.RBR).Pos
+	return NewTypeEnum(utils.MixPosition(begin, end), fields...)
 }

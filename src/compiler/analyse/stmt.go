@@ -164,13 +164,18 @@ func (self *Analyser) analyseReturn(ast parse.Return) (*hir.Return, utils.Error)
 }
 
 // 分支
-func (self *Analyser) analyseSwitch(ast parse.Switch) (*hir.Switch, bool, utils.Error) {
+func (self *Analyser) analyseSwitch(ast parse.Switch) (hir.Stmt, bool, utils.Error) {
 	// 判断值
 	from, err := self.analyseExpr(nil, ast.From)
 	if err != nil {
 		return nil, false, err
 	}
 	fromType := from.Type()
+
+	// 枚举匹配
+	if fromType.IsEnum() {
+		return self.analyseMatch(from, ast)
+	}
 
 	// 分支
 	var errs []utils.Error
@@ -206,6 +211,62 @@ func (self *Analyser) analyseSwitch(ast parse.Switch) (*hir.Switch, bool, utils.
 	}
 
 	return hir.NewSwitch(from, cas, cbs, db), ret, nil
+}
+
+// 枚举匹配
+func (self *Analyser) analyseMatch(from hir.Expr, ast parse.Switch) (*hir.Match, bool, utils.Error) {
+	fromType := from.Type()
+
+	// 分支
+	var errs []utils.Error
+	caSet := make(map[string]struct{})
+	cas, cbs := make([]string, len(ast.Cases)), make([]*hir.Block, len(ast.Cases))
+	for i, c := range ast.Cases {
+		ident, ok := c.First.(*parse.Ident)
+		if !ok || ident.Pkgs[0].Path != self.symbol.pkg.Path {
+			errs = append(errs, utils.Errorf(c.First.Position(), "expect enum field"))
+			continue
+		}
+
+		field, ok := fromType.GetEnumFieldByName(ident.Name.Source)
+		if !ok || (fromType.IsTypedef() && !fromType.GetTypedef().Pkg.Equal(self.symbol.pkg) && !field.First) {
+			errs = append(errs, utils.Errorf(ident.Name.Pos, errUnknownIdentifier))
+			continue
+		}
+
+		if _, ok := caSet[ident.Name.Source]; ok {
+			errs = append(errs, utils.Errorf(ident.Name.Pos, errDuplicateDeclaration))
+			continue
+		}
+		caSet[ident.Name.Source] = struct{}{}
+
+		body, _, err := self.analyseBlock(*c.Second)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		cas[i], cbs[i] = field.Second, body
+	}
+
+	// 默认分支
+	var db *hir.Block
+	var ret bool
+	if ast.Default != nil {
+		var err utils.Error
+		db, ret, err = self.analyseBlock(*ast.Default)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) == 1 {
+		return nil, false, errs[0]
+	} else if len(errs) > 1 {
+		return nil, false, utils.NewMultiError(errs...)
+	}
+
+	return hir.NewMatch(from, cas, cbs, db), ret, nil
 }
 
 // 变量定义

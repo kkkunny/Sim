@@ -140,13 +140,6 @@ func (self *parser) backToNextToken(tok lex.Token) {
 	self.nextTok = tok
 }
 
-// 退回一个token到curToken
-func (self *parser) backToCurToken(tok lex.Token) {
-	self.backToTokenPool(self.nextTok)
-	self.nextTok = self.curTok
-	self.curTok = tok
-}
-
 // 语法分析
 func (self *parser) parse() (err utils.Error) {
 	defer func() {

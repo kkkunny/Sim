@@ -176,7 +176,7 @@ func (self *parser) parseStmt() Stmt {
 	case lex.BREAK, lex.CONTINUE:
 		self.next()
 		return NewLoopControl(self.curTok)
-	case lex.SWITCH:
+	case lex.MATCH:
 		return self.parseSwitch()
 	default:
 		return self.parseExpr()
@@ -253,7 +253,7 @@ func (self *parser) parseFor() *Loop {
 
 // 分支
 func (self *parser) parseSwitch() *Switch {
-	begin := self.expectNextIs(lex.SWITCH).Pos
+	begin := self.expectNextIs(lex.MATCH).Pos
 	from := self.parseExpr()
 	self.expectNextIs(lex.LBR)
 	var cases []types.Pair[Expr, *Block]

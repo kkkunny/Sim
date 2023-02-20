@@ -12,7 +12,7 @@ import (
 // 表达式
 func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value {
 	switch expr := mean.(type) {
-	case *hir.Integer, *hir.Float, *hir.Boolean, *hir.String, *hir.EmptyFunc, *hir.EmptyPtr, *hir.EmptyStruct, *hir.EmptyArray, *hir.EmptyTuple:
+	case *hir.Integer, *hir.Float, *hir.Boolean, *hir.String, *hir.EmptyFunc, *hir.EmptyPtr, *hir.EmptyStruct, *hir.EmptyArray, *hir.EmptyTuple, *hir.EmptyEnum:
 		return self.codegenConstantExpr(mean)
 	case hir.Ident:
 		switch ident := expr.(type) {
@@ -323,10 +323,41 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			}
 			return self.builder.CreateLoad(tmp, "")
 		}
-	case *hir.GetField:
+	case *hir.Enum:
+		index := expr.GetFieldIndex()
+		tmp := self.builder.CreateAlloca(self.codegenType(expr.Type()), "")
+		self.builder.CreateStore(
+			llvm.ConstInt(t_size, uint64(index), false),
+			self.createStructIndex(tmp, 0, false),
+		)
+		elemTypeHir := expr.Type().GetEnumFields()[index].Third
+		if elemTypeHir != nil {
+			ptr := self.builder.CreateBitCast(
+				self.createStructIndex(tmp, 1, false),
+				self.codegenType(hir.NewTypePtr(*elemTypeHir)),
+				"",
+			)
+			self.builder.CreateStore(
+				self.codegenExpr(expr.Value, true),
+				ptr,
+			)
+		}
+		return self.builder.CreateLoad(tmp, "")
+	case *hir.GetStructField:
 		f := self.codegenExpr(expr.From, false)
 		index := expr.GetFieldIndex()
 		return self.createStructIndex(f, index, getValue)
+	case *hir.GetEnumField:
+		f := self.codegenExpr(expr.From, false)
+		value := self.builder.CreateBitCast(
+			self.createStructIndex(f, 1, false),
+			self.codegenType(hir.NewTypePtr(expr.Type())),
+			"",
+		)
+		if getValue {
+			value = self.builder.CreateLoad(value, "")
+		}
+		return value
 	case hir.Covert:
 		switch covert := expr.(type) {
 		case *hir.WrapCovert:
@@ -398,7 +429,7 @@ func (self *CodeGenerator) codegenConstantExpr(mean hir.Expr) llvm.Value {
 		return stlutil.Ternary(expr.Value, v_true, v_false)
 	case *hir.EmptyFunc, *hir.EmptyPtr:
 		return llvm.ConstPointerNull(self.codegenType(expr.Type()))
-	case *hir.EmptyArray, *hir.EmptyTuple, *hir.EmptyStruct:
+	case *hir.EmptyArray, *hir.EmptyTuple, *hir.EmptyStruct, *hir.EmptyEnum:
 		return llvm.ConstAggregateZero(self.codegenType(expr.Type()))
 	case *hir.Array:
 		elems := make([]llvm.Value, len(expr.Elems))

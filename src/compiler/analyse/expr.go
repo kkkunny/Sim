@@ -27,6 +27,8 @@ func (self *Analyser) getDefaultValue(t hir.Type) (hir.Expr, utils.Error) {
 		return hir.NewEmptyTuple(t), nil
 	case t.IsStruct():
 		return hir.NewEmptyStruct(t), nil
+	case t.IsEnum():
+		return hir.NewEmptyEnum(t), nil
 	default:
 		panic("unreachable")
 	}
@@ -281,6 +283,41 @@ func (self *Analyser) analyseStruct(expect *hir.Type, ast parse.Struct) (*hir.St
 	}
 
 	return hir.NewStruct(*expect, fields...), nil
+}
+
+// 枚举
+func (self *Analyser) analyseEnum(t hir.Type, nameToken lex.Token, argAsts []parse.Expr) (*hir.Enum, utils.Error) {
+	// 查找枚举
+	fields := t.GetEnumFields()
+	index := -1
+	for i, f := range fields {
+		if f.Second == nameToken.Source {
+			index = i
+			break
+		}
+	}
+	if index < 0 || (t.IsTypedef() && !t.GetTypedef().Pkg.Equal(self.symbol.pkg) && !fields[index].First) {
+		return nil, utils.Errorf(nameToken.Pos, errUnknownIdentifier)
+	}
+	field := fields[index]
+
+	// 值数量
+	valueCount := stlutil.Ternary(field.Third == nil, 0, 1)
+	if len(argAsts) != valueCount {
+		return nil, utils.Errorf(nameToken.Pos, "expect `%d` arguments but there is `%d`", valueCount, len(argAsts))
+	}
+
+	// 值
+	var value hir.Expr
+	if len(argAsts) == 1 {
+		var err utils.Error
+		value, err = self.expectExpr(*field.Third, argAsts[0])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return hir.NewEnum(t, field.Second, value), nil
 }
 
 // 布尔
@@ -663,6 +700,13 @@ func (self *Analyser) analyseTernary(expect *hir.Type, ast parse.Ternary) (*hir.
 // 调用
 func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
 	if dot, ok := ast.Func.(*parse.Dot); ok {
+		// 枚举值
+		if ident, ok := dot.Front.(*parse.Ident); ok {
+			t, err := self.analyseTypeIdent(*parse.NewTypeIdent(ident.Pkgs, ident.Name))
+			if err == nil && t.IsEnum() {
+				return self.analyseEnum(t, dot.End, ast.Args)
+			}
+		}
 		// 方法调用
 		selfExpr, err := self.analyseExpr(nil, dot.Front)
 		if err != nil {
@@ -815,7 +859,16 @@ func (self *Analyser) analyseCallBuildin(nameToken lex.Token, argAsts []parse.Ex
 }
 
 // 点
-func (self *Analyser) analyseDot(ast parse.Dot) (*hir.GetField, utils.Error) {
+func (self *Analyser) analyseDot(ast parse.Dot) (hir.Expr, utils.Error) {
+	// 枚举值
+	if ident, ok := ast.Front.(*parse.Ident); ok {
+		t, err := self.analyseTypeIdent(*parse.NewTypeIdent(ident.Pkgs, ident.Name))
+		if err == nil && t.IsEnum() {
+			return self.analyseEnum(t, ast.End, nil)
+		}
+	}
+
+	// from值
 	from, err := self.analyseExpr(nil, ast.Front)
 	if err != nil {
 		return nil, err
@@ -827,18 +880,54 @@ func (self *Analyser) analyseDot(ast parse.Dot) (*hir.GetField, utils.Error) {
 		fields := ft.GetStructFields()
 		for _, f := range fields {
 			if f.Second == ast.End.Source {
-				return hir.NewGetField(from, ast.End.Source), nil
+				if (ft.IsTypedef() && (ft.GetTypedef().Pkg.Equal(self.symbol.pkg) || f.First)) || !ft.IsTypedef() {
+					return hir.NewGetStructField(from, ast.End.Source), nil
+				} else {
+					break
+				}
 			}
 		}
 		return nil, utils.Errorf(ast.End.Pos, errUnknownIdentifier)
 	case ft.IsPtr() && ft.GetPtr().IsStruct():
-		fields := ft.GetPtr().GetStructFields()
+		st := ft.GetPtr()
+		fields := st.GetStructFields()
 		for _, f := range fields {
 			if f.Second == ast.End.Source {
-				return hir.NewGetField(hir.NewGetValue(from), ast.End.Source), nil
+				if (st.IsTypedef() && (st.GetTypedef().Pkg.Equal(self.symbol.pkg) || f.First)) || !st.IsTypedef() {
+					return hir.NewGetStructField(hir.NewGetValue(from), ast.End.Source), nil
+				} else {
+					break
+				}
 			}
 		}
 		return nil, utils.Errorf(ast.End.Pos, errUnknownIdentifier)
+	case ft.IsEnum():
+		fields := ft.GetEnumFields()
+		index := -1
+		for i, f := range fields {
+			if f.Second == ast.End.Source {
+				index = i
+				break
+			}
+		}
+		if index < 0 || (ft.IsTypedef() && !ft.GetTypedef().Pkg.Equal(self.symbol.pkg) && !fields[index].First) {
+			return nil, utils.Errorf(ast.End.Pos, errUnknownIdentifier)
+		}
+		return hir.NewGetEnumField(from, ast.End.Source), nil
+	case ft.IsPtr() && ft.GetPtr().IsEnum():
+		et := ft.GetPtr()
+		fields := et.GetEnumFields()
+		index := -1
+		for i, f := range fields {
+			if f.Second == ast.End.Source {
+				index = i
+				break
+			}
+		}
+		if index < 0 || (et.IsTypedef() && !et.GetTypedef().Pkg.Equal(self.symbol.pkg) && !fields[index].First) {
+			return nil, utils.Errorf(ast.End.Pos, errUnknownIdentifier)
+		}
+		return hir.NewGetEnumField(hir.NewGetValue(from), ast.End.Source), nil
 	default:
 		return nil, utils.Errorf(ast.Front.Position(), "expect a struct or a pointer of struct")
 	}

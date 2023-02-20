@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/kkkunny/stl/types"
+	stlutil "github.com/kkkunny/stl/util"
 )
 
 type TypeKind uint8
@@ -33,6 +34,7 @@ const (
 	TArray
 	TTuple
 	TStruct
+	TEnum
 
 	TTypedef
 )
@@ -79,6 +81,25 @@ func NewTypeStruct(elems ...types.ThreePair[bool, string, Type]) Type {
 	}
 	return Type{
 		Kind:      TStruct,
+		elems:     ts,
+		elemNames: ns,
+		elemPubs:  ps,
+	}
+}
+func NewTypeEnum(elems ...types.ThreePair[bool, string, *Type]) Type {
+	ps := make([]bool, len(elems))
+	ns := make([]string, len(elems))
+	ts := make([]Type, len(elems))
+	for i, p := range elems {
+		ps[i], ns[i] = p.First, p.Second
+		if p.Third == nil {
+			ts[i] = NewTypeNone()
+		} else {
+			ts[i] = *p.Third
+		}
+	}
+	return Type{
+		Kind:      TEnum,
 		elems:     ts,
 		elemNames: ns,
 		elemPubs:  ps,
@@ -195,6 +216,12 @@ func (self Type) IsStruct() bool {
 	}
 	return self.Kind == TStruct
 }
+func (self Type) IsEnum() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsEnum()
+	}
+	return self.Kind == TEnum
+}
 func (self Type) IsTypedef() bool { return self.Kind == TTypedef }
 
 func (self Type) IsSint() bool {
@@ -275,6 +302,22 @@ func (self Type) String() string {
 			buf.WriteString(f.Second)
 			buf.WriteString(": ")
 			buf.WriteString(f.Third.String())
+			if i < len(fields)-1 {
+				buf.WriteString(", ")
+			}
+		}
+		buf.WriteByte('}')
+		return buf.String()
+	case TEnum:
+		var buf strings.Builder
+		buf.WriteString("enum{")
+		fields := self.GetEnumFields()
+		for i, f := range fields {
+			buf.WriteString(f.Second)
+			if f.Third != nil {
+				buf.WriteString(": ")
+				buf.WriteString(f.Third.String())
+			}
 			if i < len(fields)-1 {
 				buf.WriteString(", ")
 			}
@@ -375,6 +418,47 @@ func (self Type) GetStructFields() []types.ThreePair[bool, string, Type] {
 	return pairs
 }
 
+// GetEnumFields 获取枚举字段
+func (self Type) GetEnumFields() []types.ThreePair[bool, string, *Type] {
+	if !self.IsEnum() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetEnumFields()
+	}
+	pairs := make([]types.ThreePair[bool, string, *Type], len(self.elems))
+	for i, t := range self.elems {
+		elemType := t
+		pairs[i] = types.NewThreePair(
+			self.elemPubs[i],
+			self.elemNames[i],
+			stlutil.Ternary[*Type](elemType.IsNone(), nil, &elemType),
+		)
+	}
+	return pairs
+}
+
+// GetEnumFieldByName 获取指定枚举字段
+func (self Type) GetEnumFieldByName(name string) (types.ThreePair[bool, string, *Type], bool) {
+	if !self.IsEnum() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetEnumFieldByName(name)
+	}
+	for i, t := range self.elems {
+		if self.elemNames[i] == name {
+			elemType := t
+			return types.NewThreePair(
+				self.elemPubs[i],
+				name,
+				stlutil.Ternary[*Type](elemType.IsNone(), nil, &elemType),
+			), true
+		}
+	}
+	return types.ThreePair[bool, string, *Type]{}, false
+}
+
 // GetTypedef 获取定义类型
 func (self Type) GetTypedef() *Typedef {
 	if !self.IsTypedef() {
@@ -441,6 +525,26 @@ func (self Type) Equal(dst Type) bool {
 		}
 		for i, f := range fields1 {
 			if f.Second != fields2[i].Second || !f.Third.Equal(fields2[i].Third) {
+				return false
+			}
+		}
+		return true
+	case TEnum:
+		fields1, fields2 := self.GetEnumFields(), dst.GetEnumFields()
+		if len(fields1) != len(fields2) {
+			return false
+		}
+		for i, f := range fields1 {
+			if f.Second != fields2[i].Second {
+				return false
+			}
+			if f.Third == nil && fields2[i].Third == nil {
+				continue
+			} else if f.Third != nil && fields2[i].Third != nil {
+				if !f.Third.Equal(*fields2[i].Third) {
+					return false
+				}
+			} else {
 				return false
 			}
 		}
@@ -515,6 +619,26 @@ func (self Type) Like(dst Type) bool {
 		}
 		for i, f := range fields1 {
 			if f.Second != fields2[i].Second || !f.Third.Like(fields2[i].Third) {
+				return false
+			}
+		}
+		return true
+	case TEnum:
+		fields1, fields2 := self.GetEnumFields(), dst.GetEnumFields()
+		if len(fields1) != len(fields2) {
+			return false
+		}
+		for i, f := range fields1 {
+			if f.Second != fields2[i].Second {
+				return false
+			}
+			if f.Third == nil && fields2[i].Third == nil {
+				continue
+			} else if f.Third != nil && fields2[i].Third != nil {
+				if !f.Third.Like(*fields2[i].Third) {
+					return false
+				}
+			} else {
 				return false
 			}
 		}

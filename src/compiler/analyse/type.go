@@ -29,6 +29,8 @@ func (self *Analyser) analyseType(ast parse.Type) (hir.Type, utils.Error) {
 		return self.analyseTypeTuple(*typ)
 	case *parse.TypeStruct:
 		return self.analyseTypeStruct(*typ)
+	case *parse.TypeEnum:
+		return self.analyseTypeEnum(*typ)
 	default:
 		panic("unreachable")
 	}
@@ -178,6 +180,37 @@ func (self *Analyser) analyseTypeStruct(ast parse.TypeStruct) (hir.Type, utils.E
 	return hir.NewTypeStruct(fields...), nil
 }
 
+// 枚举类型
+func (self *Analyser) analyseTypeEnum(ast parse.TypeEnum) (hir.Type, utils.Error) {
+	var errs []utils.Error
+	fieldSet := make(map[string]struct{})
+	fields := make([]types.ThreePair[bool, string, *hir.Type], len(ast.Fields))
+	for i, f := range ast.Fields {
+		if _, ok := fieldSet[f.Second.Name.Source]; ok {
+			errs = append(errs, utils.Errorf(f.Second.Name.Pos, errDuplicateDeclaration))
+			continue
+		}
+		fieldSet[f.Second.Name.Source] = struct{}{}
+		if f.Second == nil {
+			fields[i] = types.NewThreePair[bool, string, *hir.Type](f.First, f.Second.Name.Source, nil)
+		} else {
+			field, err := self.analyseType(f.Second.Type)
+			if err != nil {
+				errs = append(errs, err)
+			} else {
+				fields[i] = types.NewThreePair(f.First, f.Second.Name.Source, &field)
+			}
+		}
+	}
+	if len(errs) == 1 {
+		return hir.Type{}, errs[0]
+	} else if len(errs) > 1 {
+		return hir.Type{}, utils.NewMultiError(errs...)
+	}
+
+	return hir.NewTypeEnum(fields...), nil
+}
+
 // 类型循环检测
 func (self *Analyser) checkTypeCircle(temp *set.LinkedHashSet[*hir.Typedef], t hir.Type) bool {
 	switch t.Kind {
@@ -217,6 +250,13 @@ func (self *Analyser) checkTypeCircle(temp *set.LinkedHashSet[*hir.Typedef], t h
 	case hir.TStruct:
 		for _, f := range t.GetStructFields() {
 			if self.checkTypeCircle(temp, f.Third) {
+				return true
+			}
+		}
+		return false
+	case hir.TEnum:
+		for _, f := range t.GetEnumFields() {
+			if f.Third != nil && self.checkTypeCircle(temp, *f.Third) {
 				return true
 			}
 		}

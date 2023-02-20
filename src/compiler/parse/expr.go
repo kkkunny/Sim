@@ -161,16 +161,14 @@ func (self Null) Expr() {}
 
 // Ident 标识符
 type Ident struct {
-	Pkgs      []*Package // 可能存在于的包，按顺序查找
-	Name      lex.Token
-	Templates []Type
+	Pkgs []*Package // 可能存在于的包，按顺序查找
+	Name lex.Token
 }
 
-func NewIdent(pkgs []*Package, name lex.Token, templates []Type) *Ident {
+func NewIdent(pkgs []*Package, name lex.Token) *Ident {
 	return &Ident{
-		Pkgs:      pkgs,
-		Name:      name,
-		Templates: templates,
+		Pkgs: pkgs,
+		Name: name,
 	}
 }
 
@@ -424,15 +422,10 @@ func (self *parser) parsePrimaryExpr() Expr {
 		var pkgPath *lex.Token
 		name := self.curTok
 		if self.skipNextIs(lex.CLL) {
-			if !self.nextIs(lex.LT) {
-				tmp := name
-				pkgPath = &tmp
-				name = self.expectNextIs(lex.IDENT)
-			} else {
-				self.backToCurToken(name)
-			}
+			tmp := name
+			pkgPath = &tmp
+			name = self.expectNextIs(lex.IDENT)
 		}
-		templates := self.parseTemplateArgList()
 
 		// 包解析
 		if pkgPath != nil {
@@ -440,14 +433,14 @@ func (self *parser) parsePrimaryExpr() Expr {
 			if !ok {
 				self.throwErrorf(pkgPath.Pos, "unknown package name")
 			}
-			return NewIdent([]*Package{pkg}, name, templates)
+			return NewIdent([]*Package{pkg}, name)
 		} else {
 			pkgs := make([]*Package, self.pkg.includeMap.Length()+1)
 			pkgs[0] = self.pkg
 			for iter := self.pkg.includeMap.Begin(); iter.HasValue(); iter.Next() {
 				pkgs[self.pkg.includeMap.Length()-iter.Index()] = iter.Value()
 			}
-			return NewIdent(pkgs, name, templates)
+			return NewIdent(pkgs, name)
 		}
 	case lex.LPA:
 		self.next()
@@ -586,25 +579,4 @@ func (self *parser) parseBinaryExpr(prior uint8) Expr {
 	}
 
 	return left
-}
-
-// 模板实参列表
-func (self *parser) parseTemplateArgList() (templates []Type) {
-	proToken := self.curTok
-	if !self.skipNextIs(lex.CLL) {
-		return nil
-	} else if !self.skipNextIs(lex.LT) {
-		self.backToCurToken(proToken)
-		return nil
-	}
-
-	for !self.nextIs(lex.GT) {
-		templates = append(templates, self.parseType())
-		if !self.skipNextIs(lex.COM) {
-			break
-		}
-	}
-	self.expectNextIs(lex.GT)
-
-	return templates
 }

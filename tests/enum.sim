@@ -1,0 +1,17 @@
+type A enum{
+    A1,
+    A2: i32,
+}
+
+@extern(main)
+func main()u8{
+    let a = A.A2(0)
+    match a{
+    case A1:
+        return -1
+    case A2:
+        return a.A2 as u8
+    default:
+        return -1
+    }
+}

@@ -2,6 +2,7 @@ package lex
 
 import (
 	"fmt"
+
 	"github.com/kkkunny/Sim/src/compiler/utils"
 )
 
@@ -72,25 +73,25 @@ const (
 	ELL // ..
 	QUO // ?
 
-	FUNC      // func
-	RETURN    // return
-	TRUE      // true
-	FALSE     // false
-	STRUCT    // struct
-	IF        // if
-	ELSE      // else
-	FOR       // for
-	BREAK     // break
-	CONTINUE  // continue
-	AS        // as
-	TYPE      // type
-	IMPORT    // import
-	PUB       // pub
-	LET       // let
-	SWITCH    // switch
-	CASE      // case
-	DEFAULT   // default
-	INTERFACE // interface
+	FUNC     // func
+	RETURN   // return
+	TRUE     // true
+	FALSE    // false
+	STRUCT   // struct
+	IF       // if
+	ELSE     // else
+	FOR      // for
+	BREAK    // break
+	CONTINUE // continue
+	AS       // as
+	TYPE     // type
+	IMPORT   // import
+	PUB      // pub
+	LET      // let
+	MATCH    // match
+	CASE     // case
+	DEFAULT  // default
+	ENUM     // enum
 )
 
 var tokenKindStr = [...]string{
@@ -157,25 +158,25 @@ var tokenKindStr = [...]string{
 	ELL: "..",
 	QUO: "?",
 
-	FUNC:      "func",
-	RETURN:    "return",
-	TRUE:      "true",
-	FALSE:     "false",
-	STRUCT:    "struct",
-	IF:        "if",
-	ELSE:      "else",
-	FOR:       "for",
-	BREAK:     "break",
-	CONTINUE:  "continue",
-	AS:        "as",
-	TYPE:      "type",
-	IMPORT:    "import",
-	PUB:       "pub",
-	LET:       "let",
-	SWITCH:    "switch",
-	CASE:      "case",
-	DEFAULT:   "default",
-	INTERFACE: "interface",
+	FUNC:     "func",
+	RETURN:   "return",
+	TRUE:     "true",
+	FALSE:    "false",
+	STRUCT:   "struct",
+	IF:       "if",
+	ELSE:     "else",
+	FOR:      "for",
+	BREAK:    "break",
+	CONTINUE: "continue",
+	AS:       "as",
+	TYPE:     "type",
+	IMPORT:   "import",
+	PUB:      "pub",
+	LET:      "let",
+	MATCH:    "match",
+	CASE:     "case",
+	DEFAULT:  "default",
+	ENUM:     "enum",
 }
 
 // LookUp 区分标识符和关键字
@@ -213,14 +214,14 @@ func LookUp(s string) TokenKind {
 		return PUB
 	case "let":
 		return LET
-	case "switch":
-		return SWITCH
+	case "match":
+		return MATCH
 	case "case":
 		return CASE
 	case "default":
 		return DEFAULT
-	case "interface":
-		return INTERFACE
+	case "enum":
+		return ENUM
 	default:
 		return IDENT
 	}

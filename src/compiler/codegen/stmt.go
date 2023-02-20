@@ -42,6 +42,8 @@ func (self *CodeGenerator) codegenStmt(mean hir.Stmt) bool {
 		return false
 	case *hir.Switch:
 		self.codegenSwitch(*meanStmt)
+	case *hir.Match:
+		self.codegenMatch(*meanStmt)
 	default:
 		panic("")
 	}
@@ -138,6 +140,49 @@ func (self *CodeGenerator) codegenSwitch(mean hir.Switch) {
 		for i, c := range mean.CaseValues {
 			cv := self.codegenExpr(c, true)
 			cc := self.equal(from, cv)
+			ct := llvm.AddBasicBlock(self.function, "")
+			cf := stlutil.Ternary(i == len(mean.CaseValues)-1, db, llvm.AddBasicBlock(self.function, ""))
+			self.builder.CreateCondBr(cc, ct, cf)
+
+			self.builder.SetInsertPointAtEnd(ct)
+			if self.codegenBlock(*mean.CaseBodies[i]) {
+				self.builder.CreateBr(eb)
+			}
+
+			self.builder.SetInsertPointAtEnd(cf)
+		}
+		if mean.Default != nil {
+			self.builder.SetInsertPointAtEnd(db)
+			if self.codegenBlock(*mean.Default) {
+				self.builder.CreateBr(eb)
+			}
+		}
+
+		self.builder.SetInsertPointAtEnd(eb)
+	}
+}
+
+// 枚举匹配
+func (self *CodeGenerator) codegenMatch(mean hir.Match) {
+	if len(mean.CaseValues) == 0 && mean.Default == nil {
+		return
+	} else if len(mean.CaseValues) == 0 {
+		self.codegenBlock(*mean.Default)
+	} else {
+		FieldHirs := mean.From.Type().GetEnumFields()
+		index := self.createStructIndex(self.codegenExpr(mean.From, true), 0, true)
+
+		eb := llvm.AddBasicBlock(self.function, "")
+		db := stlutil.Ternary(mean.Default == nil, eb, llvm.AddBasicBlock(self.function, ""))
+		for i, c := range mean.CaseValues {
+			var fieldIndex int
+			for i, f := range FieldHirs {
+				if f.Second == c {
+					fieldIndex = i
+					break
+				}
+			}
+			cc := self.equal(index, llvm.ConstInt(t_size, uint64(fieldIndex), false))
 			ct := llvm.AddBasicBlock(self.function, "")
 			cf := stlutil.Ternary(i == len(mean.CaseValues)-1, db, llvm.AddBasicBlock(self.function, ""))
 			self.builder.CreateCondBr(cc, ct, cf)
