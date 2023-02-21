@@ -1,10 +1,10 @@
 pub type div_t struct{
-    quot: int
-    rem: int
+    quot: int,
+    rem: int,
 }
 pub type ldiv_t struct{
-    quot: long
-    rem: long
+    quot: long,
+    rem: long,
 }
 pub type wchar_t int
 

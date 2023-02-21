@@ -349,11 +349,13 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		return self.createStructIndex(f, index, getValue)
 	case *hir.GetEnumField:
 		f := self.codegenExpr(expr.From, false)
-		value := self.builder.CreateBitCast(
-			self.createStructIndex(f, 1, false),
-			self.codegenType(hir.NewTypePtr(expr.Type())),
-			"",
-		)
+		data := self.createStructIndex(f, 1, false)
+		if data.Type().TypeKind() != llvm.PointerTypeKind {
+			tmp := self.builder.CreateAlloca(data.Type(), "")
+			self.builder.CreateStore(data, tmp)
+			data = tmp
+		}
+		value := self.builder.CreateBitCast(data, self.codegenType(hir.NewTypePtr(expr.Type())), "")
 		if getValue {
 			value = self.builder.CreateLoad(value, "")
 		}

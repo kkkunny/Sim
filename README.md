@@ -26,7 +26,7 @@ Sim是一门简洁的、强类型的编译型语言
 
 + [x] 基础语法（基础运算 / 流程控制 / 函数 / 全局变量）
 
-+ [x] 基本类型（int / uint / float / bool / pointer / function / array / tuple / struct）
++ [x] 基本类型（int / uint / float / bool / pointer / function / array / tuple / struct / enum）
 
 + [x] C标准库
 

@@ -3,23 +3,23 @@
 import std.c
 
 type termios struct{
-	c_iflag: c::int
-	c_oflag: c::int
-	c_cflag: c::int
-	c_lflag: c::int
-	c_line: c::int
-	c_cc: [32]c::int
-	c_ispeed: c::int
-	c_ospeed: c::int
+	c_iflag: c::int,
+	c_oflag: c::int,
+	c_cflag: c::int,
+	c_lflag: c::int,
+	c_line: c::int,
+	c_cc: [32]c::int,
+	c_ispeed: c::int,
+	c_ospeed: c::int,
 }
 
 type timeval struct{
-	tv_sec: c::long
-	tv_usec: c::long
+	tv_sec: c::long,
+	tv_usec: c::long,
 }
 
 type fd_set struct{
-	fds_bits: [16]c::long
+	fds_bits: [16]c::long,
 }
 
 @extern(usleep)

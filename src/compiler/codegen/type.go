@@ -117,7 +117,7 @@ func (self *CodeGenerator) codegenType(mean hir.Type) llvm.Type {
 		fieldHirs := mean.GetEnumFields()
 		onlyEnum := true
 		// TODO: max size
-		maxSize := 8
+		maxSize := 16
 		for _, f := range fieldHirs {
 			if f.Third != nil {
 				onlyEnum = false
