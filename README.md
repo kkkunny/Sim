@@ -75,7 +75,7 @@ Sim是一门简洁的、强类型的编译型语言
 examples/hello_world.sim
 
 ```go
-import std.c
+import std::c
 
 @extern(main)
 func main()u8{

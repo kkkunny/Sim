@@ -1,4 +1,4 @@
-import std.c
+import std::c
 
 @init
 func init(){

@@ -1,6 +1,6 @@
 // from https://github.com/serene-dev/snake-c
 
-import std.c
+import std::c
 
 type termios struct{
 	c_iflag: c::int,

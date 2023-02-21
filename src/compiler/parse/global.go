@@ -235,7 +235,7 @@ func (self *parser) parseGlobalWithAttr(pub *lex.Token) Global {
 func (self *parser) parseImport() {
 	// 语法分析
 	begin := self.expectNextIs(lex.IMPORT).Pos
-	paths := self.parseTokenListAtLeastOne(lex.DOT)
+	paths := self.parseTokenListAtLeastOne(lex.CLL)
 	var alias *lex.Token
 	var isImportAll *lex.Token
 	if self.skipNextIs(lex.AS) {
