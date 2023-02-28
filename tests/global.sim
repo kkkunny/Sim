@@ -1,6 +1,6 @@
 import std::c
 
-let s: *i8 = get_string()
+var s: *i8 = get_string()
 
 func get_string()*i8{
     return "Hello World"

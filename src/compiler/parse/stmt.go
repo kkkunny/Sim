@@ -165,7 +165,7 @@ func (self *parser) parseStmt() Stmt {
 	switch self.nextTok.Kind {
 	case lex.RETURN:
 		return self.parseReturn()
-	case lex.LET:
+	case lex.VAR:
 		return self.parseVariable()
 	case lex.LBR:
 		return self.parseBlock()
@@ -200,7 +200,7 @@ func (self *parser) parseBlock() *Block {
 
 // 变量
 func (self *parser) parseVariable() *Variable {
-	begin := self.expectNextIs(lex.LET).Pos
+	begin := self.expectNextIs(lex.VAR).Pos
 	name := self.expectNextIs(lex.IDENT)
 	var t Type
 	var v Expr

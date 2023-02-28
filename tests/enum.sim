@@ -5,7 +5,7 @@ type A enum{
 
 @extern(main)
 func main()u8{
-    let a = A.A2(0)
+    var a = A.A2(0)
     match a{
     case A1:
         return -1

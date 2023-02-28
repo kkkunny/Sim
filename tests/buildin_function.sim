@@ -2,8 +2,8 @@ import std::c
 
 @extern(main)
 func main()u8{
-    let i = "你好世界！"
-    let j: [2]i32
+    var i = "你好世界！"
+    var j: [2]i32
     if len(j) != 2{
         return 1
     }
@@ -12,7 +12,7 @@ func main()u8{
         return 1
     }
 
-    let a = alloc(8) as *isize
+    var a = alloc(8) as *isize
     *a = 10
     if *a != 10{
         return 1

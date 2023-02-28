@@ -177,7 +177,7 @@ func (self *parser) parseGlobal() Global {
 	switch self.nextTok.Kind {
 	case lex.IMPORT, lex.TYPE:
 		return self.parseGlobalWithNoAttr(pub)
-	case lex.Attr, lex.FUNC, lex.LET:
+	case lex.Attr, lex.FUNC, lex.VAR:
 		return self.parseGlobalWithAttr(pub)
 	default:
 		fmt.Println(self.nextTok.Source)
@@ -223,7 +223,7 @@ func (self *parser) parseGlobalWithAttr(pub *lex.Token) Global {
 	switch self.nextTok.Kind {
 	case lex.FUNC:
 		return self.parseFunction(pub, attrs)
-	case lex.LET:
+	case lex.VAR:
 		return self.parseGlobalValue(pub, attrs)
 	default:
 		self.throwErrorf(self.nextTok.Pos, errStrUnknownGlobal)
@@ -450,7 +450,7 @@ func (self *parser) parseGlobalValue(pub *lex.Token, attrs []Attr) *GlobalValue 
 	}
 
 	var begin utils.Position
-	self.expectNextIs(lex.LET)
+	self.expectNextIs(lex.VAR)
 	if len(attrs) > 0 {
 		begin = attrs[0].Position()
 	} else if pub != nil {

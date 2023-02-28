@@ -87,7 +87,7 @@ const (
 	TYPE     // type
 	IMPORT   // import
 	PUB      // pub
-	LET      // let
+	VAR      // var
 	MATCH    // match
 	CASE     // case
 	DEFAULT  // default
@@ -172,7 +172,7 @@ var tokenKindStr = [...]string{
 	TYPE:     "type",
 	IMPORT:   "import",
 	PUB:      "pub",
-	LET:      "let",
+	VAR:      "let",
 	MATCH:    "match",
 	CASE:     "case",
 	DEFAULT:  "default",
@@ -212,8 +212,8 @@ func LookUp(s string) TokenKind {
 		return IMPORT
 	case "pub":
 		return PUB
-	case "let":
-		return LET
+	case "var":
+		return VAR
 	case "match":
 		return MATCH
 	case "case":

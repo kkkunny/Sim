@@ -10,7 +10,7 @@ func (A) get()i32{
 
 @extern(main)
 func main()u8{
-    let a: A = {v: 1}
+    var a: A = {v: 1}
     if a.get() != 1{
         return 1
     }

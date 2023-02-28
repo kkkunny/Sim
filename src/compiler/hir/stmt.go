@@ -131,6 +131,10 @@ func (self Variable) Type() Type {
 	return self.Typ
 }
 
+func (self Variable) Mutable() bool {
+	return true
+}
+
 func (self Variable) Immediate() bool {
 	return false
 }

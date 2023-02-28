@@ -6,6 +6,7 @@ const (
 	errDataOverflow            = "data overflow"                // 数据溢出
 	errCircularReference       = "circular reference"           // 循环引用
 	errNotExpectImmediateValue = "not expect a immediate value" // 不希望是一个立即数
+	errExpectMutableValue      = "expect a mutable value"       // 希望是一个可变值
 	errExpectBoolean           = "expect a boolean"             // 期待一个布尔值
 	errExpectNumber            = "expect a number"              // 期待一个数字
 	errExpectInteger           = "expect a integer"             // 期待一个整数

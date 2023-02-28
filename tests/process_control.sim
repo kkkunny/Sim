@@ -1,6 +1,6 @@
 @extern(main)
 func main()u8{
-    let i = 10
+    var i = 10
     if i == 1{
         i = 1
     }else if i == 2{

@@ -6,6 +6,7 @@ import stlutil "github.com/kkkunny/stl/util"
 type Expr interface {
 	Stmt
 	Type() Type      // 获取类型
+	Mutable() bool   // 是否可变
 	Immediate() bool // 是否是立即数
 }
 
@@ -30,6 +31,10 @@ func (self Param) stmt() {}
 
 func (self Param) Type() Type {
 	return self.Typ
+}
+
+func (self Param) Mutable() bool {
+	return true
 }
 
 func (self Param) Immediate() bool {
@@ -57,6 +62,10 @@ func (self Boolean) Type() Type {
 	return self.Typ
 }
 
+func (self Boolean) Mutable() bool {
+	return false
+}
+
 func (self Boolean) Immediate() bool {
 	return true
 }
@@ -78,6 +87,10 @@ func (self Integer) stmt() {}
 
 func (self Integer) Type() Type {
 	return self.Typ
+}
+
+func (self Integer) Mutable() bool {
+	return false
 }
 
 func (self Integer) Immediate() bool {
@@ -103,6 +116,10 @@ func (self Float) Type() Type {
 	return self.Typ
 }
 
+func (self Float) Mutable() bool {
+	return false
+}
+
 func (self Float) Immediate() bool {
 	return true
 }
@@ -126,6 +143,10 @@ func (self String) Type() Type {
 	return self.Typ
 }
 
+func (self String) Mutable() bool {
+	return false
+}
+
 func (self String) Immediate() bool {
 	return true
 }
@@ -145,6 +166,10 @@ func (self EmptyPtr) stmt() {}
 
 func (self EmptyPtr) Type() Type {
 	return self.Typ
+}
+
+func (self EmptyPtr) Mutable() bool {
+	return false
 }
 
 func (self EmptyPtr) Immediate() bool {
@@ -168,6 +193,10 @@ func (self EmptyFunc) Type() Type {
 	return self.Typ
 }
 
+func (self EmptyFunc) Mutable() bool {
+	return false
+}
+
 func (self EmptyFunc) Immediate() bool {
 	return true
 }
@@ -187,6 +216,10 @@ func (self EmptyArray) stmt() {}
 
 func (self EmptyArray) Type() Type {
 	return self.Typ
+}
+
+func (self EmptyArray) Mutable() bool {
+	return false
 }
 
 func (self EmptyArray) Immediate() bool {
@@ -210,6 +243,10 @@ func (self EmptyTuple) Type() Type {
 	return self.Typ
 }
 
+func (self EmptyTuple) Mutable() bool {
+	return false
+}
+
 func (self EmptyTuple) Immediate() bool {
 	return true
 }
@@ -231,6 +268,10 @@ func (self EmptyStruct) Type() Type {
 	return self.Typ
 }
 
+func (self EmptyStruct) Mutable() bool {
+	return false
+}
+
 func (self EmptyStruct) Immediate() bool {
 	return true
 }
@@ -250,6 +291,10 @@ func (self EmptyEnum) stmt() {}
 
 func (self EmptyEnum) Type() Type {
 	return self.Typ
+}
+
+func (self EmptyEnum) Mutable() bool {
+	return false
 }
 
 func (self EmptyEnum) Immediate() bool {
@@ -275,6 +320,10 @@ func (self Array) Type() Type {
 	return self.Typ
 }
 
+func (self Array) Mutable() bool {
+	return false
+}
+
 func (self Array) Immediate() bool {
 	return true
 }
@@ -296,6 +345,10 @@ func (self Tuple) stmt() {}
 
 func (self Tuple) Type() Type {
 	return self.Typ
+}
+
+func (self Tuple) Mutable() bool {
+	return false
 }
 
 func (self Tuple) Immediate() bool {
@@ -321,6 +374,10 @@ func (self Struct) Type() Type {
 	return self.Typ
 }
 
+func (self Struct) Mutable() bool {
+	return false
+}
+
 func (self Struct) Immediate() bool {
 	return true
 }
@@ -344,6 +401,10 @@ func (self Enum) stmt() {}
 
 func (self Enum) Type() Type {
 	return self.Typ
+}
+
+func (self Enum) Mutable() bool {
+	return false
 }
 
 func (self Enum) Immediate() bool {
@@ -382,6 +443,10 @@ func (self Not) Type() Type {
 	return self.Value.Type()
 }
 
+func (self Not) Mutable() bool {
+	return false
+}
+
 func (self Not) Immediate() bool {
 	return true
 }
@@ -405,6 +470,10 @@ func (self GetPointer) Type() Type {
 	return NewTypePtr(self.Value.Type())
 }
 
+func (self GetPointer) Mutable() bool {
+	return false
+}
+
 func (self GetPointer) Immediate() bool {
 	return true
 }
@@ -426,6 +495,10 @@ func (self GetValue) stmt() {}
 
 func (self GetValue) Type() Type {
 	return self.Value.Type().GetPtr()
+}
+
+func (self GetValue) Mutable() bool {
+	return self.Value.Mutable()
 }
 
 func (self GetValue) Immediate() bool {
@@ -458,6 +531,10 @@ func (self Add) Type() Type {
 	return self.Left.Type()
 }
 
+func (self Add) Mutable() bool {
+	return false
+}
+
 func (self Add) Immediate() bool {
 	return true
 }
@@ -480,6 +557,10 @@ func (self Sub) stmt() {}
 
 func (self Sub) Type() Type {
 	return self.Left.Type()
+}
+
+func (self Sub) Mutable() bool {
+	return false
 }
 
 func (self Sub) Immediate() bool {
@@ -506,6 +587,10 @@ func (self Mul) Type() Type {
 	return self.Left.Type()
 }
 
+func (self Mul) Mutable() bool {
+	return false
+}
+
 func (self Mul) Immediate() bool {
 	return true
 }
@@ -528,6 +613,10 @@ func (self Div) stmt() {}
 
 func (self Div) Type() Type {
 	return self.Left.Type()
+}
+
+func (self Div) Mutable() bool {
+	return false
 }
 
 func (self Div) Immediate() bool {
@@ -554,6 +643,10 @@ func (self Mod) Type() Type {
 	return self.Left.Type()
 }
 
+func (self Mod) Mutable() bool {
+	return false
+}
+
 func (self Mod) Immediate() bool {
 	return true
 }
@@ -576,6 +669,10 @@ func (self And) stmt() {}
 
 func (self And) Type() Type {
 	return self.Left.Type()
+}
+
+func (self And) Mutable() bool {
+	return false
 }
 
 func (self And) Immediate() bool {
@@ -602,6 +699,10 @@ func (self Or) Type() Type {
 	return self.Left.Type()
 }
 
+func (self Or) Mutable() bool {
+	return false
+}
+
 func (self Or) Immediate() bool {
 	return true
 }
@@ -624,6 +725,10 @@ func (self Xor) stmt() {}
 
 func (self Xor) Type() Type {
 	return self.Left.Type()
+}
+
+func (self Xor) Mutable() bool {
+	return false
 }
 
 func (self Xor) Immediate() bool {
@@ -650,6 +755,10 @@ func (self Shl) Type() Type {
 	return self.Left.Type()
 }
 
+func (self Shl) Mutable() bool {
+	return false
+}
+
 func (self Shl) Immediate() bool {
 	return true
 }
@@ -672,6 +781,10 @@ func (self Shr) stmt() {}
 
 func (self Shr) Type() Type {
 	return self.Left.Type()
+}
+
+func (self Shr) Mutable() bool {
+	return false
 }
 
 func (self Shr) Immediate() bool {
@@ -698,6 +811,10 @@ func (self LogicAnd) Type() Type {
 	return self.Left.Type()
 }
 
+func (self LogicAnd) Mutable() bool {
+	return false
+}
+
 func (self LogicAnd) Immediate() bool {
 	return true
 }
@@ -720,6 +837,10 @@ func (self LogicOr) stmt() {}
 
 func (self LogicOr) Type() Type {
 	return self.Left.Type()
+}
+
+func (self LogicOr) Mutable() bool {
+	return false
 }
 
 func (self LogicOr) Immediate() bool {
@@ -748,6 +869,10 @@ func (self Equal) Type() Type {
 	return self.Typ
 }
 
+func (self Equal) Mutable() bool {
+	return false
+}
+
 func (self Equal) Immediate() bool {
 	return true
 }
@@ -772,6 +897,10 @@ func (self NotEqual) stmt() {}
 
 func (self NotEqual) Type() Type {
 	return self.Typ
+}
+
+func (self NotEqual) Mutable() bool {
+	return false
 }
 
 func (self NotEqual) Immediate() bool {
@@ -800,6 +929,10 @@ func (self Lt) Type() Type {
 	return self.Typ
 }
 
+func (self Lt) Mutable() bool {
+	return false
+}
+
 func (self Lt) Immediate() bool {
 	return true
 }
@@ -826,6 +959,10 @@ func (self Le) Type() Type {
 	return self.Typ
 }
 
+func (self Le) Mutable() bool {
+	return false
+}
+
 func (self Le) Immediate() bool {
 	return true
 }
@@ -848,6 +985,10 @@ func (self Assign) stmt() {}
 
 func (self Assign) Type() Type {
 	return NewTypeNone()
+}
+
+func (self Assign) Mutable() bool {
+	return false
 }
 
 func (self Assign) Immediate() bool {
@@ -873,6 +1014,10 @@ func (self Ternary) stmt() {}
 
 func (self Ternary) Type() Type {
 	return self.True.Type()
+}
+
+func (self Ternary) Mutable() bool {
+	return false
 }
 
 func (self Ternary) Immediate() bool {
@@ -904,6 +1049,10 @@ func (self FuncCall) Type() Type {
 	return self.Func.Type().GetFuncRet()
 }
 
+func (self FuncCall) Mutable() bool {
+	return false
+}
+
 func (self FuncCall) Immediate() bool {
 	return true
 }
@@ -929,6 +1078,10 @@ func (self MethodCall) stmt() {}
 
 func (self MethodCall) Type() Type {
 	return self.Method.Type().GetFuncRet()
+}
+
+func (self MethodCall) Mutable() bool {
+	return false
 }
 
 func (self MethodCall) Immediate() bool {
@@ -961,6 +1114,10 @@ func (self ArrayIndex) Type() Type {
 	return self.From.Type().GetArrayElem()
 }
 
+func (self ArrayIndex) Mutable() bool {
+	return self.From.Mutable()
+}
+
 func (self ArrayIndex) Immediate() bool {
 	return self.From.Immediate()
 }
@@ -986,6 +1143,10 @@ func (self TupleIndex) Type() Type {
 	return self.From.Type().GetTupleElems()[self.Index]
 }
 
+func (self TupleIndex) Mutable() bool {
+	return self.From.Mutable()
+}
+
 func (self TupleIndex) Immediate() bool {
 	return self.From.Immediate()
 }
@@ -1008,6 +1169,10 @@ func (self PointerIndex) stmt() {}
 
 func (self PointerIndex) Type() Type {
 	return self.From.Type().GetPtr()
+}
+
+func (self PointerIndex) Mutable() bool {
+	return self.From.Mutable()
 }
 
 func (self PointerIndex) Immediate() bool {
@@ -1038,6 +1203,10 @@ func (self GetStructField) Type() Type {
 		}
 	}
 	panic("unreachable")
+}
+
+func (self GetStructField) Mutable() bool {
+	return self.From.Mutable()
 }
 
 func (self GetStructField) Immediate() bool {
@@ -1075,6 +1244,10 @@ func (self GetEnumField) Type() Type {
 		}
 	}
 	panic("unreachable")
+}
+
+func (self GetEnumField) Mutable() bool {
+	return self.From.Mutable()
 }
 
 func (self GetEnumField) Immediate() bool {
@@ -1115,6 +1288,10 @@ func (self Int2Int) Type() Type {
 	return self.To
 }
 
+func (self Int2Int) Mutable() bool {
+	return false
+}
+
 func (self Int2Int) Immediate() bool {
 	return true
 }
@@ -1138,6 +1315,10 @@ func (self Float2Float) stmt() {}
 
 func (self Float2Float) Type() Type {
 	return self.To
+}
+
+func (self Float2Float) Mutable() bool {
+	return false
 }
 
 func (self Float2Float) Immediate() bool {
@@ -1165,6 +1346,10 @@ func (self Int2Float) Type() Type {
 	return self.To
 }
 
+func (self Int2Float) Mutable() bool {
+	return false
+}
+
 func (self Int2Float) Immediate() bool {
 	return true
 }
@@ -1188,6 +1373,10 @@ func (self Float2Int) stmt() {}
 
 func (self Float2Int) Type() Type {
 	return self.To
+}
+
+func (self Float2Int) Mutable() bool {
+	return false
 }
 
 func (self Float2Int) Immediate() bool {
@@ -1215,6 +1404,10 @@ func (self Ptr2Ptr) Type() Type {
 	return self.To
 }
 
+func (self Ptr2Ptr) Mutable() bool {
+	return false
+}
+
 func (self Ptr2Ptr) Immediate() bool {
 	return true
 }
@@ -1238,6 +1431,10 @@ func (self Usize2Ptr) stmt() {}
 
 func (self Usize2Ptr) Type() Type {
 	return self.To
+}
+
+func (self Usize2Ptr) Mutable() bool {
+	return false
 }
 
 func (self Usize2Ptr) Immediate() bool {
@@ -1265,6 +1462,10 @@ func (self Ptr2Usize) Type() Type {
 	return self.To
 }
 
+func (self Ptr2Usize) Mutable() bool {
+	return false
+}
+
 func (self Ptr2Usize) Immediate() bool {
 	return true
 }
@@ -1290,6 +1491,10 @@ func (self WrapCovert) Type() Type {
 	return self.To
 }
 
+func (self WrapCovert) Mutable() bool {
+	return false
+}
+
 func (self WrapCovert) Immediate() bool {
 	return true
 }
@@ -1311,6 +1516,10 @@ func (self Alloc) stmt() {}
 
 func (self Alloc) Type() Type {
 	return NewTypePtr(NewTypeI8())
+}
+
+func (self Alloc) Mutable() bool {
+	return false
 }
 
 func (self Alloc) Immediate() bool {

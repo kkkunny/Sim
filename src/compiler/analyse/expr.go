@@ -477,76 +477,76 @@ func (self *Analyser) analyseBinary(expect *hir.Type, ast parse.Binary) (hir.Bin
 
 	switch ast.Opera.Kind {
 	case lex.ASS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		}
 		return hir.NewAssign(left, right), nil
 	case lex.ADS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsNumber() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectNumber)
 		}
 		return hir.NewAssign(left, hir.NewAdd(left, right)), nil
 	case lex.SUS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsNumber() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectNumber)
 		}
 		return hir.NewAssign(left, hir.NewSub(left, right)), nil
 	case lex.MUS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsNumber() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectNumber)
 		}
 		return hir.NewAssign(left, hir.NewMul(left, right)), nil
 	case lex.DIS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsNumber() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectNumber)
 		}
 		return hir.NewAssign(left, hir.NewDiv(left, right)), nil
 	case lex.MOS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsNumber() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectNumber)
 		}
 		return hir.NewAssign(left, hir.NewMod(left, right)), nil
 	case lex.ANS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsInt() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectInteger)
 		}
 		return hir.NewAssign(left, hir.NewAnd(left, right)), nil
 	case lex.ORS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsInt() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectInteger)
 		}
 		return hir.NewAssign(left, hir.NewOr(left, right)), nil
 	case lex.XOS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsInt() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectInteger)
 		}
 		return hir.NewAssign(left, hir.NewXor(left, right)), nil
 	case lex.SLS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsInt() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectInteger)
 		}
 		return hir.NewAssign(left, hir.NewShl(left, right)), nil
 	case lex.SRS:
-		if left.Immediate() {
-			return nil, utils.Errorf(ast.Left.Position(), errNotExpectImmediateValue)
+		if !left.Mutable() {
+			return nil, utils.Errorf(ast.Left.Position(), errExpectMutableValue)
 		} else if !lt.IsInt() {
 			return nil, utils.Errorf(ast.Left.Position(), errExpectInteger)
 		}

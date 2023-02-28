@@ -62,6 +62,10 @@ func (self GlobalValue) Type() Type {
 	return self.Typ
 }
 
+func (self GlobalValue) Mutable() bool {
+	return true
+}
+
 func (self GlobalValue) Immediate() bool {
 	return false
 }
@@ -100,6 +104,10 @@ func (self Function) Type() Type {
 	return self.Typ
 }
 
+func (self Function) Mutable() bool {
+	return false
+}
+
 func (self Function) Immediate() bool {
 	return true
 }
@@ -134,6 +142,10 @@ func (self Method) stmt() {}
 
 func (self Method) Type() Type {
 	return self.Typ
+}
+
+func (self Method) Mutable() bool {
+	return false
 }
 
 func (self Method) Immediate() bool {
