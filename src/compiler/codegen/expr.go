@@ -20,6 +20,7 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			v := self.vars[ident]
 			if getValue {
 				v = self.builder.CreateLoad(v, "")
+				v.SetAlignment(int(ident.Type().Align()))
 			}
 			return v
 		case *hir.Function:
@@ -30,12 +31,14 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			v := self.vars[ident]
 			if getValue {
 				v = self.builder.CreateLoad(v, "")
+				v.SetAlignment(int(ident.Type().Align()))
 			}
 			return v
 		case *hir.GlobalValue:
 			v := self.vars[ident]
 			if getValue {
 				v = self.builder.CreateLoad(v, "")
+				v.SetAlignment(int(ident.Type().Align()))
 			}
 			return v
 		default:
@@ -45,7 +48,8 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		switch binary := expr.(type) {
 		case *hir.Assign:
 			left, right := self.codegenExpr(binary.Left, false), self.codegenExpr(binary.Right, true)
-			self.builder.CreateStore(right, left)
+			store := self.builder.CreateStore(right, left)
+			store.SetAlignment(int(binary.Left.Type().Align()))
 			return llvm.Value{}
 		case *hir.Equal:
 			left, right := self.codegenExpr(binary.Left, true), self.codegenExpr(binary.Right, true)
@@ -202,8 +206,9 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 				args[0] = self.codegenExpr(call.Self, false)
 			} else {
 				selfArg := self.codegenExpr(call.Self, true)
-				args[0] = self.builder.CreateAlloca(selfArg.Type(), "")
-				self.builder.CreateStore(selfArg, args[0])
+				args[0] = self.createAllocaHirType(call.Self.Type())
+				store := self.builder.CreateStore(selfArg, args[0])
+				store.SetAlignment(int(call.Self.Type().Align()))
 			}
 			for i, a := range call.Args {
 				args[i+1] = self.codegenExpr(a, true)
@@ -227,6 +232,7 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 			value := self.codegenExpr(unary.Value, true)
 			if getValue {
 				value = self.builder.CreateLoad(value, "")
+				value.SetAlignment(int(unary.Type().Align()))
 			}
 			return value
 		default:
@@ -236,13 +242,13 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		switch index := expr.(type) {
 		case *hir.ArrayIndex:
 			from, value := self.codegenExpr(index.From, false), self.codegenExpr(index.Index, true)
-			return self.createArrayIndex(from, value, getValue)
+			return self.createArrayIndex(from, value, getValue, int(index.Type().Align()))
 		case *hir.PointerIndex:
 			from, value := self.codegenExpr(index.From, true), self.codegenExpr(index.Index, true)
-			return self.createPointerIndex(from, value, getValue)
+			return self.createPointerIndex(from, value, getValue, int(index.Type().Align()))
 		case *hir.TupleIndex:
 			from := self.codegenExpr(index.From, false)
-			return self.createStructIndex(from, index.Index, getValue)
+			return self.createStructIndex(from, index.Index, getValue, int(index.Type().Align()))
 		default:
 			panic("unreachable")
 		}
@@ -278,12 +284,18 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		if isConst {
 			return llvm.ConstArray(self.codegenType(expr.Type()), elems)
 		} else {
-			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type()), "")
+			tmp := self.createAllocaHirType(expr.Type())
 			for i, e := range elems {
-				index := self.createArrayIndex(tmp, llvm.ConstInt(t_size, uint64(i), false), false)
-				self.builder.CreateStore(e, index)
+				index := self.createArrayIndex(
+					tmp, llvm.ConstInt(t_size, uint64(i), false), false,
+					int(expr.Elems[i].Type().Align()),
+				)
+				store := self.builder.CreateStore(e, index)
+				store.SetAlignment(int(expr.Elems[i].Type().Align()))
 			}
-			return self.builder.CreateLoad(tmp, "")
+			v := self.builder.CreateLoad(tmp, "")
+			v.SetAlignment(int(expr.Type().Align()))
+			return v
 		}
 	case *hir.Tuple:
 		isConst := true
@@ -297,12 +309,15 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		if isConst {
 			return self.ctx.ConstStruct(elems, false)
 		} else {
-			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type()), "")
+			tmp := self.createAllocaHirType(expr.Type())
 			for i, e := range elems {
-				index := self.createStructIndex(tmp, uint(i), false)
-				self.builder.CreateStore(e, index)
+				index := self.createStructIndex(tmp, uint(i), false, int(expr.Elems[i].Type().Align()))
+				store := self.builder.CreateStore(e, index)
+				store.SetAlignment(int(expr.Elems[i].Type().Align()))
 			}
-			return self.builder.CreateLoad(tmp, "")
+			v := self.builder.CreateLoad(tmp, "")
+			v.SetAlignment(int(expr.Type().Align()))
+			return v
 		}
 	case *hir.Struct:
 		isConst := true
@@ -316,48 +331,58 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		if isConst {
 			return self.ctx.ConstStruct(elems, false)
 		} else {
-			tmp := self.builder.CreateAlloca(self.codegenType(expr.Type()), "")
+			tmp := self.createAllocaHirType(expr.Type())
 			for i, e := range elems {
-				index := self.createStructIndex(tmp, uint(i), false)
-				self.builder.CreateStore(e, index)
+				index := self.createStructIndex(tmp, uint(i), false, int(expr.Fields[i].Type().Align()))
+				store := self.builder.CreateStore(e, index)
+				store.SetAlignment(int(expr.Fields[i].Type().Align()))
 			}
-			return self.builder.CreateLoad(tmp, "")
+			v := self.builder.CreateLoad(tmp, "")
+			v.SetAlignment(int(expr.Type().Align()))
+			return v
 		}
 	case *hir.Enum:
 		index := expr.GetFieldIndex()
-		tmp := self.builder.CreateAlloca(self.codegenType(expr.Type()), "")
-		self.builder.CreateStore(
+		tmp := self.createAllocaHirType(expr.Type())
+		store := self.builder.CreateStore(
 			llvm.ConstInt(t_size, uint64(index), false),
-			self.createStructIndex(tmp, 0, false),
+			self.createStructIndex(tmp, 0, false, 1),
 		)
+		store.SetAlignment(1)
 		elemTypeHir := expr.Type().GetEnumFields()[index].Third
 		if elemTypeHir != nil {
 			ptr := self.builder.CreateBitCast(
-				self.createStructIndex(tmp, 1, false),
+				self.createStructIndex(tmp, 1, false, 1),
 				self.codegenType(hir.NewTypePtr(*elemTypeHir)),
 				"",
 			)
-			self.builder.CreateStore(
+			store := self.builder.CreateStore(
 				self.codegenExpr(expr.Value, true),
 				ptr,
 			)
+			store.SetAlignment(1)
 		}
-		return self.builder.CreateLoad(tmp, "")
+		v := self.builder.CreateLoad(tmp, "")
+		v.SetAlignment(int(expr.Type().Align()))
+		return v
 	case *hir.GetStructField:
 		f := self.codegenExpr(expr.From, false)
 		index := expr.GetFieldIndex()
-		return self.createStructIndex(f, index, getValue)
+		return self.createStructIndex(f, index, getValue, int(expr.Type().Align()))
 	case *hir.GetEnumField:
 		f := self.codegenExpr(expr.From, false)
-		data := self.createStructIndex(f, 1, false)
+		data := self.createStructIndex(f, 1, false, 1)
 		if data.Type().TypeKind() != llvm.PointerTypeKind {
 			tmp := self.builder.CreateAlloca(data.Type(), "")
-			self.builder.CreateStore(data, tmp)
+			tmp.SetAlignment(1)
+			store := self.builder.CreateStore(data, tmp)
+			store.SetAlignment(1)
 			data = tmp
 		}
 		value := self.builder.CreateBitCast(data, self.codegenType(hir.NewTypePtr(expr.Type())), "")
 		if getValue {
 			value = self.builder.CreateLoad(value, "")
+			value.SetAlignment(int(expr.Type().Align()))
 		}
 		return value
 	case hir.Covert:
@@ -409,10 +434,6 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		default:
 			panic("unreachable")
 		}
-	case *hir.Alloc:
-		size := self.codegenExpr(expr.Size, true)
-		ptr := self.builder.CreateArrayAlloca(self.ctx.Int8Type(), size, "")
-		return self.builder.CreatePointerCast(ptr, llvm.PointerType(t_size, 0), "")
 	default:
 		fmt.Printf("%+v\n", expr)
 		panic("unreachable")
@@ -465,7 +486,9 @@ func (self *CodeGenerator) codegenConstantExpr(mean hir.Expr) llvm.Value {
 			v.SetInitializer(llvm.ConstPointerCast(vv, v.Type().ElementType()))
 			self.cstringPool[expr.Value] = v
 		}
-		return self.builder.CreateLoad(v, "")
+		v = self.builder.CreateLoad(v, "")
+		v.SetAlignment(int(expr.Type().Align()))
+		return v
 	default:
 		panic("unreachable")
 	}
@@ -482,7 +505,7 @@ func (self *CodeGenerator) equal(left, right llvm.Value) llvm.Value {
 		if left.Type().ArrayLength() == 0 {
 			return llvm.ConstInt(self.ctx.Int8Type(), 1, true)
 		}
-		i := self.builder.CreateAlloca(self.codegenType(hir.NewTypeUsize()), "")
+		i := self.createAllocaHirType(hir.NewTypeUsize())
 		self.builder.CreateStore(llvm.ConstInt(i.Type().ElementType(), 0, false), i)
 		cb := llvm.AddBasicBlock(self.function, "")
 		self.builder.CreateBr(cb)
@@ -499,7 +522,7 @@ func (self *CodeGenerator) equal(left, right llvm.Value) llvm.Value {
 		self.builder.CreateCondBr(lt, lb, eb)
 
 		self.builder.SetInsertPointAtEnd(lb)
-		l, r := self.createArrayIndex(left, iv, true), self.createArrayIndex(right, iv, true)
+		l, r := self.createArrayIndex(left, iv, true, 1), self.createArrayIndex(right, iv, true, 1)
 		self.builder.CreateStore(self.builder.CreateNUWAdd(iv, llvm.ConstInt(iv.Type(), 1, false), ""), i)
 		self.builder.CreateCondBr(self.equal(l, r), cb, eb)
 		lb = self.builder.GetInsertBlock()
@@ -517,7 +540,7 @@ func (self *CodeGenerator) equal(left, right llvm.Value) llvm.Value {
 		values := make([]llvm.Value, elemCount)
 		eb := llvm.AddBasicBlock(self.function, "")
 		for i := range left.Type().StructElementTypes() {
-			l, r := self.createStructIndex(left, uint(i), true), self.createStructIndex(right, uint(i), true)
+			l, r := self.createStructIndex(left, uint(i), true, 1), self.createStructIndex(right, uint(i), true, 1)
 			v := self.equal(l, r)
 			blocks[i], values[i] = self.builder.GetInsertBlock(), v
 			if i < elemCount-1 {

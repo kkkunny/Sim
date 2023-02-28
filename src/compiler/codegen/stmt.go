@@ -62,11 +62,11 @@ func (self *CodeGenerator) codegenReturn(mean hir.Return) {
 
 // 变量
 func (self *CodeGenerator) codegenVariable(mean *hir.Variable) {
-	typ := self.codegenType(mean.Type())
-	alloca := self.builder.CreateAlloca(typ, "")
+	alloca := self.createAllocaHirType(mean.Type())
 	value := self.codegenExpr(mean.Value, true)
 	self.vars[mean] = alloca
-	self.builder.CreateStore(value, alloca)
+	store := self.builder.CreateStore(value, alloca)
+	store.SetAlignment(int(mean.Type().Align()))
 }
 
 // 条件分支
@@ -170,7 +170,7 @@ func (self *CodeGenerator) codegenMatch(mean hir.Match) {
 		self.codegenBlock(*mean.Default)
 	} else {
 		FieldHirs := mean.From.Type().GetEnumFields()
-		index := self.createStructIndex(self.codegenExpr(mean.From, true), 0, true)
+		index := self.createStructIndex(self.codegenExpr(mean.From, true), 0, true, 1)
 
 		eb := llvm.AddBasicBlock(self.function, "")
 		db := stlutil.Ternary(mean.Default == nil, eb, llvm.AddBasicBlock(self.function, ""))

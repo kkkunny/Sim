@@ -1500,28 +1500,3 @@ func (self WrapCovert) Immediate() bool {
 }
 
 func (self WrapCovert) covert() {}
-
-// Alloc 分配栈内存
-type Alloc struct {
-	Size Expr
-}
-
-func NewAlloc(s Expr) *Alloc {
-	return &Alloc{
-		Size: s,
-	}
-}
-
-func (self Alloc) stmt() {}
-
-func (self Alloc) Type() Type {
-	return NewTypePtr(NewTypeI8())
-}
-
-func (self Alloc) Mutable() bool {
-	return false
-}
-
-func (self Alloc) Immediate() bool {
-	return true
-}

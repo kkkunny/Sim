@@ -114,20 +114,10 @@ func (self *CodeGenerator) codegenType(mean hir.Type) llvm.Type {
 		}
 		return td
 	case hir.TEnum:
-		fieldHirs := mean.GetEnumFields()
-		onlyEnum := true
-		// TODO: max size
-		maxSize := 16
-		for _, f := range fieldHirs {
-			if f.Third != nil {
-				onlyEnum = false
-				break
-			}
-		}
-		if onlyEnum {
-			return self.ctx.StructType([]llvm.Type{t_size}, false)
+		if maxSize, ok := mean.GetEnumMaxElemSize(); !ok {
+			return self.ctx.StructType([]llvm.Type{t_size}, true)
 		} else {
-			return self.ctx.StructType([]llvm.Type{t_size, llvm.ArrayType(self.ctx.Int8Type(), maxSize)}, false)
+			return self.ctx.StructType([]llvm.Type{t_size, llvm.ArrayType(self.ctx.Int8Type(), int(maxSize))}, true)
 		}
 	default:
 		panic("unreachable")

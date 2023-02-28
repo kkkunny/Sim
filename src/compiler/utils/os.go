@@ -12,11 +12,11 @@ import (
 // PtrByte 指针大小
 var PtrByte = uint(unsafe.Sizeof(uintptr(0)))
 
-// AlignByte 对齐
-var AlignByte = 4
-
 // AlignTo 对齐
 func AlignTo[T constraints.Integer | constraints.Float](n, align T) T {
+	if align == 0 {
+		return n
+	}
 	return (n + align - 1) / align * align
 }
 

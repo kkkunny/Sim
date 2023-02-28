@@ -1,4 +1,12 @@
+import std::c
+
+type A enum{
+    a: i32,
+}
+
 @extern(main)
 func main()u8{
+    var i: A
+    c::printf("%lu\n", sizeof i)
     return 0
 }

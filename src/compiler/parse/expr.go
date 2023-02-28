@@ -505,7 +505,7 @@ func (self *parser) parsePrefixUnaryExpr() Expr {
 			return lit
 		}
 		return NewUnary(op, v)
-	case lex.NEG, lex.NOT, lex.AND, lex.MUL:
+	case lex.NEG, lex.NOT, lex.AND, lex.MUL, lex.LEN, lex.TYPENAME, lex.SIZEOF:
 		self.next()
 		op := self.curTok
 		v := self.parsePrefixUnaryExpr()

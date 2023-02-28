@@ -118,8 +118,9 @@ func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
 			self.builder.SetInsertPointAtEnd(entry)
 
 			for i, p := range global.Params {
-				param := self.builder.CreateAlloca(self.codegenType(p.Type()), "")
-				self.builder.CreateStore(f.Param(i), param)
+				param := self.createAllocaHirType(p.Type())
+				store := self.builder.CreateStore(f.Param(i), param)
+				store.SetAlignment(int(p.Type().Align()))
 				self.vars[p] = param
 			}
 
@@ -131,8 +132,9 @@ func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
 			self.builder.SetInsertPointAtEnd(entry)
 
 			for i, p := range global.Params {
-				param := self.builder.CreateAlloca(self.codegenType(p.Type()), "")
-				self.builder.CreateStore(f.Param(i), param)
+				param := self.createAllocaHirType(p.Type())
+				store := self.builder.CreateStore(f.Param(i), param)
+				store.SetAlignment(int(p.Type().Align()))
 				self.vars[p] = param
 			}
 
@@ -156,7 +158,8 @@ func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
 			if value.IsConstant() {
 				self.vars[global].SetInitializer(value)
 			} else {
-				self.builder.CreateStore(value, self.vars[global])
+				store := self.builder.CreateStore(value, self.vars[global])
+				store.SetAlignment(int(global.Type().Align()))
 			}
 			self.globalLastBlock = self.builder.GetInsertBlock()
 		default:

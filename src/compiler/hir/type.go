@@ -2,8 +2,10 @@ package hir
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
+	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/stl/types"
 	stlutil "github.com/kkkunny/stl/util"
 )
@@ -438,6 +440,29 @@ func (self Type) GetEnumFields() []types.ThreePair[bool, string, *Type] {
 	return pairs
 }
 
+// GetEnumMaxElemSize 获取枚举最大字段大小
+func (self Type) GetEnumMaxElemSize() (uint, bool) {
+	if !self.IsEnum() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetEnumMaxElemSize()
+	}
+	onlyEnum := true
+	var maxSize uint = 0
+	for _, f := range self.GetEnumFields() {
+		if f.Third == nil {
+			continue
+		}
+		onlyEnum = false
+		fs := f.Third.Size()
+		if fs > maxSize {
+			maxSize = fs
+		}
+	}
+	return maxSize, !onlyEnum
+}
+
 // GetEnumFieldByName 获取指定枚举字段
 func (self Type) GetEnumFieldByName(name string) (types.ThreePair[bool, string, *Type], bool) {
 	if !self.IsEnum() {
@@ -643,6 +668,90 @@ func (self Type) Like(dst Type) bool {
 			}
 		}
 		return true
+	default:
+		panic("unreachable")
+	}
+}
+
+// Align 获取对齐（byte）
+func (self Type) Align() uint {
+	switch self.Kind {
+	case TNone:
+		panic("unreachable")
+	case TBool, TI8, TU8:
+		return 1
+	case TI16, TU16:
+		return 2
+	case TI32, TU32, TF32:
+		return 4
+	case TI64, TU64, TF64:
+		return 8
+	case TIsize, TUsize, TPtr, TFunc:
+		return utils.PtrByte
+	case TArray:
+		return self.GetArrayElem().Align()
+	case TTuple:
+		var align uint
+		for _, e := range self.GetTupleElems() {
+			align = uint(math.Max(float64(e.Align()), float64(align)))
+		}
+		return align
+	case TStruct:
+		var align uint
+		for _, f := range self.GetStructFields() {
+			align = uint(math.Max(float64(f.Third.Align()), float64(align)))
+		}
+		return align
+	case TEnum:
+		return 1
+	case TTypedef:
+		return self.GetTypedef().Target.Align()
+	default:
+		panic("unreachable")
+	}
+}
+
+// Size 获取大小（byte）
+func (self Type) Size() uint {
+	switch self.Kind {
+	case TNone:
+		panic("unreachable")
+	case TBool, TI8, TU8:
+		return 1
+	case TI16, TU16:
+		return 2
+	case TI32, TU32, TF32:
+		return 4
+	case TI64, TU64, TF64:
+		return 8
+	case TIsize, TUsize, TPtr, TFunc:
+		return utils.PtrByte
+	case TArray:
+		return self.GetArraySize() * self.GetArrayElem().Size()
+	case TTuple:
+		var offset uint
+		for _, e := range self.GetTupleElems() {
+			es := e.Size()
+			offset += es
+			offset = utils.AlignTo(offset, es)
+		}
+		return utils.AlignTo(offset, self.Align())
+	case TStruct:
+		var offset uint
+		for _, f := range self.GetStructFields() {
+			fs := f.Third.Size()
+			offset += fs
+			offset = utils.AlignTo(offset, fs)
+		}
+		return utils.AlignTo(offset, self.Align())
+	case TEnum:
+		if maxSize, ok := self.GetEnumMaxElemSize(); !ok {
+			return NewTypeUsize().Size()
+		} else {
+			return NewTypeUsize().Size() + NewTypeArray(maxSize, NewTypeI8()).Size()
+		}
+	case TTypedef:
+		return self.GetTypedef().Target.Size()
 	default:
 		panic("unreachable")
 	}

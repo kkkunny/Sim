@@ -4,17 +4,15 @@ import std::c
 func main()u8{
     var i = "你好世界！"
     var j: [2]i32
-    if len(j) != 2{
+    if len j != 2{
         return 1
     }
 
-    if typename(i) != "*i8"{
+    if typename i != "*i8"{
         return 1
     }
 
-    var a = alloc(8) as *isize
-    *a = 10
-    if *a != 10{
+    if sizeof i != 8{
         return 1
     }
 

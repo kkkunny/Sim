@@ -445,6 +445,32 @@ func (self *Analyser) analyseUnary(expect *hir.Type, ast parse.Unary) (hir.Expr,
 			return nil, err
 		}
 		return hir.NewGetValue(v), nil
+	case lex.LEN:
+		v, err := self.analyseExpr(nil, ast.Value)
+		if err != nil {
+			return nil, err
+		}
+		vt := v.Type()
+		switch {
+		case vt.IsArray():
+			return hir.NewInteger(hir.NewTypeUsize(), int64(vt.GetArraySize())), nil
+		case vt.IsTuple():
+			return hir.NewInteger(hir.NewTypeUsize(), int64(len(vt.GetTupleElems()))), nil
+		default:
+			return nil, utils.Errorf(ast.Value.Position(), "expect a array or a tuple")
+		}
+	case lex.TYPENAME:
+		v, err := self.analyseExpr(nil, ast.Value)
+		if err != nil {
+			return nil, err
+		}
+		return hir.NewString(hir.NewTypePtr(hir.NewTypeI8()), v.Type().String()), nil
+	case lex.SIZEOF:
+		v, err := self.analyseExpr(nil, ast.Value)
+		if err != nil {
+			return nil, err
+		}
+		return hir.NewInteger(hir.NewTypeUsize(), int64(v.Type().Size())), nil
 	default:
 		panic("unreachable")
 	}
@@ -715,13 +741,6 @@ func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
 		if selfExpr.Type().IsTypedef() || (selfExpr.Type().Kind == hir.TPtr && selfExpr.Type().GetPtr().IsTypedef()) {
 			return self.analyseCallMethod(selfExpr, dot.End, ast.Args)
 		}
-	} else if ident, ok := ast.Func.(*parse.Ident); ok && self.symbols[ident.Pkgs[0]] == self.symbol.getPkgSymbolTable() {
-		v, err := self.analyseCallBuildin(ident.Name, ast.Args)
-		if err != nil {
-			return nil, err
-		} else if v != nil {
-			return v, nil
-		}
 	}
 
 	// 函数
@@ -813,49 +832,6 @@ func (self *Analyser) analyseCallMethod(
 	}
 
 	return hir.NewMethodCall(m, selfExpr, args...), nil
-}
-
-// 调用内置函数
-func (self *Analyser) analyseCallBuildin(nameToken lex.Token, argAsts []parse.Expr) (hir.Expr, utils.Error) {
-	switch nameToken.Source {
-	case "len":
-		if len(argAsts) != 1 {
-			return nil, utils.Errorf(nameToken.Pos, "expect `%d` arguments but there is `%d`", 1, len(argAsts))
-		}
-		arg, err := self.analyseExpr(nil, argAsts[0])
-		if err != nil {
-			return nil, err
-		}
-		at := arg.Type()
-		switch {
-		case at.IsArray():
-			return hir.NewInteger(hir.NewTypeUsize(), int64(at.GetArraySize())), nil
-		case at.IsTuple():
-			return hir.NewInteger(hir.NewTypeUsize(), int64(len(at.GetTupleElems()))), nil
-		default:
-			return nil, utils.Errorf(argAsts[0].Position(), "expect a array or a tuple")
-		}
-	case "typename":
-		if len(argAsts) != 1 {
-			return nil, utils.Errorf(nameToken.Pos, "expect `%d` arguments but there is `%d`", 1, len(argAsts))
-		}
-		arg, err := self.analyseExpr(nil, argAsts[0])
-		if err != nil {
-			return nil, err
-		}
-		return hir.NewString(hir.NewTypePtr(hir.NewTypeI8()), arg.Type().String()), nil
-	case "alloc":
-		if len(argAsts) != 1 {
-			return nil, utils.Errorf(nameToken.Pos, "expect `%d` arguments but there is `%d`", 1, len(argAsts))
-		}
-		arg, err := self.expectExpr(hir.NewTypeUsize(), argAsts[0])
-		if err != nil {
-			return nil, err
-		}
-		return hir.NewAlloc(arg), nil
-	default:
-		return nil, nil
-	}
 }
 
 // 点
