@@ -2,13 +2,13 @@ import std::c
 
 @extern(main)
 func main()u8{
-    let i = "你好世界！"
-    let j: [2]i32
-    if len j != 2{
+    let i: [2]i32
+
+    if lenof i != 2{
         return 1
     }
 
-    if typename i != "*i8"{
+    if c::strcmp(typeof i as *c::char, "[2]i32") != 0{
         return 1
     }
 

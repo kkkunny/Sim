@@ -445,7 +445,7 @@ func (self *Analyser) analyseUnary(expect *hir.Type, ast parse.Unary) (hir.Expr,
 			return nil, err
 		}
 		return hir.NewGetValue(v), nil
-	case lex.LEN:
+	case lex.LENOF:
 		v, err := self.analyseExpr(nil, ast.Value)
 		if err != nil {
 			return nil, err
@@ -459,7 +459,7 @@ func (self *Analyser) analyseUnary(expect *hir.Type, ast parse.Unary) (hir.Expr,
 		default:
 			return nil, utils.Errorf(ast.Value.Position(), "expect a array or a tuple")
 		}
-	case lex.TYPENAME:
+	case lex.TYPEOF:
 		v, err := self.analyseExpr(nil, ast.Value)
 		if err != nil {
 			return nil, err

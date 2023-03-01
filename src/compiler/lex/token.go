@@ -56,9 +56,9 @@ const (
 	LAN // &&
 	LOR // ||
 
-	LEN      // len
-	TYPENAME // typename
-	SIZEOF   // sizeof
+	LENOF  // len
+	TYPEOF // typename
+	SIZEOF // sizeof
 
 	LPA // 左小括号
 	RPA // 右小括号
@@ -146,9 +146,9 @@ var tokenKindStr = [...]string{
 	LAN: "&&",
 	LOR: "||",
 
-	LEN:      "len",
-	TYPENAME: "typename",
-	SIZEOF:   "sizeof",
+	LENOF:  "lenof",
+	TYPEOF: "typeof",
+	SIZEOF: "sizeof",
 
 	LPA: "(",
 	RPA: ")",
@@ -192,10 +192,10 @@ var tokenKindStr = [...]string{
 // LookUp 区分标识符和关键字
 func LookUp(s string) TokenKind {
 	switch s {
-	case "len":
-		return LEN
-	case "typename":
-		return TYPENAME
+	case "lenof":
+		return LENOF
+	case "typeof":
+		return TYPEOF
 	case "sizeof":
 		return SIZEOF
 	case "func":
