@@ -298,7 +298,7 @@ func (self *Analyser) analyseVariable(ast parse.Variable) (*hir.Variable, utils.
 	}
 
 	// 定义
-	ident := hir.NewVariable(typ, value)
+	ident := hir.NewVariable(ast.Mutable, typ, value)
 	self.symbol.defValue(false, ast.Name.Source, ident)
 
 	return ident, nil

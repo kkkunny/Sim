@@ -41,13 +41,15 @@ func (self *Typedef) LookupMethod(name string) (*Method, bool) {
 
 // GlobalValue 全局变量
 type GlobalValue struct {
+	Mut   bool   // 是否可变
 	Typ   Type   // 类型
 	Name  string // 名
 	Value Expr   // 值（可能为空）
 }
 
-func NewGlobalValue(t Type, name string, v Expr) *GlobalValue {
+func NewGlobalValue(mut bool, t Type, name string, v Expr) *GlobalValue {
 	return &GlobalValue{
+		Mut:   mut,
 		Typ:   t,
 		Name:  name,
 		Value: v,
@@ -63,7 +65,7 @@ func (self GlobalValue) Type() Type {
 }
 
 func (self GlobalValue) Mutable() bool {
-	return true
+	return self.Mut
 }
 
 func (self GlobalValue) Immediate() bool {

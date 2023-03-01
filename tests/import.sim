@@ -4,8 +4,8 @@ import std::c as *
 
 @extern(main)
 func main()u8{
-    var s: *c::char = "Hello World"
-    var s2: *char = s
+    let s: *c::char = "Hello World"
+    let s2: *char = s
     b::puts(s2)
     return 0
 }

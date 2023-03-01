@@ -1,6 +1,9 @@
 package parse
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	stlos "github.com/kkkunny/stl/os"
@@ -116,6 +119,37 @@ func (self *parser) expectNextIs(kind lex.TokenKind) lex.Token {
 	return self.curTok
 }
 
+// 下一个token是否在其中
+func (self *parser) nextIn(kind ...lex.TokenKind) bool {
+	for _, k := range kind {
+		if self.nextTok.Kind == k {
+			return true
+		}
+	}
+	return false
+}
+
+// 如果下一个token在其中，则跳过
+func (self *parser) skipNextIn(kind ...lex.TokenKind) bool {
+	if self.nextIn(kind...) {
+		self.next()
+		return true
+	}
+	return false
+}
+
+// 如果下一个token在其中，则跳过，若不是，则报错
+func (self *parser) expectNextIn(kind ...lex.TokenKind) lex.Token {
+	ks := make([]string, len(kind))
+	for i, k := range kind {
+		ks[i] = fmt.Sprintf("`%s`", k)
+	}
+	if !self.skipNextIn(kind...) {
+		self.throwErrorf(self.nextTok.Pos, "expect token is %s", strings.Join(ks, " or "))
+	}
+	return self.curTok
+}
+
 // 跳过分隔符
 func (self *parser) skipSem() {
 	for self.nextIs(lex.SEM) {
@@ -161,12 +195,12 @@ func (self *parser) throwErrorf(pos utils.Position, f string, a ...any) {
 
 // 文件
 func (self *parser) parseFile() {
-	for self.skipSem(); !self.nextIs(lex.EOF); self.skipSem() {
+	for self.skipSem(); !self.nextIs(lex.EOF); {
 		if global := self.parseGlobal(); global != nil {
 			self.pkg.Globals.Add(global)
 		}
 		if !self.nextIs(lex.EOF) {
-			self.expectNextIs(lex.SEM)
+			self.skipSemAtLeastOne()
 		}
 	}
 }

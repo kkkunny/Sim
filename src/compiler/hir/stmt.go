@@ -114,12 +114,14 @@ func (self Switch) stmt() {}
 
 // Variable 变量定义
 type Variable struct {
+	Mut   bool // 是否可变
 	Typ   Type // 类型
 	Value Expr // 值
 }
 
-func NewVariable(t Type, v Expr) *Variable {
+func NewVariable(mut bool, t Type, v Expr) *Variable {
 	return &Variable{
+		Mut:   mut,
 		Typ:   t,
 		Value: v,
 	}
@@ -132,7 +134,7 @@ func (self Variable) Type() Type {
 }
 
 func (self Variable) Mutable() bool {
-	return true
+	return self.Mut
 }
 
 func (self Variable) Immediate() bool {

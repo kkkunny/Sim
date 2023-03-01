@@ -3,11 +3,11 @@ pub type FILE struct{}
 pub type fpos_t struct{}
 
 @extern(stdin)
-pub var stdin: *FILE
+pub let stdin: *FILE
 @extern(stdout)
-pub var stdout: *FILE
+pub let stdout: *FILE
 @extern(stderr)
-pub var stderr: *FILE
+pub let stderr: *FILE
 
 @extern(fclose)
 pub func fclose(stream: *FILE)int

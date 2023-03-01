@@ -8,8 +8,8 @@ pub type ldiv_t struct{
 }
 pub type wchar_t int
 
-pub var EXIT_SUCCESS: int = 0
-pub var EXIT_FAILURE: int = 1
+pub let EXIT_SUCCESS: int = 0
+pub let EXIT_FAILURE: int = 1
 
 @extern(atof)
 pub func atof(str: *char)double

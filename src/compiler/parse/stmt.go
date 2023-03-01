@@ -68,18 +68,20 @@ func (self Return) Stmt() {}
 
 // Variable 变量
 type Variable struct {
-	Pos   utils.Position
-	Type  Type // 可能为空（和value只可能一个为空）
-	Name  lex.Token
-	Value Expr // 可能为空（和type只可能一个为空）
+	Pos     utils.Position
+	Mutable bool // 是否可变
+	Type    Type // 可能为空（和value只可能一个为空）
+	Name    lex.Token
+	Value   Expr // 可能为空（和type只可能一个为空）
 }
 
-func NewVariable(pos utils.Position, t Type, name lex.Token, v Expr) *Variable {
+func NewVariable(pos utils.Position, mut bool, t Type, name lex.Token, v Expr) *Variable {
 	return &Variable{
-		Pos:   pos,
-		Type:  t,
-		Name:  name,
-		Value: v,
+		Pos:     pos,
+		Mutable: mut,
+		Type:    t,
+		Name:    name,
+		Value:   v,
 	}
 }
 
@@ -165,7 +167,7 @@ func (self *parser) parseStmt() Stmt {
 	switch self.nextTok.Kind {
 	case lex.RETURN:
 		return self.parseReturn()
-	case lex.VAR:
+	case lex.LET:
 		return self.parseVariable()
 	case lex.LBR:
 		return self.parseBlock()
@@ -188,9 +190,9 @@ func (self *parser) parseBlock() *Block {
 	block := NewBlock(utils.Position{})
 	begin := self.expectNextIs(lex.LBR).Pos
 
-	for self.skipSem(); !self.nextIs(lex.RBR); self.skipSem() {
+	for self.skipSem(); !self.nextIs(lex.RBR); {
 		block.Stmts.Add(self.parseStmt())
-		self.expectNextIs(lex.SEM)
+		self.skipSemAtLeastOne()
 	}
 
 	end := self.expectNextIs(lex.RBR).Pos
@@ -200,7 +202,8 @@ func (self *parser) parseBlock() *Block {
 
 // 变量
 func (self *parser) parseVariable() *Variable {
-	begin := self.expectNextIs(lex.VAR).Pos
+	begin := self.expectNextIs(lex.LET).Pos
+	mut := self.skipNextIs(lex.MUT)
 	name := self.expectNextIs(lex.IDENT)
 	var t Type
 	var v Expr
@@ -213,7 +216,7 @@ func (self *parser) parseVariable() *Variable {
 			v = self.parseExpr()
 		}
 	}
-	return NewVariable(utils.MixPosition(begin, self.curTok.Pos), t, name, v)
+	return NewVariable(utils.MixPosition(begin, self.curTok.Pos), mut, t, name, v)
 }
 
 // 函数返回
@@ -271,8 +274,7 @@ func (self *parser) parseSwitch() *Switch {
 		self.skipSem()
 		for !self.nextIs(lex.CASE) && !self.nextIs(lex.DEFAULT) && !self.nextIs(lex.RBR) {
 			block.Stmts.PushBack(self.parseStmt())
-			self.expectNextIs(lex.SEM)
-			self.skipSem()
+			self.skipSemAtLeastOne()
 		}
 		if !block.Stmts.Empty() {
 			block.Pos = utils.MixPosition(block.Stmts.First().Position(), block.Stmts.Last().Position())

@@ -34,7 +34,7 @@ func (self *Analyser) analyseGlobalValueDecl(ast parse.GlobalValue) (*hir.Global
 	}
 
 	// 声明
-	ident := hir.NewGlobalValue(typ, "", nil)
+	ident := hir.NewGlobalValue(ast.Mutable, typ, "", nil)
 	if !self.symbol.defValue(ast.Public, ast.Name.Source, ident) {
 		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}

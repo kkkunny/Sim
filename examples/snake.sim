@@ -34,25 +34,25 @@ func tcsetattr(fd: c::int, optional_actions: c::int, termios_p: *termios)c::int
 @extern(select)
 func select(nfds: c::int, readfds: *fd_set, writefds: *fd_set, exceptfds: *fd_set, timeout: *timeval)c::int
 
-var SIZE: (i32, i32) = (60, 30)
+let SIZE: (i32, i32) = (60, 30)
 
 @extern(main)
 func main()u8{
 	c::printf("\e[?25l", 0, 0)
 
-	var oldt: termios
-	var newt: termios
+	let mut oldt: termios
+	let mut newt: termios
 	tcgetattr(0, &oldt)
 	newt = oldt
 	newt.c_lflag &= -11
 	tcsetattr(0, 0, &newt)
 
-	var x: [1000]i32
-	var y: [1000]i32
-	var quit: bool
+	let mut x: [1000]i32
+	let mut y: [1000]i32
+	let mut quit: bool
 	for !quit{
 		c::printf("┌", 0, 0)
-		var i: i32 = 0
+		let mut i: i32 = 0
 		for i < SIZE[0]{
 			c::printf("─", 0, 0)
 			i += 1
@@ -62,7 +62,7 @@ func main()u8{
 		i = 0
 		for i < SIZE[1]{
 			c::printf("│", 0, 0)
-			var j: i32 = 0
+			let mut j: i32 = 0
 			for j < SIZE[0]{
 				c::printf("·", 0, 0)
 				j += 1
@@ -81,15 +81,15 @@ func main()u8{
 
 		c::printf("\e[%iA", SIZE[1] as c::int + 2, 0)
 
-		var head: i32
-		var tail: i32
+		let mut head: i32
+		let mut tail: i32
 		x[head as usize] = SIZE[0] / 2
 		y[head as usize] = SIZE[1] / 2
-		var gameover: bool
-		var xdir: i32 = 1
-		var ydir: i32
-		var applex: i32 = -1
-		var appley: i32
+		let mut gameover: bool
+		let mut xdir: i32 = 1
+		let mut ydir: i32
+		let mut applex: i32 = -1
+		let mut appley: i32
 
 		for !quit && !gameover{
 			if applex < 0{
@@ -120,7 +120,7 @@ func main()u8{
 				tail = (tail + 1) % 1000
 			}
 
-			var newhead: i32 = (head + 1) % 1000
+			let newhead: i32 = (head + 1) % 1000
 			x[newhead as usize] = (x[head as usize] + xdir + SIZE[0]) % SIZE[0]
 			y[newhead as usize] = (y[head as usize] + ydir + SIZE[1]) % SIZE[1]
 			head = newhead
@@ -139,15 +139,15 @@ func main()u8{
 
 			usleep(5 as c::unsigned_int * 1000000 / 60)
 
-			var tv: timeval
-			var fds: fd_set
+			let mut tv: timeval
+			let mut fds: fd_set
 			tv.tv_sec = 0
 			tv.tv_usec = 0
 
 			fds.fds_bits[0] |= 1
 			select(1, &fds, null, null, &tv)
 			if (fds.fds_bits[0] & 1) != 0{
-				var ch = c::getchar()
+				let ch = c::getchar()
 				if ch == 27 || ch == 'q'{
 					quit = true
 				} else if ch == 'a' && xdir != 1{

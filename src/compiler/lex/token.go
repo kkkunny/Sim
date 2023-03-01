@@ -91,11 +91,12 @@ const (
 	TYPE     // type
 	IMPORT   // import
 	PUB      // pub
-	VAR      // var
+	LET      // let
 	MATCH    // match
 	CASE     // case
 	DEFAULT  // default
 	ENUM     // enum
+	MUT      // mut
 )
 
 var tokenKindStr = [...]string{
@@ -180,11 +181,12 @@ var tokenKindStr = [...]string{
 	TYPE:     "type",
 	IMPORT:   "import",
 	PUB:      "pub",
-	VAR:      "let",
+	LET:      "let",
 	MATCH:    "match",
 	CASE:     "case",
 	DEFAULT:  "default",
 	ENUM:     "enum",
+	MUT:      "mut",
 }
 
 // LookUp 区分标识符和关键字
@@ -226,8 +228,8 @@ func LookUp(s string) TokenKind {
 		return IMPORT
 	case "pub":
 		return PUB
-	case "var":
-		return VAR
+	case "let":
+		return LET
 	case "match":
 		return MATCH
 	case "case":
@@ -236,6 +238,8 @@ func LookUp(s string) TokenKind {
 		return DEFAULT
 	case "enum":
 		return ENUM
+	case "mut":
+		return MUT
 	default:
 		return IDENT
 	}
