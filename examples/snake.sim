@@ -42,10 +42,10 @@ func main()u8{
 
 	let mut oldt: termios
 	let mut newt: termios
-	tcgetattr(0, &oldt)
+	tcgetattr(0, ptrof oldt)
 	newt = oldt
 	newt.c_lflag &= -11
-	tcsetattr(0, 0, &newt)
+	tcsetattr(0, 0, ptrof newt)
 
 	let mut x: [1000]i32
 	let mut y: [1000]i32
@@ -145,7 +145,7 @@ func main()u8{
 			tv.tv_usec = 0
 
 			fds.fds_bits[0] |= 1
-			select(1, &fds, null, null, &tv)
+			select(1, ptrof fds, null, null, ptrof tv)
 			if (fds.fds_bits[0] & 1) != 0{
 				let ch = c::getchar()
 				if ch == 27 || ch == 'q'{
@@ -175,6 +175,6 @@ func main()u8{
 	}
 
 	c::printf("\e[?25h", 0, 0)
-	tcsetattr(0, 0, &oldt)
+	tcsetattr(0, 0, ptrof oldt)
 	return 0
 }

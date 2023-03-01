@@ -59,6 +59,8 @@ const (
 	LENOF  // len
 	TYPEOF // typename
 	SIZEOF // sizeof
+	PTROF  // ptrof
+	VALOF  // valof
 
 	LPA // 左小括号
 	RPA // 右小括号
@@ -149,6 +151,8 @@ var tokenKindStr = [...]string{
 	LENOF:  "lenof",
 	TYPEOF: "typeof",
 	SIZEOF: "sizeof",
+	PTROF:  "ptrof",
+	VALOF:  "valof",
 
 	LPA: "(",
 	RPA: ")",
@@ -198,6 +202,10 @@ func LookUp(s string) TokenKind {
 		return TYPEOF
 	case "sizeof":
 		return SIZEOF
+	case "ptrof":
+		return PTROF
+	case "valof":
+		return VALOF
 	case "func":
 		return FUNC
 	case "return":

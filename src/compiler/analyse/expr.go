@@ -423,7 +423,7 @@ func (self *Analyser) analyseUnary(expect *hir.Type, ast parse.Unary) (hir.Expr,
 			return nil, utils.Errorf(ast.Value.Position(), errExpectBoolean)
 		}
 		return hir.NewNot(v), nil
-	case lex.AND:
+	case lex.PTROF:
 		if expect != nil && expect.IsPtr() {
 			_elemType := expect.GetPtr()
 			expect = &_elemType
@@ -435,7 +435,7 @@ func (self *Analyser) analyseUnary(expect *hir.Type, ast parse.Unary) (hir.Expr,
 			return nil, utils.Errorf(ast.Value.Position(), errNotExpectImmediateValue)
 		}
 		return hir.NewGetPointer(v), nil
-	case lex.MUL:
+	case lex.VALOF:
 		if expect != nil {
 			_elemType := hir.NewTypePtr(*expect)
 			expect = &_elemType
