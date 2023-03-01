@@ -18,11 +18,13 @@ type Ident interface {
 
 // Param 参数
 type Param struct {
+	Mut bool // 是否可变
 	Typ Type // 类型
 }
 
-func NewParam(t Type) *Param {
+func NewParam(mut bool, t Type) *Param {
 	return &Param{
+		Mut: mut,
 		Typ: t,
 	}
 }
@@ -34,7 +36,7 @@ func (self Param) Type() Type {
 }
 
 func (self Param) Mutable() bool {
-	return true
+	return self.Mut
 }
 
 func (self Param) Immediate() bool {

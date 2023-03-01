@@ -372,6 +372,29 @@ func (self Binary) Stmt() {}
 
 func (self Binary) Expr() {}
 
+// Param 函数形参
+type Param struct {
+	Mutable bool // 是否可变
+	Name    *lex.Token
+	Type    Type
+}
+
+func NewParam(mut bool, name *lex.Token, t Type) *Param {
+	return &Param{
+		Mutable: mut,
+		Name:    name,
+		Type:    t,
+	}
+}
+
+func (self Param) Position() utils.Position {
+	if self.Name != nil {
+		return utils.MixPosition(self.Name.Pos, self.Type.Position())
+	} else {
+		return self.Type.Position()
+	}
+}
+
 // ****************************************************************
 
 // 表达式
@@ -388,6 +411,35 @@ func (self *parser) parseExprList(sep, end lex.TokenKind) (toks []Expr) {
 		}
 	}
 	return toks
+}
+
+// 标识符表达式
+func (self *parser) parseIdentExpr() *Ident {
+	// 语法解析
+	self.expectNextIs(lex.IDENT)
+	var pkgPath *lex.Token
+	name := self.curTok
+	if self.skipNextIs(lex.CLL) {
+		tmp := name
+		pkgPath = &tmp
+		name = self.expectNextIs(lex.IDENT)
+	}
+
+	// 包解析
+	if pkgPath != nil {
+		pkg, ok := self.pkg.importMap[pkgPath.Source]
+		if !ok {
+			self.throwErrorf(pkgPath.Pos, "unknown package name")
+		}
+		return NewIdent([]*Package{pkg}, name)
+	} else {
+		pkgs := make([]*Package, self.pkg.includeMap.Length()+1)
+		pkgs[0] = self.pkg
+		for iter := self.pkg.includeMap.Begin(); iter.HasValue(); iter.Next() {
+			pkgs[self.pkg.includeMap.Length()-iter.Index()] = iter.Value()
+		}
+		return NewIdent(pkgs, name)
+	}
 }
 
 // 单表达式
@@ -417,31 +469,7 @@ func (self *parser) parsePrimaryExpr() Expr {
 		self.next()
 		return NewNull(self.curTok)
 	case lex.IDENT:
-		// 语法解析
-		self.next()
-		var pkgPath *lex.Token
-		name := self.curTok
-		if self.skipNextIs(lex.CLL) {
-			tmp := name
-			pkgPath = &tmp
-			name = self.expectNextIs(lex.IDENT)
-		}
-
-		// 包解析
-		if pkgPath != nil {
-			pkg, ok := self.pkg.importMap[pkgPath.Source]
-			if !ok {
-				self.throwErrorf(pkgPath.Pos, "unknown package name")
-			}
-			return NewIdent([]*Package{pkg}, name)
-		} else {
-			pkgs := make([]*Package, self.pkg.includeMap.Length()+1)
-			pkgs[0] = self.pkg
-			for iter := self.pkg.includeMap.Begin(); iter.HasValue(); iter.Next() {
-				pkgs[self.pkg.includeMap.Length()-iter.Index()] = iter.Value()
-			}
-			return NewIdent(pkgs, name)
-		}
+		return self.parseIdentExpr()
 	case lex.LPA:
 		self.next()
 		begin := self.curTok.Pos
@@ -579,4 +607,39 @@ func (self *parser) parseBinaryExpr(prior uint8) Expr {
 	}
 
 	return left
+}
+
+// 函数形参
+func (self *parser) parseParam() *Param {
+	mut := self.skipNextIs(lex.MUT)
+	var name *lex.Token
+	var typ Type
+	if mut {
+		nameTok := self.expectNextIs(lex.IDENT)
+		name = &nameTok
+		self.expectNextIs(lex.COL)
+		typ = self.parseType()
+	} else {
+		typ = self.parseType()
+		if ident, ok := typ.(*TypeIdent); ok && ident.Pkgs[0].Path == self.pkg.Path && self.skipNextIs(lex.COL) {
+			name = &ident.Name
+			typ = self.parseType()
+		}
+	}
+	return NewParam(mut, name, typ)
+}
+
+// 函数形参列表
+func (self *parser) parseParamList(end lex.TokenKind) (params []*Param, varArg bool) {
+	for self.skipSem(); !self.nextIs(end); self.skipSem() {
+		if self.skipNextIs(lex.ELL) {
+			varArg = true
+			break
+		}
+		params = append(params, self.parseParam())
+		if !self.skipNextIs(lex.COM) {
+			break
+		}
+	}
+	return params, varArg
 }

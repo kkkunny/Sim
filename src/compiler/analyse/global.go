@@ -137,7 +137,7 @@ func (self *Analyser) analyseMethodDecl(ast parse.Method) (*hir.Method, utils.Er
 	ft := hir.NewTypeFunc(ast.VarArg, ret, params...)
 
 	// 声明
-	ident := hir.NewMethod(ft, selfDef, nil, nil)
+	ident := hir.NewMethod(ft, ast.Mutable, selfDef, nil, nil)
 	if selfDef.Target.Kind == hir.TStruct {
 		for _, f := range selfDef.Target.GetStructFields() {
 			if f.Second == ast.Name.Source {
@@ -214,7 +214,7 @@ func (self *Analyser) analyseFunctionDef(ast parse.Function) utils.Error {
 	pro := func(symbol *symbolTable) utils.Error {
 		paramTypes := ft.GetFuncParams()
 		for i, p := range ast.Params {
-			ident.Params[i] = hir.NewParam(paramTypes[i])
+			ident.Params[i] = hir.NewParam(p.Mutable, paramTypes[i])
 			if p.Name != nil {
 				symbol.defValue(false, p.Name.Source, ident.Params[i])
 			}
@@ -257,11 +257,11 @@ func (self *Analyser) analyseMethodDef(ast parse.Method) utils.Error {
 	ident.Params = make([]*hir.Param, len(ast.Params)+1)
 	pro := func(symbol *symbolTable) utils.Error {
 		paramTypes := ft.GetFuncParams()
-		ident.Params[0] = hir.NewParam(paramTypes[0])
+		ident.Params[0] = hir.NewParam(ast.Mutable, paramTypes[0])
 		symbol.defValue(false, "self", ident.Params[0])
 		paramTypes = paramTypes[1:]
 		for i, p := range ast.Params {
-			ident.Params[i+1] = hir.NewParam(paramTypes[i])
+			ident.Params[i+1] = hir.NewParam(p.Mutable, paramTypes[i])
 			if p.Name != nil {
 				symbol.defValue(false, p.Name.Source, ident.Params[i+1])
 			}

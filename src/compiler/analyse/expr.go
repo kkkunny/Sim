@@ -739,7 +739,7 @@ func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
 			return nil, err
 		}
 		if selfExpr.Type().IsTypedef() || (selfExpr.Type().Kind == hir.TPtr && selfExpr.Type().GetPtr().IsTypedef()) {
-			return self.analyseCallMethod(selfExpr, dot.End, ast.Args)
+			return self.analyseCallMethod(dot.Front.Position(), selfExpr, dot.End, ast.Args)
 		}
 	}
 
@@ -785,7 +785,7 @@ func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
 
 // 调用方法
 func (self *Analyser) analyseCallMethod(
-	selfExpr hir.Expr, methodNameToken lex.Token, argAsts []parse.Expr,
+	selfPos utils.Position, selfExpr hir.Expr, methodNameToken lex.Token, argAsts []parse.Expr,
 ) (*hir.MethodCall, utils.Error) {
 	// 方法
 	var def *hir.Typedef
@@ -799,6 +799,11 @@ func (self *Analyser) analyseCallMethod(
 		return nil, utils.Errorf(methodNameToken.Pos, errUnknownIdentifier)
 	}
 	ft := m.Type()
+
+	// 可变性检验
+	if !selfExpr.Mutable() && m.SelfMut {
+		return nil, utils.Errorf(selfPos, errExpectMutableValue)
+	}
 
 	// 参数数量
 	paramTypes := ft.GetFuncParams()

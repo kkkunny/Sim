@@ -118,10 +118,11 @@ func (self Function) ident() {}
 
 // Method 方法
 type Method struct {
-	Typ    Type     // 类型
-	Self   *Typedef // self
-	Params []*Param // 参数
-	Body   *Block   // 函数体
+	Typ     Type     // 类型
+	SelfMut bool     // self可变性
+	Self    *Typedef // self
+	Params  []*Param // 参数
+	Body    *Block   // 函数体
 
 	// 属性
 	NoReturn     bool // 函数不返回
@@ -129,12 +130,13 @@ type Method struct {
 	MustNoInline bool // 强制不内联
 }
 
-func NewMethod(t Type, self *Typedef, params []*Param, b *Block) *Method {
+func NewMethod(t Type, mut bool, self *Typedef, params []*Param, b *Block) *Method {
 	return &Method{
-		Typ:    t,
-		Self:   self,
-		Params: params,
-		Body:   b,
+		Typ:     t,
+		SelfMut: mut,
+		Self:    self,
+		Params:  params,
+		Body:    b,
 	}
 }
 
@@ -147,6 +149,7 @@ func (self Method) Type() Type {
 }
 
 func (self Method) Mutable() bool {
+	// 表达式可变性，与上面的self可变性含义不同
 	return false
 }
 

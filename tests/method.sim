@@ -4,14 +4,19 @@ type A struct{
     v: i32
 }
 
+func (mut A) set(v: i32){
+    self.v = v
+}
+
 func (A) get()i32{
     return self.v
 }
 
 @extern(main)
 func main()u8{
-    let a: A = {v: 1}
-    if a.get() != 1{
+    let mut a: A = {v: 1}
+    a.set(10)
+    if a.get() != 10{
         return 1
     }
     return 0

@@ -70,13 +70,13 @@ type Function struct {
 	Public bool
 	Ret    Type
 	Name   lex.Token
-	Params []*NameOrNilAndType
+	Params []*Param
 	VarArg bool
 	Body   *Block // （可能为空）
 }
 
 func NewFunction(
-	pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*NameOrNilAndType, varArg bool,
+	pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*Param, varArg bool,
 	body *Block,
 ) *Function {
 	return &Function{
@@ -99,31 +99,33 @@ func (self Function) Global() {}
 
 // Method 方法
 type Method struct {
-	Pos    utils.Position
-	Attrs  []Attr
-	Public bool
-	Self   lex.Token
-	Ret    Type
-	Name   lex.Token
-	Params []*NameOrNilAndType
-	VarArg bool
-	Body   *Block
+	Pos     utils.Position
+	Attrs   []Attr
+	Public  bool
+	Mutable bool
+	Self    lex.Token
+	Ret     Type
+	Name    lex.Token
+	Params  []*Param
+	VarArg  bool
+	Body    *Block
 }
 
 func NewMethod(
-	pos utils.Position, attrs []Attr, pub bool, self lex.Token, ret Type, name lex.Token, params []*NameOrNilAndType,
+	pos utils.Position, attrs []Attr, pub bool, mut bool, self lex.Token, ret Type, name lex.Token, params []*Param,
 	varArg bool, body *Block,
 ) *Method {
 	return &Method{
-		Pos:    pos,
-		Attrs:  attrs,
-		Public: pub,
-		Self:   self,
-		Ret:    ret,
-		Name:   name,
-		Params: params,
-		VarArg: varArg,
-		Body:   body,
+		Pos:     pos,
+		Attrs:   attrs,
+		Public:  pub,
+		Mutable: mut,
+		Self:    self,
+		Ret:     ret,
+		Name:    name,
+		Params:  params,
+		VarArg:  varArg,
+		Body:    body,
 	}
 }
 
@@ -362,7 +364,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 
 	name := self.expectNextIs(lex.IDENT)
 	self.expectNextIs(lex.LPA)
-	params, varArg := self.parseParamList()
+	params, varArg := self.parseParamList(lex.RPA)
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block
@@ -415,12 +417,13 @@ func (self *parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 	}
 
 	self.expectNextIs(lex.LPA)
+	mut := self.skipNextIs(lex.MUT)
 	selfTok := self.expectNextIs(lex.IDENT)
 	self.expectNextIs(lex.RPA)
 
 	name := self.expectNextIs(lex.IDENT)
 	self.expectNextIs(lex.LPA)
-	params, varArg := self.parseParamList()
+	params, varArg := self.parseParamList(lex.RPA)
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block
@@ -431,6 +434,7 @@ func (self *parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 		utils.MixPosition(begin, self.curTok.Pos),
 		attrs,
 		pub,
+		mut,
 		selfTok,
 		ret,
 		name,

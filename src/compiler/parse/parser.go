@@ -1,9 +1,6 @@
 package parse
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	stlos "github.com/kkkunny/stl/os"
@@ -30,27 +27,6 @@ func NewNameAndType(name lex.Token, t Type) *NameAndType {
 
 func (self NameAndType) Position() utils.Position {
 	return utils.MixPosition(self.Name.Pos, self.Type.Position())
-}
-
-// NameOrNilAndType 名字（或空）和类型
-type NameOrNilAndType struct {
-	Name *lex.Token
-	Type Type
-}
-
-func NewNameOrNilAndType(name *lex.Token, t Type) *NameOrNilAndType {
-	return &NameOrNilAndType{
-		Name: name,
-		Type: t,
-	}
-}
-
-func (self NameOrNilAndType) Position() utils.Position {
-	if self.Name != nil {
-		return utils.MixPosition(self.Name.Pos, self.Type.Position())
-	} else {
-		return self.Type.Position()
-	}
 }
 
 // ****************************************************************
@@ -115,37 +91,6 @@ func (self *parser) skipNextIs(kind lex.TokenKind) bool {
 func (self *parser) expectNextIs(kind lex.TokenKind) lex.Token {
 	if !self.skipNextIs(kind) {
 		self.throwErrorf(self.nextTok.Pos, "expect token `%s`", kind)
-	}
-	return self.curTok
-}
-
-// 下一个token是否在其中
-func (self *parser) nextIn(kind ...lex.TokenKind) bool {
-	for _, k := range kind {
-		if self.nextTok.Kind == k {
-			return true
-		}
-	}
-	return false
-}
-
-// 如果下一个token在其中，则跳过
-func (self *parser) skipNextIn(kind ...lex.TokenKind) bool {
-	if self.nextIn(kind...) {
-		self.next()
-		return true
-	}
-	return false
-}
-
-// 如果下一个token在其中，则跳过，若不是，则报错
-func (self *parser) expectNextIn(kind ...lex.TokenKind) lex.Token {
-	ks := make([]string, len(kind))
-	for i, k := range kind {
-		ks[i] = fmt.Sprintf("`%s`", k)
-	}
-	if !self.skipNextIn(kind...) {
-		self.throwErrorf(self.nextTok.Pos, "expect token is %s", strings.Join(ks, " or "))
 	}
 	return self.curTok
 }
@@ -245,28 +190,4 @@ func (self *parser) parseNameAndType(ft bool) *NameAndType {
 		typ = self.parseType()
 	}
 	return NewNameAndType(name, typ)
-}
-
-// 函数参数列表
-func (self *parser) parseParamList() (pairs []*NameOrNilAndType, varArg bool) {
-	for {
-		if self.skipNextIs(lex.ELL) {
-			varArg = true
-			break
-		}
-		typ := self.parseTypeOrNil()
-		if typ == nil {
-			break
-		}
-		var name *lex.Token
-		if ident, ok := typ.(*TypeIdent); ok && ident.Pkgs[0].Path == self.pkg.Path && self.skipNextIs(lex.COL) {
-			name = &ident.Name
-			typ = self.parseType()
-		}
-		pairs = append(pairs, NewNameOrNilAndType(name, typ))
-		if !self.skipNextIs(lex.COM) {
-			break
-		}
-	}
-	return pairs, varArg
 }
