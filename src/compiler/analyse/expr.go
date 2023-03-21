@@ -109,7 +109,11 @@ func (self *Analyser) analyseIdent(ast parse.Ident) (hir.Ident, utils.Error) {
 		if symbol == self.symbol.getPkgSymbolTable() {
 			symbol = self.symbol
 		}
-		if v, ok := symbol.lookupValue(ast.Name.Source); ok {
+		v, ok := symbol.lookupValue(ast.Name.Source)
+		if !ok {
+			continue
+		}
+		if symbol == self.symbol || v.pub {
 			return v.data, nil
 		}
 	}
