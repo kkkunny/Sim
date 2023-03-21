@@ -470,7 +470,13 @@ func (self *Analyser) analyseUnary(expect *hir.Type, ast parse.Unary) (hir.Expr,
 		if err != nil {
 			return nil, err
 		}
-		return hir.NewInteger(hir.NewTypeUsize(), int64(v.Type().Size())), nil
+		return hir.NewSize(v.Type()), nil
+	case lex.ALIGNOF:
+		v, err := self.analyseExpr(nil, ast.Value)
+		if err != nil {
+			return nil, err
+		}
+		return hir.NewAlign(v.Type()), nil
 	default:
 		panic("unreachable")
 	}

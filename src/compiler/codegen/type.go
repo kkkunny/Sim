@@ -123,3 +123,7 @@ func (self *CodeGenerator) codegenType(mean hir.Type) llvm.Type {
 		panic("unreachable")
 	}
 }
+
+func (self *CodeGenerator) getEnumMaxElemSize() {
+
+}

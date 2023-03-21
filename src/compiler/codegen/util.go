@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"github.com/kkkunny/Sim/src/compiler/hir"
-	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/llvm"
 )
 
@@ -16,7 +15,7 @@ var (
 
 func (self CodeGenerator) init() {
 	t_bool = self.ctx.Int8Type()
-	t_size = self.ctx.IntType(int(utils.PtrByte * 8))
+	t_size = self.targetData.IntPtrType()
 
 	v_true = llvm.ConstInt(t_bool, 1, true)
 	v_false = llvm.ConstInt(t_bool, 0, true)

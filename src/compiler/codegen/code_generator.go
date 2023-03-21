@@ -3,14 +3,17 @@ package codegen
 import (
 	"github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/llvm"
+	stlutil "github.com/kkkunny/stl/util"
 )
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	ctx      llvm.Context
-	module   llvm.Module
-	builder  llvm.Builder
-	function llvm.Value
+	TargetMachine llvm.TargetMachine
+	targetData    llvm.TargetData
+	ctx           llvm.Context
+	module        llvm.Module
+	builder       llvm.Builder
+	function      llvm.Value
 
 	vars  map[hir.Ident]llvm.Value
 	types map[string]llvm.Type
@@ -29,19 +32,43 @@ type CodeGenerator struct {
 }
 
 // NewCodeGenerator 新建代码生成器
-func NewCodeGenerator() *CodeGenerator {
+func NewCodeGenerator(release bool) (*CodeGenerator, error) {
+	if err := llvm.InitializeNativeTarget(); err != nil {
+		return nil, err
+	}
+	if err := llvm.InitializeNativeAsmPrinter(); err != nil {
+		return nil, err
+	}
+
 	ctx := llvm.NewContext()
+	module := ctx.NewModule("")
+	module.SetTarget(llvm.DefaultTargetTriple())
+	target, err := llvm.GetTargetFromTriple(module.Target())
+	if err != nil {
+		return nil, err
+	}
+	tm := target.CreateTargetMachine(
+		module.Target(),
+		"generic",
+		"",
+		stlutil.Ternary(release, llvm.CodeGenLevelAggressive, llvm.CodeGenLevelNone),
+		llvm.RelocPIC,
+		llvm.CodeModelDefault,
+	)
+	module.SetDataLayout(tm.CreateTargetData().String())
 	cg := &CodeGenerator{
-		ctx:         ctx,
-		module:      ctx.NewModule(""),
-		builder:     ctx.NewBuilder(),
-		vars:        make(map[hir.Ident]llvm.Value),
-		types:       make(map[string]llvm.Type),
-		stringPool:  make(map[string]llvm.Value),
-		cstringPool: make(map[string]llvm.Value),
+		TargetMachine: tm,
+		targetData:    tm.CreateTargetData(),
+		ctx:           ctx,
+		module:        module,
+		builder:       ctx.NewBuilder(),
+		vars:          make(map[hir.Ident]llvm.Value),
+		types:         make(map[string]llvm.Type),
+		stringPool:    make(map[string]llvm.Value),
+		cstringPool:   make(map[string]llvm.Value),
 	}
 	cg.init()
-	return cg
+	return cg, nil
 }
 
 // Codegen 代码生成

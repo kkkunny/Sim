@@ -1502,3 +1502,53 @@ func (self WrapCovert) Immediate() bool {
 }
 
 func (self WrapCovert) covert() {}
+
+// Size 获取类型大小
+type Size struct {
+	Typ Type
+}
+
+func NewSize(t Type) *Size {
+	return &Size{
+		Typ: t,
+	}
+}
+
+func (self Size) stmt() {}
+
+func (self Size) Type() Type {
+	return NewTypeUsize()
+}
+
+func (self Size) Mutable() bool {
+	return false
+}
+
+func (self Size) Immediate() bool {
+	return true
+}
+
+// Align 获取类型对齐大小
+type Align struct {
+	Typ Type
+}
+
+func NewAlign(t Type) *Align {
+	return &Align{
+		Typ: t,
+	}
+}
+
+func (self Align) stmt() {}
+
+func (self Align) Type() Type {
+	return NewTypeUsize()
+}
+
+func (self Align) Mutable() bool {
+	return false
+}
+
+func (self Align) Immediate() bool {
+	return true
+}

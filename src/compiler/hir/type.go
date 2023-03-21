@@ -711,7 +711,6 @@ func (self Type) Align() uint {
 	}
 }
 
-// Size 获取大小（byte）
 func (self Type) Size() uint {
 	switch self.Kind {
 	case TNone:

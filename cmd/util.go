@@ -15,7 +15,6 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/llvm"
 	stlos "github.com/kkkunny/stl/os"
-	stlutil "github.com/kkkunny/stl/util"
 )
 
 // LookupCmd 查找命令
@@ -62,29 +61,12 @@ func compileToLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.Targ
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	module := codegen.NewCodeGenerator().Codegen(*hirs)
-
-	if err := llvm.InitializeNativeTarget(); err != nil {
-		return llvm.Module{}, llvm.TargetMachine{}, err
-	}
-	if err := llvm.InitializeNativeAsmPrinter(); err != nil {
-		return llvm.Module{}, llvm.TargetMachine{}, err
-	}
-	module.SetTarget(llvm.DefaultTargetTriple())
-	target, err := llvm.GetTargetFromTriple(module.Target())
+	codegener, err := codegen.NewCodeGenerator(config.Release)
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	tm := target.CreateTargetMachine(
-		module.Target(),
-		"generic",
-		"",
-		stlutil.Ternary(config.Release, llvm.CodeGenLevelAggressive, llvm.CodeGenLevelNone),
-		llvm.RelocPIC,
-		llvm.CodeModelDefault,
-	)
-	module.SetDataLayout(tm.CreateTargetData().String())
-	return module, tm, nil
+	module := codegener.Codegen(*hirs)
+	return module, codegener.TargetMachine, nil
 }
 
 // 输出ir

@@ -434,6 +434,10 @@ func (self *CodeGenerator) codegenExpr(mean hir.Expr, getValue bool) llvm.Value 
 		default:
 			panic("unreachable")
 		}
+	case *hir.Size:
+		return llvm.ConstInt(t_size, self.targetData.TypeAllocSize(self.codegenType(expr.Typ)), false)
+	case *hir.Align:
+		return llvm.ConstInt(t_size, uint64(self.targetData.ABITypeAlignment(self.codegenType(expr.Typ))), false)
 	default:
 		fmt.Printf("%+v\n", expr)
 		panic("unreachable")
