@@ -759,6 +759,9 @@ func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
 		return nil, err
 	}
 	ft := f.Type()
+	if !ft.IsFunc() {
+		return nil, utils.Errorf(ast.Func.Position(), "expect a function")
+	}
 
 	// 参数数量
 	paramTypes := ft.GetFuncParams()

@@ -2,10 +2,8 @@ package hir
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
-	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/stl/types"
 	stlutil "github.com/kkkunny/stl/util"
 )
@@ -369,6 +367,12 @@ func (self Type) GetFuncParams() []Type {
 
 // GetFuncVarArg 获取函数是否是不定参数
 func (self Type) GetFuncVarArg() bool {
+	if !self.IsFunc() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetFuncVarArg()
+	}
 	return self.varArg
 }
 
@@ -440,27 +444,20 @@ func (self Type) GetEnumFields() []types.ThreePair[bool, string, *Type] {
 	return pairs
 }
 
-// GetEnumMaxElemSize 获取枚举最大字段大小
-func (self Type) GetEnumMaxElemSize() (uint, bool) {
+// IsEnumNoElem 枚举是否无子元素
+func (self Type) IsEnumNoElem() bool {
 	if !self.IsEnum() {
 		panic("unreachable")
 	}
 	if self.IsTypedef() {
-		return self.GetTypedef().Target.GetEnumMaxElemSize()
+		return self.GetTypedef().Target.IsEnumNoElem()
 	}
-	onlyEnum := true
-	var maxSize uint = 0
 	for _, f := range self.GetEnumFields() {
-		if f.Third == nil {
-			continue
-		}
-		onlyEnum = false
-		fs := f.Third.Size()
-		if fs > maxSize {
-			maxSize = fs
+		if f.Third != nil {
+			return false
 		}
 	}
-	return maxSize, !onlyEnum
+	return true
 }
 
 // GetEnumFieldByName 获取指定枚举字段
@@ -514,31 +511,22 @@ func (self Type) Equal(dst Type) bool {
 	switch self.Kind {
 	case TNone, TBool, TI8, TU8, TI16, TU16, TI32, TU32, TI64, TU64, TIsize, TUsize, TF32, TF64:
 		return true
-	case TPtr:
-		return self.GetPtr().Equal(dst.GetPtr())
-	case TFunc:
-		if !self.GetFuncRet().Equal(dst.GetFuncRet()) {
-			return false
-		}
-		params1, params2 := self.GetFuncParams(), dst.GetFuncParams()
-		if len(params1) != len(params2) {
-			return false
-		}
-		for i, p := range params1 {
-			if !p.Equal(params2[i]) {
-				return false
-			}
-		}
-		return true
 	case TArray:
-		return self.GetArraySize() == dst.GetArraySize() && self.GetArrayElem().Equal(dst.GetArrayElem())
-	case TTuple:
-		elems1, elems2 := self.GetTupleElems(), dst.GetTupleElems()
-		if len(elems1) != len(elems2) {
+		if self.number != dst.number {
 			return false
 		}
-		for i, e := range elems1 {
-			if !e.Equal(elems2[i]) {
+		fallthrough
+	case TFunc:
+		if self.varArg != dst.varArg {
+			return false
+		}
+		fallthrough
+	case TPtr, TTuple:
+		if len(self.elems) != len(dst.elems) {
+			return false
+		}
+		for i, e := range self.elems {
+			if !e.Equal(dst.elems[i]) {
 				return false
 			}
 		}
@@ -588,7 +576,7 @@ func (self Type) Like(dst Type) bool {
 		self = self.GetTypedef().Target
 	}
 	for dst.IsTypedef() && dst.GetTypedef().Target.IsTypedef() {
-		dst = self.GetTypedef().Target
+		dst = dst.GetTypedef().Target
 	}
 	if self.IsTypedef() && dst.IsTypedef() && self.Equal(dst) {
 		return true
@@ -608,31 +596,22 @@ func (self Type) Like(dst Type) bool {
 	switch self.Kind {
 	case TNone, TBool, TI8, TU8, TI16, TU16, TI32, TU32, TI64, TU64, TIsize, TUsize, TF32, TF64:
 		return true
-	case TPtr:
-		return self.GetPtr().Like(dst.GetPtr())
-	case TFunc:
-		if !self.GetFuncRet().Like(dst.GetFuncRet()) {
-			return false
-		}
-		params1, params2 := self.GetFuncParams(), dst.GetFuncParams()
-		if len(params1) != len(params2) {
-			return false
-		}
-		for i, p := range params1 {
-			if !p.Like(params2[i]) {
-				return false
-			}
-		}
-		return true
 	case TArray:
-		return self.GetArraySize() == dst.GetArraySize() && self.GetArrayElem().Like(dst.GetArrayElem())
-	case TTuple:
-		elems1, elems2 := self.GetTupleElems(), dst.GetTupleElems()
-		if len(elems1) != len(elems2) {
+		if self.number != dst.number {
 			return false
 		}
-		for i, e := range elems1 {
-			if !e.Like(elems2[i]) {
+		fallthrough
+	case TFunc:
+		if self.varArg != dst.varArg {
+			return false
+		}
+		fallthrough
+	case TPtr, TTuple:
+		if len(self.elems) != len(dst.elems) {
+			return false
+		}
+		for i, e := range self.elems {
+			if !e.Like(dst.elems[i]) {
 				return false
 			}
 		}
@@ -668,89 +647,6 @@ func (self Type) Like(dst Type) bool {
 			}
 		}
 		return true
-	default:
-		panic("unreachable")
-	}
-}
-
-// Align 获取对齐（byte）
-func (self Type) Align() uint {
-	switch self.Kind {
-	case TNone:
-		panic("unreachable")
-	case TBool, TI8, TU8:
-		return 1
-	case TI16, TU16:
-		return 2
-	case TI32, TU32, TF32:
-		return 4
-	case TI64, TU64, TF64:
-		return 8
-	case TIsize, TUsize, TPtr, TFunc:
-		return utils.PtrByte
-	case TArray:
-		return self.GetArrayElem().Align()
-	case TTuple:
-		var align uint
-		for _, e := range self.GetTupleElems() {
-			align = uint(math.Max(float64(e.Align()), float64(align)))
-		}
-		return align
-	case TStruct:
-		var align uint
-		for _, f := range self.GetStructFields() {
-			align = uint(math.Max(float64(f.Third.Align()), float64(align)))
-		}
-		return align
-	case TEnum:
-		return 1
-	case TTypedef:
-		return self.GetTypedef().Target.Align()
-	default:
-		panic("unreachable")
-	}
-}
-
-func (self Type) Size() uint {
-	switch self.Kind {
-	case TNone:
-		panic("unreachable")
-	case TBool, TI8, TU8:
-		return 1
-	case TI16, TU16:
-		return 2
-	case TI32, TU32, TF32:
-		return 4
-	case TI64, TU64, TF64:
-		return 8
-	case TIsize, TUsize, TPtr, TFunc:
-		return utils.PtrByte
-	case TArray:
-		return self.GetArraySize() * self.GetArrayElem().Size()
-	case TTuple:
-		var offset uint
-		for _, e := range self.GetTupleElems() {
-			es := e.Size()
-			offset += es
-			offset = utils.AlignTo(offset, es)
-		}
-		return utils.AlignTo(offset, self.Align())
-	case TStruct:
-		var offset uint
-		for _, f := range self.GetStructFields() {
-			fs := f.Third.Size()
-			offset += fs
-			offset = utils.AlignTo(offset, fs)
-		}
-		return utils.AlignTo(offset, self.Align())
-	case TEnum:
-		if maxSize, ok := self.GetEnumMaxElemSize(); !ok {
-			return NewTypeUsize().Size()
-		} else {
-			return NewTypeUsize().Size() + NewTypeArray(maxSize, NewTypeI8()).Size()
-		}
-	case TTypedef:
-		return self.GetTypedef().Target.Size()
 	default:
 		panic("unreachable")
 	}

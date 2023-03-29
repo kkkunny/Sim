@@ -24,6 +24,12 @@ analyse: analyse.go $(TEST_FILE)
 	-@./.test $(TEST_FILE) || true
 	@rm .test
 
+.PHONY: mirgen
+mirgen: codegen.go $(TEST_FILE)
+	@go build -tags test,mirgen -o .test .
+	-@./.test $(TEST_FILE) || true
+	@rm .test
+
 .PHONY: codegen
 codegen: codegen.go $(TEST_FILE)
 	@go build -tags test,codegen -o .test .

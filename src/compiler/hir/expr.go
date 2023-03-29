@@ -1268,6 +1268,7 @@ func (self GetEnumField) GetFieldIndex() uint {
 // Covert 类型转换
 type Covert interface {
 	Expr
+	GetFrom() Expr
 	covert()
 }
 
@@ -1300,6 +1301,10 @@ func (self Int2Int) Immediate() bool {
 
 func (self Int2Int) covert() {}
 
+func (self Int2Int) GetFrom() Expr {
+	return self.From
+}
+
 // Float2Float 浮点型转浮点型
 type Float2Float struct {
 	From Expr
@@ -1328,6 +1333,10 @@ func (self Float2Float) Immediate() bool {
 }
 
 func (self Float2Float) covert() {}
+
+func (self Float2Float) GetFrom() Expr {
+	return self.From
+}
 
 // Int2Float 整型转浮点型
 type Int2Float struct {
@@ -1358,6 +1367,10 @@ func (self Int2Float) Immediate() bool {
 
 func (self Int2Float) covert() {}
 
+func (self Int2Float) GetFrom() Expr {
+	return self.From
+}
+
 // Float2Int 浮点型转整型
 type Float2Int struct {
 	From Expr
@@ -1386,6 +1399,10 @@ func (self Float2Int) Immediate() bool {
 }
 
 func (self Float2Int) covert() {}
+
+func (self Float2Int) GetFrom() Expr {
+	return self.From
+}
 
 // Ptr2Ptr 指针转指针
 type Ptr2Ptr struct {
@@ -1416,6 +1433,10 @@ func (self Ptr2Ptr) Immediate() bool {
 
 func (self Ptr2Ptr) covert() {}
 
+func (self Ptr2Ptr) GetFrom() Expr {
+	return self.From
+}
+
 // Usize2Ptr usize转指针
 type Usize2Ptr struct {
 	From Expr
@@ -1444,6 +1465,10 @@ func (self Usize2Ptr) Immediate() bool {
 }
 
 func (self Usize2Ptr) covert() {}
+
+func (self Usize2Ptr) GetFrom() Expr {
+	return self.From
+}
 
 // Ptr2Usize 指针转usize
 type Ptr2Usize struct {
@@ -1474,6 +1499,10 @@ func (self Ptr2Usize) Immediate() bool {
 
 func (self Ptr2Usize) covert() {}
 
+func (self Ptr2Usize) GetFrom() Expr {
+	return self.From
+}
+
 // WrapCovert 包装转换
 type WrapCovert struct {
 	From Expr
@@ -1502,6 +1531,10 @@ func (self WrapCovert) Immediate() bool {
 }
 
 func (self WrapCovert) covert() {}
+
+func (self WrapCovert) GetFrom() Expr {
+	return self.From
+}
 
 // Size 获取类型大小
 type Size struct {

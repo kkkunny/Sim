@@ -12,6 +12,8 @@ import (
 
 	"github.com/kkkunny/Sim/src/compiler/analyse"
 	"github.com/kkkunny/Sim/src/compiler/codegen"
+	"github.com/kkkunny/Sim/src/compiler/mir/pass"
+	"github.com/kkkunny/Sim/src/compiler/mirgen"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/llvm"
 	stlos "github.com/kkkunny/stl/os"
@@ -61,12 +63,14 @@ func compileToLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.Targ
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	codegener, err := codegen.NewCodeGenerator(config.Release)
+	mirs := mirgen.NewMirGenerator().Generate(*hirs)
+	mirs = pass.WalkPass(mirs, pass.UCE)
+	codegener, err := codegen.NewCodeGenerator("", config.Release)
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
-	module := codegener.Codegen(*hirs)
-	return module, codegener.TargetMachine, nil
+	module, machine := codegener.Codegen(*mirs)
+	return module, machine, nil
 }
 
 // 输出ir

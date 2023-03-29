@@ -1,54 +1,53 @@
 package codegen
 
 import (
-	"github.com/kkkunny/Sim/src/compiler/hir"
+	"github.com/kkkunny/Sim/src/compiler/mir"
 	"github.com/kkkunny/llvm"
 	stlutil "github.com/kkkunny/stl/util"
 )
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	TargetMachine llvm.TargetMachine
+	targetMachine llvm.TargetMachine
 	targetData    llvm.TargetData
 	ctx           llvm.Context
 	module        llvm.Module
 	builder       llvm.Builder
 	function      llvm.Value
 
-	vars  map[hir.Ident]llvm.Value
-	types map[string]llvm.Type
+	globals map[mir.Global]llvm.Value
+	types   map[*mir.Alias]llvm.Type
+	vars    map[mir.Value]llvm.Value
+	blocks  map[*mir.Block]llvm.BasicBlock
 
-	// loop
-	cb, eb llvm.BasicBlock
-	// string
-	stringPool map[string]llvm.Value
-	// cstring
-	cstringPool map[string]llvm.Value
-	// global
-	globalDefFunc   llvm.Value
-	globalLastBlock llvm.BasicBlock
 	// init fini
 	inits, finis []llvm.Value
 }
 
 // NewCodeGenerator 新建代码生成器
-func NewCodeGenerator(release bool) (*CodeGenerator, error) {
-	if err := llvm.InitializeNativeTarget(); err != nil {
-		return nil, err
-	}
-	if err := llvm.InitializeNativeAsmPrinter(); err != nil {
-		return nil, err
+func NewCodeGenerator(targetStr string, release bool) (*CodeGenerator, error) {
+	if defaultTarget := llvm.DefaultTargetTriple(); targetStr == "" || targetStr == defaultTarget {
+		targetStr = defaultTarget
+		if err := llvm.InitializeNativeTarget(); err != nil {
+			return nil, err
+		}
+		if err := llvm.InitializeNativeAsmPrinter(); err != nil {
+			return nil, err
+		}
+	} else {
+		llvm.InitializeAllTargets()
+		llvm.InitializeAllAsmPrinters()
 	}
 
 	ctx := llvm.NewContext()
 	module := ctx.NewModule("")
-	module.SetTarget(llvm.DefaultTargetTriple())
-	target, err := llvm.GetTargetFromTriple(module.Target())
+	module.SetTarget(targetStr)
+	target, err := llvm.GetTargetFromTriple(targetStr)
 	if err != nil {
 		return nil, err
 	}
 	tm := target.CreateTargetMachine(
-		module.Target(),
+		targetStr,
 		"generic",
 		"",
 		stlutil.Ternary(release, llvm.CodeGenLevelAggressive, llvm.CodeGenLevelNone),
@@ -56,148 +55,68 @@ func NewCodeGenerator(release bool) (*CodeGenerator, error) {
 		llvm.CodeModelDefault,
 	)
 	module.SetDataLayout(tm.CreateTargetData().String())
-	cg := &CodeGenerator{
-		TargetMachine: tm,
+	return &CodeGenerator{
+		targetMachine: tm,
 		targetData:    tm.CreateTargetData(),
 		ctx:           ctx,
 		module:        module,
 		builder:       ctx.NewBuilder(),
-		vars:          make(map[hir.Ident]llvm.Value),
-		types:         make(map[string]llvm.Type),
-		stringPool:    make(map[string]llvm.Value),
-		cstringPool:   make(map[string]llvm.Value),
-	}
-	cg.init()
-	return cg, nil
+		globals:       make(map[mir.Global]llvm.Value),
+		types:         make(map[*mir.Alias]llvm.Type),
+	}, nil
 }
 
 // Codegen 代码生成
-func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
+func (self *CodeGenerator) Codegen(pkg mir.Package) (llvm.Module, llvm.TargetMachine) {
+	// 类型声明
+	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
+		if alias, ok := cursor.Value.(*mir.Alias); ok {
+			self.codegenAliasDecl(alias)
+		}
+	}
+	// 类型定义
+	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
+		if alias, ok := cursor.Value.(*mir.Alias); ok {
+			self.codegenAliasDef(alias)
+		}
+	}
 	// 声明
-	for iter := pkg.Globals.Iterator(); iter.HasValue(); iter.Next() {
-		switch global := iter.Value().(type) {
-		case *hir.Typedef:
-		case *hir.Function:
-			ft := self.codegenType(global.Type()).ElementType()
-			f := llvm.AddFunction(self.module, global.Name, ft)
-			if global.Name == "" {
-				f.SetLinkage(llvm.InternalLinkage)
-			} else {
-				f.SetLinkage(llvm.ExternalLinkage)
+	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
+		switch global := cursor.Value.(type) {
+		case *mir.Alias:
+		case *mir.Function:
+			fn := self.codegenFunctionDecl(global)
+			if global.GetInit() {
+				self.inits = append(self.inits, fn)
 			}
-			if global.NoReturn {
-				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(31, 0))
+			if global.GetFini() {
+				self.finis = append(self.finis, fn)
 			}
-			if global.MustInline {
-				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(1, 0))
-			}
-			if global.MustNoInline {
-				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(26, 0))
-			}
-			if global.Init {
-				self.inits = append(self.inits, f)
-			}
-			if global.Fini {
-				self.finis = append(self.finis, f)
-			}
-			self.vars[global] = f
-		case *hir.Method:
-			ft := self.codegenType(global.FunctionType()).ElementType()
-			f := llvm.AddFunction(self.module, "", ft)
-			f.SetLinkage(llvm.InternalLinkage)
-			if global.NoReturn {
-				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(31, 0))
-			}
-			if global.MustInline {
-				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(1, 0))
-			}
-			if global.MustNoInline {
-				f.AddFunctionAttr(self.ctx.CreateEnumAttribute(26, 0))
-			}
-			self.vars[global] = f
-		case *hir.GlobalValue:
-			vt := self.codegenType(global.Type())
-			v := llvm.AddGlobal(self.module, vt, global.Name)
-			if global.Name == "" {
-				v.SetLinkage(llvm.InternalLinkage)
-			} else {
-				v.SetLinkage(llvm.ExternalLinkage)
-			}
-			if global.Value != nil {
-				v.SetInitializer(llvm.ConstZero(vt))
-			}
-			self.vars[global] = v
+		case *mir.Variable:
+			self.codegenVariableDecl(global)
 		default:
 			panic("unreachable")
 		}
 	}
 	// 定义
-	for iter := pkg.Globals.Iterator(); iter.HasValue(); iter.Next() {
-		switch global := iter.Value().(type) {
-		case *hir.Typedef:
-		case *hir.Function:
-			if global.Body == nil {
-				continue
-			}
-			f := self.vars[global]
-			self.function = f
-			entry := llvm.AddBasicBlock(f, "")
-			self.builder.SetInsertPointAtEnd(entry)
-
-			for i, p := range global.Params {
-				param := self.createAllocaHirType(p.Type())
-				store := self.builder.CreateStore(f.Param(i), param)
-				store.SetAlignment(int(p.Type().Align()))
-				self.vars[p] = param
-			}
-
-			self.codegenBlock(*global.Body)
-		case *hir.Method:
-			f := self.vars[global]
-			self.function = f
-			entry := llvm.AddBasicBlock(f, "")
-			self.builder.SetInsertPointAtEnd(entry)
-
-			for i, p := range global.Params {
-				param := self.createAllocaHirType(p.Type())
-				store := self.builder.CreateStore(f.Param(i), param)
-				store.SetAlignment(int(p.Type().Align()))
-				self.vars[p] = param
-			}
-
-			self.codegenBlock(*global.Body)
-		case *hir.GlobalValue:
-			if global.Value == nil {
-				continue
-			}
-			if self.globalDefFunc.IsNil() {
-				self.globalDefFunc = llvm.AddFunction(
-					self.module,
-					"",
-					llvm.FunctionType(self.ctx.VoidType(), nil, false),
-				)
-				self.globalDefFunc.SetLinkage(llvm.InternalLinkage)
-				self.inits = append(self.inits, self.globalDefFunc)
-				self.globalLastBlock = llvm.AddBasicBlock(self.globalDefFunc, "entry")
-			}
-			self.builder.SetInsertPointAtEnd(self.globalLastBlock)
-			value := self.codegenExpr(global.Value, true)
-			if value.IsConstant() {
-				self.vars[global].SetInitializer(value)
-			} else {
-				store := self.builder.CreateStore(value, self.vars[global])
-				store.SetAlignment(int(global.Type().Align()))
-			}
-			self.globalLastBlock = self.builder.GetInsertBlock()
+	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
+		switch global := cursor.Value.(type) {
+		case *mir.Alias:
+		case *mir.Function:
+			self.codegenFunctionDef(global)
+		case *mir.Variable:
+			self.codegenVariableDef(global)
 		default:
 			panic("unreachable")
 		}
 	}
-	if !self.globalLastBlock.IsNil() {
-		self.builder.SetInsertPointAtEnd(self.globalLastBlock)
-		self.builder.CreateRetVoid()
-	}
-	// init
+	// init && fini
+	self.codegenInitAndFini()
+	return self.module, self.targetMachine
+}
+
+// init && fini
+func (self *CodeGenerator) codegenInitAndFini() {
 	structType := self.ctx.StructType(
 		[]llvm.Type{
 			self.ctx.Int32Type(),
@@ -206,6 +125,7 @@ func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
 		},
 		false,
 	)
+	// init
 	if len(self.inits) > 0 {
 		init := llvm.AddGlobal(self.module, llvm.ArrayType(structType, len(self.inits)), "llvm.global_ctors")
 		init.SetLinkage(llvm.AppendingLinkage)
@@ -239,5 +159,4 @@ func (self *CodeGenerator) Codegen(pkg hir.Package) llvm.Module {
 		}
 		fini.SetInitializer(llvm.ConstArray(structType, values))
 	}
-	return self.module
 }

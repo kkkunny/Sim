@@ -38,7 +38,7 @@ let SIZE: (i32, i32) = (60, 30)
 
 @extern(main)
 func main()u8{
-	c::printf("\e[?25l", 0, 0)
+	c::printf("\e[?25l")
 
 	let mut oldt: termios
 	let mut newt: termios
@@ -51,35 +51,35 @@ func main()u8{
 	let mut y: [1000]i32
 	let mut quit: bool
 	for !quit{
-		c::printf("┌", 0, 0)
+		c::printf("┌")
 		let mut i: i32 = 0
 		for i < SIZE[0]{
-			c::printf("─", 0, 0)
+			c::printf("─")
 			i += 1
 		}
-		c::printf("┐\n", 0, 0)
+		c::printf("┐\n")
 
 		i = 0
 		for i < SIZE[1]{
-			c::printf("│", 0, 0)
+			c::printf("│")
 			let mut j: i32 = 0
 			for j < SIZE[0]{
-				c::printf("·", 0, 0)
+				c::printf("·")
 				j += 1
 			}
-			c::printf("│\n", 0, 0)
+			c::printf("│\n")
 			i += 1
 		}
 
-		c::printf("└", 0, 0)
+		c::printf("└")
 		i = 0
 		for i < SIZE[0]{
-			c::printf("─", 0, 0)
+			c::printf("─")
 			i += 1
 		}
-		c::printf("┘\n", 0, 0)
+		c::printf("┘\n")
 
-		c::printf("\e[%iA", SIZE[1] as c::int + 2, 0)
+		c::printf("\e[%iA", SIZE[1] as c::int + 2)
 
 		let mut head: i32
 		let mut tail: i32
@@ -106,16 +106,16 @@ func main()u8{
 
 				if applex >= 0{
 					c::printf("\e[%iB\e[%iC❤", appley as c::int + 1, applex as c::int + 1)
-					c::printf("\e[%iF", appley as c::int + 1, 0)
+					c::printf("\e[%iF", appley as c::int + 1)
 				}
 			}
 
 			c::printf("\e[%iB\e[%iC·", y[tail as usize] as c::int + 1, x[tail as usize] as c::int + 1)
-			c::printf("\e[%iF", y[tail as usize] as c::int + 1, 0)
+			c::printf("\e[%iF", y[tail as usize] as c::int + 1)
 
 			if x[head as usize] == applex && y[head as usize] == appley{
 				applex = -1
-				c::printf("\a", 0, 0)
+				c::printf("\a")
 			}else{
 				tail = (tail + 1) % 1000
 			}
@@ -134,7 +134,7 @@ func main()u8{
 			}
 
 			c::printf("\e[%iB\e[%iC▓", y[head as usize] as c::int + 1, x[head as usize] as c::int + 1)
-			c::printf("\e[%iF", y[head as usize] as c::int + 1, 0)
+			c::printf("\e[%iF", y[head as usize] as c::int + 1)
 			c::fflush(c::stdout)
 
 			usleep(5 as c::unsigned_int * 1000000 / 60)
@@ -168,13 +168,13 @@ func main()u8{
 
 		if !quit{
 			c::printf("\e[%iB\e[%iC Game Over! ", SIZE[1] as c::int / 2, SIZE[0] as c::int / 2 - 5)
-			c::printf("\e[%iF", SIZE[1] as c::int / 2, 0)
+			c::printf("\e[%iF", SIZE[1] as c::int / 2)
 			c::fflush(c::stdout)
 			c::getchar()
 		}
 	}
 
-	c::printf("\e[?25h", 0, 0)
+	c::printf("\e[?25h")
 	tcsetattr(0, 0, ptrof oldt)
 	return 0
 }
