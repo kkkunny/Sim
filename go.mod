@@ -1,6 +1,6 @@
 module github.com/kkkunny/Sim
 
-go 1.18
+go 1.20
 
 require (
 	github.com/kkkunny/llvm v0.0.0-20230125093221-c075fa76c7d5

@@ -20,7 +20,9 @@ func (self *multiPasses) walk(pkg *mir.Package) {
 }
 
 var (
-	UCE = newUnreachableCodeElimination() // 死代码消除
+	UCE = newUnreachableCodeElimination() // 不可达代码消除
+	DVE = newDeadVariablesElimination()   // 死变量消除
+	DCE = multi(UCE, DVE)                 // 死代码消除（UCE+DVE）
 )
 
 // WalkPass 执行pass

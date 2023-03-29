@@ -18,6 +18,6 @@ func main() {
 	ast := util.MustValue(parse.Parse(stlos.Path(os.Args[1])))
 	hirs := util.MustValue(analyse.NewAnalyser().Analyse(ast))
 	mirs := mirgen.NewMirGenerator().Generate(*hirs)
-	mirs = pass.WalkPass(mirs, pass.UCE)
+	mirs = pass.WalkPass(mirs, pass.DCE)
 	fmt.Println(mirs)
 }

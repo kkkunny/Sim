@@ -25,10 +25,12 @@ func (self *unreachableCodeElimination) walkGlobal(ir mir.Global) {
 		}
 		blocks := set.NewHashSet[*mir.Block]()
 		self.walkBlock(blocks, global.Blocks.Front().Value)
-		for cursor := global.Blocks.Front(); cursor != nil; cursor = cursor.Next() {
+		for cursor := global.Blocks.Front(); cursor != nil; {
+			next := cursor.Next()
 			if !blocks.Contain(cursor.Value) {
 				global.Blocks.Remove(cursor)
 			}
+			cursor = next
 		}
 	}
 }
@@ -37,8 +39,10 @@ func (self *unreachableCodeElimination) walkBlock(walkedBlocks *set.HashSet[*mir
 		return
 	}
 	handle := func(end *list.Element[mir.Inst]) {
-		for endNext := end.Next(); endNext != nil; endNext = endNext.Next() {
+		for endNext := end.Next(); endNext != nil; {
+			next := endNext.Next()
 			ir.Insts.Remove(endNext)
+			endNext = next
 		}
 	}
 	for cursor := ir.Insts.Front(); cursor != nil; cursor = cursor.Next() {
