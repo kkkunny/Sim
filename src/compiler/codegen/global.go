@@ -24,6 +24,15 @@ func (self *CodeGenerator) codegenFunctionDecl(ir *mir.Function) llvm.Value {
 	fn := llvm.AddFunction(self.module, ir.Name, fnPtrType.ElementType())
 	self.globals[ir] = fn
 	fn.SetLinkage(util.Ternary(ir.Extern, llvm.ExternalLinkage, llvm.InternalLinkage))
+	if ir.NoReturn {
+		fn.AddFunctionAttr(self.ctx.CreateEnumAttribute(llvm.AttributeKindID("noreturn"), 0))
+	}
+	if ir.GetInline() {
+		fn.AddFunctionAttr(self.ctx.CreateEnumAttribute(llvm.AttributeKindID("alwaysinline"), 0))
+	}
+	if ir.GetNoInline() {
+		fn.AddFunctionAttr(self.ctx.CreateEnumAttribute(llvm.AttributeKindID("noinline"), 0))
+	}
 	return fn
 }
 
