@@ -23,6 +23,9 @@ var (
 	UCE = newUnreachableCodeElimination() // 不可达代码消除
 	DVE = newDeadVariablesElimination()   // 死变量消除
 	DCE = multi(UCE, DVE)                 // 死代码消除（UCE+DVE）
+	IE  = newInlineExpansion()            // 内联展开
+
+	MUST = multi(IE, DCE) // 必须的pass
 )
 
 // WalkPass 执行pass

@@ -64,7 +64,7 @@ func compileToLLVM(config *buildConfig, from stlos.Path) (llvm.Module, llvm.Targ
 		return llvm.Module{}, llvm.TargetMachine{}, err
 	}
 	mirs := mirgen.NewMirGenerator().Generate(*hirs)
-	mirs = pass.WalkPass(mirs, pass.DCE)
+	mirs = pass.WalkPass(mirs, pass.MUST)
 	codegener, err := codegen.NewCodeGenerator("", config.Release)
 	if err != nil {
 		return llvm.Module{}, llvm.TargetMachine{}, err
