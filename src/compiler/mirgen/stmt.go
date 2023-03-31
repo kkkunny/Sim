@@ -33,8 +33,6 @@ func (self *MirGenerator) genStmt(mean hir.Stmt) {
 		self.block.NewJmp(self.cb)
 	case *hir.Switch:
 		self.genSwitch(*meanStmt)
-	case *hir.Match:
-		self.genMatch(*meanStmt)
 	default:
 		panic("")
 	}
@@ -131,64 +129,6 @@ func (self *MirGenerator) genSwitch(mean hir.Switch) {
 			cv := self.genExpr(c, true)
 			_nb, cc := self.block.NewEqual(from, cv)
 			self.block = _nb
-			ct := self.block.Belong.NewBlock()
-			var cf *mir.Block
-			if i == len(mean.CaseValues)-1 {
-				cf = db
-			} else {
-				cf = self.block.Belong.NewBlock()
-			}
-			self.block.NewCondJmp(cc, ct, cf)
-
-			self.block = ct
-			self.genBlock(*mean.CaseBodies[i])
-			self.block.NewJmp(eb)
-
-			self.block = cf
-		}
-		if mean.Default != nil {
-			self.block = db
-			self.genBlock(*mean.Default)
-			self.block.NewJmp(eb)
-		}
-
-		self.block = eb
-	}
-}
-
-// 枚举匹配
-func (self *MirGenerator) genMatch(mean hir.Match) {
-	if len(mean.CaseValues) == 0 && mean.Default == nil {
-		return
-	} else if len(mean.CaseValues) == 0 {
-		self.genBlock(*mean.Default)
-	} else {
-		FieldHirs := mean.From.Type().GetEnumFields()
-		from := self.genExpr(mean.From, true)
-		index := self.block.NewStructIndex(from, 0)
-		var indexValue mir.Value
-		if index.IsPtr() {
-			indexValue = self.block.NewLoad(index)
-		} else {
-			indexValue = index
-		}
-
-		eb := self.block.Belong.NewBlock()
-		var db *mir.Block
-		if mean.Default == nil {
-			db = eb
-		} else {
-			db = self.block.Belong.NewBlock()
-		}
-		for i, c := range mean.CaseValues {
-			var fieldIndex int
-			for i, f := range FieldHirs {
-				if f.Second == c {
-					fieldIndex = i
-					break
-				}
-			}
-			cc := self.block.NewEq(indexValue, mir.NewUint(t_usize, uint64(fieldIndex)))
 			ct := self.block.Belong.NewBlock()
 			var cf *mir.Block
 			if i == len(mean.CaseValues)-1 {

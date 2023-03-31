@@ -263,27 +263,9 @@ func (self *MirGenerator) genExpr(ir hir.Expr, getValue bool) mir.Value {
 			v := self.block.NewLoad(tmp)
 			return v
 		}
-	case *hir.Enum:
-		index := expr.GetFieldIndex()
-		tmp := self.block.NewAlloc(self.genType(expr.Type()))
-		self.block.NewStore(mir.NewUint(t_usize, uint64(index)), self.block.NewStructIndex(tmp, 0))
-		elemTypeHir := expr.Type().GetEnumFields()[index].Third
-		if elemTypeHir != nil {
-			ptr := self.block.NewStructIndex(tmp, 1)
-			v := self.block.NewWrapUnion(ptr.GetType().GetPtr(), self.genExpr(expr.Value, true))
-			self.block.NewStore(v, ptr)
-		}
-		return self.block.NewLoad(tmp)
 	case *hir.GetStructField:
 		from := self.genExpr(expr.From, false)
 		v := self.block.NewStructIndex(from, expr.GetFieldIndex())
-		if getValue && v.IsPtr() {
-			return self.block.NewLoad(v)
-		}
-		return v
-	case *hir.GetEnumField:
-		f := self.genExpr(expr.From, false)
-		v := self.block.NewUnwrapUnion(self.genType(expr.Type()), self.block.NewStructIndex(f, 1))
 		if getValue && v.IsPtr() {
 			return self.block.NewLoad(v)
 		}

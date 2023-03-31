@@ -142,22 +142,3 @@ func (self Variable) Immediate() bool {
 }
 
 func (self Variable) ident() {}
-
-// Match 枚举匹配
-type Match struct {
-	From       Expr     // 判断值
-	CaseValues []string // 分支值
-	CaseBodies []*Block // 分支体
-	Default    *Block   // 默认分支体（可能为空）
-}
-
-func NewMatch(from Expr, cv []string, cb []*Block, d *Block) *Match {
-	return &Match{
-		From:       from,
-		CaseValues: cv,
-		CaseBodies: cb,
-		Default:    d,
-	}
-}
-
-func (self Match) stmt() {}

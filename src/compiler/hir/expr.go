@@ -1,7 +1,5 @@
 package hir
 
-import stlutil "github.com/kkkunny/stl/util"
-
 // Expr 表达式
 type Expr interface {
 	Stmt
@@ -382,44 +380,6 @@ func (self Struct) Mutable() bool {
 
 func (self Struct) Immediate() bool {
 	return true
-}
-
-// Enum 枚举
-type Enum struct {
-	Typ   Type
-	Enum  string // 枚举
-	Value Expr   // 值（可能为空）
-}
-
-func NewEnum(t Type, e string, v Expr) *Enum {
-	return &Enum{
-		Typ:   t,
-		Enum:  e,
-		Value: v,
-	}
-}
-
-func (self Enum) stmt() {}
-
-func (self Enum) Type() Type {
-	return self.Typ
-}
-
-func (self Enum) Mutable() bool {
-	return false
-}
-
-func (self Enum) Immediate() bool {
-	return true
-}
-
-func (self Enum) GetFieldIndex() uint {
-	for i, f := range self.Typ.GetEnumFields() {
-		if f.Second == self.Enum {
-			return uint(i)
-		}
-	}
-	panic("unreachable")
 }
 
 // Unary 一元表达式
@@ -1218,47 +1178,6 @@ func (self GetStructField) Immediate() bool {
 func (self GetStructField) GetFieldIndex() uint {
 	for i, f := range self.From.Type().GetStructFields() {
 		if f.Second == self.Attr {
-			return uint(i)
-		}
-	}
-	panic("unreachable")
-}
-
-// GetEnumField 获取枚举字段
-type GetEnumField struct {
-	From Expr
-	Enum string
-}
-
-func NewGetEnumField(f Expr, e string) *GetEnumField {
-	return &GetEnumField{
-		From: f,
-		Enum: e,
-	}
-}
-
-func (self GetEnumField) stmt() {}
-
-func (self GetEnumField) Type() Type {
-	for _, f := range self.From.Type().GetEnumFields() {
-		if f.Second == self.Enum {
-			return stlutil.Ternary(f.Third == nil, NewTypeNone(), *f.Third)
-		}
-	}
-	panic("unreachable")
-}
-
-func (self GetEnumField) Mutable() bool {
-	return self.From.Mutable()
-}
-
-func (self GetEnumField) Immediate() bool {
-	return self.From.Immediate()
-}
-
-func (self GetEnumField) GetFieldIndex() uint {
-	for i, f := range self.From.Type().GetEnumFields() {
-		if f.Second == self.Enum {
 			return uint(i)
 		}
 	}

@@ -138,19 +138,6 @@ func (self *MirGenerator) genType(ir hir.Type) mir.Type {
 			panic("unreachable")
 		}
 		return t
-	case hir.TEnum:
-		if ir.IsEnumNoElem() {
-			return mir.NewTypeStruct(t_usize)
-		} else {
-			elemHirs := ir.GetEnumFields()
-			elems := make([]mir.Type, 0, len(elemHirs))
-			for _, e := range elemHirs {
-				if e.Third != nil {
-					elems = append(elems, self.genType(*e.Third))
-				}
-			}
-			return mir.NewTypeStruct(t_usize, mir.NewTypeUnion(elems...))
-		}
 	case hir.TUnion:
 		elemHirs := ir.GetUnionElems()
 		elems := make([]mir.Type, len(elemHirs))

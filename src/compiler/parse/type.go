@@ -132,25 +132,6 @@ func (self TypeStruct) Position() utils.Position {
 
 func (self TypeStruct) Type() {}
 
-// TypeEnum 枚举类型
-type TypeEnum struct {
-	Pos    utils.Position
-	Fields []types.Pair[bool, *NameAndType] // （类型可能为空）
-}
-
-func NewTypeEnum(pos utils.Position, field ...types.Pair[bool, *NameAndType]) *TypeEnum {
-	return &TypeEnum{
-		Pos:    pos,
-		Fields: field,
-	}
-}
-
-func (self TypeEnum) Position() utils.Position {
-	return self.Pos
-}
-
-func (self TypeEnum) Type() {}
-
 // TypeUnion 联合类型
 type TypeUnion struct {
 	Pos   utils.Position
@@ -189,8 +170,6 @@ func (self *parser) parseTypeOrNil() Type {
 			lefts = append(lefts, self.parseTypeTuple())
 		case lex.STRUCT:
 			lefts = append(lefts, self.parseTypeStruct())
-		case lex.ENUM:
-			lefts = append(lefts, self.parseTypeEnum())
 		default:
 			if len(lefts) != 0 {
 				self.throwErrorf(self.nextTok.Pos, "unknown type")
@@ -336,27 +315,4 @@ func (self *parser) parseTypeStruct() *TypeStruct {
 	}
 	end := self.expectNextIs(lex.RBR).Pos
 	return NewTypeStruct(utils.MixPosition(begin, end), fields...)
-}
-
-// 枚举类型
-func (self *parser) parseTypeEnum() *TypeEnum {
-	begin := self.expectNextIs(lex.ENUM).Pos
-	self.expectNextIs(lex.LBR)
-	var fields []types.Pair[bool, *NameAndType]
-	for self.skipSem(); !self.nextIs(lex.RBR); {
-		pub := self.skipNextIs(lex.PUB)
-		name := self.expectNextIs(lex.IDENT)
-		var typ Type
-		if self.skipNextIs(lex.COL) {
-			typ = self.parseType()
-		}
-		fields = append(fields, types.NewPair(pub, NewNameAndType(name, typ)))
-		com := self.skipNextIs(lex.COM)
-		self.skipSem()
-		if !com {
-			break
-		}
-	}
-	end := self.expectNextIs(lex.RBR).Pos
-	return NewTypeEnum(utils.MixPosition(begin, end), fields...)
 }

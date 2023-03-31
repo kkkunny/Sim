@@ -98,7 +98,6 @@ const (
 	MATCH    // match
 	CASE     // case
 	DEFAULT  // default
-	ENUM     // enum
 	MUT      // mut
 )
 
@@ -191,7 +190,6 @@ var tokenKindStr = [...]string{
 	MATCH:    "match",
 	CASE:     "case",
 	DEFAULT:  "default",
-	ENUM:     "enum",
 	MUT:      "mut",
 }
 
@@ -248,8 +246,6 @@ func LookUp(s string) TokenKind {
 		return CASE
 	case "default":
 		return DEFAULT
-	case "enum":
-		return ENUM
 	case "mut":
 		return MUT
 	default:
