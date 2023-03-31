@@ -9,7 +9,7 @@ import (
 // 表达式
 func (self *MirGenerator) genExpr(ir hir.Expr, getValue bool) mir.Value {
 	switch expr := ir.(type) {
-	case *hir.Integer, *hir.Float, *hir.Boolean, *hir.String, *hir.EmptyFunc, *hir.EmptyPtr, *hir.EmptyStruct, *hir.EmptyArray, *hir.EmptyTuple, *hir.EmptyEnum:
+	case *hir.Integer, *hir.Float, *hir.Boolean, *hir.String, *hir.EmptyFunc, *hir.EmptyPtr, *hir.EmptyStruct, *hir.EmptyArray, *hir.EmptyTuple, *hir.EmptyUnion:
 		return self.genConstantExpr(ir)
 	case hir.Ident:
 		switch ident := expr.(type) {
@@ -325,8 +325,10 @@ func (self *MirGenerator) genConstantExpr(ir hir.Expr) mir.Constant {
 		return mir.NewEmptyPtr(self.genType(expr.Typ))
 	case *hir.EmptyArray:
 		return mir.NewEmptyArray(self.genType(expr.Typ))
-	case *hir.EmptyTuple, *hir.EmptyStruct, *hir.EmptyEnum:
+	case *hir.EmptyTuple, *hir.EmptyStruct:
 		return mir.NewEmptyStruct(self.genType(expr.Type()))
+	case *hir.EmptyUnion:
+		return mir.NewEmptyUnion(self.genType(expr.Typ))
 	case *hir.Array:
 		elems := make([]mir.Constant, len(expr.Elems))
 		for i, e := range expr.Elems {

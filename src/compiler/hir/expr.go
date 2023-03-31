@@ -276,28 +276,28 @@ func (self EmptyStruct) Immediate() bool {
 	return true
 }
 
-// EmptyEnum 空枚举
-type EmptyEnum struct {
+// EmptyUnion 空联合
+type EmptyUnion struct {
 	Typ Type
 }
 
-func NewEmptyEnum(t Type) *EmptyEnum {
-	return &EmptyEnum{
+func NewEmptyUnion(t Type) *EmptyUnion {
+	return &EmptyUnion{
 		Typ: t,
 	}
 }
 
-func (self EmptyEnum) stmt() {}
+func (self EmptyUnion) stmt() {}
 
-func (self EmptyEnum) Type() Type {
+func (self EmptyUnion) Type() Type {
 	return self.Typ
 }
 
-func (self EmptyEnum) Mutable() bool {
+func (self EmptyUnion) Mutable() bool {
 	return false
 }
 
-func (self EmptyEnum) Immediate() bool {
+func (self EmptyUnion) Immediate() bool {
 	return true
 }
 

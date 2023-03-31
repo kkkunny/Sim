@@ -27,6 +27,8 @@ func (self *Analyser) getDefaultValue(t hir.Type) (hir.Expr, utils.Error) {
 		return hir.NewEmptyTuple(t), nil
 	case t.IsStruct():
 		return hir.NewEmptyStruct(t), nil
+	case t.IsUnion():
+		return hir.NewEmptyUnion(t), nil
 	default:
 		panic("unreachable")
 	}
