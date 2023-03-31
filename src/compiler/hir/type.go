@@ -296,13 +296,15 @@ func (self Type) String() string {
 		return buf.String()
 	case TUnion:
 		var buf strings.Builder
-		elems := self.GetUnionElems()
+		buf.WriteByte('<')
+		elems := self.GetTupleElems()
 		for i, e := range elems {
 			buf.WriteString(e.String())
 			if i < len(elems)-1 {
-				buf.WriteString("|")
+				buf.WriteString(", ")
 			}
 		}
+		buf.WriteByte('>')
 		return buf.String()
 	case TTypedef:
 		def := self.GetTypedef()

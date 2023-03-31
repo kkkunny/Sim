@@ -1,8 +1,8 @@
-func add(l: u8|i32, r: u8|i32)u8{
+func add(l: <u8, i32>, r: <u8, i32>)u8{
     return l as u8 + r as u8
 }
 
 @extern(main)
 func main()u8{
-    return add(0 as u8 as u8|i32, 0 as u8 as u8|i32)
+    return add(0 as u8 as <u8, i32>, 0 as u8 as <u8, i32>)
 }

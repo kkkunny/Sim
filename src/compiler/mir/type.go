@@ -278,6 +278,24 @@ func (self Type) GetUnionElems() []Type {
 	return self.elems
 }
 
+// GetUnionMaxElemAlign 获取联合最大字段对齐
+func (self Type) GetUnionMaxElemAlign() uint {
+	if !self.IsUnion() {
+		panic("unreachable")
+	}
+	if self.IsAlias() {
+		return self.GetAliasTarget().GetUnionMaxElemAlign()
+	}
+	var maxAlign uint = 0
+	for _, e := range self.elems {
+		a := e.Align()
+		if a > maxAlign {
+			maxAlign = a
+		}
+	}
+	return maxAlign
+}
+
 // GetUnionMaxElemSize 获取联合最大字段大小
 func (self Type) GetUnionMaxElemSize() uint {
 	if !self.IsUnion() {
@@ -408,7 +426,7 @@ func (self Type) Align() uint {
 		}
 		return align
 	case TUnion:
-		return 1
+		return self.GetUnionMaxElemAlign()
 	case TAlias:
 		return self.alias.Target.Align()
 	default:
@@ -443,7 +461,7 @@ func (self Type) Size() uint {
 		}
 		return utils.AlignTo(offset, self.Align())
 	case TUnion:
-		return self.GetUnionMaxElemSize()
+		return utils.AlignTo(self.GetUnionMaxElemSize(), self.GetUnionMaxElemAlign())
 	case TAlias:
 		return self.alias.Target.Size()
 	default:
