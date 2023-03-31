@@ -151,27 +151,60 @@ func (self TypeEnum) Position() utils.Position {
 
 func (self TypeEnum) Type() {}
 
+// TypeUnion 联合类型
+type TypeUnion struct {
+	Pos   utils.Position
+	Elems []Type
+}
+
+func NewTypeUnion(pos utils.Position, elem ...Type) *TypeUnion {
+	return &TypeUnion{
+		Pos:   pos,
+		Elems: elem,
+	}
+}
+
+func (self TypeUnion) Position() utils.Position {
+	return self.Pos
+}
+
+func (self TypeUnion) Type() {}
+
 // ****************************************************************
 
 // 类型或空
 func (self *parser) parseTypeOrNil() Type {
-	switch self.nextTok.Kind {
-	case lex.IDENT:
-		return self.parseTypeIdent()
-	case lex.MUL:
-		return self.parseTypePtr()
-	case lex.FUNC:
-		return self.parseTypeFunc()
-	case lex.LBA:
-		return self.parseTypeArray()
-	case lex.LPA:
-		return self.parseTypeTuple()
-	case lex.STRUCT:
-		return self.parseTypeStruct()
-	case lex.ENUM:
-		return self.parseTypeEnum()
-	default:
-		return nil
+	var lefts []Type
+	for {
+		switch self.nextTok.Kind {
+		case lex.IDENT:
+			lefts = append(lefts, self.parseTypeIdent())
+		case lex.MUL:
+			lefts = append(lefts, self.parseTypePtr())
+		case lex.FUNC:
+			lefts = append(lefts, self.parseTypeFunc())
+		case lex.LBA:
+			lefts = append(lefts, self.parseTypeArray())
+		case lex.LPA:
+			lefts = append(lefts, self.parseTypeTuple())
+		case lex.STRUCT:
+			lefts = append(lefts, self.parseTypeStruct())
+		case lex.ENUM:
+			lefts = append(lefts, self.parseTypeEnum())
+		default:
+			if len(lefts) != 0 {
+				self.throwErrorf(self.nextTok.Pos, "unknown type")
+			}
+			return nil
+		}
+		if !self.skipNextIs(lex.OR) {
+			break
+		}
+	}
+	if len(lefts) == 1 {
+		return lefts[0]
+	} else {
+		return NewTypeUnion(utils.MixPosition(lefts[0].Position(), lefts[len(lefts)-1].Position()), lefts...)
 	}
 }
 

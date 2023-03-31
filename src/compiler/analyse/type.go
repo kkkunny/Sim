@@ -31,6 +31,8 @@ func (self *Analyser) analyseType(ast parse.Type) (hir.Type, utils.Error) {
 		return self.analyseTypeStruct(*typ)
 	case *parse.TypeEnum:
 		return self.analyseTypeEnum(*typ)
+	case *parse.TypeUnion:
+		return self.analyseTypeUnion(*typ)
 	default:
 		panic("unreachable")
 	}
@@ -211,6 +213,26 @@ func (self *Analyser) analyseTypeEnum(ast parse.TypeEnum) (hir.Type, utils.Error
 	return hir.NewTypeEnum(fields...), nil
 }
 
+// 联合类型
+func (self *Analyser) analyseTypeUnion(ast parse.TypeUnion) (hir.Type, utils.Error) {
+	elems := make([]hir.Type, len(ast.Elems))
+	errs := make([]utils.Error, 0, len(ast.Elems))
+	for i, e := range ast.Elems {
+		elem, err := self.analyseType(e)
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			elems[i] = elem
+		}
+	}
+	if len(errs) == 1 {
+		return hir.Type{}, errs[0]
+	} else if len(errs) > 1 {
+		return hir.Type{}, utils.NewMultiError(errs...)
+	}
+	return hir.NewTypeUnion(elems...), nil
+}
+
 // 类型循环检测
 func (self *Analyser) checkTypeCircle(temp *set.LinkedHashSet[*hir.Typedef], t hir.Type) bool {
 	switch t.Kind {
@@ -257,6 +279,13 @@ func (self *Analyser) checkTypeCircle(temp *set.LinkedHashSet[*hir.Typedef], t h
 	case hir.TEnum:
 		for _, f := range t.GetEnumFields() {
 			if f.Third != nil && self.checkTypeCircle(temp, *f.Third) {
+				return true
+			}
+		}
+		return false
+	case hir.TUnion:
+		for _, e := range t.GetUnionElems() {
+			if self.checkTypeCircle(temp, e) {
 				return true
 			}
 		}

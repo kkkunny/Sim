@@ -1536,6 +1536,72 @@ func (self WrapCovert) GetFrom() Expr {
 	return self.From
 }
 
+// WrapUnion 包装联合
+type WrapUnion struct {
+	From Expr
+	To   Type
+}
+
+func NewWrapUnion(f Expr, t Type) *WrapUnion {
+	return &WrapUnion{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self WrapUnion) stmt() {}
+
+func (self WrapUnion) Type() Type {
+	return self.To
+}
+
+func (self WrapUnion) Mutable() bool {
+	return false
+}
+
+func (self WrapUnion) Immediate() bool {
+	return true
+}
+
+func (self WrapUnion) covert() {}
+
+func (self WrapUnion) GetFrom() Expr {
+	return self.From
+}
+
+// UnwrapUnion 解包装联合
+type UnwrapUnion struct {
+	From Expr
+	To   Type
+}
+
+func NewUnwrapUnion(f Expr, t Type) *UnwrapUnion {
+	return &UnwrapUnion{
+		From: f,
+		To:   t,
+	}
+}
+
+func (self UnwrapUnion) stmt() {}
+
+func (self UnwrapUnion) Type() Type {
+	return self.To
+}
+
+func (self UnwrapUnion) Mutable() bool {
+	return false
+}
+
+func (self UnwrapUnion) Immediate() bool {
+	return true
+}
+
+func (self UnwrapUnion) covert() {}
+
+func (self UnwrapUnion) GetFrom() Expr {
+	return self.From
+}
+
 // Size 获取类型大小
 type Size struct {
 	Typ Type

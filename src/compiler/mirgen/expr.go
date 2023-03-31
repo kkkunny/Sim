@@ -304,6 +304,16 @@ func (self *MirGenerator) genExpr(ir hir.Expr, getValue bool) mir.Value {
 		case *hir.Ptr2Ptr:
 			from := self.genExpr(covert.From, true)
 			return self.block.NewPtr2Ptr(from, self.genType(covert.Type()))
+		case *hir.WrapUnion:
+			from := self.genExpr(covert.From, true)
+			return self.block.NewWrapUnion(self.genType(covert.To), from)
+		case *hir.UnwrapUnion:
+			from := self.genExpr(covert.From, true)
+			v := self.block.NewUnwrapUnion(self.genType(covert.To), from)
+			if getValue && v.IsPtr() {
+				return self.block.NewLoad(v)
+			}
+			return v
 		default:
 			panic("unreachable")
 		}

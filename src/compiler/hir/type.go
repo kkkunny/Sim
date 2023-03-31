@@ -35,6 +35,7 @@ const (
 	TTuple
 	TStruct
 	TEnum
+	TUnion
 
 	TTypedef
 )
@@ -103,6 +104,12 @@ func NewTypeEnum(elems ...types.ThreePair[bool, string, *Type]) Type {
 		elems:     ts,
 		elemNames: ns,
 		elemPubs:  ps,
+	}
+}
+func NewTypeUnion(elems ...Type) Type {
+	return Type{
+		Kind:  TUnion,
+		elems: elems,
 	}
 }
 func NewTypeTypedef(def *Typedef) Type { return Type{Kind: TTypedef, typedef: def} }
@@ -222,6 +229,12 @@ func (self Type) IsEnum() bool {
 	}
 	return self.Kind == TEnum
 }
+func (self Type) IsUnion() bool {
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsUnion()
+	}
+	return self.Kind == TUnion
+}
 func (self Type) IsTypedef() bool { return self.Kind == TTypedef }
 
 func (self Type) IsSint() bool {
@@ -323,6 +336,16 @@ func (self Type) String() string {
 			}
 		}
 		buf.WriteByte('}')
+		return buf.String()
+	case TUnion:
+		var buf strings.Builder
+		elems := self.GetUnionElems()
+		for i, e := range elems {
+			buf.WriteString(e.String())
+			if i < len(elems)-1 {
+				buf.WriteString("|")
+			}
+		}
 		return buf.String()
 	case TTypedef:
 		def := self.GetTypedef()
@@ -481,6 +504,33 @@ func (self Type) GetEnumFieldByName(name string) (types.ThreePair[bool, string, 
 	return types.ThreePair[bool, string, *Type]{}, false
 }
 
+// GetUnionElems 获取联合元素
+func (self Type) GetUnionElems() []Type {
+	if !self.IsUnion() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.GetUnionElems()
+	}
+	return self.elems
+}
+
+// IsInUnion 目标类型是否处于联合中
+func (self Type) IsInUnion(t Type) bool {
+	if !self.IsUnion() {
+		panic("unreachable")
+	}
+	if self.IsTypedef() {
+		return self.GetTypedef().Target.IsInUnion(t)
+	}
+	for _, e := range self.elems {
+		if e.Equal(t) {
+			return true
+		}
+	}
+	return false
+}
+
 // GetTypedef 获取定义类型
 func (self Type) GetTypedef() *Typedef {
 	if !self.IsTypedef() {
@@ -521,7 +571,7 @@ func (self Type) Equal(dst Type) bool {
 			return false
 		}
 		fallthrough
-	case TPtr, TTuple:
+	case TPtr, TTuple, TUnion:
 		if len(self.elems) != len(dst.elems) {
 			return false
 		}
@@ -606,7 +656,7 @@ func (self Type) Like(dst Type) bool {
 			return false
 		}
 		fallthrough
-	case TPtr, TTuple:
+	case TPtr, TTuple, TUnion:
 		if len(self.elems) != len(dst.elems) {
 			return false
 		}

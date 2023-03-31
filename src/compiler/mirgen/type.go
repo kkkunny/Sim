@@ -151,6 +151,13 @@ func (self *MirGenerator) genType(ir hir.Type) mir.Type {
 			}
 			return mir.NewTypeStruct(t_usize, mir.NewTypeUnion(elems...))
 		}
+	case hir.TUnion:
+		elemHirs := ir.GetUnionElems()
+		elems := make([]mir.Type, len(elemHirs))
+		for i, e := range elemHirs {
+			elems[i] = self.genType(e)
+		}
+		return mir.NewTypeUnion(elems...)
 	default:
 		panic("unreachable")
 	}

@@ -996,6 +996,10 @@ func (self *Analyser) analyseCovert(ast parse.Covert) (hir.Expr, utils.Error) {
 		return hir.NewUsize2Ptr(from, to), nil
 	case (ft.IsPtr() || ft.IsFunc()) && to.IsUsize():
 		return hir.NewPtr2Usize(from, to), nil
+	case to.IsUnion() && to.IsInUnion(ft):
+		return hir.NewWrapUnion(from, to), nil
+	case ft.IsUnion() && ft.IsInUnion(to):
+		return hir.NewUnwrapUnion(from, to), nil
 	default:
 		return nil, utils.Errorf(ast.To.Position(), "can not covert to this type")
 	}
