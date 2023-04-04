@@ -17,18 +17,8 @@ func (self *Analyser) getDefaultValue(t hir.Type) (hir.Expr, utils.Error) {
 		return hir.NewInteger(t, 0), nil
 	case t.IsFloat():
 		return hir.NewFloat(t, 0), nil
-	case t.IsPtr():
-		return hir.NewEmptyPtr(t), nil
-	case t.IsFunc():
-		return hir.NewEmptyFunc(t), nil
-	case t.IsArray():
-		return hir.NewEmptyArray(t), nil
-	case t.IsTuple():
-		return hir.NewEmptyTuple(t), nil
-	case t.IsStruct():
-		return hir.NewEmptyStruct(t), nil
-	case t.IsUnion():
-		return hir.NewEmptyUnion(t), nil
+	case t.IsPtr() || t.IsFunc() || t.IsArray() || t.IsTuple() || t.IsStruct() || t.IsUnion():
+		return hir.NewZero(t), nil
 	default:
 		panic("unreachable")
 	}
@@ -127,7 +117,7 @@ func (self *Analyser) analyseArray(expect *hir.Type, ast parse.Array) (hir.Expr,
 		if expect.GetArraySize() == uint(len(ast.Elems)) {
 			expectElemType = expect.GetArrayElem()
 		} else if len(ast.Elems) == 0 {
-			return hir.NewEmptyArray(*expect), nil
+			return hir.NewZero(*expect), nil
 		}
 	} else if len(ast.Elems) == 0 {
 		return nil, utils.Errorf(ast.Position(), "expect a array type")
@@ -175,7 +165,7 @@ func (self *Analyser) analyseTuple(expect *hir.Type, ast parse.TupleOrExpr) (hir
 		if len(expect.GetTupleElems()) == len(ast.Elems) {
 			expectElemTypes = expect.GetTupleElems()
 		} else if len(ast.Elems) == 0 {
-			return hir.NewEmptyTuple(*expect), nil
+			return hir.NewZero(*expect), nil
 		}
 	}
 	if len(ast.Elems) == 1 {
@@ -351,9 +341,9 @@ func (self *Analyser) analyseString(expect *hir.Type, ast parse.String) (*hir.St
 func (self *Analyser) analyseNull(expect *hir.Type, ast parse.Null) (hir.Expr, utils.Error) {
 	switch {
 	case expect != nil && expect.IsPtr():
-		return hir.NewEmptyPtr(*expect), nil
+		return hir.NewZero(*expect), nil
 	case expect != nil && expect.IsFunc():
-		return hir.NewEmptyFunc(*expect), nil
+		return hir.NewZero(*expect), nil
 	default:
 		return nil, utils.Errorf(ast.Position(), "expect a pointer type")
 	}

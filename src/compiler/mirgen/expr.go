@@ -9,7 +9,7 @@ import (
 // 表达式
 func (self *MirGenerator) genExpr(ir hir.Expr, getValue bool) mir.Value {
 	switch expr := ir.(type) {
-	case *hir.Integer, *hir.Float, *hir.Boolean, *hir.String, *hir.EmptyFunc, *hir.EmptyPtr, *hir.EmptyStruct, *hir.EmptyArray, *hir.EmptyTuple, *hir.EmptyUnion:
+	case *hir.Integer, *hir.Float, *hir.Boolean, *hir.String, *hir.Zero:
 		return self.genConstantExpr(ir)
 	case hir.Ident:
 		switch ident := expr.(type) {
@@ -319,16 +319,8 @@ func (self *MirGenerator) genConstantExpr(ir hir.Expr) mir.Constant {
 		return mir.NewFloat(self.genType(expr.Typ), expr.Value)
 	case *hir.Boolean:
 		return util.Ternary(expr.Value, mir.NewSint(t_bool, 1), mir.NewSint(t_bool, 0))
-	case *hir.EmptyFunc:
-		return mir.NewEmptyFunc(self.genType(expr.Typ))
-	case *hir.EmptyPtr:
-		return mir.NewEmptyPtr(self.genType(expr.Typ))
-	case *hir.EmptyArray:
-		return mir.NewEmptyArray(self.genType(expr.Typ))
-	case *hir.EmptyTuple, *hir.EmptyStruct:
-		return mir.NewEmptyStruct(self.genType(expr.Type()))
-	case *hir.EmptyUnion:
-		return mir.NewEmptyUnion(self.genType(expr.Typ))
+	case *hir.Zero:
+		return mir.NewEmpty(self.genType(expr.Typ))
 	case *hir.Array:
 		elems := make([]mir.Constant, len(expr.Elems))
 		for i, e := range expr.Elems {

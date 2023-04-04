@@ -151,153 +151,28 @@ func (self String) Immediate() bool {
 	return true
 }
 
-// EmptyPtr 空指针
-type EmptyPtr struct {
+// Zero 零值
+type Zero struct {
 	Typ Type
 }
 
-func NewEmptyPtr(t Type) *EmptyPtr {
-	return &EmptyPtr{
+func NewZero(t Type) *Zero {
+	return &Zero{
 		Typ: t,
 	}
 }
 
-func (self EmptyPtr) stmt() {}
+func (self Zero) stmt() {}
 
-func (self EmptyPtr) Type() Type {
+func (self Zero) Type() Type {
 	return self.Typ
 }
 
-func (self EmptyPtr) Mutable() bool {
+func (self Zero) Mutable() bool {
 	return false
 }
 
-func (self EmptyPtr) Immediate() bool {
-	return true
-}
-
-// EmptyFunc 空函数
-type EmptyFunc struct {
-	Typ Type
-}
-
-func NewEmptyFunc(t Type) *EmptyFunc {
-	return &EmptyFunc{
-		Typ: t,
-	}
-}
-
-func (self EmptyFunc) stmt() {}
-
-func (self EmptyFunc) Type() Type {
-	return self.Typ
-}
-
-func (self EmptyFunc) Mutable() bool {
-	return false
-}
-
-func (self EmptyFunc) Immediate() bool {
-	return true
-}
-
-// EmptyArray 空数组
-type EmptyArray struct {
-	Typ Type
-}
-
-func NewEmptyArray(t Type) *EmptyArray {
-	return &EmptyArray{
-		Typ: t,
-	}
-}
-
-func (self EmptyArray) stmt() {}
-
-func (self EmptyArray) Type() Type {
-	return self.Typ
-}
-
-func (self EmptyArray) Mutable() bool {
-	return false
-}
-
-func (self EmptyArray) Immediate() bool {
-	return true
-}
-
-// EmptyTuple 空元组
-type EmptyTuple struct {
-	Typ Type
-}
-
-func NewEmptyTuple(t Type) *EmptyTuple {
-	return &EmptyTuple{
-		Typ: t,
-	}
-}
-
-func (self EmptyTuple) stmt() {}
-
-func (self EmptyTuple) Type() Type {
-	return self.Typ
-}
-
-func (self EmptyTuple) Mutable() bool {
-	return false
-}
-
-func (self EmptyTuple) Immediate() bool {
-	return true
-}
-
-// EmptyStruct 空结构体
-type EmptyStruct struct {
-	Typ Type
-}
-
-func NewEmptyStruct(t Type) *EmptyStruct {
-	return &EmptyStruct{
-		Typ: t,
-	}
-}
-
-func (self EmptyStruct) stmt() {}
-
-func (self EmptyStruct) Type() Type {
-	return self.Typ
-}
-
-func (self EmptyStruct) Mutable() bool {
-	return false
-}
-
-func (self EmptyStruct) Immediate() bool {
-	return true
-}
-
-// EmptyUnion 空联合
-type EmptyUnion struct {
-	Typ Type
-}
-
-func NewEmptyUnion(t Type) *EmptyUnion {
-	return &EmptyUnion{
-		Typ: t,
-	}
-}
-
-func (self EmptyUnion) stmt() {}
-
-func (self EmptyUnion) Type() Type {
-	return self.Typ
-}
-
-func (self EmptyUnion) Mutable() bool {
-	return false
-}
-
-func (self EmptyUnion) Immediate() bool {
+func (self Zero) Immediate() bool {
 	return true
 }
 
