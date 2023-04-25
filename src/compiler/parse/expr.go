@@ -161,14 +161,16 @@ func (self Null) Expr() {}
 
 // Ident 标识符
 type Ident struct {
-	Pkgs []*Package // 可能存在于的包，按顺序查找
-	Name lex.Token
+	Pkgs        []*Package // 可能存在于的包，按顺序查找
+	Name        lex.Token
+	GenericArgs []Type
 }
 
-func NewIdent(pkgs []*Package, name lex.Token) *Ident {
+func NewIdent(pkgs []*Package, name lex.Token, genericArgs []Type) *Ident {
 	return &Ident{
-		Pkgs: pkgs,
-		Name: name,
+		Pkgs:        pkgs,
+		Name:        name,
+		GenericArgs: genericArgs,
 	}
 }
 
@@ -266,14 +268,16 @@ func (self Unary) Expr() {}
 
 // Dot 点
 type Dot struct {
-	Front Expr
-	End   lex.Token
+	Front       Expr
+	End         lex.Token
+	GenericArgs []Type
 }
 
-func NewDot(f Expr, e lex.Token) *Dot {
+func NewDot(f Expr, e lex.Token, genericArgs []Type) *Dot {
 	return &Dot{
-		Front: f,
-		End:   e,
+		Front:       f,
+		End:         e,
+		GenericArgs: genericArgs,
 	}
 }
 
@@ -424,6 +428,7 @@ func (self *parser) parseIdentExpr() *Ident {
 		pkgPath = &tmp
 		name = self.expectNextIs(lex.IDENT)
 	}
+	genericArgs := self.parseGenericArgList()
 
 	// 包解析
 	if pkgPath != nil {
@@ -431,14 +436,14 @@ func (self *parser) parseIdentExpr() *Ident {
 		if !ok {
 			self.throwErrorf(pkgPath.Pos, "unknown package name")
 		}
-		return NewIdent([]*Package{pkg}, name)
+		return NewIdent([]*Package{pkg}, name, genericArgs)
 	} else {
 		pkgs := make([]*Package, self.pkg.includeMap.Length()+1)
 		pkgs[0] = self.pkg
 		for iter := self.pkg.includeMap.Begin(); iter.HasValue(); iter.Next() {
 			pkgs[self.pkg.includeMap.Length()-iter.Index()] = iter.Value()
 		}
-		return NewIdent(pkgs, name)
+		return NewIdent(pkgs, name, genericArgs)
 	}
 }
 
@@ -549,7 +554,8 @@ func (self *parser) parseSuffixUnaryExpr(front Expr) Expr {
 	case lex.DOT:
 		self.next()
 		end := self.expectNextIs(lex.IDENT)
-		front = NewDot(front, end)
+		genericArgs := self.parseGenericArgList()
+		front = NewDot(front, end, genericArgs)
 	case lex.LPA:
 		self.next()
 		args := self.parseExprList(lex.COM, lex.RPA)
@@ -642,4 +648,34 @@ func (self *parser) parseParamList(end lex.TokenKind) (params []*Param, varArg b
 		}
 	}
 	return params, varArg
+}
+
+// 泛型实参列表
+func (self *parser) parseGenericArgList() []Type {
+	if !self.skipNextIs(lex.CLT) {
+		return nil
+	}
+	var args []Type
+	for !self.nextIs(lex.GT) && !self.nextIs(lex.SHR) {
+		args = append(args, self.parseType())
+		if !self.skipNextIs(lex.COM) {
+			break
+		}
+	}
+	if self.nextIs(lex.SHR) {
+		newTok := lex.Token{
+			Pos:    self.nextTok.Pos,
+			Kind:   lex.GT,
+			Source: lex.GT.String(),
+		}
+		newTok.Pos.End--
+		newTok.Pos.EndCol--
+		self.nextTok.Kind = lex.GT
+		self.nextTok.Source = lex.GT.String()
+		self.nextTok.Pos.Begin++
+		self.nextTok.Pos.BeginCol++
+		self.backToNextToken(newTok)
+	}
+	self.expectNextIs(lex.GT)
+	return args
 }

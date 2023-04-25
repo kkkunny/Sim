@@ -40,20 +40,22 @@ func (self importAst) Global() {}
 
 // TypeDef 类型定义
 type TypeDef struct {
-	Pos    utils.Position
-	Public bool
-	Name   lex.Token
-	Target Type
+	Pos           utils.Position
+	Public        bool
+	Name          lex.Token
+	GenericParams []lex.Token
+	Target        Type
 }
 
 func NewTypeDef(
-	pos utils.Position, pub bool, name lex.Token, target Type,
+	pos utils.Position, pub bool, name lex.Token, genericParams []lex.Token, target Type,
 ) *TypeDef {
 	return &TypeDef{
-		Pos:    pos,
-		Public: pub,
-		Name:   name,
-		Target: target,
+		Pos:           pos,
+		Public:        pub,
+		Name:          name,
+		GenericParams: genericParams,
+		Target:        target,
 	}
 }
 
@@ -65,29 +67,32 @@ func (self TypeDef) Global() {}
 
 // Function 函数
 type Function struct {
-	Pos    utils.Position
-	Attrs  []Attr
-	Public bool
-	Ret    Type
-	Name   lex.Token
-	Params []*Param
-	VarArg bool
-	Body   *Block // （可能为空）
+	Pos           utils.Position
+	Attrs         []Attr
+	Public        bool
+	Ret           Type
+	Name          lex.Token
+	GenericParams []lex.Token
+	Params        []*Param
+	VarArg        bool
+	Body          *Block // （可能为空）
 }
 
 func NewFunction(
-	pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, params []*Param, varArg bool,
+	pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, genericParams []lex.Token, params []*Param,
+	varArg bool,
 	body *Block,
 ) *Function {
 	return &Function{
-		Pos:    pos,
-		Attrs:  attrs,
-		Public: pub,
-		Ret:    ret,
-		Name:   name,
-		Params: params,
-		VarArg: varArg,
-		Body:   body,
+		Pos:           pos,
+		Attrs:         attrs,
+		Public:        pub,
+		Ret:           ret,
+		Name:          name,
+		GenericParams: genericParams,
+		Params:        params,
+		VarArg:        varArg,
+		Body:          body,
 	}
 }
 
@@ -99,33 +104,38 @@ func (self Function) Global() {}
 
 // Method 方法
 type Method struct {
-	Pos     utils.Position
-	Attrs   []Attr
-	Public  bool
-	Mutable bool
-	Self    lex.Token
-	Ret     Type
-	Name    lex.Token
-	Params  []*Param
-	VarArg  bool
-	Body    *Block
+	Pos               utils.Position
+	Attrs             []Attr
+	Public            bool
+	Mutable           bool
+	Self              lex.Token
+	SelfGenericParams []lex.Token
+	Ret               Type
+	Name              lex.Token
+	GenericParams     []lex.Token
+	Params            []*Param
+	VarArg            bool
+	Body              *Block
 }
 
 func NewMethod(
-	pos utils.Position, attrs []Attr, pub bool, mut bool, self lex.Token, ret Type, name lex.Token, params []*Param,
+	pos utils.Position, attrs []Attr, pub bool, mut bool, self lex.Token, selfGenericParams []lex.Token, ret Type,
+	name lex.Token, genericParams []lex.Token, params []*Param,
 	varArg bool, body *Block,
 ) *Method {
 	return &Method{
-		Pos:     pos,
-		Attrs:   attrs,
-		Public:  pub,
-		Mutable: mut,
-		Self:    self,
-		Ret:     ret,
-		Name:    name,
-		Params:  params,
-		VarArg:  varArg,
-		Body:    body,
+		Pos:               pos,
+		Attrs:             attrs,
+		Public:            pub,
+		Mutable:           mut,
+		Self:              self,
+		SelfGenericParams: selfGenericParams,
+		Ret:               ret,
+		Name:              name,
+		GenericParams:     genericParams,
+		Params:            params,
+		VarArg:            varArg,
+		Body:              body,
 	}
 }
 
@@ -330,8 +340,9 @@ func (self *parser) importPath(path stlos.Path) (*Package, error) {
 func (self *parser) parseTypeDef(pub *lex.Token) *TypeDef {
 	begin := self.expectNextIs(lex.TYPE).Pos
 	name := self.expectNextIs(lex.IDENT)
+	genericParams := self.parseGenericParamList()
 	target := self.parseType()
-	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, target)
+	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, genericParams, target)
 }
 
 // 函数
@@ -363,17 +374,18 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 	}
 
 	name := self.expectNextIs(lex.IDENT)
+	genericParams := self.parseGenericParamList()
 	self.expectNextIs(lex.LPA)
 	params, varArg := self.parseParamList(lex.RPA)
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block
-	if !isExtern || self.nextIs(lex.LBR) {
+	if !isExtern || self.nextIs(lex.LBR) || len(genericParams) != 0 {
 		body = self.parseBlock()
 	}
 
 	pos := utils.MixPosition(begin, self.curTok.Pos)
-	if len(params) != 0 || ret != nil {
+	if len(params) != 0 || ret != nil || len(genericParams) != 0 {
 		for _, attr := range attrs {
 			switch attr.(type) {
 			case *AttrInit, *AttrFini:
@@ -382,7 +394,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 			}
 		}
 	}
-	if isExtern && body == nil {
+	if isExtern && body == nil && len(genericParams) == 0 {
 		for _, attr := range attrs {
 			switch attr.(type) {
 			case *AttrExtern, *AttrNoReturn, *AttrInit, *AttrFini:
@@ -391,7 +403,17 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 				return nil
 			}
 		}
-		return NewFunction(pos, attrs, pub != nil, ret, name, params, varArg, nil)
+		return NewFunction(pos, attrs, pub != nil, ret, name, nil, params, varArg, nil)
+	} else if len(genericParams) != 0 {
+		for _, attr := range attrs {
+			switch attr.(type) {
+			case *AttrNoReturn, *AttrInline:
+			default:
+				self.throwErrorf(attr.Position(), errStrCanNotUseAttr)
+				return nil
+			}
+		}
+		return NewFunction(pos, attrs, pub != nil, ret, name, genericParams, params, varArg, body)
 	} else {
 		for _, attr := range attrs {
 			switch attr.(type) {
@@ -401,7 +423,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 				return nil
 			}
 		}
-		return NewFunction(pos, attrs, pub != nil, ret, name, params, varArg, body)
+		return NewFunction(pos, attrs, pub != nil, ret, name, genericParams, params, varArg, body)
 	}
 }
 
@@ -419,9 +441,11 @@ func (self *parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 	self.expectNextIs(lex.LPA)
 	mut := self.skipNextIs(lex.MUT)
 	selfTok := self.expectNextIs(lex.IDENT)
+	selfGenericParams := self.parseGenericParamList()
 	self.expectNextIs(lex.RPA)
 
 	name := self.expectNextIs(lex.IDENT)
+	genericParams := self.parseGenericParamList()
 	self.expectNextIs(lex.LPA)
 	params, varArg := self.parseParamList(lex.RPA)
 	self.expectNextIs(lex.RPA)
@@ -436,8 +460,10 @@ func (self *parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 		pub,
 		mut,
 		selfTok,
+		selfGenericParams,
 		ret,
 		name,
+		genericParams,
 		params,
 		varArg,
 		body,
@@ -477,4 +503,20 @@ func (self *parser) parseGlobalValue(pub *lex.Token, attrs []Attr) *GlobalValue 
 		v = self.parseExpr()
 	}
 	return NewGlobalValue(utils.MixPosition(begin, self.curTok.Pos), attrs, pub != nil, mut, t, name, v)
+}
+
+// 泛型形参
+func (self *parser) parseGenericParamList() []lex.Token {
+	if !self.skipNextIs(lex.LT) {
+		return nil
+	}
+	var params []lex.Token
+	for !self.nextIs(lex.GT) {
+		params = append(params, self.expectNextIs(lex.IDENT))
+		if !self.skipNextIs(lex.COM) {
+			break
+		}
+	}
+	self.expectNextIs(lex.GT)
+	return params
 }

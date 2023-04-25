@@ -1,6 +1,9 @@
 package analyse
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/parse"
@@ -99,15 +102,95 @@ func (self *Analyser) analyseIdent(ast parse.Ident) (hir.Ident, utils.Error) {
 		if symbol == self.symbol.getPkgSymbolTable() {
 			symbol = self.symbol
 		}
-		v, ok := symbol.lookupValue(ast.Name.Source)
-		if !ok {
-			continue
-		}
-		if symbol == self.symbol || v.pub {
-			return v.data, nil
+		if len(ast.GenericArgs) == 0 {
+			v, ok := symbol.lookupValue(ast.Name.Source)
+			if !ok {
+				continue
+			}
+			if symbol == self.symbol || v.pub {
+				return v.data, nil
+			}
+		} else {
+			v, ok := symbol.lookupGenericFunc(ast.Name.Source)
+			if !ok {
+				continue
+			}
+			if symbol == self.symbol || v.pub {
+				return self.instantiateGenericFunction(symbol, v.data, ast)
+			}
 		}
 	}
 	return nil, utils.Errorf(ast.Name.Pos, errUnknownIdentifier)
+}
+
+// 实例化泛型函数
+func (self *Analyser) instantiateGenericFunction(symbol *symbolTable, ast parse.Function, ident parse.Ident) (
+	*hir.Function, utils.Error,
+) {
+	// 泛型参数
+	if len(ident.GenericArgs) != len(ast.GenericParams) {
+		return nil, utils.Errorf(
+			ident.Position(),
+			"expect `%d` type but there is `%d`",
+			len(ast.GenericParams),
+			len(ident.GenericArgs),
+		)
+	}
+	args := make([]hir.Type, len(ident.GenericArgs))
+	argStrs := make([]string, len(ident.GenericArgs))
+	errs := make([]utils.Error, 0, len(args))
+	for i, a := range ident.GenericArgs {
+		at, err := self.analyseType(a)
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			args[i] = at
+			argStrs[i] = at.String()
+		}
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+
+	// 切换符号表
+	proSymbol := self.symbol
+	self.symbol = symbol
+	defer func() {
+		self.symbol = proSymbol
+	}()
+
+	// 函数名重定义
+	name := fmt.Sprintf("%s::<%s>", ident.Name.Source, strings.Join(argStrs, ", "))
+	if v, ok := self.symbol.lookupValue(name); ok {
+		return v.data.(*hir.Function), nil
+	}
+	ast.Name.Source = name
+	defer func() {
+		ast.Name.Source = ident.Name.Source
+	}()
+
+	// 类型映射
+	maps := make(map[string]hir.Type)
+	for i, p := range ast.GenericParams {
+		maps[p.Source] = args[i]
+	}
+	symbol.addGenericTypeMap(maps)
+	defer func() {
+		symbol.removeGenericTypeMap()
+	}()
+
+	// 函数声明
+	fn, err := self.analyseFunctionDecl(ast)
+	if err != nil {
+		return nil, err
+	}
+	// 函数定义
+	if err = self.analyseFunctionDef(ast); err != nil {
+		return nil, err
+	}
+	return fn, nil
 }
 
 // 数组
@@ -690,14 +773,14 @@ func (self *Analyser) analyseTernary(expect *hir.Type, ast parse.Ternary) (*hir.
 
 // 调用
 func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
+	// 方法调用
 	if dot, ok := ast.Func.(*parse.Dot); ok {
-		// 方法调用
 		selfExpr, err := self.analyseExpr(nil, dot.Front)
 		if err != nil {
 			return nil, err
 		}
 		if selfExpr.Type().IsTypedef() || (selfExpr.Type().Kind == hir.TPtr && selfExpr.Type().GetPtr().IsTypedef()) {
-			return self.analyseCallMethod(dot.Front.Position(), selfExpr, dot.End, ast.Args)
+			return self.analyseCallMethod(dot.Front.Position(), selfExpr, *dot, ast.Args)
 		}
 	}
 
@@ -746,18 +829,49 @@ func (self *Analyser) analyseCall(ast parse.Call) (hir.Expr, utils.Error) {
 
 // 调用方法
 func (self *Analyser) analyseCallMethod(
-	selfPos utils.Position, selfExpr hir.Expr, methodNameToken lex.Token, argAsts []parse.Expr,
+	selfPos utils.Position, selfExpr hir.Expr, dot parse.Dot,
+	argAsts []parse.Expr,
 ) (*hir.MethodCall, utils.Error) {
-	// 方法
+	// 类型定义
 	var def *hir.Typedef
 	if selfExpr.Type().IsPtr() {
 		def = selfExpr.Type().GetPtr().GetTypedef()
 	} else {
 		def = selfExpr.Type().GetTypedef()
 	}
-	m, ok := def.LookupMethod(methodNameToken.Source)
-	if !ok {
-		return nil, utils.Errorf(methodNameToken.Pos, errUnknownIdentifier)
+
+	var symbol *symbolTable
+	for _, s := range self.symbols {
+		if def.Pkg.Equal(s.pkg) {
+			symbol = s
+			break
+		}
+	}
+
+	var m *hir.Method
+	// 泛型方法
+	if len(dot.GenericArgs) != 0 || def.GenericArgs != nil {
+		var defSrcName string
+		if def.GenericArgs != nil {
+			defSrcName = strings.Split(def.Name, "::")[0]
+		} else {
+			defSrcName = def.Name
+		}
+		gm, ok := symbol.lookupGenericMethod(defSrcName, dot.End.Source)
+		if !ok {
+			return nil, utils.Errorf(dot.End.Pos, errUnknownIdentifier)
+		}
+		if v, err := self.instantiateGenericMethod(symbol, def, gm.data, dot); err != nil {
+			return nil, err
+		} else {
+			m = v
+		}
+	} else {
+		v, ok := def.LookupMethod(dot.End.Source)
+		if !ok {
+			return nil, utils.Errorf(dot.End.Pos, errUnknownIdentifier)
+		}
+		m = v
 	}
 	ft := m.Type()
 
@@ -770,7 +884,7 @@ func (self *Analyser) analyseCallMethod(
 	paramTypes := ft.GetFuncParams()
 	if len(argAsts) < len(paramTypes) || (!ft.GetFuncVarArg() && len(argAsts) > len(paramTypes)) {
 		return nil, utils.Errorf(
-			methodNameToken.Pos,
+			dot.End.Pos,
 			"expect `%d` arguments but there is `%d`",
 			len(paramTypes),
 			len(argAsts),
@@ -800,8 +914,100 @@ func (self *Analyser) analyseCallMethod(
 	return hir.NewMethodCall(m, selfExpr, args...), nil
 }
 
+// 实例化泛型方法
+func (self *Analyser) instantiateGenericMethod(
+	symbol *symbolTable, typedef *hir.Typedef, ast parse.Method, dot parse.Dot,
+) (
+	*hir.Method, utils.Error,
+) {
+	// 泛型参数
+	if len(dot.GenericArgs) != len(ast.GenericParams) {
+		return nil, utils.Errorf(
+			dot.End.Pos,
+			"expect `%d` type but there is `%d`",
+			len(ast.GenericParams),
+			len(dot.GenericArgs),
+		)
+	}
+	args := make([]hir.Type, len(dot.GenericArgs))
+	argStrs := make([]string, len(dot.GenericArgs))
+	errs := make([]utils.Error, 0, len(args))
+	for i, a := range dot.GenericArgs {
+		at, err := self.analyseType(a)
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			args[i] = at
+			argStrs[i] = at.String()
+		}
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+
+	// 切换符号表
+	proSymbol := self.symbol
+	self.symbol = symbol
+	defer func() {
+		self.symbol = proSymbol
+	}()
+
+	// 函数名重定义
+	var name string
+	if typedef.GenericArgs != nil {
+		name = ast.Name.Source
+		proName := ast.Self.Source
+		ast.Self.Source = typedef.Name
+		defer func() {
+			ast.Self.Source = proName
+		}()
+	}
+	if len(ast.GenericParams) != 0 {
+		name = fmt.Sprintf("%s::<%s>", ast.Name.Source, strings.Join(argStrs, ", "))
+		ast.Name.Source = name
+		defer func() {
+			ast.Name.Source = dot.End.Source
+		}()
+	}
+	if m, ok := typedef.LookupMethod(name); ok {
+		return m, nil
+	}
+
+	// 类型映射
+	maps := make(map[string]hir.Type)
+	if typedef.GenericArgs != nil {
+		for iter := typedef.GenericArgs.Begin(); iter.HasValue(); iter.Next() {
+			maps[iter.Key()] = iter.Value()
+		}
+	}
+	for i, a := range args {
+		maps[ast.GenericParams[i].Source] = a
+	}
+	symbol.addGenericTypeMap(maps)
+	defer func() {
+		symbol.removeGenericTypeMap()
+	}()
+
+	// 函数声明
+	fn, err := self.analyseMethodDecl(ast)
+	if err != nil {
+		return nil, err
+	}
+	// 函数定义
+	if err = self.analyseMethodDef(ast); err != nil {
+		return nil, err
+	}
+	return fn, nil
+}
+
 // 点
 func (self *Analyser) analyseDot(ast parse.Dot) (hir.Expr, utils.Error) {
+	if len(ast.GenericArgs) != 0 {
+		return nil, utils.Errorf(ast.Position(), "illegal expression")
+	}
+
 	// from值
 	from, err := self.analyseExpr(nil, ast.Front)
 	if err != nil {

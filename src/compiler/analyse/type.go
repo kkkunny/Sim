@@ -1,12 +1,15 @@
 package analyse
 
 import (
+	"fmt"
 	"math"
+	"strings"
 
 	"github.com/kkkunny/Sim/src/compiler/hir"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/stl/set"
+	"github.com/kkkunny/stl/table"
 	"github.com/kkkunny/stl/types"
 )
 
@@ -38,49 +41,155 @@ func (self *Analyser) analyseType(ast parse.Type) (hir.Type, utils.Error) {
 
 // 标识符类型
 func (self *Analyser) analyseTypeIdent(ast parse.TypeIdent) (hir.Type, utils.Error) {
-	// 内置类型
-	switch ast.Name.Source {
-	case "bool":
-		return hir.NewTypeBool(), nil
-	case "i8":
-		return hir.NewTypeI8(), nil
-	case "u8":
-		return hir.NewTypeU8(), nil
-	case "i16":
-		return hir.NewTypeI16(), nil
-	case "u16":
-		return hir.NewTypeU16(), nil
-	case "i32":
-		return hir.NewTypeI32(), nil
-	case "u32":
-		return hir.NewTypeU32(), nil
-	case "i64":
-		return hir.NewTypeI64(), nil
-	case "u64":
-		return hir.NewTypeU64(), nil
-	case "isize":
-		return hir.NewTypeIsize(), nil
-	case "usize":
-		return hir.NewTypeUsize(), nil
-	case "f32":
-		return hir.NewTypeF32(), nil
-	case "f64":
-		return hir.NewTypeF64(), nil
-	}
-
-	// 自定义类型
-	for _, pkg := range ast.Pkgs {
-		symbol := self.symbols[pkg]
-		t, ok := symbol.lookupType(ast.Name.Source)
-		if !ok {
-			continue
+	// 泛型类型
+	if len(ast.GenericArgs) != 0 {
+		for _, pkg := range ast.Pkgs {
+			symbol := self.symbols[pkg]
+			t, ok := symbol.lookupGenericType(ast.Name.Source)
+			if !ok {
+				continue
+			}
+			if self.symbol.getPkgSymbolTable() == symbol || t.pub {
+				td, err := self.instantiateGenericType(symbol, t.data, ast)
+				if err != nil {
+					return hir.Type{}, err
+				}
+				return hir.NewTypeTypedef(td), nil
+			}
 		}
-		if self.symbol.getPkgSymbolTable() == symbol || t.pub {
-			return hir.NewTypeTypedef(t.data), nil
+	} else {
+		// 内置类型
+		switch ast.Name.Source {
+		case "bool":
+			return hir.NewTypeBool(), nil
+		case "i8":
+			return hir.NewTypeI8(), nil
+		case "u8":
+			return hir.NewTypeU8(), nil
+		case "i16":
+			return hir.NewTypeI16(), nil
+		case "u16":
+			return hir.NewTypeU16(), nil
+		case "i32":
+			return hir.NewTypeI32(), nil
+		case "u32":
+			return hir.NewTypeU32(), nil
+		case "i64":
+			return hir.NewTypeI64(), nil
+		case "u64":
+			return hir.NewTypeU64(), nil
+		case "isize":
+			return hir.NewTypeIsize(), nil
+		case "usize":
+			return hir.NewTypeUsize(), nil
+		case "f32":
+			return hir.NewTypeF32(), nil
+		case "f64":
+			return hir.NewTypeF64(), nil
+		}
+
+		// 泛型类型映射
+		if self.symbol.getPkgSymbolTable().pkg.Path == ast.Pkgs[0].Path {
+			if t, ok := self.symbol.lookupGenericTypeMap(ast.Name.Source); ok {
+				return t, nil
+			}
+		}
+
+		// 自定义类型
+		for _, pkg := range ast.Pkgs {
+			symbol := self.symbols[pkg]
+			t, ok := symbol.lookupType(ast.Name.Source)
+			if !ok {
+				continue
+			}
+			if self.symbol.getPkgSymbolTable() == symbol || t.pub {
+				return hir.NewTypeTypedef(t.data), nil
+			}
 		}
 	}
 
 	return hir.Type{}, utils.Errorf(ast.Name.Pos, errUnknownIdentifier)
+}
+
+// 实例化泛型类型
+func (self *Analyser) instantiateGenericType(symbol *symbolTable, ast parse.TypeDef, ident parse.TypeIdent) (
+	*hir.Typedef, utils.Error,
+) {
+	// 泛型参数
+	if len(ident.GenericArgs) != len(ast.GenericParams) {
+		return nil, utils.Errorf(
+			ident.Position(),
+			"expect `%d` type but there is `%d`",
+			len(ast.GenericParams),
+			len(ident.GenericArgs),
+		)
+	}
+	args := make([]hir.Type, len(ident.GenericArgs))
+	argStrs := make([]string, len(ident.GenericArgs))
+	errs := make([]utils.Error, 0, len(args))
+	for i, a := range ident.GenericArgs {
+		at, err := self.analyseType(a)
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			args[i] = at
+			argStrs[i] = at.String()
+		}
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+
+	// 切换符号表
+	proSymbol := self.symbol
+	self.symbol = symbol
+	defer func() {
+		self.symbol = proSymbol
+	}()
+
+	// 类型名重定义
+	name := fmt.Sprintf("%s::<%s>", ident.Name.Source, strings.Join(argStrs, ", "))
+	if t, ok := self.symbol.lookupType(name); ok {
+		return t.data, nil
+	}
+	ast.Name.Source = name
+	defer func() {
+		ast.Name.Source = ident.Name.Source
+	}()
+
+	// 类型映射
+	maps := make(map[string]hir.Type)
+	for i, p := range ast.GenericParams {
+		maps[p.Source] = args[i]
+	}
+	symbol.addGenericTypeMap(maps)
+	defer func() {
+		symbol.removeGenericTypeMap()
+	}()
+
+	// 类型声明
+	if !self.symbol.declType(
+		ast.Public,
+		hir.NewTypedef(self.symbol.pkg, ast.Name.Source, hir.NewTypeNone()),
+	) {
+		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+	}
+	// 类型定义
+	def, err := self.analyseTypedef(ast)
+	if err != nil {
+		return nil, err
+	}
+	def.GenericArgs = table.NewLinkedHashMap[string, hir.Type]()
+	for i, a := range args {
+		def.GenericArgs.Set(ast.GenericParams[i].Source, a)
+	}
+	// 循环检测
+	if self.checkTypeCircle(set.NewLinkedHashSet[*hir.Typedef](), hir.NewTypeTypedef(def)) {
+		errs = append(errs, utils.Errorf(ast.Name.Pos, errCircularReference))
+	}
+	return def, nil
 }
 
 // 指针类型

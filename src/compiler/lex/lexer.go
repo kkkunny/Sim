@@ -2,12 +2,13 @@ package lex
 
 import (
 	"errors"
-	"github.com/kkkunny/Sim/src/compiler/utils"
-	stlos "github.com/kkkunny/stl/os"
-	stlutil "github.com/kkkunny/stl/util"
 	"io"
 	"strings"
 	"unicode"
+
+	"github.com/kkkunny/Sim/src/compiler/utils"
+	stlos "github.com/kkkunny/stl/os"
+	stlutil "github.com/kkkunny/stl/util"
 )
 
 // Lexer 词法分析器
@@ -400,6 +401,10 @@ func (self *Lexer) Scan() Token {
 			if self.peek() == ':' {
 				buf.WriteRune(self.next())
 				kind = CLL
+				if self.peek() == '<' {
+					buf.WriteRune(self.next())
+					kind = CLT
+				}
 			}
 		case '!':
 			kind = NOT

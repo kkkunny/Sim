@@ -79,6 +79,7 @@ const (
 	DOT // .
 	ELL // ..
 	QUO // ?
+	CLT // ::<
 
 	FUNC     // func
 	RETURN   // return
@@ -171,6 +172,7 @@ var tokenKindStr = [...]string{
 	DOT: ".",
 	ELL: "..",
 	QUO: "?",
+	CLT: "::<",
 
 	FUNC:     "func",
 	RETURN:   "return",

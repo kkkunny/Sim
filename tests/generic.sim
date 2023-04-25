@@ -1,0 +1,25 @@
+func add<T>(x: T, y: T)T{
+    return x + y
+}
+
+type A i32
+
+func (A) get<T>(v: T)T{
+    return v
+}
+
+type B<T> T
+
+func (B<T>) get<E>(v: E)E{
+    return v
+}
+
+@extern(main)
+func main()u8{
+    add::<i32>(1, 2)
+    let a: A
+    a.get::<i32>(1)
+    let b: B::<i32>
+    b.get::<i32>(1)
+    return 0
+}

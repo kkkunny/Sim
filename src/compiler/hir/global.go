@@ -1,5 +1,7 @@
 package hir
 
+import "github.com/kkkunny/stl/table"
+
 // Global 全局
 type Global interface {
 	global()
@@ -11,7 +13,8 @@ type Typedef struct {
 	Name   string  // 类型名
 	Target Type    // 目标类型
 
-	Methods map[string]*Method // 方法
+	Methods     map[string]*Method                 // 方法
+	GenericArgs *table.LinkedHashMap[string, Type] // 泛型参数
 }
 
 func NewTypedef(pkg PkgPath, name string, t Type) *Typedef {

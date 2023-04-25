@@ -20,7 +20,6 @@ func (self *Analyser) analyseTypedef(ast parse.TypeDef) (*hir.Typedef, utils.Err
 	}
 
 	self.symbol.defType(ast.Name.Source, elem)
-	delete(self.typedefTemp, ast.Name.Source)
 
 	return def.data, nil
 }
@@ -38,6 +37,7 @@ func (self *Analyser) analyseGlobalValueDecl(ast parse.GlobalValue) (*hir.Global
 	if !self.symbol.defValue(ast.Public, ast.Name.Source, ident) {
 		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
+	self.globals.PushBack(ident)
 
 	// 属性
 	for _, attrObj := range ast.Attrs {
@@ -80,6 +80,7 @@ func (self *Analyser) analyseFunctionDecl(ast parse.Function) (*hir.Function, ut
 	if !self.symbol.defValue(ast.Public, ast.Name.Source, ident) {
 		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
+	self.globals.PushBack(ident)
 
 	// 属性
 	for _, attrObj := range ast.Attrs {
@@ -105,6 +106,31 @@ func (self *Analyser) analyseFunctionDecl(ast parse.Function) (*hir.Function, ut
 	}
 
 	return ident, nil
+}
+
+// 泛型函数声明
+func (self *Analyser) analyseGenericFunctionDecl(ast parse.Function) utils.Error {
+	// 泛型参数
+	var errs []utils.Error
+	nameSet := make(map[string]struct{})
+	for _, p := range ast.GenericParams {
+		if _, ok := nameSet[p.Source]; ok {
+			errs = append(errs, utils.Errorf(p.Pos, errDuplicateDeclaration))
+		} else {
+			nameSet[p.Source] = struct{}{}
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+
+	// 声明
+	if !self.symbol.defGenericFunc(ast.Public, ast.Name.Source, ast) {
+		return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+	}
+	return nil
 }
 
 // 方法声明
@@ -148,6 +174,7 @@ func (self *Analyser) analyseMethodDecl(ast parse.Method) (*hir.Method, utils.Er
 	if !selfDef.DeclMethod(ast.Name.Source, ident) {
 		return nil, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
+	self.globals.PushBack(ident)
 
 	// 属性
 	for _, attrObj := range ast.Attrs {
@@ -166,6 +193,95 @@ func (self *Analyser) analyseMethodDecl(ast parse.Method) (*hir.Method, utils.Er
 	}
 
 	return ident, nil
+}
+
+// 泛型方法声明
+func (self *Analyser) analyseGenericMethodDecl(ast parse.Method) utils.Error {
+	if _t, ok := self.symbol.lookupType(ast.Self.Source); ok {
+		return self.analyseGenericMethodDeclForTypedef(_t.data, ast)
+	} else if _t, ok := self.symbol.lookupGenericType(ast.Self.Source); ok {
+		return self.analyseGenericMethodDeclForGenericTypedef(_t.data, ast)
+	} else {
+		return utils.Errorf(ast.Self.Pos, errUnknownIdentifier)
+	}
+}
+
+// 类型定义的泛型方法声明
+func (self *Analyser) analyseGenericMethodDeclForTypedef(selfDef *hir.Typedef, ast parse.Method) utils.Error {
+	// 泛型参数
+	var errs []utils.Error
+	nameSet := make(map[string]struct{})
+	for _, p := range ast.GenericParams {
+		if _, ok := nameSet[p.Source]; ok {
+			errs = append(errs, utils.Errorf(p.Pos, errDuplicateDeclaration))
+		} else {
+			nameSet[p.Source] = struct{}{}
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+
+	// 声明
+	if !self.symbol.defGenericMethod(ast.Public, selfDef.Name, ast.Name.Source, ast) {
+		return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+	}
+	return nil
+}
+
+// 泛型类型定义的泛型方法声明
+func (self *Analyser) analyseGenericMethodDeclForGenericTypedef(defAst parse.TypeDef, ast parse.Method) utils.Error {
+	// 泛型参数
+	if len(ast.SelfGenericParams) != len(defAst.GenericParams) {
+		return utils.Errorf(
+			ast.Self.Pos,
+			"expect `%d` generic params but there is `%s`",
+			len(defAst.GenericParams),
+			len(ast.SelfGenericParams),
+		)
+	}
+	var errs []utils.Error
+	nameSet := make(map[string]struct{})
+	for i, sp := range ast.SelfGenericParams {
+		if defAst.GenericParams[i].Source != sp.Source {
+			errs = append(
+				errs,
+				utils.Errorf(
+					sp.Pos,
+					"expect name `%s` but there is `%s`",
+					defAst.GenericParams[i].Source,
+					sp.Source,
+				),
+			)
+		} else {
+			nameSet[sp.Source] = struct{}{}
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+	for _, p := range ast.GenericParams {
+		if _, ok := nameSet[p.Source]; ok {
+			errs = append(errs, utils.Errorf(p.Pos, errDuplicateDeclaration))
+		} else {
+			nameSet[p.Source] = struct{}{}
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+
+	// 声明
+	if !self.symbol.defGenericMethod(ast.Public, defAst.Name.Source, ast.Name.Source, ast) {
+		return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+	}
+	return nil
 }
 
 // 全局变量定义
@@ -282,5 +398,30 @@ func (self *Analyser) analyseMethodDef(ast parse.Method) utils.Error {
 	}
 	ident.Body = block
 
+	return nil
+}
+
+// 泛型类型声明
+func (self *Analyser) analyseGenericTypeDecl(ast parse.TypeDef) utils.Error {
+	// 泛型参数
+	var errs []utils.Error
+	nameSet := make(map[string]struct{})
+	for _, p := range ast.GenericParams {
+		if _, ok := nameSet[p.Source]; ok {
+			errs = append(errs, utils.Errorf(p.Pos, errDuplicateDeclaration))
+		} else {
+			nameSet[p.Source] = struct{}{}
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+
+	// 声明
+	if !self.symbol.defGenericType(ast.Public, ast.Name.Source, ast) {
+		return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+	}
 	return nil
 }
