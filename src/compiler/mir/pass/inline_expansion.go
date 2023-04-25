@@ -1,7 +1,8 @@
 package pass
 
 import (
-	list "github.com/bahlo/generic-list-go"
+	"github.com/kkkunny/containers/list"
+
 	"github.com/kkkunny/Sim/src/compiler/mir"
 )
 
@@ -13,7 +14,7 @@ func newInlineExpansion() *inlineExpansion {
 }
 func (self *inlineExpansion) walk(pkg *mir.Package) {
 	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
-		self.walkGlobal(cursor.Value)
+		self.walkGlobal(cursor.Value())
 	}
 }
 func (self *inlineExpansion) walkGlobal(ir mir.Global) {
@@ -26,12 +27,12 @@ func (self *inlineExpansion) walkGlobal(ir mir.Global) {
 	}
 }
 func (self *inlineExpansion) walkBlock(
-	fn *mir.Function, blockNode *list.Element[*mir.Block], vars *map[mir.Value]mir.Value,
+	fn *mir.Function, blockNode *list.ListNode[*mir.Block], vars *map[mir.Value]mir.Value,
 ) {
-	for cursor := blockNode.Value.Insts.Front(); cursor != nil; {
+	for cursor := blockNode.Value().Insts.Front(); cursor != nil; {
 		next := cursor.Next()
-		if _, ok := cursor.Value.(*mir.Call); ok || len(*vars) != 0 {
-			switch inst := cursor.Value.(type) {
+		if _, ok := cursor.Value().(*mir.Call); ok || len(*vars) != 0 {
+			switch inst := cursor.Value().(type) {
 			case *mir.Load:
 				inst.Value = self.walkValue(inst.Value, *vars)
 			case *mir.Store:
@@ -162,7 +163,7 @@ func (self *inlineExpansion) walkBlock(
 					endBlock.Insts.MoveToFront(endBlock.Insts.Back())
 				}
 				// 删除内联函数调用
-				blockNode.Value.Insts.Remove(cursor)
+				blockNode.Value().Insts.RemoveNode(cursor)
 			case *mir.WrapUnion:
 				inst.Value = self.walkValue(inst.Value, *vars)
 			}
@@ -182,30 +183,30 @@ func (self *inlineExpansion) walkValue(ir mir.Value, vars map[mir.Value]mir.Valu
 	}
 }
 func (self *inlineExpansion) expandInlineFunction(
-	toFn *mir.Function, toBlockNode *list.Element[*mir.Block], callNode *list.Element[mir.Inst], call *mir.Call,
+	toFn *mir.Function, toBlockNode *list.ListNode[*mir.Block], callNode *list.ListNode[mir.Inst], call *mir.Call,
 ) (*mir.Alloc, *mir.Block) {
 	f := call.Func.(*mir.Function)
 	// 参数
 	args := make(map[mir.Value]mir.Value, len(call.Args))
 	for i, a := range call.Args {
-		alloc := toBlockNode.Value.NewAlloc(a.GetType())
-		toBlockNode.Value.Insts.MoveBefore(toBlockNode.Value.Insts.Back(), callNode)
-		toBlockNode.Value.NewStore(a, alloc)
-		toBlockNode.Value.Insts.MoveBefore(toBlockNode.Value.Insts.Back(), callNode)
+		alloc := toBlockNode.Value().NewAlloc(a.GetType())
+		toBlockNode.Value().Insts.MoveToFrontOfNode(toBlockNode.Value().Insts.Back(), callNode)
+		toBlockNode.Value().NewStore(a, alloc)
+		toBlockNode.Value().Insts.MoveToFrontOfNode(toBlockNode.Value().Insts.Back(), callNode)
 		args[f.Params[i]] = alloc
 	}
 	// 返回值
 	var retAlloc *mir.Alloc
 	if retType := f.Type.GetFuncRet(); !retType.IsVoid() {
-		retAlloc = toBlockNode.Value.NewAlloc(retType)
-		toBlockNode.Value.Insts.MoveBefore(toBlockNode.Value.Insts.Back(), callNode)
+		retAlloc = toBlockNode.Value().NewAlloc(retType)
+		toBlockNode.Value().Insts.MoveToFrontOfNode(toBlockNode.Value().Insts.Back(), callNode)
 	}
 	// 复制内联函数的inst到当前位置
 	endBlock := self.copyFunction(f, toFn, toBlockNode, callNode, retAlloc, &args)
 	return retAlloc, endBlock
 }
 func (self *inlineExpansion) copyFunction(
-	ir *mir.Function, toFn *mir.Function, toBlockNode *list.Element[*mir.Block], callNode *list.Element[mir.Inst],
+	ir *mir.Function, toFn *mir.Function, toBlockNode *list.ListNode[*mir.Block], callNode *list.ListNode[mir.Inst],
 	ret *mir.Alloc,
 	vars *map[mir.Value]mir.Value,
 ) *mir.Block {
@@ -213,30 +214,30 @@ func (self *inlineExpansion) copyFunction(
 	blocks := make(map[*mir.Block]*mir.Block)
 	proBlockNode := toBlockNode
 	for cursor := ir.Blocks.Front(); cursor != nil; cursor = cursor.Next() {
-		blocks[cursor.Value] = toFn.NewBlock()
+		blocks[cursor.Value()] = toFn.NewBlock()
 		newBlockNode := toFn.Blocks.Back()
-		toFn.Blocks.MoveAfter(newBlockNode, proBlockNode)
+		toFn.Blocks.MoveToFrontOfNode(newBlockNode, proBlockNode)
 		proBlockNode = newBlockNode
 	}
 	// 原函数的代码块插入一个跳转语句，跳转到内联函数的第一个代码块
-	toBlockNode.Value.NewJmp(blocks[ir.Blocks.Front().Value])
-	toBlockNode.Value.Insts.MoveBefore(toBlockNode.Value.Insts.Back(), callNode)
+	toBlockNode.Value().NewJmp(blocks[ir.Blocks.Front().Value()])
+	toBlockNode.Value().Insts.MoveToFrontOfNode(toBlockNode.Value().Insts.Back(), callNode)
 	// 将调用内联函数后的所有语句放进一个新的代码块，该代码块位于内联函数的代码块之后
 	endBlock := toFn.NewBlock()
-	toFn.Blocks.MoveAfter(toFn.Blocks.Back(), proBlockNode)
+	toFn.Blocks.MoveToFrontOfNode(toFn.Blocks.Back(), proBlockNode)
 	for cursor := callNode.Next(); cursor != nil; cursor = cursor.Next() {
-		endBlock.Insts.PushBack(cursor.Value)
+		endBlock.Insts.PushBack(cursor.Value())
 	}
 	// 将调用内联函数之后的代码块舍弃
 	for cursor := callNode.Next(); cursor != nil; {
 		next := cursor.Next()
-		toBlockNode.Value.Insts.Remove(cursor)
+		toBlockNode.Value().Insts.RemoveNode(cursor)
 		cursor = next
 	}
 	// 遍历内联函数的语句，替换值和代码块
 	for blockCursor := ir.Blocks.Front(); blockCursor != nil; blockCursor = blockCursor.Next() {
-		for instCursor := blockCursor.Value.Insts.Front(); instCursor != nil; instCursor = instCursor.Next() {
-			self.copyInst(instCursor.Value, blocks[blockCursor.Value], endBlock, blocks, ret, vars)
+		for instCursor := blockCursor.Value().Insts.Front(); instCursor != nil; instCursor = instCursor.Next() {
+			self.copyInst(instCursor.Value(), blocks[blockCursor.Value()], endBlock, blocks, ret, vars)
 		}
 	}
 	return endBlock

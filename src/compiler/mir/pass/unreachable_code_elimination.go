@@ -1,7 +1,8 @@
 package pass
 
 import (
-	list "github.com/bahlo/generic-list-go"
+	"github.com/kkkunny/containers/list"
+
 	"github.com/kkkunny/Sim/src/compiler/mir"
 	"github.com/kkkunny/stl/set"
 )
@@ -14,21 +15,21 @@ func newUnreachableCodeElimination() *unreachableCodeElimination {
 }
 func (self *unreachableCodeElimination) walk(pkg *mir.Package) {
 	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
-		self.walkGlobal(cursor.Value)
+		self.walkGlobal(cursor.Value())
 	}
 }
 func (self *unreachableCodeElimination) walkGlobal(ir mir.Global) {
 	switch global := ir.(type) {
 	case *mir.Function:
-		if global.Blocks.Len() == 0 {
+		if global.Blocks.Length() == 0 {
 			return
 		}
 		blocks := set.NewHashSet[*mir.Block]()
-		self.walkBlock(blocks, global.Blocks.Front().Value)
+		self.walkBlock(blocks, global.Blocks.Front().Value())
 		for cursor := global.Blocks.Front(); cursor != nil; {
 			next := cursor.Next()
-			if !blocks.Contain(cursor.Value) {
-				global.Blocks.Remove(cursor)
+			if !blocks.Contain(cursor.Value()) {
+				global.Blocks.RemoveNode(cursor)
 			}
 			cursor = next
 		}
@@ -38,15 +39,15 @@ func (self *unreachableCodeElimination) walkBlock(walkedBlocks *set.HashSet[*mir
 	if !walkedBlocks.Add(ir) {
 		return
 	}
-	handle := func(end *list.Element[mir.Inst]) {
+	handle := func(end *list.ListNode[mir.Inst]) {
 		for endNext := end.Next(); endNext != nil; {
 			next := endNext.Next()
-			ir.Insts.Remove(endNext)
+			ir.Insts.RemoveNode(endNext)
 			endNext = next
 		}
 	}
 	for cursor := ir.Insts.Front(); cursor != nil; cursor = cursor.Next() {
-		switch inst := cursor.Value.(type) {
+		switch inst := cursor.Value().(type) {
 		case *mir.Unreachable, *mir.Return:
 			handle(cursor)
 			return
@@ -64,7 +65,7 @@ func (self *unreachableCodeElimination) walkBlock(walkedBlocks *set.HashSet[*mir
 			if !ok || !f.NoReturn {
 				continue
 			}
-			if _, ok := cursor.Next().Value.(*mir.Unreachable); ok {
+			if _, ok := cursor.Next().Value().(*mir.Unreachable); ok {
 				handle(cursor.Next())
 				return
 			}

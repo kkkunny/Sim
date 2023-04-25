@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bahlo/generic-list-go"
+	"github.com/kkkunny/containers/list"
 )
 
 // Block 代码块
@@ -16,7 +16,7 @@ type Block struct {
 func (self *Function) NewBlock() *Block {
 	b := &Block{
 		Belong: self,
-		Insts:  list.New[Inst](),
+		Insts:  list.NewList[Inst](),
 	}
 	self.Blocks.PushBack(b)
 	return b
@@ -30,7 +30,7 @@ func (self Block) String() string {
 	buf.WriteString(":\n")
 	for cursor := self.Insts.Front(); cursor != nil; cursor = cursor.Next() {
 		buf.WriteByte('\t')
-		buf.WriteString(cursor.Value.String())
+		buf.WriteString(cursor.Value().String())
 		if cursor.Next() != nil {
 			buf.WriteByte('\n')
 		}

@@ -38,7 +38,7 @@ func (self *CodeGenerator) codegenFunctionDecl(ir *mir.Function) llvm.Value {
 
 // 函数定义
 func (self *CodeGenerator) codegenFunctionDef(ir *mir.Function) {
-	if ir.Blocks.Len() == 0 {
+	if ir.Blocks.Length() == 0 {
 		return
 	}
 
@@ -58,11 +58,11 @@ func (self *CodeGenerator) codegenFunctionDef(ir *mir.Function) {
 
 	self.blocks = make(map[*mir.Block]llvm.BasicBlock)
 	for cursor := ir.Blocks.Front(); cursor != nil; cursor = cursor.Next() {
-		self.blocks[cursor.Value] = llvm.AddBasicBlock(fn, "")
+		self.blocks[cursor.Value()] = llvm.AddBasicBlock(fn, "")
 	}
-	self.builder.CreateBr(self.blocks[ir.Blocks.Front().Value])
+	self.builder.CreateBr(self.blocks[ir.Blocks.Front().Value()])
 	for cursor := ir.Blocks.Front(); cursor != nil; cursor = cursor.Next() {
-		self.codegenBlock(cursor.Value)
+		self.codegenBlock(cursor.Value())
 	}
 }
 

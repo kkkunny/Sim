@@ -1,7 +1,8 @@
 package pass
 
 import (
-	list "github.com/bahlo/generic-list-go"
+	"github.com/kkkunny/containers/list"
+
 	"github.com/kkkunny/Sim/src/compiler/mir"
 	"github.com/kkkunny/stl/set"
 )
@@ -23,17 +24,17 @@ func (self *deadVariablesElimination) walk(pkg *mir.Package) {
 	roots := self.findRoot(pkg)
 	// 从根节点出发计算所有变量/函数被引用的次数
 	for cursor := roots.Front(); cursor != nil; cursor = cursor.Next() {
-		self.walkGlobal(cursor.Value)
+		self.walkGlobal(cursor.Value())
 	}
 	// 删除零引用的节点
 	self.removeZeroRef(pkg)
 }
 func (self *deadVariablesElimination) findRoot(pkg *mir.Package) *list.List[mir.Global] {
-	roots := list.New[mir.Global]()
+	roots := list.NewList[mir.Global]()
 	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
-		switch global := cursor.Value.(type) {
+		switch global := cursor.Value().(type) {
 		case *mir.Function:
-			if (global.Extern && global.Blocks.Len() != 0) || global.GetInit() || global.GetFini() {
+			if (global.Extern && global.Blocks.Length() != 0) || global.GetInit() || global.GetFini() {
 				roots.PushBack(global)
 			}
 		case *mir.Variable:
@@ -58,7 +59,7 @@ func (self *deadVariablesElimination) walkGlobal(ir mir.Global) {
 			self.walkType(p.Type)
 		}
 		for cursor := global.Blocks.Front(); cursor != nil; cursor = cursor.Next() {
-			self.walkBlock(cursor.Value)
+			self.walkBlock(cursor.Value())
 		}
 	case *mir.Variable:
 		self.walkType(global.Type)
@@ -70,7 +71,7 @@ func (self *deadVariablesElimination) walkGlobal(ir mir.Global) {
 }
 func (self *deadVariablesElimination) walkBlock(ir *mir.Block) {
 	for cursor := ir.Insts.Front(); cursor != nil; cursor = cursor.Next() {
-		self.walkInst(cursor.Value)
+		self.walkInst(cursor.Value())
 	}
 }
 func (self *deadVariablesElimination) walkInst(ir mir.Inst) {
@@ -268,8 +269,8 @@ func (self *deadVariablesElimination) walkType(ir mir.Type) {
 func (self *deadVariablesElimination) removeZeroRef(pkg *mir.Package) {
 	for cursor := pkg.Globals.Front(); cursor != nil; {
 		next := cursor.Next()
-		if self.refedCount[cursor.Value] == 0 {
-			pkg.Globals.Remove(cursor)
+		if self.refedCount[cursor.Value()] == 0 {
+			pkg.Globals.RemoveNode(cursor)
 		}
 		cursor = next
 	}

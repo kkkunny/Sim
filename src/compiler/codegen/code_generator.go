@@ -70,19 +70,19 @@ func NewCodeGenerator(targetStr string, release bool) (*CodeGenerator, error) {
 func (self *CodeGenerator) Codegen(pkg mir.Package) (llvm.Module, llvm.TargetMachine) {
 	// 类型声明
 	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
-		if alias, ok := cursor.Value.(*mir.Alias); ok {
+		if alias, ok := cursor.Value().(*mir.Alias); ok {
 			self.codegenAliasDecl(alias)
 		}
 	}
 	// 类型定义
 	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
-		if alias, ok := cursor.Value.(*mir.Alias); ok {
+		if alias, ok := cursor.Value().(*mir.Alias); ok {
 			self.codegenAliasDef(alias)
 		}
 	}
 	// 声明
 	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
-		switch global := cursor.Value.(type) {
+		switch global := cursor.Value().(type) {
 		case *mir.Alias:
 		case *mir.Function:
 			fn := self.codegenFunctionDecl(global)
@@ -100,7 +100,7 @@ func (self *CodeGenerator) Codegen(pkg mir.Package) (llvm.Module, llvm.TargetMac
 	}
 	// 定义
 	for cursor := pkg.Globals.Front(); cursor != nil; cursor = cursor.Next() {
-		switch global := cursor.Value.(type) {
+		switch global := cursor.Value().(type) {
 		case *mir.Alias:
 		case *mir.Function:
 			self.codegenFunctionDef(global)

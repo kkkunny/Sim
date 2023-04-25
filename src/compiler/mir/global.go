@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bahlo/generic-list-go"
+	"github.com/kkkunny/containers/list"
 )
 
 // Global 全局
@@ -65,7 +65,7 @@ func (self *Package) NewFunction(t Type, name string) *Function {
 		Type:   t,
 		Name:   name,
 		Params: make([]*Param, len(paramTypes)),
-		Blocks: list.New[*Block](),
+		Blocks: list.NewList[*Block](),
 	}
 	self.Globals.PushBack(g)
 	for i, p := range paramTypes {
@@ -91,7 +91,7 @@ func (self Function) String() string {
 	}
 	buf.WriteByte(')')
 	buf.WriteString(self.Type.GetFuncRet().String())
-	if self.Blocks.Len() != 0 {
+	if self.Blocks.Length() != 0 {
 		buf.WriteByte('{')
 	}
 	if self.Extern {
@@ -112,10 +112,10 @@ func (self Function) String() string {
 	if self.fini {
 		buf.WriteString(" #fini")
 	}
-	if self.Blocks.Len() != 0 {
+	if self.Blocks.Length() != 0 {
 		buf.WriteByte('\n')
 		for cursor := self.Blocks.Front(); cursor != nil; cursor = cursor.Next() {
-			buf.WriteString(cursor.Value.String())
+			buf.WriteString(cursor.Value().String())
 			buf.WriteByte('\n')
 		}
 		buf.WriteString("}")

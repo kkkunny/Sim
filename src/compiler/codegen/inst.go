@@ -9,7 +9,7 @@ import (
 func (self *CodeGenerator) codegenBlock(ir *mir.Block) {
 	self.builder.SetInsertPointAtEnd(self.blocks[ir])
 	for cursor := ir.Insts.Front(); cursor != nil; cursor = cursor.Next() {
-		self.codegenInst(cursor.Value)
+		self.codegenInst(cursor.Value())
 	}
 }
 
