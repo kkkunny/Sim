@@ -1,15 +1,11 @@
 package mir
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/kkkunny/containers/list"
 )
 
 // Global 全局
 type Global interface {
-	fmt.Stringer
 	global()
 }
 
@@ -30,16 +26,7 @@ func (self *Package) NewAlias(name string, t Type) *Alias {
 	self.Globals.PushBack(g)
 	return g
 }
-func (self Alias) String() string {
-	return fmt.Sprintf("type %s = %s", self.GetName(), self.Target)
-}
 func (self Alias) global() {}
-func (self *Alias) GetName() string {
-	if self.Name != "" {
-		return self.Name
-	}
-	return fmt.Sprintf("t%p", self)
-}
 
 // Function 函数
 type Function struct {
@@ -69,66 +56,11 @@ func (self *Package) NewFunction(t Type, name string) *Function {
 	}
 	self.Globals.PushBack(g)
 	for i, p := range paramTypes {
-		g.Params[i] = g.newParam(uint(i), p)
+		g.Params[i] = g.newParam(p)
 	}
 	return g
 }
-func (self Function) String() string {
-	var buf strings.Builder
-	buf.WriteString("func ")
-	buf.WriteString(self.GetName())
-	buf.WriteByte('(')
-	for i, p := range self.Params {
-		buf.WriteString(p.GetName())
-		buf.WriteByte(' ')
-		buf.WriteString(p.Type.String())
-		if i < len(self.Params)-1 {
-			buf.WriteString(", ")
-		}
-	}
-	if self.Type.GetFuncVarArg() {
-		buf.WriteString(", ...")
-	}
-	buf.WriteByte(')')
-	buf.WriteString(self.Type.GetFuncRet().String())
-	if self.Blocks.Length() != 0 {
-		buf.WriteByte('{')
-	}
-	if self.Extern {
-		buf.WriteString(" #extern")
-	}
-	if self.inline {
-		buf.WriteString(" #inline")
-	}
-	if self.noInline {
-		buf.WriteString(" #noinline")
-	}
-	if self.NoReturn {
-		buf.WriteString(" #noreturn")
-	}
-	if self.init {
-		buf.WriteString(" #init")
-	}
-	if self.fini {
-		buf.WriteString(" #fini")
-	}
-	if self.Blocks.Length() != 0 {
-		buf.WriteByte('\n')
-		for cursor := self.Blocks.Front(); cursor != nil; cursor = cursor.Next() {
-			buf.WriteString(cursor.Value().String())
-			buf.WriteByte('\n')
-		}
-		buf.WriteString("}")
-	}
-	return buf.String()
-}
 func (self Function) global() {}
-func (self *Function) GetName() string {
-	if self.Name != "" {
-		return self.Name
-	}
-	return fmt.Sprintf("f%p", self)
-}
 func (self Function) GetType() Type {
 	return self.Type
 }
@@ -190,28 +122,7 @@ func (self *Package) NewVariable(t Type, name string, value Constant) *Variable 
 	self.Globals.PushBack(g)
 	return g
 }
-func (self Variable) String() string {
-	var buf strings.Builder
-	buf.WriteString("var ")
-	buf.WriteString(self.GetName())
-	buf.WriteByte(' ')
-	buf.WriteString(self.Type.String())
-	if self.Value != nil {
-		buf.WriteString(" = ")
-		buf.WriteString(self.Value.GetName())
-	}
-	if self.Extern {
-		buf.WriteString(" #extern")
-	}
-	return buf.String()
-}
 func (self Variable) global() {}
-func (self *Variable) GetName() string {
-	if self.Name != "" {
-		return self.Name
-	}
-	return fmt.Sprintf("g%p", self)
-}
 func (self Variable) GetType() Type {
 	return NewTypePtr(self.Type)
 }

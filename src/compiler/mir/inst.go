@@ -1,13 +1,7 @@
 package mir
 
-import (
-	"fmt"
-	"strings"
-)
-
 // Inst 语句
 type Inst interface {
-	fmt.Stringer
 	inst()
 }
 
@@ -23,13 +17,7 @@ func (self *Block) NewAlloc(t Type) *Alloc {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Alloc) String() string {
-	return fmt.Sprintf("%s %s = alloc %s", self.GetType(), self.GetName(), self.Type)
-}
 func (self Alloc) inst() {}
-func (self *Alloc) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Alloc) GetType() Type {
 	return NewTypePtr(self.Type)
 }
@@ -49,13 +37,7 @@ func (self *Block) NewLoad(v Value) *Load {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Load) String() string {
-	return fmt.Sprintf("%s %s = load %s", self.GetType(), self.GetName(), self.Value.GetName())
-}
 func (self Load) inst() {}
-func (self *Load) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Load) GetType() Type {
 	return self.Value.GetType().GetPtr()
 }
@@ -73,9 +55,6 @@ func (self *Block) NewStore(f, t Value) *Store {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Store) String() string {
-	return fmt.Sprintf("store %s to %s", self.From.GetName(), self.To.GetName())
-}
 func (self Store) inst() {}
 
 // Unreachable 不可到达
@@ -85,9 +64,6 @@ func (self *Block) NewUnreachable() *Unreachable {
 	inst := &Unreachable{}
 	self.Insts.PushBack(inst)
 	return inst
-}
-func (self Unreachable) String() string {
-	return "unreachable"
 }
 func (self Unreachable) inst() {}
 
@@ -106,12 +82,6 @@ func (self *Block) NewReturn(v Value) *Return {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Return) String() string {
-	if self.Value == nil {
-		return "ret void"
-	}
-	return fmt.Sprintf("ret %s", self.Value.GetName())
-}
 func (self Return) inst() {}
 
 // Jmp 跳转
@@ -123,9 +93,6 @@ func (self *Block) NewJmp(dst *Block) *Jmp {
 	inst := &Jmp{Dst: dst}
 	self.Insts.PushBack(inst)
 	return inst
-}
-func (self Jmp) String() string {
-	return fmt.Sprintf("jmp %s", self.Dst.GetName())
 }
 func (self Jmp) inst() {}
 
@@ -143,9 +110,6 @@ func (self *Block) NewCondJmp(c Value, t, f *Block) *CondJmp {
 	}
 	self.Insts.PushBack(inst)
 	return inst
-}
-func (self CondJmp) String() string {
-	return fmt.Sprintf("if %s jmp %s or %s", self.Cond.GetName(), self.True.GetName(), self.False.GetName())
 }
 func (self CondJmp) inst() {}
 
@@ -166,19 +130,7 @@ func (self *Block) NewEq(l, r Value) *Eq {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Eq) String() string {
-	return fmt.Sprintf(
-		"%s %s = eq %s with %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Eq) inst() {}
-func (self *Eq) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Eq) GetType() Type {
 	return NewTypeBool()
 }
@@ -200,19 +152,7 @@ func (self *Block) NewNe(l, r Value) *Ne {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Ne) String() string {
-	return fmt.Sprintf(
-		"%s %s = ne %s with %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Ne) inst() {}
-func (self *Ne) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Ne) GetType() Type {
 	return NewTypeBool()
 }
@@ -234,19 +174,7 @@ func (self *Block) NewLt(l, r Value) *Lt {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Lt) String() string {
-	return fmt.Sprintf(
-		"%s %s = lt %s with %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Lt) inst() {}
-func (self *Lt) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Lt) GetType() Type {
 	return NewTypeBool()
 }
@@ -268,19 +196,7 @@ func (self *Block) NewLe(l, r Value) *Le {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Le) String() string {
-	return fmt.Sprintf(
-		"%s %s = le %s with %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Le) inst() {}
-func (self *Le) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Le) GetType() Type {
 	return NewTypeBool()
 }
@@ -302,19 +218,7 @@ func (self *Block) NewGt(l, r Value) *Gt {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Gt) String() string {
-	return fmt.Sprintf(
-		"%s %s = gt %s with %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Gt) inst() {}
-func (self *Gt) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Gt) GetType() Type {
 	return NewTypeBool()
 }
@@ -336,19 +240,7 @@ func (self *Block) NewGe(l, r Value) *Ge {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Ge) String() string {
-	return fmt.Sprintf(
-		"%s %s = ge %s with %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Ge) inst() {}
-func (self *Ge) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Ge) GetType() Type {
 	return NewTypeBool()
 }
@@ -371,19 +263,7 @@ func (self *Block) NewArrayIndex(f, i Value) *ArrayIndex {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self ArrayIndex) String() string {
-	return fmt.Sprintf(
-		"%s %s = index %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.From.GetName(),
-		self.Index.GetName(),
-	)
-}
 func (self ArrayIndex) inst() {}
-func (self *ArrayIndex) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self ArrayIndex) GetType() Type {
 	ft := self.From.GetType()
 	if ft.IsPtr() {
@@ -425,19 +305,7 @@ func (self *Block) NewStructIndex(f Value, i uint) *StructIndex {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self StructIndex) String() string {
-	return fmt.Sprintf(
-		"%s %s = index %s %d",
-		self.GetType(),
-		self.GetName(),
-		self.From.GetName(),
-		self.Index,
-	)
-}
 func (self StructIndex) inst() {}
-func (self *StructIndex) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self StructIndex) GetType() Type {
 	ft := self.From.GetType()
 	if ft.IsPtr() {
@@ -468,19 +336,7 @@ func (self *Block) NewPointerIndex(f, i Value) *PointerIndex {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self PointerIndex) String() string {
-	return fmt.Sprintf(
-		"%s %s = index %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.From.GetName(),
-		self.Index.GetName(),
-	)
-}
 func (self PointerIndex) inst() {}
-func (self *PointerIndex) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self PointerIndex) GetType() Type {
 	return self.From.GetType()
 }
@@ -520,13 +376,7 @@ func (self *Block) NewUnwrapUnion(t Type, v Value) *UnwrapUnion {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self UnwrapUnion) String() string {
-	return fmt.Sprintf("%s %s = unwrap union %s", self.GetType(), self.GetName(), self.Value.GetName())
-}
 func (self UnwrapUnion) inst() {}
-func (self *UnwrapUnion) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self UnwrapUnion) GetType() Type {
 	if self.IsPtr() {
 		return NewTypePtr(self.To)
@@ -553,19 +403,7 @@ func (self *Block) NewAdd(l, r Value) *Add {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Add) String() string {
-	return fmt.Sprintf(
-		"%s %s = add %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Add) inst() {}
-func (self *Add) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Add) GetType() Type {
 	return self.Left.GetType()
 }
@@ -586,19 +424,7 @@ func (self *Block) NewSub(l, r Value) *Sub {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Sub) String() string {
-	return fmt.Sprintf(
-		"%s %s = sub %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Sub) inst() {}
-func (self *Sub) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Sub) GetType() Type {
 	return self.Left.GetType()
 }
@@ -619,19 +445,7 @@ func (self *Block) NewMul(l, r Value) *Mul {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Mul) String() string {
-	return fmt.Sprintf(
-		"%s %s = mul %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Mul) inst() {}
-func (self *Mul) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Mul) GetType() Type {
 	return self.Left.GetType()
 }
@@ -652,19 +466,7 @@ func (self *Block) NewDiv(l, r Value) *Div {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Div) String() string {
-	return fmt.Sprintf(
-		"%s %s = div %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Div) inst() {}
-func (self *Div) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Div) GetType() Type {
 	return self.Left.GetType()
 }
@@ -685,19 +487,7 @@ func (self *Block) NewMod(l, r Value) *Mod {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Mod) String() string {
-	return fmt.Sprintf(
-		"%s %s = mod %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Mod) inst() {}
-func (self *Mod) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Mod) GetType() Type {
 	return self.Left.GetType()
 }
@@ -718,19 +508,7 @@ func (self *Block) NewAnd(l, r Value) *And {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self And) String() string {
-	return fmt.Sprintf(
-		"%s %s = and %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self And) inst() {}
-func (self *And) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self And) GetType() Type {
 	return self.Left.GetType()
 }
@@ -751,19 +529,7 @@ func (self *Block) NewOr(l, r Value) *Or {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Or) String() string {
-	return fmt.Sprintf(
-		"%s %s = or %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Or) inst() {}
-func (self *Or) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Or) GetType() Type {
 	return self.Left.GetType()
 }
@@ -784,19 +550,7 @@ func (self *Block) NewXor(l, r Value) *Xor {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Xor) String() string {
-	return fmt.Sprintf(
-		"%s %s = xor %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Xor) inst() {}
-func (self *Xor) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Xor) GetType() Type {
 	return self.Left.GetType()
 }
@@ -817,19 +571,7 @@ func (self *Block) NewShl(l, r Value) *Shl {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Shl) String() string {
-	return fmt.Sprintf(
-		"%s %s = shl %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Shl) inst() {}
-func (self *Shl) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Shl) GetType() Type {
 	return self.Left.GetType()
 }
@@ -850,19 +592,7 @@ func (self *Block) NewShr(l, r Value) *Shr {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Shr) String() string {
-	return fmt.Sprintf(
-		"%s %s = shr %s %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self Shr) inst() {}
-func (self *Shr) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Shr) GetType() Type {
 	return self.Left.GetType()
 }
@@ -890,27 +620,7 @@ func (self *Block) NewPhi(f []*Block, v []Value) *Phi {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Phi) String() string {
-	var buf strings.Builder
-	buf.WriteString(self.GetType().String())
-	buf.WriteByte(' ')
-	buf.WriteString(self.GetName())
-	buf.WriteString(" = phi [")
-	for i, b := range self.Froms {
-		buf.WriteString(b.GetName())
-		buf.WriteByte(' ')
-		buf.WriteString(self.Values[i].GetName())
-		if i < len(self.Froms)-1 {
-			buf.WriteString(", ")
-		}
-	}
-	buf.WriteByte(']')
-	return buf.String()
-}
 func (self Phi) inst() {}
-func (self *Phi) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Phi) GetType() Type {
 	return self.Values[0].GetType()
 }
@@ -932,13 +642,7 @@ func (self *Block) NewSint2Sint(f Value, t Type) *Sint2Sint {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Sint2Sint) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Sint2Sint) inst() {}
-func (self *Sint2Sint) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Sint2Sint) GetType() Type {
 	return self.To
 }
@@ -960,13 +664,7 @@ func (self *Block) NewSint2Uint(f Value, t Type) *Sint2Uint {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Sint2Uint) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Sint2Uint) inst() {}
-func (self *Sint2Uint) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Sint2Uint) GetType() Type {
 	return self.To
 }
@@ -988,13 +686,7 @@ func (self *Block) NewSint2Float(f Value, t Type) *Sint2Float {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Sint2Float) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Sint2Float) inst() {}
-func (self *Sint2Float) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Sint2Float) GetType() Type {
 	return self.To
 }
@@ -1016,13 +708,7 @@ func (self *Block) NewSint2Ptr(f Value, t Type) *Sint2Ptr {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Sint2Ptr) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Sint2Ptr) inst() {}
-func (self *Sint2Ptr) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Sint2Ptr) GetType() Type {
 	return self.To
 }
@@ -1044,13 +730,7 @@ func (self *Block) NewUint2Uint(f Value, t Type) *Uint2Uint {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Uint2Uint) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Uint2Uint) inst() {}
-func (self *Uint2Uint) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Uint2Uint) GetType() Type {
 	return self.To
 }
@@ -1072,13 +752,7 @@ func (self *Block) NewUint2Sint(f Value, t Type) *Uint2Sint {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Uint2Sint) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Uint2Sint) inst() {}
-func (self *Uint2Sint) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Uint2Sint) GetType() Type {
 	return self.To
 }
@@ -1100,13 +774,7 @@ func (self *Block) NewUint2Float(f Value, t Type) *Uint2Float {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Uint2Float) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Uint2Float) inst() {}
-func (self *Uint2Float) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Uint2Float) GetType() Type {
 	return self.To
 }
@@ -1128,13 +796,7 @@ func (self *Block) NewUint2Ptr(f Value, t Type) *Uint2Ptr {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Uint2Ptr) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Uint2Ptr) inst() {}
-func (self *Uint2Ptr) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Uint2Ptr) GetType() Type {
 	return self.To
 }
@@ -1156,13 +818,7 @@ func (self *Block) NewFloat2Sint(f Value, t Type) *Float2Sint {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Float2Sint) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Float2Sint) inst() {}
-func (self *Float2Sint) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Float2Sint) GetType() Type {
 	return self.To
 }
@@ -1184,13 +840,7 @@ func (self *Block) NewFloat2Uint(f Value, t Type) *Float2Uint {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Float2Uint) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Float2Uint) inst() {}
-func (self *Float2Uint) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Float2Uint) GetType() Type {
 	return self.To
 }
@@ -1212,13 +862,7 @@ func (self *Block) NewFloat2Float(f Value, t Type) *Float2Float {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Float2Float) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Float2Float) inst() {}
-func (self *Float2Float) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Float2Float) GetType() Type {
 	return self.To
 }
@@ -1240,13 +884,7 @@ func (self *Block) NewPtr2Ptr(f Value, t Type) *Ptr2Ptr {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Ptr2Ptr) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Ptr2Ptr) inst() {}
-func (self *Ptr2Ptr) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Ptr2Ptr) GetType() Type {
 	return self.To
 }
@@ -1268,13 +906,7 @@ func (self *Block) NewPtr2Sint(f Value, t Type) *Ptr2Sint {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Ptr2Sint) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Ptr2Sint) inst() {}
-func (self *Ptr2Sint) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Ptr2Sint) GetType() Type {
 	return self.To
 }
@@ -1296,13 +928,7 @@ func (self *Block) NewPtr2Uint(f Value, t Type) *Ptr2Uint {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Ptr2Uint) String() string {
-	return fmt.Sprintf("%s %s = %s to %s", self.GetType(), self.GetName(), self.From.GetName(), self.To)
-}
 func (self Ptr2Uint) inst() {}
-func (self *Ptr2Uint) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Ptr2Uint) GetType() Type {
 	return self.To
 }
@@ -1324,20 +950,7 @@ func (self *Block) NewSelect(c, t, f Value) *Select {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Select) String() string {
-	return fmt.Sprintf(
-		"%s %s = if %s then %s or %s",
-		self.GetType(),
-		self.GetName(),
-		self.Cond.GetName(),
-		self.True.GetName(),
-		self.False.GetName(),
-	)
-}
 func (self Select) inst() {}
-func (self *Select) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Select) GetType() Type {
 	return self.True.GetType()
 }
@@ -1357,13 +970,7 @@ func (self *Block) NewNot(v Value) *Not {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Not) String() string {
-	return fmt.Sprintf("%s %s = not %s", self.GetType(), self.GetName(), self.Value.GetName())
-}
 func (self Not) inst() {}
-func (self *Not) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Not) GetType() Type {
 	return self.Value.GetType()
 }
@@ -1383,13 +990,7 @@ func (self *Block) NewLogicNot(v Value) *LogicNot {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self LogicNot) String() string {
-	return fmt.Sprintf("%s %s = logic not %s", self.GetType(), self.GetName(), self.Value.GetName())
-}
 func (self LogicNot) inst() {}
-func (self *LogicNot) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self LogicNot) GetType() Type {
 	return self.Value.GetType()
 }
@@ -1410,19 +1011,7 @@ func (self *Block) NewLogicAnd(l, r Value) *LogicAnd {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self LogicAnd) String() string {
-	return fmt.Sprintf(
-		"%s %s = logic and %s with %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self LogicAnd) inst() {}
-func (self *LogicAnd) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self LogicAnd) GetType() Type {
 	return self.Left.GetType()
 }
@@ -1443,19 +1032,7 @@ func (self *Block) NewLogicOr(l, r Value) *LogicOr {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self LogicOr) String() string {
-	return fmt.Sprintf(
-		"%s %s = logic or %s with %s",
-		self.GetType(),
-		self.GetName(),
-		self.Left.GetName(),
-		self.Right.GetName(),
-	)
-}
 func (self LogicOr) inst() {}
-func (self *LogicOr) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self LogicOr) GetType() Type {
 	return self.Left.GetType()
 }
@@ -1489,30 +1066,7 @@ func (self *Block) NewCall(f Value, arg ...Value) *Call {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self Call) String() string {
-	var buf strings.Builder
-	if !self.GetType().IsVoid() {
-		buf.WriteString(self.GetType().String())
-		buf.WriteByte(' ')
-		buf.WriteString(self.GetName())
-		buf.WriteString(" = ")
-	}
-	buf.WriteString("call ")
-	buf.WriteString(self.Func.GetName())
-	buf.WriteByte('(')
-	for i, a := range self.Args {
-		buf.WriteString(a.GetName())
-		if i < len(self.Args)-1 {
-			buf.WriteString(", ")
-		}
-	}
-	buf.WriteByte(')')
-	return buf.String()
-}
 func (self Call) inst() {}
-func (self *Call) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self Call) GetType() Type {
 	return self.Func.GetType().GetFuncRet()
 }
@@ -1546,13 +1100,7 @@ func (self *Block) NewWrapUnion(t Type, v Value) *WrapUnion {
 	self.Insts.PushBack(inst)
 	return inst
 }
-func (self WrapUnion) String() string {
-	return fmt.Sprintf("%s %s = union %s", self.GetType(), self.GetName(), self.Value.GetName())
-}
 func (self WrapUnion) inst() {}
-func (self *WrapUnion) GetName() string {
-	return fmt.Sprintf("v%p", self)
-}
 func (self WrapUnion) GetType() Type {
 	return self.To
 }

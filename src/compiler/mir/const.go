@@ -1,10 +1,8 @@
 package mir
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 )
 
 // Constant 常量
@@ -40,12 +38,6 @@ func NewBool(v bool) *Bool {
 	return &Bool{
 		Value: v,
 	}
-}
-func (self Bool) GetName() string {
-	if self.Value {
-		return "true"
-	}
-	return "false"
 }
 func (self Bool) GetType() Type {
 	return NewTypeBool()
@@ -121,9 +113,6 @@ func NewSintFromString(t Type, v string) *Sint {
 		Value: vv,
 	}
 }
-func (self Sint) GetName() string {
-	return self.Value.String()
-}
 func (self Sint) GetType() Type {
 	return self.Type
 }
@@ -160,9 +149,6 @@ func NewUintFromString(t Type, v string) *Uint {
 		Value: vv,
 	}
 }
-func (self Uint) GetName() string {
-	return self.Value.String()
-}
 func (self Uint) GetType() Type {
 	return self.Type
 }
@@ -196,9 +182,6 @@ func NewFloatFromString(t Type, v string) *Float {
 		Value: vv,
 	}
 }
-func (self Float) GetName() string {
-	return self.Value.String()
-}
 func (self Float) GetType() Type {
 	return self.Type
 }
@@ -216,9 +199,6 @@ func NewEmptyPtr(t Type) *EmptyPtr {
 	return &EmptyPtr{
 		Type: t,
 	}
-}
-func (self EmptyPtr) GetName() string {
-	return "empty"
 }
 func (self EmptyPtr) GetType() Type {
 	return self.Type
@@ -238,9 +218,6 @@ func NewEmptyFunc(t Type) *EmptyFunc {
 		Type: t,
 	}
 }
-func (self EmptyFunc) GetName() string {
-	return "empty"
-}
 func (self EmptyFunc) GetType() Type {
 	return self.Type
 }
@@ -258,9 +235,6 @@ func NewEmptyArray(t Type) *EmptyArray {
 	return &EmptyArray{
 		Type: t,
 	}
-}
-func (self EmptyArray) GetName() string {
-	return "empty"
 }
 func (self EmptyArray) GetType() Type {
 	return self.Type
@@ -280,9 +254,6 @@ func NewEmptyStruct(t Type) *EmptyStruct {
 		Type: t,
 	}
 }
-func (self EmptyStruct) GetName() string {
-	return "empty"
-}
 func (self EmptyStruct) GetType() Type {
 	return self.Type
 }
@@ -300,9 +271,6 @@ func NewEmptyUnion(t Type) *EmptyUnion {
 	return &EmptyUnion{
 		Type: t,
 	}
-}
-func (self EmptyUnion) GetName() string {
-	return "empty"
 }
 func (self EmptyUnion) GetType() Type {
 	return self.Type
@@ -328,18 +296,6 @@ func NewArray(elem ...Constant) *Array {
 		Elems: elem,
 	}
 }
-func (self Array) GetName() string {
-	var buf strings.Builder
-	buf.WriteByte('(')
-	for i, e := range self.Elems {
-		buf.WriteString(e.GetName())
-		if i < len(self.Elems)-1 {
-			buf.WriteByte(',')
-		}
-	}
-	buf.WriteByte(')')
-	return buf.String()
-}
 func (self Array) GetType() Type {
 	return NewTypeArray(uint(len(self.Elems)), self.Elems[0].GetType())
 }
@@ -357,18 +313,6 @@ func NewStruct(elem ...Constant) *Struct {
 	return &Struct{
 		Elems: elem,
 	}
-}
-func (self Struct) GetName() string {
-	var buf strings.Builder
-	buf.WriteByte('{')
-	for i, e := range self.Elems {
-		buf.WriteString(e.GetName())
-		if i < len(self.Elems)-1 {
-			buf.WriteByte(',')
-		}
-	}
-	buf.WriteByte('}')
-	return buf.String()
 }
 func (self Struct) GetType() Type {
 	elems := make([]Type, len(self.Elems))
@@ -393,13 +337,6 @@ func NewArrayIndexConst(f Constant, i uint) *ArrayIndexConst {
 		From:  f,
 		Index: i,
 	}
-}
-func (self ArrayIndexConst) GetName() string {
-	return fmt.Sprintf(
-		"index %s %d",
-		self.From.GetName(),
-		self.Index,
-	)
 }
 func (self ArrayIndexConst) GetType() Type {
 	ft := self.From.GetType()

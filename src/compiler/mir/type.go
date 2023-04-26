@@ -1,9 +1,7 @@
 package mir
 
 import (
-	"fmt"
 	"math"
-	"strings"
 
 	"github.com/kkkunny/Sim/src/compiler/utils"
 )
@@ -113,71 +111,6 @@ func (self Type) IsAlias() bool { return self.Kind == TAlias }
 
 func (self Type) IsInteger() bool { return self.IsSint() || self.IsUint() }
 func (self Type) IsNumber() bool  { return self.IsInteger() || self.IsFloat() }
-
-func (self Type) String() string {
-	switch self.Kind {
-	case TVoid:
-		return "void"
-	case TBool:
-		return "bool"
-	case TSint:
-		if self.width == 0 {
-			return "sint"
-		}
-		return fmt.Sprintf("i%d", self.width*8)
-	case TUint:
-		if self.width == 0 {
-			return "uint"
-		}
-		return fmt.Sprintf("u%d", self.width*8)
-	case TFloat:
-		return fmt.Sprintf("f%d", self.width*8)
-	case TPtr:
-		return "*" + self.elems[0].String()
-	case TFunc:
-		var buf strings.Builder
-		buf.WriteString("func(")
-		for i, p := range self.elems[1:] {
-			buf.WriteString(p.String())
-			if i < len(self.elems)-2 {
-				buf.WriteString(",")
-			}
-		}
-		buf.WriteByte(')')
-		if !self.elems[0].IsVoid() {
-			buf.WriteString(self.elems[0].String())
-		}
-		return buf.String()
-	case TArray:
-		return fmt.Sprintf("[%d]%s", self.width, self.elems[0])
-	case TStruct:
-		var buf strings.Builder
-		buf.WriteByte('{')
-		for i, e := range self.elems {
-			buf.WriteString(e.String())
-			if i < len(self.elems)-1 {
-				buf.WriteString(",")
-			}
-		}
-		buf.WriteByte('}')
-		return buf.String()
-	case TUnion:
-		var buf strings.Builder
-		buf.WriteByte('<')
-		for i, e := range self.elems {
-			buf.WriteString(e.String())
-			if i < len(self.elems)-1 {
-				buf.WriteString(",")
-			}
-		}
-		buf.WriteByte('>')
-		return buf.String()
-	case TAlias:
-		return self.alias.GetName()
-	default:
-		panic("unreachable")
-	}
-}
 
 // GetWidth 获取宽度
 func (self Type) GetWidth() uint {
@@ -322,14 +255,6 @@ func (self Type) GetAlias() *Alias {
 	return self.alias
 }
 
-// GetAliasName 获取别名
-func (self Type) GetAliasName() string {
-	if !self.IsAlias() {
-		panic("unreachable")
-	}
-	return self.alias.GetName()
-}
-
 // GetAliasTarget 获取别名目标类型
 func (self Type) GetAliasTarget() Type {
 	if !self.IsAlias() {
@@ -359,7 +284,7 @@ func (self Type) Equal(dst Type) bool {
 	for dst.IsAlias() && dst.GetAliasTarget().IsAlias() {
 		dst = dst.GetAliasTarget()
 	}
-	if self.IsAlias() && dst.IsAlias() && self.alias.GetName() == dst.alias.GetName() {
+	if self.IsAlias() && dst.IsAlias() && self.alias.Name == dst.alias.Name {
 		return true
 	}
 

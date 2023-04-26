@@ -3,10 +3,10 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/kkkunny/Sim/src/compiler/analyse"
+	"github.com/kkkunny/Sim/src/compiler/mir"
 	"github.com/kkkunny/Sim/src/compiler/mir/pass"
 	"github.com/kkkunny/Sim/src/compiler/mirgen"
 	"github.com/kkkunny/Sim/src/compiler/parse"
@@ -19,5 +19,5 @@ func main() {
 	hirs := util.MustValue(analyse.NewAnalyser().Analyse(ast))
 	mirs := mirgen.NewMirGenerator().Generate(*hirs)
 	mirs = pass.WalkPass(mirs, pass.MUST)
-	fmt.Println(mirs)
+	mir.NewStringer(mirs).Output(os.Stdout)
 }

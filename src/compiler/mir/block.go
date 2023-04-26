@@ -1,9 +1,6 @@
 package mir
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/kkkunny/containers/list"
 )
 
@@ -20,22 +17,6 @@ func (self *Function) NewBlock() *Block {
 	}
 	self.Blocks.PushBack(b)
 	return b
-}
-func (self *Block) GetName() string {
-	return fmt.Sprintf("b%p", self)
-}
-func (self Block) String() string {
-	var buf strings.Builder
-	buf.WriteString(self.GetName())
-	buf.WriteString(":\n")
-	for cursor := self.Insts.Front(); cursor != nil; cursor = cursor.Next() {
-		buf.WriteByte('\t')
-		buf.WriteString(cursor.Value().String())
-		if cursor.Next() != nil {
-			buf.WriteByte('\n')
-		}
-	}
-	return buf.String()
 }
 func (self *Block) NewEqual(left, right Value) (*Block, Value) {
 	t := left.GetType()
