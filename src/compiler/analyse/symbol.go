@@ -28,6 +28,7 @@ type symbolTable struct {
 
 	types          map[string]symbolObject[*hir.Typedef]          // 类型
 	values         map[string]symbolObject[hir.Ident]             // 值
+	traits         map[string]symbolObject[*hir.Trait]            // 特征
 	genericFuncs   map[string]symbolGenericObject[parse.Function] // 泛型函数
 	genericTypeMap *queue.Queue[map[string]hir.Type]              // 泛型类型映射
 	genericTypes   map[string]symbolGenericObject[parse.TypeDef]  // 泛型类型
@@ -44,6 +45,7 @@ func newPkgSymbolTable(pkg stlos.Path) *symbolTable {
 		pkg:            hir.NewPkgPath(pkg),
 		types:          make(map[string]symbolObject[*hir.Typedef]),
 		values:         make(map[string]symbolObject[hir.Ident]),
+		traits:         make(map[string]symbolObject[*hir.Trait]),
 		genericFuncs:   make(map[string]symbolGenericObject[parse.Function]),
 		genericTypeMap: queue.NewQueue[map[string]hir.Type](),
 		genericTypes:   make(map[string]symbolGenericObject[parse.TypeDef]),
@@ -243,4 +245,40 @@ func (self symbolTable) lookupGenericMethod(tname, name string) (symbolGenericOb
 		return v, true
 	}
 	return symbolGenericObject[parse.Method]{}, false
+}
+
+// 声明特征
+func (self *symbolTable) declTrait(pub bool, t *hir.Trait) bool {
+	if !self.isPkg() {
+		panic("unreachable")
+	}
+
+	if _, ok := self.traits[t.Name]; ok {
+		return false
+	}
+	self.traits[t.Name] = symbolObject[*hir.Trait]{
+		pub:  pub,
+		data: t,
+	}
+	return true
+}
+
+// 定义特征
+func (self *symbolTable) defTrait(name string, methods map[string]hir.Type) bool {
+	if !self.isPkg() {
+		panic("unreachable")
+	}
+	self.traits[name].data.Methods = methods
+	return true
+}
+
+// 寻找特征
+func (self symbolTable) lookupTrait(name string) (symbolObject[*hir.Trait], bool) {
+	if !self.isPkg() {
+		return self.f.lookupTrait(name)
+	}
+	if t, ok := self.traits[name]; ok {
+		return t, true
+	}
+	return symbolObject[*hir.Trait]{}, false
 }

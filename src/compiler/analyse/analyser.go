@@ -55,28 +55,44 @@ func (self *Analyser) analysePackage(ast *parse.Package) (*list.SingleLinkedList
 	if err := self.analysePackageObjectDef(declAsts); err != nil {
 		return nil, err
 	}
+	// 特征实现检查
+	if err := self.analysePackageImplTraitCheck(); err != nil {
+		return nil, err
+	}
 	return self.globals, nil
 }
 
 // 包类型定义
 func (self *Analyser) analysePackageTypedef(astPkg parse.Package) utils.Error {
-	defAsts := list.NewSingleLinkedList[parse.TypeDef]()
 	// 声明
+	typeAsts := list.NewSingleLinkedList[parse.TypeDef]()
+	traitAsts := list.NewSingleLinkedList[parse.Trait]()
 	var errs []utils.Error
 	for iter := astPkg.Globals.Iterator(); iter.HasValue(); iter.Next() {
-		if ast, ok := iter.Value().(*parse.TypeDef); ok {
+		switch ast := iter.Value().(type) {
+		case *parse.TypeDef:
 			if len(ast.GenericParams) == 0 {
 				if !self.symbol.declType(
 					ast.Public,
 					hir.NewTypedef(hir.NewPkgPath(astPkg.Path), ast.Name.Source, hir.NewTypeNone()),
 				) {
-					return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
+					errs = append(errs, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration))
+				} else {
+					typeAsts.PushBack(*ast)
 				}
-				defAsts.PushBack(*ast)
 			} else {
 				if err := self.analyseGenericTypeDecl(*ast); err != nil {
 					errs = append(errs, err)
 				}
+			}
+		case *parse.Trait:
+			if !self.symbol.declTrait(
+				ast.Public,
+				hir.NewTrait(hir.NewPkgPath(astPkg.Path), ast.Name.Source, nil),
+			) {
+				errs = append(errs, utils.Errorf(ast.Name.Pos, errDuplicateDeclaration))
+			} else {
+				traitAsts.PushBack(*ast)
 			}
 		}
 	}
@@ -85,8 +101,8 @@ func (self *Analyser) analysePackageTypedef(astPkg parse.Package) utils.Error {
 	} else if len(errs) > 1 {
 		return utils.NewMultiError(errs...)
 	}
-	// 定义
-	for iter := defAsts.Iterator(); iter.HasValue(); iter.Next() {
+	// 类型定义
+	for iter := typeAsts.Iterator(); iter.HasValue(); iter.Next() {
 		def, err := self.analyseTypedef(iter.Value())
 		if err != nil {
 			errs = append(errs, err)
@@ -101,7 +117,7 @@ func (self *Analyser) analysePackageTypedef(astPkg parse.Package) utils.Error {
 	}
 
 	// 循环检测
-	for iter := defAsts.Iterator(); iter.HasValue(); iter.Next() {
+	for iter := typeAsts.Iterator(); iter.HasValue(); iter.Next() {
 		astName := iter.Value().Name
 		def, ok := self.symbol.lookupType(astName.Source)
 		if !ok || def.data.Target.IsNone() {
@@ -109,6 +125,21 @@ func (self *Analyser) analysePackageTypedef(astPkg parse.Package) utils.Error {
 		}
 		if self.checkTypeCircle(set.NewLinkedHashSet[*hir.Typedef](), hir.NewTypeTypedef(def.data)) {
 			errs = append(errs, utils.Errorf(astName.Pos, errCircularReference))
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+
+	// 特征定义
+	for iter := traitAsts.Iterator(); iter.HasValue(); iter.Next() {
+		def, err := self.analyseTrait(iter.Value())
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			self.globals.PushBack(def)
 		}
 	}
 	if len(errs) == 1 {
@@ -189,5 +220,29 @@ func (self *Analyser) analysePackageObjectDef(asts *list.SingleLinkedList[parse.
 		return utils.NewMultiError(errs...)
 	}
 
+	return nil
+}
+
+// 包特征实现检查
+func (self *Analyser) analysePackageImplTraitCheck() utils.Error {
+	var errs []utils.Error
+	for iter := self.globals.Iterator(); iter.HasValue(); iter.Next() {
+		if td, ok := iter.Value().(*hir.Typedef); ok {
+			for iter := td.Impls.Iterator(); iter != nil; iter.Next() {
+				trait := iter.Value()
+				if !td.IsImpl(trait) {
+					errs = append(errs, utils.Errorf(utils.Position{}, "not impl %s", trait.Name)) // TODO: Position
+				}
+				if !iter.HasNext() {
+					break
+				}
+			}
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
 	return nil
 }

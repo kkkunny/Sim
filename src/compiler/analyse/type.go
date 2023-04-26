@@ -86,6 +86,8 @@ func (self *Analyser) analyseTypeIdent(ast parse.TypeIdent) (hir.Type, utils.Err
 			return hir.NewTypeF32(), nil
 		case "f64":
 			return hir.NewTypeF64(), nil
+		case "Self":
+			fmt.Println(111111111)
 		}
 
 		// 泛型类型映射
@@ -189,6 +191,7 @@ func (self *Analyser) instantiateGenericType(symbol *symbolTable, ast parse.Type
 	if self.checkTypeCircle(set.NewLinkedHashSet[*hir.Typedef](), hir.NewTypeTypedef(def)) {
 		errs = append(errs, utils.Errorf(ast.Name.Pos, errCircularReference))
 	}
+	self.globals.PushBack(def)
 	return def, nil
 }
 
@@ -206,7 +209,7 @@ func (self *Analyser) analyseTypeFunc(ast parse.TypeFunc) (hir.Type, utils.Error
 	// 返回值
 	ret, err := self.analyseType(ast.Ret)
 	if err != nil {
-		return hir.Type{}, nil
+		return hir.Type{}, err
 	}
 	// 参数
 	var errs []utils.Error
@@ -371,4 +374,19 @@ func (self *Analyser) checkTypeCircle(temp *set.LinkedHashSet[*hir.Typedef], t h
 	default:
 		panic("unreachable")
 	}
+}
+
+// 特征
+func (self *Analyser) analyseTraitIdent(ast parse.Ident) (*hir.Trait, utils.Error) {
+	for _, pkg := range ast.Pkgs {
+		symbol := self.symbols[pkg]
+		t, ok := symbol.lookupTrait(ast.Name.Source)
+		if !ok {
+			continue
+		}
+		if self.symbol.getPkgSymbolTable() == symbol || t.pub {
+			return t.data, nil
+		}
+	}
+	return nil, utils.Errorf(ast.Name.Pos, errUnknownIdentifier)
 }

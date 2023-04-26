@@ -564,6 +564,8 @@ func (self *Stringer) instString(ir Inst) string {
 }
 func (self *Stringer) valueName(ir Value) string {
 	switch value := ir.(type) {
+	case Global:
+		return self.globalName(value)
 	case Constant:
 		switch constant := value.(type) {
 		case *Bool:
@@ -613,8 +615,6 @@ func (self *Stringer) valueName(ir Value) string {
 	case Inst, *Param:
 		n, _ := self.values.Get(value)
 		return fmt.Sprintf("v%d", n)
-	case Global:
-		return self.globalName(value)
 	default:
 		panic("unreachable")
 	}

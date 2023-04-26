@@ -44,17 +44,19 @@ type TypeDef struct {
 	Public        bool
 	Name          lex.Token
 	GenericParams []lex.Token
+	Impls         []*Ident
 	Target        Type
 }
 
 func NewTypeDef(
-	pos utils.Position, pub bool, name lex.Token, genericParams []lex.Token, target Type,
+	pos utils.Position, pub bool, name lex.Token, genericParams []lex.Token, impls []*Ident, target Type,
 ) *TypeDef {
 	return &TypeDef{
 		Pos:           pos,
 		Public:        pub,
 		Name:          name,
 		GenericParams: genericParams,
+		Impls:         impls,
 		Target:        target,
 	}
 }
@@ -174,6 +176,29 @@ func (self GlobalValue) Position() utils.Position {
 
 func (self GlobalValue) Global() {}
 
+// Trait 特征
+type Trait struct {
+	Pos     utils.Position
+	Public  bool
+	Name    lex.Token
+	Methods []*NameAndType // 必须是函数类型
+}
+
+func NewTrait(pos utils.Position, pub bool, name lex.Token, methods []*NameAndType) *Trait {
+	return &Trait{
+		Pos:     pos,
+		Public:  pub,
+		Name:    name,
+		Methods: methods,
+	}
+}
+
+func (self Trait) Position() utils.Position {
+	return self.Pos
+}
+
+func (self Trait) Global() {}
+
 // ****************************************************************
 
 var (
@@ -189,7 +214,7 @@ func (self *parser) parseGlobal() Global {
 	}
 
 	switch self.nextTok.Kind {
-	case lex.IMPORT, lex.TYPE:
+	case lex.IMPORT, lex.TYPE, lex.TRAIT:
 		return self.parseGlobalWithNoAttr(pub)
 	case lex.Attr, lex.FUNC, lex.LET:
 		return self.parseGlobalWithAttr(pub)
@@ -211,6 +236,8 @@ func (self *parser) parseGlobalWithNoAttr(pub *lex.Token) Global {
 		return nil
 	case lex.TYPE:
 		return self.parseTypeDef(pub)
+	case lex.TRAIT:
+		return self.parseTrait(pub)
 	default:
 		self.throwErrorf(self.nextTok.Pos, errStrUnknownGlobal)
 		return nil
@@ -341,8 +368,13 @@ func (self *parser) parseTypeDef(pub *lex.Token) *TypeDef {
 	begin := self.expectNextIs(lex.TYPE).Pos
 	name := self.expectNextIs(lex.IDENT)
 	genericParams := self.parseGenericParamList()
+	var impls []*Ident
+	if self.skipNextIs(lex.LPA) {
+		impls = self.parseIdentExprList(lex.RPA)
+		self.expectNextIs(lex.RPA)
+	}
 	target := self.parseType()
-	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, genericParams, target)
+	return NewTypeDef(utils.MixPosition(begin, target.Position()), pub != nil, name, genericParams, impls, target)
 }
 
 // 函数
@@ -519,4 +551,22 @@ func (self *parser) parseGenericParamList() []lex.Token {
 	}
 	self.expectNextIs(lex.GT)
 	return params
+}
+
+// 特征
+func (self *parser) parseTrait(pub *lex.Token) *Trait {
+	begin := self.expectNextIs(lex.TRAIT).Pos
+	name := self.expectNextIs(lex.IDENT)
+	self.expectNextIs(lex.LBR)
+	var methods []*NameAndType
+	for self.skipSem(); !self.nextIs(lex.RBR); {
+		methods = append(methods, self.parseNameAndType(true))
+		com := self.skipNextIs(lex.COM)
+		self.skipSem()
+		if !com {
+			break
+		}
+	}
+	end := self.expectNextIs(lex.RBR).Pos
+	return NewTrait(utils.MixPosition(begin, end), pub != nil, name, methods)
 }

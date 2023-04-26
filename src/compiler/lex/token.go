@@ -101,6 +101,7 @@ const (
 	DEFAULT  // default
 	MUT      // mut
 	UNSAFE   // unsafe
+	TRAIT    // trait
 )
 
 var tokenKindStr = [...]string{
@@ -195,6 +196,7 @@ var tokenKindStr = [...]string{
 	DEFAULT:  "default",
 	MUT:      "mut",
 	UNSAFE:   "unsafe",
+	TRAIT:    "trait",
 }
 
 // LookUp 区分标识符和关键字
@@ -254,6 +256,8 @@ func LookUp(s string) TokenKind {
 		return MUT
 	case "unsafe":
 		return UNSAFE
+	case "trait":
+		return TRAIT
 	default:
 		return IDENT
 	}

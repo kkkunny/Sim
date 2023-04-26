@@ -447,6 +447,17 @@ func (self *parser) parseIdentExpr() *Ident {
 	}
 }
 
+// 标识符列表
+func (self *parser) parseIdentExprList(end lex.TokenKind) (toks []*Ident) {
+	for !self.nextIs(end) {
+		toks = append(toks, self.parseIdentExpr())
+		if !self.skipNextIs(lex.COM) {
+			break
+		}
+	}
+	return toks
+}
+
 // 单表达式
 func (self *parser) parsePrimaryExpr() Expr {
 	switch self.nextTok.Kind {

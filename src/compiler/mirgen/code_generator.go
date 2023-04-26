@@ -50,7 +50,7 @@ func (self *MirGenerator) Generate(pkg hir.Package) *mir.Package {
 func (self *MirGenerator) genDecl(pkg hir.Package) {
 	for iter := pkg.Globals.Iterator(); iter.HasValue(); iter.Next() {
 		switch global := iter.Value().(type) {
-		case *hir.Typedef:
+		case *hir.Typedef, *hir.Trait:
 		case *hir.Function:
 			self.genFunctionDecl(global)
 		case *hir.Method:
@@ -67,7 +67,7 @@ func (self *MirGenerator) genDecl(pkg hir.Package) {
 func (self *MirGenerator) genDef(pkg hir.Package) {
 	for iter := pkg.Globals.Iterator(); iter.HasValue(); iter.Next() {
 		switch global := iter.Value().(type) {
-		case *hir.Typedef:
+		case *hir.Typedef, *hir.Trait:
 		case *hir.Function:
 			self.genFunctionDef(global)
 		case *hir.Method:

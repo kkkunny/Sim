@@ -14,6 +14,21 @@ func (self *Analyser) analyseTypedef(ast parse.TypeDef) (*hir.Typedef, utils.Err
 		panic("unreachable")
 	}
 
+	var errs []utils.Error
+	for _, t := range ast.Impls {
+		trait, err := self.analyseTraitIdent(*t)
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			def.data.Impls.Add(trait)
+		}
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+
 	elem, err := self.analyseType(ast.Target)
 	if err != nil {
 		return nil, err
@@ -424,4 +439,34 @@ func (self *Analyser) analyseGenericTypeDecl(ast parse.TypeDef) utils.Error {
 		return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
 	}
 	return nil
+}
+
+// 特征定义
+func (self *Analyser) analyseTrait(ast parse.Trait) (*hir.Trait, utils.Error) {
+	var errs []utils.Error
+	methods := make(map[string]hir.Type)
+	for _, m := range ast.Methods {
+		if _, ok := methods[m.Name.Source]; ok {
+			errs = append(errs, utils.Errorf(m.Name.Pos, errDuplicateDeclaration))
+			continue
+		}
+		t, err := self.analyseType(m.Type)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		methods[m.Name.Source] = t
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+
+	def, ok := self.symbol.lookupTrait(ast.Name.Source)
+	if !ok {
+		panic("unreachable")
+	}
+	def.data.Methods = methods
+	return def.data, nil
 }

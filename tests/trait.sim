@@ -1,0 +1,17 @@
+import std::c
+
+trait Getter{
+    get: func()i32
+}
+
+type A<T>(Getter) (i32, T)
+func (A<T>) get()i32 unsafe{
+    return (valof self)[0]
+}
+
+@extern(main)
+func main()u8{
+    let mut a = (1, 1) as A::<i32>
+    c::printf("%d\n", a.get())
+    return 0
+}

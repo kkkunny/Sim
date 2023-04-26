@@ -1,6 +1,9 @@
 package hir
 
-import "github.com/kkkunny/stl/table"
+import (
+	"github.com/kkkunny/containers/hashset"
+	"github.com/kkkunny/stl/table"
+)
 
 // Global 全局
 type Global interface {
@@ -13,6 +16,7 @@ type Typedef struct {
 	Name   string  // 类型名
 	Target Type    // 目标类型
 
+	Impls       *hashset.HashSet[*Trait]           // 实现的特征
 	Methods     map[string]*Method                 // 方法
 	GenericArgs *table.LinkedHashMap[string, Type] // 泛型参数
 }
@@ -23,12 +27,11 @@ func NewTypedef(pkg PkgPath, name string, t Type) *Typedef {
 		Name:   name,
 		Target: t,
 
+		Impls:   hashset.NewHashSet[*Trait](),
 		Methods: make(map[string]*Method),
 	}
 }
-
 func (self Typedef) global() {}
-
 func (self *Typedef) DeclMethod(name string, method *Method) bool {
 	if _, ok := self.Methods[name]; ok {
 		return false
@@ -36,10 +39,17 @@ func (self *Typedef) DeclMethod(name string, method *Method) bool {
 	self.Methods[name] = method
 	return true
 }
-
-func (self *Typedef) LookupMethod(name string) (*Method, bool) {
+func (self Typedef) LookupMethod(name string) (*Method, bool) {
 	method, ok := self.Methods[name]
 	return method, ok
+}
+func (self Typedef) IsImpl(trait *Trait) bool {
+	for n, ft := range trait.Methods {
+		if m, ok := self.Methods[n]; !ok || !m.Type().Equal(ft) {
+			return false
+		}
+	}
+	return true
 }
 
 // GlobalValue 全局变量
@@ -170,3 +180,20 @@ func (self Method) FunctionType() Type {
 		append([]Type{NewTypePtr(NewTypeTypedef(self.Self))}, self.Typ.GetFuncParams()...)...,
 	)
 }
+
+// Trait 特征
+type Trait struct {
+	Pkg     PkgPath         // 包
+	Name    string          // 特征名
+	Methods map[string]Type // 方法
+}
+
+func NewTrait(pkg PkgPath, name string, methods map[string]Type) *Trait {
+	return &Trait{
+		Pkg:     pkg,
+		Name:    name,
+		Methods: methods,
+	}
+}
+
+func (self Trait) global() {}
