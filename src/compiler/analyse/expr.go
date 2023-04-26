@@ -475,6 +475,8 @@ func (self *Analyser) analyseUnary(expect *hir.Type, ast parse.Unary) (hir.Expr,
 			return nil, err
 		} else if v.Immediate() {
 			return nil, utils.Errorf(ast.Value.Position(), errNotExpectImmediateValue)
+		} else if !self.symbol.unsafe {
+			return nil, utils.Errorf(ast.Value.Position(), errExpectUnsafeBlock)
 		}
 		return hir.NewGetPointer(v), nil
 	case lex.VALOF:
@@ -485,6 +487,8 @@ func (self *Analyser) analyseUnary(expect *hir.Type, ast parse.Unary) (hir.Expr,
 		v, err := self.analyseExpr(expect, ast.Value)
 		if err != nil {
 			return nil, err
+		} else if !self.symbol.unsafe {
+			return nil, utils.Errorf(ast.Value.Position(), errExpectUnsafeBlock)
 		}
 		return hir.NewGetValue(v), nil
 	case lex.LENOF:

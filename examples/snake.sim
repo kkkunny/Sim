@@ -37,7 +37,7 @@ func select(nfds: c::int, readfds: *fd_set, writefds: *fd_set, exceptfds: *fd_se
 let SIZE: (i32, i32) = (60, 30)
 
 @extern(main)
-func main()u8{
+func main()u8 unsafe{
 	c::printf("\e[?25l")
 
 	let mut oldt: termios

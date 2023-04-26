@@ -10,4 +10,5 @@ const (
 	errExpectBoolean           = "expect a boolean"             // 期待一个布尔值
 	errExpectNumber            = "expect a number"              // 期待一个数字
 	errExpectInteger           = "expect a integer"             // 期待一个整数
+	errExpectUnsafeBlock       = "expect in a unsafe block"     // 期待处于一个不安全的作用域中
 )

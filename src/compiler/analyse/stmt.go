@@ -42,6 +42,7 @@ func (self *Analyser) analyseBlock(ast parse.Block, pro ...func(symbol *symbolTa
 	*hir.Block, bool, utils.Error,
 ) {
 	self.symbol = newBlockSymbolTable(self.symbol)
+	self.symbol.unsafe = ast.Unsafe || self.symbol.unsafe
 	defer func() {
 		self.symbol = self.symbol.f
 	}()

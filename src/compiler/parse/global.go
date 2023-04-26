@@ -380,7 +380,7 @@ func (self *parser) parseFunction(pub *lex.Token, attrs []Attr) Global {
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block
-	if !isExtern || self.nextIs(lex.LBR) || len(genericParams) != 0 {
+	if !isExtern || self.nextIs(lex.LBR) || self.nextIs(lex.UNSAFE) || len(genericParams) != 0 {
 		body = self.parseBlock()
 	}
 
@@ -451,7 +451,7 @@ func (self *parser) parseMethod(begin utils.Position, pub bool, attrs []Attr) *M
 	self.expectNextIs(lex.RPA)
 	ret := self.parseTypeOrNil()
 	var body *Block
-	if self.nextIs(lex.LBR) {
+	if self.nextIs(lex.LBR) || self.nextIs(lex.UNSAFE) {
 		body = self.parseBlock()
 	}
 	return NewMethod(

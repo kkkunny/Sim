@@ -35,6 +35,7 @@ type symbolTable struct {
 
 	inLoop bool     // 是否处于循环中
 	ret    hir.Type // 返回值类型
+	unsafe bool     // 是否不安全
 }
 
 // 新建包符号表
@@ -59,6 +60,7 @@ func newBlockSymbolTable(f *symbolTable) *symbolTable {
 		genericTypeMap: queue.NewQueue[map[string]hir.Type](),
 		inLoop:         f.inLoop,
 		ret:            f.ret,
+		unsafe:         f.unsafe,
 	}
 }
 

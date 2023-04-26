@@ -15,14 +15,16 @@ type Stmt interface {
 
 // Block 代码块
 type Block struct {
-	Pos   utils.Position
-	Stmts *list.SingleLinkedList[Stmt]
+	Pos    utils.Position
+	Unsafe bool // 是否不安全
+	Stmts  *list.SingleLinkedList[Stmt]
 }
 
-func NewBlock(pos utils.Position) *Block {
+func NewBlock(pos utils.Position, unsafe bool) *Block {
 	return &Block{
-		Pos:   pos,
-		Stmts: list.NewSingleLinkedList[Stmt](),
+		Pos:    pos,
+		Unsafe: unsafe,
+		Stmts:  list.NewSingleLinkedList[Stmt](),
 	}
 }
 
@@ -169,7 +171,7 @@ func (self *parser) parseStmt() Stmt {
 		return self.parseReturn()
 	case lex.LET:
 		return self.parseVariable()
-	case lex.LBR:
+	case lex.LBR, lex.UNSAFE:
 		return self.parseBlock()
 	case lex.IF:
 		return self.parseIfElse()
@@ -187,7 +189,9 @@ func (self *parser) parseStmt() Stmt {
 
 // 代码块
 func (self *parser) parseBlock() *Block {
-	block := NewBlock(utils.Position{})
+	unsafe := self.skipNextIs(lex.UNSAFE)
+
+	block := NewBlock(utils.Position{}, unsafe)
 	begin := self.expectNextIs(lex.LBR).Pos
 
 	for self.skipSem(); !self.nextIs(lex.RBR); {
@@ -270,7 +274,7 @@ func (self *parser) parseSwitch() *Switch {
 			self.expectNextIs(lex.DEFAULT)
 		}
 		self.expectNextIs(lex.COL)
-		block := NewBlock(self.curTok.Pos)
+		block := NewBlock(self.curTok.Pos, false)
 		self.skipSem()
 		for !self.nextIs(lex.CASE) && !self.nextIs(lex.DEFAULT) && !self.nextIs(lex.RBR) {
 			block.Stmts.PushBack(self.parseStmt())
