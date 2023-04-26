@@ -50,7 +50,7 @@ func NewCodeGenerator(targetStr string, release bool) (*CodeGenerator, error) {
 		targetStr,
 		"generic",
 		"",
-		stlutil.Ternary(release, llvm.CodeGenLevelAggressive, llvm.CodeGenLevelNone),
+		stlutil.Ternary(release, llvm.CodeGenLevelAggressive, llvm.CodeGenLevelDefault),
 		llvm.RelocPIC,
 		llvm.CodeModelDefault,
 	)
