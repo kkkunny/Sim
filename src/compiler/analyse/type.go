@@ -192,6 +192,24 @@ func (self *Analyser) instantiateGenericType(symbol *symbolTable, ast parse.Type
 		errs = append(errs, utils.Errorf(ast.Name.Pos, errCircularReference))
 	}
 	self.globals.PushBack(def)
+
+	// 实例化特征方法
+	for _, t := range ast.Impls {
+		trait, err := self.analyseTraitIdent(*t)
+		if err != nil {
+			panic("unreachable")
+		}
+		for n := range trait.Methods {
+			gm, ok := symbol.lookupGenericMethod(ident.Name.Source, n)
+			// 如果找不到或者类型不匹配就放到后面检查特征实现时报错
+			if ok && len(gm.data.GenericParams) == 0 {
+				_, err := self.instantiateGenericMethod(symbol, def, gm.data, gm.data.Name, nil)
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+	}
 	return def, nil
 }
 

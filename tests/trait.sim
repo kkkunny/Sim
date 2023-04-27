@@ -12,6 +12,5 @@ func (A<T>) get()i32 unsafe{
 @extern(main)
 func main()u8{
     let mut a = (1, 1) as A::<i32>
-    c::printf("%d\n", a.get())
     return 0
 }

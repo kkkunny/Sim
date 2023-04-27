@@ -865,7 +865,7 @@ func (self *Analyser) analyseCallMethod(
 		if !ok {
 			return nil, utils.Errorf(dot.End.Pos, errUnknownIdentifier)
 		}
-		if v, err := self.instantiateGenericMethod(symbol, def, gm.data, dot); err != nil {
+		if v, err := self.instantiateGenericMethod(symbol, def, gm.data, dot.End, dot.GenericArgs); err != nil {
 			return nil, err
 		} else {
 			m = v
@@ -920,23 +920,23 @@ func (self *Analyser) analyseCallMethod(
 
 // 实例化泛型方法
 func (self *Analyser) instantiateGenericMethod(
-	symbol *symbolTable, typedef *hir.Typedef, ast parse.Method, dot parse.Dot,
+	symbol *symbolTable, typedef *hir.Typedef, ast parse.Method, nameTok lex.Token, genericArgAsts []parse.Type,
 ) (
 	*hir.Method, utils.Error,
 ) {
 	// 泛型参数
-	if len(dot.GenericArgs) != len(ast.GenericParams) {
+	if len(genericArgAsts) != len(ast.GenericParams) {
 		return nil, utils.Errorf(
-			dot.End.Pos,
+			nameTok.Pos,
 			"expect `%d` type but there is `%d`",
 			len(ast.GenericParams),
-			len(dot.GenericArgs),
+			len(genericArgAsts),
 		)
 	}
-	args := make([]hir.Type, len(dot.GenericArgs))
-	argStrs := make([]string, len(dot.GenericArgs))
+	args := make([]hir.Type, len(genericArgAsts))
+	argStrs := make([]string, len(genericArgAsts))
 	errs := make([]utils.Error, 0, len(args))
-	for i, a := range dot.GenericArgs {
+	for i, a := range genericArgAsts {
 		at, err := self.analyseType(a)
 		if err != nil {
 			errs = append(errs, err)
@@ -972,7 +972,7 @@ func (self *Analyser) instantiateGenericMethod(
 		name = fmt.Sprintf("%s::<%s>", ast.Name.Source, strings.Join(argStrs, ", "))
 		ast.Name.Source = name
 		defer func() {
-			ast.Name.Source = dot.End.Source
+			ast.Name.Source = nameTok.Source
 		}()
 	}
 	if m, ok := typedef.LookupMethod(name); ok {
