@@ -5,6 +5,7 @@ import (
 	"github.com/kkkunny/Sim/src/compiler/lex"
 	"github.com/kkkunny/Sim/src/compiler/parse"
 	"github.com/kkkunny/Sim/src/compiler/utils"
+	"github.com/kkkunny/stl/types"
 )
 
 // 类型定义
@@ -20,7 +21,7 @@ func (self *Analyser) analyseTypedef(ast parse.TypeDef) (*hir.Typedef, utils.Err
 		if err != nil {
 			errs = append(errs, err)
 		} else {
-			def.data.Impls.Add(trait)
+			def.data.Impls.Add(types.NewPair(t.Position(), trait))
 		}
 	}
 	if len(errs) == 1 {

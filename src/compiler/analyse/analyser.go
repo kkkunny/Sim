@@ -230,8 +230,11 @@ func (self *Analyser) analysePackageImplTraitCheck() utils.Error {
 		if td, ok := iter.Value().(*hir.Typedef); ok {
 			for iter := td.Impls.Iterator(); iter != nil; iter.Next() {
 				trait := iter.Value()
-				if !td.IsImpl(trait) {
-					errs = append(errs, utils.Errorf(utils.Position{}, "not impl %s", trait.Name)) // TODO: Position
+				if !td.IsImpl(trait.Second) {
+					errs = append(
+						errs,
+						utils.Errorf(trait.First, "type `%s` not impl `%s`", td.Name, trait.Second.Name),
+					)
 				}
 				if !iter.HasNext() {
 					break

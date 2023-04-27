@@ -1,7 +1,7 @@
 import std::c
 
 trait Getter{
-    get: func()i32
+    get: func()i32,
 }
 
 type A<T>(Getter) (i32, T)

@@ -1,8 +1,10 @@
 package hir
 
 import (
+	"github.com/kkkunny/Sim/src/compiler/utils"
 	"github.com/kkkunny/containers/hashset"
 	"github.com/kkkunny/stl/table"
+	"github.com/kkkunny/stl/types"
 )
 
 // Global 全局
@@ -16,9 +18,9 @@ type Typedef struct {
 	Name   string  // 类型名
 	Target Type    // 目标类型
 
-	Impls       *hashset.HashSet[*Trait]           // 实现的特征
-	Methods     map[string]*Method                 // 方法
-	GenericArgs *table.LinkedHashMap[string, Type] // 泛型参数
+	Impls       *hashset.HashSet[types.Pair[utils.Position, *Trait]] // 实现的特征
+	Methods     map[string]*Method                                   // 方法
+	GenericArgs *table.LinkedHashMap[string, Type]                   // 泛型参数
 }
 
 func NewTypedef(pkg PkgPath, name string, t Type) *Typedef {
@@ -27,7 +29,7 @@ func NewTypedef(pkg PkgPath, name string, t Type) *Typedef {
 		Name:   name,
 		Target: t,
 
-		Impls:   hashset.NewHashSet[*Trait](),
+		Impls:   hashset.NewHashSet[types.Pair[utils.Position, *Trait]](),
 		Methods: make(map[string]*Method),
 	}
 }
