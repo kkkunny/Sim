@@ -447,11 +447,11 @@ func (self *parser) parseIdentExpr() *Ident {
 	}
 }
 
-// 标识符列表
-func (self *parser) parseIdentExprList(end lex.TokenKind) (toks []*Ident) {
-	for !self.nextIs(end) {
+// 特征标识符列表（至少一个）
+func (self *parser) parseTraitIdentListAtLeastOne() (toks []*Ident) {
+	for {
 		toks = append(toks, self.parseIdentExpr())
-		if !self.skipNextIs(lex.COM) {
+		if !self.skipNextIs(lex.ADD) {
 			break
 		}
 	}

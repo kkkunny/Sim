@@ -127,21 +127,9 @@ func (self *Analyser) analyseFunctionDecl(ast parse.Function) (*hir.Function, ut
 // 泛型函数声明
 func (self *Analyser) analyseGenericFunctionDecl(ast parse.Function) utils.Error {
 	// 泛型参数
-	var errs []utils.Error
-	nameSet := make(map[string]struct{})
-	for _, p := range ast.GenericParams {
-		if _, ok := nameSet[p.Source]; ok {
-			errs = append(errs, utils.Errorf(p.Pos, errDuplicateDeclaration))
-		} else {
-			nameSet[p.Source] = struct{}{}
-		}
+	if err := self.analyseGenericParamList(ast.GenericParams); err != nil {
+		return err
 	}
-	if len(errs) == 1 {
-		return errs[0]
-	} else if len(errs) > 1 {
-		return utils.NewMultiError(errs...)
-	}
-
 	// 声明
 	if !self.symbol.defGenericFunc(ast.Public, ast.Name.Source, ast) {
 		return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
@@ -225,21 +213,9 @@ func (self *Analyser) analyseGenericMethodDecl(ast parse.Method) utils.Error {
 // 类型定义的泛型方法声明
 func (self *Analyser) analyseGenericMethodDeclForTypedef(selfDef *hir.Typedef, ast parse.Method) utils.Error {
 	// 泛型参数
-	var errs []utils.Error
-	nameSet := make(map[string]struct{})
-	for _, p := range ast.GenericParams {
-		if _, ok := nameSet[p.Source]; ok {
-			errs = append(errs, utils.Errorf(p.Pos, errDuplicateDeclaration))
-		} else {
-			nameSet[p.Source] = struct{}{}
-		}
+	if err := self.analyseGenericParamList(ast.GenericParams); err != nil {
+		return err
 	}
-	if len(errs) == 1 {
-		return errs[0]
-	} else if len(errs) > 1 {
-		return utils.NewMultiError(errs...)
-	}
-
 	// 声明
 	if !self.symbol.defGenericMethod(ast.Public, selfDef.Name, ast.Name.Source, ast) {
 		return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
@@ -261,18 +237,18 @@ func (self *Analyser) analyseGenericMethodDeclForGenericTypedef(defAst parse.Typ
 	var errs []utils.Error
 	nameSet := make(map[string]struct{})
 	for i, sp := range ast.SelfGenericParams {
-		if defAst.GenericParams[i].Source != sp.Source {
+		if defAst.GenericParams[i].Name.Source != sp.Name.Source {
 			errs = append(
 				errs,
 				utils.Errorf(
-					sp.Pos,
+					sp.Name.Pos,
 					"expect name `%s` but there is `%s`",
-					defAst.GenericParams[i].Source,
-					sp.Source,
+					defAst.GenericParams[i].Name.Source,
+					sp.Name.Source,
 				),
 			)
 		} else {
-			nameSet[sp.Source] = struct{}{}
+			nameSet[sp.Name.Source] = struct{}{}
 		}
 	}
 	if len(errs) == 1 {
@@ -280,11 +256,12 @@ func (self *Analyser) analyseGenericMethodDeclForGenericTypedef(defAst parse.Typ
 	} else if len(errs) > 1 {
 		return utils.NewMultiError(errs...)
 	}
+	// TODO: 方法不需要类型约束
 	for _, p := range ast.GenericParams {
-		if _, ok := nameSet[p.Source]; ok {
-			errs = append(errs, utils.Errorf(p.Pos, errDuplicateDeclaration))
+		if _, ok := nameSet[p.Name.Source]; ok {
+			errs = append(errs, utils.Errorf(p.Name.Pos, errDuplicateDeclaration))
 		} else {
-			nameSet[p.Source] = struct{}{}
+			nameSet[p.Name.Source] = struct{}{}
 		}
 	}
 	if len(errs) == 1 {
@@ -420,21 +397,9 @@ func (self *Analyser) analyseMethodDef(ast parse.Method) utils.Error {
 // 泛型类型声明
 func (self *Analyser) analyseGenericTypeDecl(ast parse.TypeDef) utils.Error {
 	// 泛型参数
-	var errs []utils.Error
-	nameSet := make(map[string]struct{})
-	for _, p := range ast.GenericParams {
-		if _, ok := nameSet[p.Source]; ok {
-			errs = append(errs, utils.Errorf(p.Pos, errDuplicateDeclaration))
-		} else {
-			nameSet[p.Source] = struct{}{}
-		}
+	if err := self.analyseGenericParamList(ast.GenericParams); err != nil {
+		return err
 	}
-	if len(errs) == 1 {
-		return errs[0]
-	} else if len(errs) > 1 {
-		return utils.NewMultiError(errs...)
-	}
-
 	// 声明
 	if !self.symbol.defGenericType(ast.Public, ast.Name.Source, ast) {
 		return utils.Errorf(ast.Name.Pos, errDuplicateDeclaration)
@@ -470,4 +435,28 @@ func (self *Analyser) analyseTrait(ast parse.Trait) (*hir.Trait, utils.Error) {
 	}
 	def.data.Methods = methods
 	return def.data, nil
+}
+
+// 泛型形参
+func (self *Analyser) analyseGenericParamList(params []parse.GenericParam) utils.Error {
+	var errs []utils.Error
+	nameSet := make(map[string]struct{})
+	for _, p := range params {
+		if _, ok := nameSet[p.Name.Source]; ok {
+			errs = append(errs, utils.Errorf(p.Name.Pos, errDuplicateDeclaration))
+			continue
+		}
+		nameSet[p.Name.Source] = struct{}{}
+		for _, c := range p.Constraints {
+			if _, err := self.analyseTraitIdent(*c); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return utils.NewMultiError(errs...)
+	}
+	return nil
 }

@@ -86,8 +86,6 @@ func (self *Analyser) analyseTypeIdent(ast parse.TypeIdent) (hir.Type, utils.Err
 			return hir.NewTypeF32(), nil
 		case "f64":
 			return hir.NewTypeF64(), nil
-		case "Self":
-			fmt.Println(111111111)
 		}
 
 		// 泛型类型映射
@@ -164,7 +162,7 @@ func (self *Analyser) instantiateGenericType(symbol *symbolTable, ast parse.Type
 	// 类型映射
 	maps := make(map[string]hir.Type)
 	for i, p := range ast.GenericParams {
-		maps[p.Source] = args[i]
+		maps[p.Name.Source] = args[i]
 	}
 	symbol.addGenericTypeMap(maps)
 	defer func() {
@@ -185,7 +183,7 @@ func (self *Analyser) instantiateGenericType(symbol *symbolTable, ast parse.Type
 	}
 	def.GenericArgs = table.NewLinkedHashMap[string, hir.Type]()
 	for i, a := range args {
-		def.GenericArgs.Set(ast.GenericParams[i].Source, a)
+		def.GenericArgs.Set(ast.GenericParams[i].Name.Source, a)
 	}
 	// 循环检测
 	if self.checkTypeCircle(set.NewLinkedHashSet[*hir.Typedef](), hir.NewTypeTypedef(def)) {
@@ -209,6 +207,32 @@ func (self *Analyser) instantiateGenericType(symbol *symbolTable, ast parse.Type
 				}
 			}
 		}
+	}
+
+	// 约束检查
+	for i, p := range ast.GenericParams {
+		if len(p.Constraints) == 0 {
+			continue
+		}
+		if !args[i].IsTypedef() {
+			errs = append(errs, utils.Errorf(ident.GenericArgs[i].Position(), errNotSatisfyConstraint))
+			continue
+		}
+		td := args[i].GetTypedef()
+		for _, c := range p.Constraints {
+			trait, err := self.analyseTraitIdent(*c)
+			if err != nil {
+				panic("unreachable")
+			}
+			if !td.IsImpl(trait) {
+				errs = append(errs, utils.Errorf(ident.GenericArgs[i].Position(), errNotSatisfyConstraint))
+			}
+		}
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
 	}
 	return def, nil
 }

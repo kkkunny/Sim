@@ -154,6 +154,32 @@ func (self *Analyser) instantiateGenericFunction(symbol *symbolTable, ast parse.
 		return nil, utils.NewMultiError(errs...)
 	}
 
+	// 约束检查
+	for i, p := range ast.GenericParams {
+		if len(p.Constraints) == 0 {
+			continue
+		}
+		if !args[i].IsTypedef() {
+			errs = append(errs, utils.Errorf(ident.GenericArgs[i].Position(), errNotSatisfyConstraint))
+			continue
+		}
+		td := args[i].GetTypedef()
+		for _, c := range p.Constraints {
+			trait, err := self.analyseTraitIdent(*c)
+			if err != nil {
+				panic("unreachable")
+			}
+			if !td.IsImpl(trait) {
+				errs = append(errs, utils.Errorf(ident.GenericArgs[i].Position(), errNotSatisfyConstraint))
+			}
+		}
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+
 	// 切换符号表
 	proSymbol := self.symbol
 	self.symbol = symbol
@@ -174,7 +200,7 @@ func (self *Analyser) instantiateGenericFunction(symbol *symbolTable, ast parse.
 	// 类型映射
 	maps := make(map[string]hir.Type)
 	for i, p := range ast.GenericParams {
-		maps[p.Source] = args[i]
+		maps[p.Name.Source] = args[i]
 	}
 	symbol.addGenericTypeMap(maps)
 	defer func() {
@@ -951,6 +977,32 @@ func (self *Analyser) instantiateGenericMethod(
 		return nil, utils.NewMultiError(errs...)
 	}
 
+	// 约束检查
+	for i, p := range ast.GenericParams {
+		if len(p.Constraints) == 0 {
+			continue
+		}
+		if !args[i].IsTypedef() {
+			errs = append(errs, utils.Errorf(genericArgAsts[i].Position(), errNotSatisfyConstraint))
+			continue
+		}
+		td := args[i].GetTypedef()
+		for _, c := range p.Constraints {
+			trait, err := self.analyseTraitIdent(*c)
+			if err != nil {
+				panic("unreachable")
+			}
+			if !td.IsImpl(trait) {
+				errs = append(errs, utils.Errorf(genericArgAsts[i].Position(), errNotSatisfyConstraint))
+			}
+		}
+	}
+	if len(errs) == 1 {
+		return nil, errs[0]
+	} else if len(errs) > 1 {
+		return nil, utils.NewMultiError(errs...)
+	}
+
 	// 切换符号表
 	proSymbol := self.symbol
 	self.symbol = symbol
@@ -987,7 +1039,7 @@ func (self *Analyser) instantiateGenericMethod(
 		}
 	}
 	for i, a := range args {
-		maps[ast.GenericParams[i].Source] = a
+		maps[ast.GenericParams[i].Name.Source] = a
 	}
 	symbol.addGenericTypeMap(maps)
 	defer func() {

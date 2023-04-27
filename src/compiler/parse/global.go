@@ -43,13 +43,13 @@ type TypeDef struct {
 	Pos           utils.Position
 	Public        bool
 	Name          lex.Token
-	GenericParams []lex.Token
+	GenericParams []GenericParam
 	Impls         []*Ident
 	Target        Type
 }
 
 func NewTypeDef(
-	pos utils.Position, pub bool, name lex.Token, genericParams []lex.Token, impls []*Ident, target Type,
+	pos utils.Position, pub bool, name lex.Token, genericParams []GenericParam, impls []*Ident, target Type,
 ) *TypeDef {
 	return &TypeDef{
 		Pos:           pos,
@@ -74,14 +74,14 @@ type Function struct {
 	Public        bool
 	Ret           Type
 	Name          lex.Token
-	GenericParams []lex.Token
+	GenericParams []GenericParam
 	Params        []*Param
 	VarArg        bool
 	Body          *Block // （可能为空）
 }
 
 func NewFunction(
-	pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, genericParams []lex.Token, params []*Param,
+	pos utils.Position, attrs []Attr, pub bool, ret Type, name lex.Token, genericParams []GenericParam, params []*Param,
 	varArg bool,
 	body *Block,
 ) *Function {
@@ -111,18 +111,18 @@ type Method struct {
 	Public            bool
 	Mutable           bool
 	Self              lex.Token
-	SelfGenericParams []lex.Token
+	SelfGenericParams []GenericParam
 	Ret               Type
 	Name              lex.Token
-	GenericParams     []lex.Token
+	GenericParams     []GenericParam
 	Params            []*Param
 	VarArg            bool
 	Body              *Block
 }
 
 func NewMethod(
-	pos utils.Position, attrs []Attr, pub bool, mut bool, self lex.Token, selfGenericParams []lex.Token, ret Type,
-	name lex.Token, genericParams []lex.Token, params []*Param,
+	pos utils.Position, attrs []Attr, pub bool, mut bool, self lex.Token, selfGenericParams []GenericParam, ret Type,
+	name lex.Token, genericParams []GenericParam, params []*Param,
 	varArg bool, body *Block,
 ) *Method {
 	return &Method{
@@ -198,6 +198,18 @@ func (self Trait) Position() utils.Position {
 }
 
 func (self Trait) Global() {}
+
+type GenericParam struct {
+	Name        lex.Token
+	Constraints []*Ident
+}
+
+func (self GenericParam) Position() utils.Position {
+	if len(self.Constraints) == 0 {
+		return self.Name.Pos
+	}
+	return utils.MixPosition(self.Name.Pos, self.Constraints[len(self.Constraints)-1].Position())
+}
 
 // ****************************************************************
 
@@ -370,7 +382,9 @@ func (self *parser) parseTypeDef(pub *lex.Token) *TypeDef {
 	genericParams := self.parseGenericParamList()
 	var impls []*Ident
 	if self.skipNextIs(lex.LPA) {
-		impls = self.parseIdentExprList(lex.RPA)
+		if !self.nextIs(lex.RPA) {
+			impls = self.parseTraitIdentListAtLeastOne()
+		}
 		self.expectNextIs(lex.RPA)
 	}
 	target := self.parseType()
@@ -538,13 +552,23 @@ func (self *parser) parseGlobalValue(pub *lex.Token, attrs []Attr) *GlobalValue 
 }
 
 // 泛型形参
-func (self *parser) parseGenericParamList() []lex.Token {
+func (self *parser) parseGenericParamList() []GenericParam {
 	if !self.skipNextIs(lex.LT) {
 		return nil
 	}
-	var params []lex.Token
+	var params []GenericParam
 	for !self.nextIs(lex.GT) {
-		params = append(params, self.expectNextIs(lex.IDENT))
+		name := self.expectNextIs(lex.IDENT)
+		var constraints []*Ident
+		if self.skipNextIs(lex.COL) {
+			constraints = self.parseTraitIdentListAtLeastOne()
+		}
+		params = append(
+			params, GenericParam{
+				Name:        name,
+				Constraints: constraints,
+			},
+		)
 		if !self.skipNextIs(lex.COM) {
 			break
 		}

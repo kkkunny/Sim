@@ -9,8 +9,13 @@ func (A<T>) get()i32 unsafe{
     return (valof self)[0]
 }
 
+func get<T:Getter>(v: T)i32{
+    return v.get()
+}
+
 @extern(main)
 func main()u8{
     let mut a = (1, 1) as A::<i32>
+    c::printf("%d\n", get::<A::<i32>>(a))
     return 0
 }
