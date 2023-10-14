@@ -3,6 +3,7 @@ package lexer
 import (
 	"errors"
 	"io"
+	"unicode"
 
 	stlerror "github.com/kkkunny/stl/error"
 
@@ -35,7 +36,39 @@ func (self Lexer) peek() (rune, stlerror.Error) {
 	return self.next()
 }
 
+// 扫描标识符
+func (self *Lexer) scanIdent() (Kind, stlerror.Error) {
+	for ch, err := self.peek(); ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch); ch, err = self.peek() {
+		if err != nil {
+			return ILLEGAL, err
+		}
+		_, err = self.next()
+		if err != nil {
+			return ILLEGAL, err
+		}
+	}
+	return IDENT, nil
+}
+
+// 跳过空白
+func (self *Lexer) skipWhite() stlerror.Error {
+	for ch, err := self.peek(); ch == ' '; ch, err = self.peek() {
+		if err != nil {
+			return err
+		}
+		_, err = self.next()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (self *Lexer) Scan() (Token, stlerror.Error) {
+	if err := self.skipWhite(); err != nil {
+		return Token{}, err
+	}
+
 	begin := self.reader.Position()
 	ch, err := self.next()
 	if err != nil {
@@ -43,11 +76,28 @@ func (self *Lexer) Scan() (Token, stlerror.Error) {
 	}
 
 	var kind Kind
-	switch ch {
-	case 0:
-		kind = Eof
+	switch {
+	case ch == '_' || unicode.IsLetter(ch):
+		kind, err = self.scanIdent()
 	default:
-		kind = Illegal
+		switch ch {
+		case 0:
+			kind = EOF
+		case '(':
+			kind = LPA
+		case ')':
+			kind = RPA
+		case '{':
+			kind = LBR
+		case '}':
+			kind = RBR
+		default:
+			kind = ILLEGAL
+		}
+	}
+
+	if err != nil {
+		return Token{}, err
 	}
 
 	end := self.reader.Position()

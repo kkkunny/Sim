@@ -13,7 +13,7 @@ import (
 func main() {
 	r := stlerror.MustWith(reader.NewReaderFromFile("example/main.sim"))
 	l := lexer.New(r)
-	for tok := stlerror.MustWith(l.Scan()); !tok.Is(token.Eof); tok = stlerror.MustWith(l.Scan()) {
-		fmt.Println(tok.Kind, tok.Source())
+	for tok := stlerror.MustWith(l.Scan()); !tok.Is(token.EOF); tok = stlerror.MustWith(l.Scan()) {
+		fmt.Println(tok)
 	}
 }

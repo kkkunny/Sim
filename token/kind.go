@@ -4,13 +4,25 @@ package token
 type Kind uint8
 
 const (
-	Illegal Kind = iota
-	Eof
+	ILLEGAL Kind = iota
+	EOF
+
+	IDENT
+
+	LPA
+	RPA
+	LBR
+	RBR
 )
 
 var kindNames = [...]string{
-	Illegal: "illegal",
-	Eof:     "eof",
+	ILLEGAL: "illegal",
+	EOF:     "eof",
+	IDENT:   "ident",
+	LPA:     "lpa",
+	RPA:     "rpa",
+	LBR:     "lbr",
+	RBR:     "rbr",
 }
 
 func (self Kind) String() string {
