@@ -3,6 +3,7 @@ package lexer
 import (
 	"errors"
 	"io"
+	"strings"
 	"unicode"
 
 	stlerror "github.com/kkkunny/stl/error"
@@ -13,7 +14,7 @@ import (
 
 // Lexer 词法分析器
 type Lexer struct {
-	reader reader.Reader // 读取器
+	reader reader.Reader
 }
 
 func New(r reader.Reader) *Lexer {
@@ -21,64 +22,50 @@ func New(r reader.Reader) *Lexer {
 }
 
 // 下一个字符
-func (self *Lexer) next() (rune, stlerror.Error) {
+func (self *Lexer) next() rune {
 	r, _, err := stlerror.ErrorWith2(self.reader.ReadRune())
 	if err != nil && errors.Is(err, io.EOF) {
-		return 0, nil
+		return 0
+	} else if err != nil {
+		panic(err)
 	}
-	return r, err
+	return r
 }
 
 // 提前获取下一个字符
-func (self Lexer) peek() (rune, stlerror.Error) {
+func (self Lexer) peek() rune {
 	offset := stlerror.MustWith(self.reader.Seek(0, io.SeekCurrent))
 	defer self.reader.Seek(offset, io.SeekStart)
 	return self.next()
 }
 
 // 扫描标识符
-func (self *Lexer) scanIdent() (Kind, stlerror.Error) {
-	for ch, err := self.peek(); ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch); ch, err = self.peek() {
-		if err != nil {
-			return ILLEGAL, err
-		}
-		_, err = self.next()
-		if err != nil {
-			return ILLEGAL, err
-		}
+func (self *Lexer) scanIdent(ch rune) Kind {
+	var buf strings.Builder
+	buf.WriteRune(ch)
+	for ch = self.peek(); ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch); ch = self.peek() {
+		buf.WriteRune(self.next())
 	}
-	return IDENT, nil
+	return Lookup(buf.String())
 }
 
 // 跳过空白
-func (self *Lexer) skipWhite() stlerror.Error {
-	for ch, err := self.peek(); ch == ' '; ch, err = self.peek() {
-		if err != nil {
-			return err
-		}
-		_, err = self.next()
-		if err != nil {
-			return err
-		}
+func (self *Lexer) skipWhite() {
+	for ch := self.peek(); ch == ' '; ch = self.peek() {
+		_ = self.next()
 	}
-	return nil
 }
 
-func (self *Lexer) Scan() (Token, stlerror.Error) {
-	if err := self.skipWhite(); err != nil {
-		return Token{}, err
-	}
+func (self *Lexer) Scan() Token {
+	self.skipWhite()
 
 	begin := self.reader.Position()
-	ch, err := self.next()
-	if err != nil {
-		return Token{}, err
-	}
+	ch := self.next()
 
 	var kind Kind
 	switch {
 	case ch == '_' || unicode.IsLetter(ch):
-		kind, err = self.scanIdent()
+		kind = self.scanIdent(ch)
 	default:
 		switch ch {
 		case 0:
@@ -96,13 +83,9 @@ func (self *Lexer) Scan() (Token, stlerror.Error) {
 		}
 	}
 
-	if err != nil {
-		return Token{}, err
-	}
-
 	end := self.reader.Position()
 	return Token{
 		Position: reader.MixPosition(begin, end),
 		Kind:     kind,
-	}, nil
+	}
 }

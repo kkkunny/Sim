@@ -13,6 +13,8 @@ const (
 	RPA
 	LBR
 	RBR
+
+	FUNC
 )
 
 var kindNames = [...]string{
@@ -23,6 +25,17 @@ var kindNames = [...]string{
 	RPA:     "rpa",
 	LBR:     "lbr",
 	RBR:     "rbr",
+	FUNC:    "func",
+}
+
+// Lookup 区分标识符和关键字
+func Lookup(s string) Kind {
+	switch s {
+	case "func":
+		return FUNC
+	default:
+		return IDENT
+	}
 }
 
 func (self Kind) String() string {

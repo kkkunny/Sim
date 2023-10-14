@@ -6,14 +6,13 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/lexer"
+	"github.com/kkkunny/Sim/parser"
 	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
 )
 
 func main() {
 	r := stlerror.MustWith(reader.NewReaderFromFile("example/main.sim"))
-	l := lexer.New(r)
-	for tok := stlerror.MustWith(l.Scan()); !tok.Is(token.EOF); tok = stlerror.MustWith(l.Scan()) {
-		fmt.Println(tok)
-	}
+	p := parser.New(lexer.New(r))
+	asts := p.Parse()
+	fmt.Println(asts)
 }
