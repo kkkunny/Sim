@@ -6,5 +6,6 @@ import "io"
 type Reader interface {
 	io.RuneReader
 	io.Seeker
+	Path() string
 	Position() Position
 }

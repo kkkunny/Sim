@@ -11,6 +11,7 @@ import (
 
 // 文件读取器
 type _FileReader struct {
+	path    string
 	file    *os.File
 	rowLens []uint
 }
@@ -49,9 +50,14 @@ func NewReaderFromFile(path string) (Reader, stlerror.Error) {
 	}
 
 	return &_FileReader{
+		path:    path,
 		file:    file,
 		rowLens: rowlens,
 	}, nil
+}
+
+func (self _FileReader) Path() string {
+	return self.path
 }
 
 func (self *_FileReader) ReadRune() (rune, int, error) {

@@ -1,6 +1,7 @@
 package reader
 
 import (
+	"fmt"
 	"io"
 	"strings"
 
@@ -28,6 +29,10 @@ func MixPosition(begin, end Position) Position {
 		EndRow:      end.EndRow,
 		EndCol:      end.EndCol,
 	}
+}
+
+func (self Position) String() string {
+	return fmt.Sprintf("%s[%d:%d]", self.Reader.Path(), self.BeginOffset, self.EndOffset)
 }
 
 func (self Position) Text() string {
