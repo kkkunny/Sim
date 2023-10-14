@@ -49,6 +49,13 @@ func (self *Parser) expectNextIs(k token.Kind) token.Token {
 	return token.Token{}
 }
 
+// 跳过分隔符
+func (self *Parser) skipSEM() {
+	for self.skipNextIs(token.SEM) {
+		continue
+	}
+}
+
 // Parse 语法分析
 func (self *Parser) Parse() linkedlist.LinkedList[Global] {
 	return linkedlist.NewLinkedListWith(self.parseGlobal())

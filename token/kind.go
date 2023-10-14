@@ -14,6 +14,8 @@ const (
 	LBR
 	RBR
 
+	SEM
+
 	FUNC
 )
 
@@ -25,6 +27,7 @@ var kindNames = [...]string{
 	RPA:     "rpa",
 	LBR:     "lbr",
 	RBR:     "rbr",
+	SEM:     "sem",
 	FUNC:    "func",
 }
 

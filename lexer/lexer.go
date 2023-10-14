@@ -78,6 +78,8 @@ func (self *Lexer) Scan() Token {
 			kind = LBR
 		case '}':
 			kind = RBR
+		case ';', '\n':
+			kind = SEM
 		default:
 			kind = ILLEGAL
 		}
