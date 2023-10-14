@@ -1,4 +1,4 @@
-package ast
+package mean
 
 // Stmt 语句
 type Stmt interface {
@@ -8,4 +8,4 @@ type Stmt interface {
 // Block 代码块
 type Block struct{}
 
-func (self Block) stmt() {}
+func (self *Block) stmt() {}

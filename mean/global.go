@@ -1,4 +1,4 @@
-package ast
+package mean
 
 // Global 全局
 type Global interface {
@@ -8,7 +8,7 @@ type Global interface {
 // FuncDef 函数定义
 type FuncDef struct {
 	Name string
-	Body Block
+	Body *Block
 }
 
-func (self FuncDef) global() {}
+func (self *FuncDef) global() {}

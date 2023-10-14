@@ -1,4 +1,4 @@
-package parser
+package parse
 
 import (
 	. "github.com/kkkunny/Sim/ast"
@@ -10,11 +10,11 @@ func (self *Parser) parseStmt() Stmt {
 	panic("unreachable")
 }
 
-func (self *Parser) parseBlock() Block {
+func (self *Parser) parseBlock() *Block {
 	begin := self.expectNextIs(token.LBR).Position
 	self.skipSEM()
 	end := self.expectNextIs(token.RBR).Position
-	return Block{
+	return &Block{
 		Begin: begin,
 		End:   end,
 	}

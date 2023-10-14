@@ -14,8 +14,8 @@ type Block struct {
 	End   reader.Position
 }
 
-func (self Block) Position() reader.Position {
+func (self *Block) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.End)
 }
 
-func (self Block) stmt() {}
+func (self *Block) stmt() {}

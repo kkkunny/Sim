@@ -1,20 +1,20 @@
-package parser
+package parse
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	. "github.com/kkkunny/Sim/ast"
-	"github.com/kkkunny/Sim/lexer"
+	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/token"
 )
 
 // Parser 语法分析器
 type Parser struct {
-	lexer           *lexer.Lexer
+	lexer           *lex.Lexer
 	curTok, nextTok token.Token
 }
 
-func New(lexer *lexer.Lexer) *Parser {
+func New(lexer *lex.Lexer) *Parser {
 	self := &Parser{lexer: lexer}
 	self.next()
 	return self

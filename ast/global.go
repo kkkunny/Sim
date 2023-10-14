@@ -15,11 +15,11 @@ type Global interface {
 type FuncDef struct {
 	Begin reader.Position
 	Name  token.Token
-	Body  Block
+	Body  *Block
 }
 
-func (self FuncDef) Position() reader.Position {
+func (self *FuncDef) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.Body.Position())
 }
 
-func (self FuncDef) global() {}
+func (self *FuncDef) global() {}

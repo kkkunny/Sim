@@ -1,4 +1,4 @@
-package parser
+package parse
 
 import (
 	. "github.com/kkkunny/Sim/ast"
@@ -15,13 +15,13 @@ func (self *Parser) parseGlobal() Global {
 	}
 }
 
-func (self *Parser) parseFuncDef() FuncDef {
+func (self *Parser) parseFuncDef() *FuncDef {
 	begin := self.expectNextIs(token.FUNC).Position
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
 	self.expectNextIs(token.RPA)
 	body := self.parseBlock()
-	return FuncDef{
+	return &FuncDef{
 		Begin: begin,
 		Name:  name,
 		Body:  body,
