@@ -76,7 +76,7 @@ func (self *_FileReader) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (self *_FileReader) Position() Position {
-	offset, _ := self.file.Seek(0, io.SeekCurrent)
+	offset := stlerror.MustWith(self.file.Seek(0, io.SeekCurrent))
 
 	var curRowOffset, curColOffset uint
 	for rowOffset, rowLen := range self.rowLens {
