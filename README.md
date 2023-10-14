@@ -1,2 +1,2 @@
-# dotlang
-The Dot programming language
+# Simlang
+The Sim programming language
