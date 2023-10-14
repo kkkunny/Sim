@@ -32,7 +32,7 @@ func MixPosition(begin, end Position) Position {
 
 func (self Position) Text() string {
 	offset := stlerror.MustWith(self.Reader.Seek(0, io.SeekCurrent))
-	defer stlerror.MustWith(self.Reader.Seek(offset, io.SeekStart))
+	defer self.Reader.Seek(offset, io.SeekStart)
 
 	stlerror.MustWith(self.Reader.Seek(int64(self.BeginOffset), io.SeekStart))
 

@@ -5,10 +5,12 @@ type Kind uint8
 
 const (
 	Illegal Kind = iota
+	Eof
 )
 
 var kindNames = [...]string{
 	Illegal: "illegal",
+	Eof:     "eof",
 }
 
 func (self Kind) String() string {
