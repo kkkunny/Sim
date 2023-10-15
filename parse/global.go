@@ -11,7 +11,7 @@ func (self *Parser) parseGlobal() Global {
 	case token.FUNC:
 		return self.parseFuncDef()
 	default:
-		// TODO: 报错
+		// TODO: 编译时异常：未知的全局
 		panic("unreachable")
 	}
 }

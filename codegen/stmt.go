@@ -7,7 +7,12 @@ import (
 )
 
 func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
-
+	switch stmtNode := node.(type) {
+	case *mean.Return:
+		self.codegenReturn(stmtNode)
+	default:
+		panic("unreachable")
+	}
 }
 
 func (self *CodeGenerator) codegenBlock(node *mean.Block) llvm.BasicBlock {
@@ -17,7 +22,13 @@ func (self *CodeGenerator) codegenBlock(node *mean.Block) llvm.BasicBlock {
 	block := llvm.AddBasicBlock(from.Parent(), "")
 	self.builder.SetInsertPointAtEnd(block)
 
-	self.builder.CreateRetVoid()
+	for iter := node.Stmts.Iterator(); iter.Next(); {
+		self.codegenStmt(iter.Value())
+	}
 
 	return block
+}
+
+func (self *CodeGenerator) codegenReturn(node *mean.Return) {
+	self.builder.CreateRetVoid()
 }

@@ -51,7 +51,7 @@ func (self *Lexer) scanIdent(ch rune) Kind {
 
 // 跳过空白
 func (self *Lexer) skipWhite() {
-	for ch := self.peek(); ch == ' '; ch = self.peek() {
+	for ch := self.peek(); ch == ' ' || ch == '\r'; ch = self.peek() {
 		_ = self.next()
 	}
 }
