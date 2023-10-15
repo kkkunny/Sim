@@ -15,11 +15,16 @@ func (self *Analyser) analyseGlobal(node ast.Global) Global {
 }
 
 func (self *Analyser) analyseFuncDef(node *ast.FuncDef) *FuncDef {
-	ret := self.analyseOptionType(node.Ret)
-	body := self.analyseBlock(node.Body)
-	return &FuncDef{
+	f := &FuncDef{
 		Name: node.Name.Source(),
-		Ret:  ret,
-		Body: body,
+		Ret:  self.analyseOptionType(node.Ret),
 	}
+
+	self.localScope = _NewFuncScope(self.pkgScope, f.Ret)
+	defer func() {
+		self.localScope = nil
+	}()
+
+	f.Body = self.analyseBlock(node.Body)
+	return f
 }

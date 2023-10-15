@@ -11,10 +11,16 @@ import (
 // Analyser 语义分析器
 type Analyser struct {
 	parser *parse.Parser
+
+	pkgScope   *_PkgScope
+	localScope _LocalScope
 }
 
 func New(parser *parse.Parser) *Analyser {
-	return &Analyser{parser: parser}
+	return &Analyser{
+		parser:   parser,
+		pkgScope: _NewPkgScope(),
+	}
 }
 
 // Analyse 分析语义

@@ -18,6 +18,11 @@ func (self *Analyser) analyseStmt(node ast.Stmt) Stmt {
 }
 
 func (self *Analyser) analyseBlock(node *ast.Block) *Block {
+	self.localScope = _NewBlockScope(self.localScope)
+	defer func() {
+		self.localScope = self.localScope.GetParent().(_LocalScope)
+	}()
+
 	stmts := linkedlist.NewLinkedList[Stmt]()
 	for iter := node.Stmts.Iterator(); iter.Next(); {
 		stmts.PushBack(self.analyseStmt(iter.Value()))
@@ -26,9 +31,19 @@ func (self *Analyser) analyseBlock(node *ast.Block) *Block {
 }
 
 func (self *Analyser) analyseReturn(node *ast.Return) *Return {
-	value := util.None[Expr]()
+	expectRetType := self.localScope.GetRetType()
 	if v, ok := node.Value.Value(); ok {
-		value = util.Some[Expr](self.analyseExpr(v))
+		value := self.analyseExpr(v)
+		if !value.GetType().Equal(expectRetType) {
+			// TODO: 编译时异常：类型不相等
+			panic("unreachable")
+		}
+		return &Return{Value: util.Some[Expr](value)}
+	} else {
+		if !expectRetType.Equal(Empty) {
+			// TODO: 编译时异常：类型不相等
+			panic("unreachable")
+		}
+		return &Return{Value: util.None[Expr]()}
 	}
-	return &Return{Value: value}
 }
