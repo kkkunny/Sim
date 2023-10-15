@@ -14,13 +14,12 @@ import (
 	"github.com/kkkunny/Sim/reader"
 )
 
-var code = `
+func TestReturn(t *testing.T) {
+	code := `
 func main()isize{
     return 0
 }
 `
-
-func TestReturn(t *testing.T) {
 	r := stlerror.MustWith(reader.NewReaderFromString("test.sim", code))
 	module := codegen.New(analyse.New(parse.New(lex.New(r)))).Codegen()
 	engine := stlerror.MustWith(llvm.NewInterpreter(module))

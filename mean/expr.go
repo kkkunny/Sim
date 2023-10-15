@@ -37,3 +37,26 @@ func (self *Float) stmt() {}
 func (self *Float) GetType() Type {
 	return self.Type
 }
+
+type BinaryType uint8
+
+const (
+	BinaryInvalid BinaryType = iota
+	BinaryAdd
+	BinarySub
+	BinaryMul
+	BinaryDiv
+	BinaryRem
+)
+
+// Binary 二元运算
+type Binary struct {
+	Kind        BinaryType
+	Left, Right Expr
+}
+
+func (self *Binary) stmt() {}
+
+func (self *Binary) GetType() Type {
+	return self.Left.GetType()
+}

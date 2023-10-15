@@ -11,6 +11,12 @@ const (
 	INTEGER
 	FLOAT
 
+	ADD
+	SUB
+	MUL
+	DIV
+	REM
+
 	LPA
 	RPA
 	LBR
@@ -30,6 +36,11 @@ var kindNames = [...]string{
 	IDENT:   "ident",
 	INTEGER: "integer",
 	FLOAT:   "float",
+	ADD:     "add",
+	SUB:     "sub",
+	MUL:     "mul",
+	DIV:     "div",
+	REM:     "rem",
 	LPA:     "lpa",
 	RPA:     "rpa",
 	LBR:     "lbr",
@@ -54,4 +65,16 @@ func Lookup(s string) Kind {
 
 func (self Kind) String() string {
 	return kindNames[self]
+}
+
+// Priority 运算符优先级
+func (self Kind) Priority() uint8 {
+	switch self {
+	case MUL, DIV, REM:
+		return 2
+	case ADD, SUB:
+		return 1
+	default:
+		return 0
+	}
 }

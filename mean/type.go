@@ -4,13 +4,19 @@ var (
 	Empty = &EmptyType{}
 
 	Isize = &SintType{Bits: 64}
-	
+
 	F64 = &FloatType{Bits: 64}
 )
 
 // Type 类型
 type Type interface {
 	Equal(dst Type) bool
+}
+
+// TypeIs 类型是否是
+func TypeIs[T Type](v Type) bool {
+	_, ok := v.(T)
+	return ok
 }
 
 // EmptyType 空类型
