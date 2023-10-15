@@ -8,26 +8,29 @@ import (
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *Analyser) analyseStmt(node ast.Stmt) Stmt {
+func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, bool) {
 	switch stmtNode := node.(type) {
 	case *ast.Return:
-		return self.analyseReturn(stmtNode)
+		return self.analyseReturn(stmtNode), true
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseBlock(node *ast.Block) *Block {
+func (self *Analyser) analyseBlock(node *ast.Block) (*Block, bool) {
 	self.localScope = _NewBlockScope(self.localScope)
 	defer func() {
 		self.localScope = self.localScope.GetParent().(_LocalScope)
 	}()
 
+	var end bool
 	stmts := linkedlist.NewLinkedList[Stmt]()
 	for iter := node.Stmts.Iterator(); iter.Next(); {
-		stmts.PushBack(self.analyseStmt(iter.Value()))
+		stmt, stmtEnd := self.analyseStmt(iter.Value())
+		end = end || stmtEnd
+		stmts.PushBack(stmt)
 	}
-	return &Block{Stmts: stmts}
+	return &Block{Stmts: stmts}, end
 }
 
 func (self *Analyser) analyseReturn(node *ast.Return) *Return {

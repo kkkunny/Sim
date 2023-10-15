@@ -25,6 +25,11 @@ func (self *Analyser) analyseFuncDef(node *ast.FuncDef) *FuncDef {
 		self.localScope = nil
 	}()
 
-	f.Body = self.analyseBlock(node.Body)
+	body, end := self.analyseBlock(node.Body)
+	f.Body = body
+	if !end {
+		// TODO: 编译时异常：缺少函数返回值
+		panic("unreachable")
+	}
 	return f
 }
