@@ -3,7 +3,6 @@ package parse
 import (
 	. "github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
 )
 
 func (self *Parser) parseGlobal() Global {
@@ -21,7 +20,7 @@ func (self *Parser) parseFuncDef() *FuncDef {
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
 	self.expectNextIs(token.RPA)
-	ret := util.Optional(self.parseTypeOrNil())
+	ret := self.parseOptionType()
 	body := self.parseBlock()
 	return &FuncDef{
 		Begin: begin,
