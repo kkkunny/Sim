@@ -22,3 +22,15 @@ func (self *Integer) Position() reader.Position {
 func (self *Integer) stmt() {}
 
 func (self *Integer) expr() {}
+
+type Float struct {
+	Value token.Token
+}
+
+func (self *Float) Position() reader.Position {
+	return self.Value.Position
+}
+
+func (self *Float) stmt() {}
+
+func (self *Float) expr() {}

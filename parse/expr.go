@@ -10,6 +10,8 @@ func (self *Parser) parseOptionExpr() util.Option[Expr] {
 	switch self.nextTok.Kind {
 	case token.INTEGER:
 		return util.Some[Expr](self.parseInteger())
+	case token.FLOAT:
+		return util.Some[Expr](self.parseFloat())
 	default:
 		return util.None[Expr]()
 	}
@@ -26,4 +28,8 @@ func (self *Parser) parseExpr() Expr {
 
 func (self *Parser) parseInteger() *Integer {
 	return &Integer{Value: self.expectNextIs(token.INTEGER)}
+}
+
+func (self *Parser) parseFloat() *Float {
+	return &Float{Value: self.expectNextIs(token.FLOAT)}
 }

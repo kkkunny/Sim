@@ -32,10 +32,19 @@ func (self *Lexer) next() rune {
 }
 
 // 提前获取下一个字符
-func (self Lexer) peek() rune {
-	offset := stlerror.MustWith(self.reader.Seek(0, io.SeekCurrent))
-	defer self.reader.Seek(offset, io.SeekStart)
-	return self.next()
+func (self Lexer) peek(skip ...uint) rune {
+	defer self.reader.Seek(int64(self.reader.Offset()), io.SeekStart)
+
+	offset := 1
+	if len(skip) > 0 {
+		offset += int(skip[0])
+	}
+
+	var ch rune
+	for i := 0; i < offset; i++ {
+		ch = self.next()
+	}
+	return ch
 }
 
 // 跳过空白
@@ -56,11 +65,23 @@ func (self *Lexer) scanIdent(ch rune) Kind {
 }
 
 // 扫描整数
-func (self *Lexer) scanInteger(ch rune) Kind {
-	for ch = self.peek(); ch >= '0' && ch <= '9'; ch = self.peek() {
+func (self *Lexer) scanNumber(ch rune) Kind {
+	var point bool
+	for ch = self.peek(); ch == '.' || (ch >= '0' && ch <= '9'); ch = self.peek() {
+		if ch == '.' {
+			if ch2 := self.peek(1); !(ch2 >= '0' && ch2 <= '9') || point {
+				break
+			} else {
+				point = true
+			}
+		}
 		self.next()
 	}
-	return INTEGER
+	if point {
+		return FLOAT
+	} else {
+		return INTEGER
+	}
 }
 
 func (self *Lexer) Scan() Token {
@@ -74,7 +95,7 @@ func (self *Lexer) Scan() Token {
 	case ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'):
 		kind = self.scanIdent(ch)
 	case ch >= '0' && ch <= '9':
-		kind = self.scanInteger(ch)
+		kind = self.scanNumber(ch)
 	default:
 		switch ch {
 		case 0:

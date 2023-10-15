@@ -25,3 +25,15 @@ func (self *Integer) stmt() {}
 func (self *Integer) GetType() Type {
 	return self.Type
 }
+
+// Float 浮点数
+type Float struct {
+	Type  *FloatType
+	Value big.Float
+}
+
+func (self *Float) stmt() {}
+
+func (self *Float) GetType() Type {
+	return self.Type
+}

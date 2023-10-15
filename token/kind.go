@@ -9,6 +9,7 @@ const (
 
 	IDENT
 	INTEGER
+	FLOAT
 
 	LPA
 	RPA
@@ -28,6 +29,7 @@ var kindNames = [...]string{
 	EOF:     "eof",
 	IDENT:   "ident",
 	INTEGER: "integer",
+	FLOAT:   "float",
 	LPA:     "lpa",
 	RPA:     "rpa",
 	LBR:     "lbr",

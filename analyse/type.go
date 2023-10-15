@@ -29,6 +29,8 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 	switch node.Name.Source() {
 	case "isize":
 		return Isize
+	case "f64":
+		return F64
 	default:
 		// TODO: 编译时异常：未知的类型
 		panic("unreachable")

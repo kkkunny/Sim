@@ -12,6 +12,13 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 		return self.ctx.VoidType()
 	case *mean.SintType:
 		return self.ctx.IntType(int(typeNode.Bits))
+	case *mean.FloatType:
+		switch typeNode.Bits {
+		case 64:
+			return self.ctx.DoubleType()
+		default:
+			panic("unreachable")
+		}
 	case *mean.FuncType:
 		ret := self.codegenType(typeNode.Ret)
 		return llvm.FunctionType(ret, nil, false)

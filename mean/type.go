@@ -4,6 +4,8 @@ var (
 	Empty = &EmptyType{}
 
 	Isize = &SintType{Bits: 64}
+	
+	F64 = &FloatType{Bits: 64}
 )
 
 // Type 类型
@@ -49,6 +51,23 @@ func (self *SintType) HasSign() bool {
 }
 
 func (self *SintType) GetBits() uint {
+	return self.Bits
+}
+
+// FloatType 浮点型
+type FloatType struct {
+	Bits uint
+}
+
+func (self *FloatType) Equal(dst Type) bool {
+	t, ok := dst.(*FloatType)
+	if !ok {
+		return false
+	}
+	return self.Bits == t.Bits
+}
+
+func (self *FloatType) GetBits() uint {
 	return self.Bits
 }
 
