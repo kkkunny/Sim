@@ -16,7 +16,8 @@ import (
 )
 
 func main() {
-	r := stlerror.MustWith(reader.NewReaderFromFile(os.Args[1]))
+	f, r := stlerror.MustWith2(reader.NewReaderFromFile(os.Args[1]))
+	defer f.Close()
 	generator := codegen.New(analyse.New(parse.New(lex.New(r))))
 	module := generator.Codegen()
 	fmt.Println(module)

@@ -36,8 +36,7 @@ func (self Position) String() string {
 }
 
 func (self Position) Text() string {
-	offset := stlerror.MustWith(self.Reader.Seek(0, io.SeekCurrent))
-	defer self.Reader.Seek(offset, io.SeekStart)
+	defer self.Reader.Seek(int64(self.Reader.Offset()), io.SeekStart)
 
 	stlerror.MustWith(self.Reader.Seek(int64(self.BeginOffset), io.SeekStart))
 

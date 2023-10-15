@@ -59,5 +59,18 @@ func (self *Parser) skipSEM() {
 
 // Parse 语法分析
 func (self *Parser) Parse() linkedlist.LinkedList[Global] {
-	return linkedlist.NewLinkedListWith(self.parseGlobal())
+	globals := linkedlist.NewLinkedList[Global]()
+	for {
+		self.skipSEM()
+		if self.nextIs(token.EOF) {
+			break
+		}
+
+		globals.PushBack(self.parseGlobal())
+
+		if !self.nextIs(token.EOF) {
+			self.expectNextIs(token.SEM)
+		}
+	}
+	return globals
 }

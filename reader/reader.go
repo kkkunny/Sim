@@ -8,4 +8,5 @@ type Reader interface {
 	io.Seeker
 	Path() string
 	Position() Position
+	Offset() uint
 }

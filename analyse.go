@@ -17,7 +17,8 @@ import (
 )
 
 func main() {
-	r := stlerror.MustWith(reader.NewReaderFromFile(os.Args[1]))
+	f, r := stlerror.MustWith2(reader.NewReaderFromFile(os.Args[1]))
+	defer f.Close()
 	analyser := analyse.New(parse.New(lex.New(r)))
 	analyser.Analyse().Iterator().Foreach(func(v mean.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())

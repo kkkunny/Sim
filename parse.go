@@ -16,7 +16,8 @@ import (
 )
 
 func main() {
-	r := stlerror.MustWith(reader.NewReaderFromFile(os.Args[1]))
+	f, r := stlerror.MustWith2(reader.NewReaderFromFile(os.Args[1]))
+	defer f.Close()
 	parser := parse.New(lex.New(r))
 	parser.Parse().Iterator().Foreach(func(v ast.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())

@@ -14,7 +14,8 @@ import (
 )
 
 func main() {
-	r := stlerror.MustWith(reader.NewReaderFromFile(os.Args[1]))
+	f, r := stlerror.MustWith2(reader.NewReaderFromFile(os.Args[1]))
+	defer f.Close()
 	lexer := lex.New(r)
 	for tok := lexer.Scan(); !tok.Is(token.EOF); tok = lexer.Scan() {
 		fmt.Println(tok)
