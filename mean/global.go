@@ -13,3 +13,11 @@ type FuncDef struct {
 }
 
 func (self *FuncDef) global() {}
+
+func (self *FuncDef) stmt() {}
+
+func (self *FuncDef) GetType() Type {
+	return &FuncType{Ret: self.Ret}
+}
+
+func (self *FuncDef) ident() {}

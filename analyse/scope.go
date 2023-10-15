@@ -8,20 +8,20 @@ import (
 
 // 作用域
 type _Scope interface {
-	SetValue(name string, v Expr) bool
-	GetValue(name string) (Expr, bool)
+	SetValue(name string, v Ident) bool
+	GetValue(name string) (Ident, bool)
 }
 
 // 包作用域
 type _PkgScope struct {
-	values hashmap.HashMap[string, Expr]
+	values hashmap.HashMap[string, Ident]
 }
 
 func _NewPkgScope() *_PkgScope {
-	return &_PkgScope{values: hashmap.NewHashMap[string, Expr]()}
+	return &_PkgScope{values: hashmap.NewHashMap[string, Ident]()}
 }
 
-func (self *_PkgScope) SetValue(name string, v Expr) bool {
+func (self *_PkgScope) SetValue(name string, v Ident) bool {
 	if self.values.ContainKey(name) {
 		return false
 	}
@@ -29,7 +29,7 @@ func (self *_PkgScope) SetValue(name string, v Expr) bool {
 	return true
 }
 
-func (self *_PkgScope) GetValue(name string) (Expr, bool) {
+func (self *_PkgScope) GetValue(name string) (Ident, bool) {
 	return self.values.Get(name), self.values.ContainKey(name)
 }
 
@@ -58,11 +58,11 @@ func _NewFuncScope(p *_PkgScope, ret Type) *_FuncScope {
 	return self
 }
 
-func (self *_FuncScope) SetValue(name string, v Expr) bool {
+func (self *_FuncScope) SetValue(name string, v Ident) bool {
 	return self._BlockScope.SetValue(name, v)
 }
 
-func (self *_FuncScope) GetValue(name string) (Expr, bool) {
+func (self *_FuncScope) GetValue(name string) (Ident, bool) {
 	if self.values.ContainKey(name) {
 		self.values.Get(name)
 	}
@@ -88,22 +88,22 @@ func (self *_FuncScope) GetRetType() Type {
 // 代码块作用域
 type _BlockScope struct {
 	parent _LocalScope
-	values hashmap.HashMap[string, Expr]
+	values hashmap.HashMap[string, Ident]
 }
 
 func _NewBlockScope(p _LocalScope) *_BlockScope {
 	return &_BlockScope{
 		parent: p,
-		values: hashmap.NewHashMap[string, Expr](),
+		values: hashmap.NewHashMap[string, Ident](),
 	}
 }
 
-func (self *_BlockScope) SetValue(name string, v Expr) bool {
+func (self *_BlockScope) SetValue(name string, v Ident) bool {
 	self.values.Set(name, v)
 	return true
 }
 
-func (self *_BlockScope) GetValue(name string) (Expr, bool) {
+func (self *_BlockScope) GetValue(name string) (Ident, bool) {
 	if self.values.ContainKey(name) {
 		self.values.Get(name)
 	}

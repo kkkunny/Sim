@@ -3,6 +3,7 @@ package ast
 import (
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 // Type 类型
@@ -21,3 +22,15 @@ func (self *IdentType) Position() reader.Position {
 }
 
 func (self *IdentType) typ() {}
+
+type FuncType struct {
+	Begin reader.Position
+	Ret   util.Option[Type]
+	End   reader.Position
+}
+
+func (self *FuncType) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *FuncType) typ() {}

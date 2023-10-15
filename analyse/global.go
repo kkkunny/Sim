@@ -19,6 +19,10 @@ func (self *Analyser) analyseFuncDef(node *ast.FuncDef) *FuncDef {
 		Name: node.Name.Source(),
 		Ret:  self.analyseOptionType(node.Ret),
 	}
+	if !self.pkgScope.SetValue(f.Name, f) {
+		// TODO: 编译时异常：变量名冲突
+		panic("unreachable")
+	}
 
 	self.localScope = _NewFuncScope(self.pkgScope, f.Ret)
 	defer func() {

@@ -51,3 +51,16 @@ func (self *SintType) HasSign() bool {
 func (self *SintType) GetBits() uint {
 	return self.Bits
 }
+
+// FuncType 函数类型
+type FuncType struct {
+	Ret Type
+}
+
+func (self *FuncType) Equal(dst Type) bool {
+	t, ok := dst.(*FuncType)
+	if !ok {
+		return false
+	}
+	return self.Ret.Equal(t.Ret)
+}

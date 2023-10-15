@@ -8,6 +8,12 @@ type Expr interface {
 	GetType() Type
 }
 
+// Ident 标识符
+type Ident interface {
+	Expr
+	ident()
+}
+
 // Integer 整数
 type Integer struct {
 	Type  IntType
