@@ -8,6 +8,7 @@ const (
 	EOF
 
 	IDENT
+	INTEGER
 
 	LPA
 	RPA
@@ -26,6 +27,7 @@ var kindNames = [...]string{
 	ILLEGAL: "illegal",
 	EOF:     "eof",
 	IDENT:   "ident",
+	INTEGER: "integer",
 	LPA:     "lpa",
 	RPA:     "rpa",
 	LBR:     "lbr",

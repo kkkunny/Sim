@@ -4,7 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 // Stmt 语句ast
@@ -27,11 +27,16 @@ func (self *Block) Position() reader.Position {
 func (self *Block) stmt() {}
 
 type Return struct {
-	Token token.Token
+	Begin reader.Position
+	Value util.Option[Expr]
 }
 
 func (self *Return) Position() reader.Position {
-	return self.Token.Position
+	v, ok := self.Value.Value()
+	if !ok {
+		return self.Begin
+	}
+	return reader.MixPosition(self.Begin, v.Position())
 }
 
 func (self *Return) stmt() {}

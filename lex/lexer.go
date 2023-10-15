@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"strings"
-	"unicode"
 
 	stlerror "github.com/kkkunny/stl/error"
 
@@ -39,21 +38,29 @@ func (self Lexer) peek() rune {
 	return self.next()
 }
 
-// 扫描标识符
-func (self *Lexer) scanIdent(ch rune) Kind {
-	var buf strings.Builder
-	buf.WriteRune(ch)
-	for ch = self.peek(); ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch); ch = self.peek() {
-		buf.WriteRune(self.next())
-	}
-	return Lookup(buf.String())
-}
-
 // 跳过空白
 func (self *Lexer) skipWhite() {
 	for ch := self.peek(); ch == ' ' || ch == '\r'; ch = self.peek() {
 		_ = self.next()
 	}
+}
+
+// 扫描标识符
+func (self *Lexer) scanIdent(ch rune) Kind {
+	var buf strings.Builder
+	buf.WriteRune(ch)
+	for ch = self.peek(); ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9'); ch = self.peek() {
+		buf.WriteRune(self.next())
+	}
+	return Lookup(buf.String())
+}
+
+// 扫描整数
+func (self *Lexer) scanInteger(ch rune) Kind {
+	for ch = self.peek(); ch >= '0' && ch <= '9'; ch = self.peek() {
+		self.next()
+	}
+	return INTEGER
 }
 
 func (self *Lexer) Scan() Token {
@@ -64,8 +71,10 @@ func (self *Lexer) Scan() Token {
 
 	var kind Kind
 	switch {
-	case ch == '_' || unicode.IsLetter(ch):
+	case ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'):
 		kind = self.scanIdent(ch)
+	case ch >= '0' && ch <= '9':
+		kind = self.scanInteger(ch)
 	default:
 		switch ch {
 		case 0:

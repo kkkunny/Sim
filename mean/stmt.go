@@ -1,6 +1,10 @@
 package mean
 
-import "github.com/kkkunny/stl/container/linkedlist"
+import (
+	"github.com/kkkunny/stl/container/linkedlist"
+
+	"github.com/kkkunny/Sim/util"
+)
 
 // Stmt 语句
 type Stmt interface {
@@ -14,6 +18,8 @@ type Block struct {
 
 func (self *Block) stmt() {}
 
-type Return struct{}
+type Return struct {
+	Value util.Option[Expr]
+}
 
 func (self *Return) stmt() {}

@@ -30,5 +30,9 @@ func (self *CodeGenerator) codegenBlock(node *mean.Block) llvm.BasicBlock {
 }
 
 func (self *CodeGenerator) codegenReturn(node *mean.Return) {
-	self.builder.CreateRetVoid()
+	if v, ok := node.Value.Value(); ok {
+		self.builder.CreateRet(self.codegenExpr(v))
+	} else {
+		self.builder.CreateRetVoid()
+	}
 }

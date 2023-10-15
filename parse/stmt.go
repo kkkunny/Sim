@@ -12,8 +12,7 @@ func (self *Parser) parseStmt() Stmt {
 	case token.RETURN:
 		return self.parseReturn()
 	default:
-		// TODO: 编译时异常：未知的语句
-		panic("unreachable")
+		return self.parseExpr()
 	}
 }
 
@@ -41,5 +40,10 @@ func (self *Parser) parseBlock() *Block {
 }
 
 func (self *Parser) parseReturn() *Return {
-	return &Return{Token: self.expectNextIs(token.RETURN)}
+	begin := self.expectNextIs(token.RETURN).Position
+	value := self.parseOptionExpr()
+	return &Return{
+		Begin: begin,
+		Value: value,
+	}
 }

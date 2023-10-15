@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/Sim/ast"
 	. "github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *Analyser) analyseStmt(node ast.Stmt) Stmt {
@@ -25,5 +26,9 @@ func (self *Analyser) analyseBlock(node *ast.Block) *Block {
 }
 
 func (self *Analyser) analyseReturn(node *ast.Return) *Return {
-	return &Return{}
+	value := util.None[Expr]()
+	if v, ok := node.Value.Value(); ok {
+		value = util.Some[Expr](self.analyseExpr(v))
+	}
+	return &Return{Value: value}
 }

@@ -24,9 +24,7 @@ func (self Token) Source() string {
 
 func (self Token) String() string {
 	switch self.Kind {
-	case ILLEGAL:
-		return fmt.Sprintf("%s(`%s`)", self.Kind, self.Source())
-	case IDENT:
+	case ILLEGAL, IDENT, INTEGER:
 		return fmt.Sprintf("%s(`%s`)", self.Kind, self.Source())
 	default:
 		return self.Kind.String()
