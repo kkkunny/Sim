@@ -46,6 +46,7 @@ func (self *Parser) expectNextIs(k token.Kind) token.Token {
 		return self.curTok
 	}
 	// TODO: 报错
+	panic("unreachable")
 	return token.Token{}
 }
 

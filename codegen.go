@@ -1,7 +1,10 @@
+//go:build codegen
+
 package main
 
 import (
 	"fmt"
+	"os"
 
 	stlerror "github.com/kkkunny/stl/error"
 
@@ -13,7 +16,8 @@ import (
 )
 
 func main() {
-	r := stlerror.MustWith(reader.NewReaderFromFile("example/main.sim"))
+	r := stlerror.MustWith(reader.NewReaderFromFile(os.Args[1]))
 	generator := codegen.New(analyse.New(parse.New(lex.New(r))))
-	fmt.Println(generator.Codegen())
+	module := generator.Codegen()
+	fmt.Println(module)
 }

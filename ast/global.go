@@ -3,6 +3,7 @@ package ast
 import (
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 // Global 全局ast
@@ -15,6 +16,7 @@ type Global interface {
 type FuncDef struct {
 	Begin reader.Position
 	Name  token.Token
+	Ret   util.Option[Type]
 	Body  *Block
 }
 

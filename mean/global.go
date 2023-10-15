@@ -8,6 +8,7 @@ type Global interface {
 // FuncDef 函数定义
 type FuncDef struct {
 	Name string
+	Ret  Type
 	Body *Block
 }
 

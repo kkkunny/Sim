@@ -15,9 +15,11 @@ func (self *Analyser) analyseGlobal(node ast.Global) Global {
 }
 
 func (self *Analyser) analyseFuncDef(node *ast.FuncDef) *FuncDef {
+	ret := self.analyseOptionType(node.Ret)
 	body := self.analyseBlock(node.Body)
 	return &FuncDef{
 		Name: node.Name.Source(),
+		Ret:  ret,
 		Body: body,
 	}
 }

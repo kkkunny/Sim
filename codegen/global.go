@@ -16,7 +16,8 @@ func (self *CodeGenerator) codegenGlobal(node mean.Global) {
 }
 
 func (self *CodeGenerator) codegenFuncDef(node *mean.FuncDef) {
-	ft := llvm.FunctionType(self.ctx.VoidType(), nil, false)
+	ret := self.codegenType(node.Ret)
+	ft := llvm.FunctionType(ret, nil, false)
 	f := llvm.AddFunction(self.module, node.Name, ft)
 
 	self.builder.SetInsertPointAtEnd(llvm.AddBasicBlock(f, "entry"))
