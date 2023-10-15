@@ -43,7 +43,7 @@ func (self *Parser) skipNextIs(k token.Kind) bool {
 // 期待下一个token是
 func (self *Parser) expectNextIs(k token.Kind) token.Token {
 	if self.skipNextIs(k) {
-		return self.nextTok
+		return self.curTok
 	}
 	// TODO: 报错
 	return token.Token{}
