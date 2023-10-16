@@ -18,6 +18,8 @@ func (self *Analyser) analyseExpr(node ast.Expr) Expr {
 		return self.analyseFloat(exprNode)
 	case *ast.Binary:
 		return self.analyseBinary(exprNode)
+	case *ast.Unary:
+		return self.analyseUnary(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -80,5 +82,29 @@ func (self *Analyser) analyseBinary(node *ast.Binary) *Binary {
 		Kind:  kind,
 		Left:  left,
 		Right: right,
+	}
+}
+
+func (self *Analyser) analyseUnary(node *ast.Unary) *Unary {
+	value := self.analyseExpr(node.Value)
+	vt := value.GetType()
+
+	var kind UnaryType
+	switch node.Opera.Kind {
+	case token.SUB:
+		if TypeIs[NumberType](vt) {
+			kind = UnaryNegate
+		}
+	default:
+		panic("unreachable")
+	}
+
+	if kind == UnaryInvalid {
+		// TODO: 编译时异常：不能对两个类型进行一元运算
+		panic("unreachable")
+	}
+	return &Unary{
+		Kind:  kind,
+		Value: value,
 	}
 }

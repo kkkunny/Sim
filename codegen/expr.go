@@ -14,6 +14,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenFloat(exprNode)
 	case *mean.Binary:
 		return self.codegenBinary(exprNode)
+	case *mean.Unary:
+		return self.codegenUnary(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -21,13 +23,12 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 
 func (self *CodeGenerator) codegenInteger(node *mean.Integer) llvm.Value {
 	t := self.codegenType(node.GetType())
-	return llvm.ConstInt(t, node.Value.Uint64(), node.Type.HasSign())
+	return llvm.ConstIntFromString(t, node.Value.String(), 10)
 }
 
 func (self *CodeGenerator) codegenFloat(node *mean.Float) llvm.Value {
 	t := self.codegenType(node.GetType())
-	v, _ := node.Value.Float64()
-	return llvm.ConstFloat(t, v)
+	return llvm.ConstFloatFromString(t, node.Value.String())
 }
 
 func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
@@ -76,6 +77,24 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 			return self.builder.CreateSRem(left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFRem(left, right, "")
+		default:
+			panic("unreachable")
+		}
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *CodeGenerator) codegenUnary(node *mean.Unary) llvm.Value {
+	value := self.codegenExpr(node.Value)
+
+	switch node.Kind {
+	case mean.UnaryNegate:
+		switch node.Value.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateNSWNeg(value, "")
+		case *mean.FloatType:
+			return self.builder.CreateFNeg(value, "")
 		default:
 			panic("unreachable")
 		}

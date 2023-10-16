@@ -60,3 +60,22 @@ func (self *Binary) stmt() {}
 func (self *Binary) GetType() Type {
 	return self.Left.GetType()
 }
+
+type UnaryType uint8
+
+const (
+	UnaryInvalid UnaryType = iota
+	UnaryNegate
+)
+
+// Binary 二元运算
+type Unary struct {
+	Kind  UnaryType
+	Value Expr
+}
+
+func (self *Unary) stmt() {}
+
+func (self *Unary) GetType() Type {
+	return self.Value.GetType()
+}

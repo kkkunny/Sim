@@ -12,7 +12,7 @@ func (self *Parser) parseStmt() Stmt {
 	case token.RETURN:
 		return self.parseReturn()
 	default:
-		return self.parseExpr()
+		return self.mustExpr(self.parseOptionExpr())
 	}
 }
 

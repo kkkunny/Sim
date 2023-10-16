@@ -51,3 +51,17 @@ func (self *Binary) Position() reader.Position {
 func (self *Binary) stmt() {}
 
 func (self *Binary) expr() {}
+
+// Unary 一元运算
+type Unary struct {
+	Opera token.Token
+	Value Expr
+}
+
+func (self *Unary) Position() reader.Position {
+	return reader.MixPosition(self.Opera.Position, self.Value.Position())
+}
+
+func (self *Unary) stmt() {}
+
+func (self *Unary) expr() {}

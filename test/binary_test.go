@@ -17,7 +17,7 @@ import (
 func TestAdd(t *testing.T) {
 	code := `
 func main()isize{
-    return 1+1-2
+    return -1+1
 }
 `
 	r := stlerror.MustWith(reader.NewReaderFromString("test.sim", code))
