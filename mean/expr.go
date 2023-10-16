@@ -42,6 +42,9 @@ type BinaryType uint8
 
 const (
 	BinaryInvalid BinaryType = iota
+	BinaryAnd
+	BinaryOr
+	BinaryXor
 	BinaryAdd
 	BinarySub
 	BinaryMul

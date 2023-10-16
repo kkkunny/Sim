@@ -35,6 +35,27 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 	left, right := self.codegenExpr(node.Left), self.codegenExpr(node.Right)
 
 	switch node.Kind {
+	case mean.BinaryAnd:
+		switch node.Left.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateAnd(left, right, "")
+		default:
+			panic("unreachable")
+		}
+	case mean.BinaryOr:
+		switch node.Left.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateOr(left, right, "")
+		default:
+			panic("unreachable")
+		}
+	case mean.BinaryXor:
+		switch node.Left.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateXor(left, right, "")
+		default:
+			panic("unreachable")
+		}
 	case mean.BinaryAdd:
 		switch node.Left.GetType().(type) {
 		case *mean.SintType:

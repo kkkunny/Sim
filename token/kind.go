@@ -11,6 +11,10 @@ const (
 	INTEGER
 	FLOAT
 
+	AND
+	OR
+	XOR
+
 	ADD
 	SUB
 	MUL
@@ -36,6 +40,9 @@ var kindNames = [...]string{
 	IDENT:   "ident",
 	INTEGER: "integer",
 	FLOAT:   "float",
+	AND:     "and",
+	OR:      "or",
+	XOR:     "xor",
 	ADD:     "add",
 	SUB:     "sub",
 	MUL:     "mul",
@@ -71,8 +78,14 @@ func (self Kind) String() string {
 func (self Kind) Priority() uint8 {
 	switch self {
 	case MUL, DIV, REM:
-		return 2
+		return 5
 	case ADD, SUB:
+		return 4
+	case AND:
+		return 3
+	case XOR:
+		return 2
+	case OR:
 		return 1
 	default:
 		return 0

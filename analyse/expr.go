@@ -50,6 +50,18 @@ func (self *Analyser) analyseBinary(node *ast.Binary) *Binary {
 
 	var kind BinaryType
 	switch node.Opera.Kind {
+	case token.AND:
+		if lt.Equal(rt) && TypeIs[IntType](lt) {
+			kind = BinaryAnd
+		}
+	case token.OR:
+		if lt.Equal(rt) && TypeIs[IntType](lt) {
+			kind = BinaryOr
+		}
+	case token.XOR:
+		if lt.Equal(rt) && TypeIs[IntType](lt) {
+			kind = BinaryXor
+		}
 	case token.ADD:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
 			kind = BinaryAdd

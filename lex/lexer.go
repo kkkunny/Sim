@@ -100,6 +100,12 @@ func (self *Lexer) Scan() Token {
 		switch ch {
 		case 0:
 			kind = EOF
+		case '&':
+			kind = AND
+		case '|':
+			kind = OR
+		case '^':
+			kind = XOR
 		case '+':
 			kind = ADD
 		case '-':
