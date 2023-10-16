@@ -16,6 +16,8 @@ func (self *Analyser) analyseExpr(node ast.Expr) Expr {
 		return self.analyseInteger(exprNode)
 	case *ast.Float:
 		return self.analyseFloat(exprNode)
+	case *ast.Boolean:
+		return self.analyseBool(exprNode)
 	case *ast.Binary:
 		return self.analyseBinary(exprNode)
 	case *ast.Unary:
@@ -42,6 +44,10 @@ func (self *Analyser) analyseFloat(node *ast.Float) *Float {
 		Type:  F64,
 		Value: *value,
 	}
+}
+
+func (self *Analyser) analyseBool(node *ast.Boolean) *Boolean {
+	return &Boolean{Value: node.Value.Is(token.TRUE)}
 }
 
 func (self *Analyser) analyseBinary(node *ast.Binary) *Binary {

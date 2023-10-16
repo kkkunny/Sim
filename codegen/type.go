@@ -22,6 +22,8 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 	case *mean.FuncType:
 		ret := self.codegenType(typeNode.Ret)
 		return llvm.FunctionType(ret, nil, false)
+	case *mean.BoolType:
+		return self.ctx.Int1Type()
 	default:
 		panic("unreachable")
 	}

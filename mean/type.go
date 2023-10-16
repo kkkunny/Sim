@@ -6,6 +6,8 @@ var (
 	Isize = &SintType{Bits: 64}
 
 	F64 = &FloatType{Bits: 64}
+
+	Bool = &BoolType{}
 )
 
 // Type 类型
@@ -88,4 +90,12 @@ func (self *FuncType) Equal(dst Type) bool {
 		return false
 	}
 	return self.Ret.Equal(t.Ret)
+}
+
+// BoolType 布尔型
+type BoolType struct{}
+
+func (self *BoolType) Equal(dst Type) bool {
+	_, ok := dst.(*BoolType)
+	return ok
 }

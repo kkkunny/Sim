@@ -31,6 +31,8 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 		return Isize
 	case "f64":
 		return F64
+	case "bool":
+		return Bool
 	default:
 		// TODO: 编译时异常：未知的类型
 		panic("unreachable")

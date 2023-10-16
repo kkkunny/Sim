@@ -12,6 +12,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenInteger(exprNode)
 	case *mean.Float:
 		return self.codegenFloat(exprNode)
+	case *mean.Boolean:
+		return self.codegenBool(exprNode)
 	case *mean.Binary:
 		return self.codegenBinary(exprNode)
 	case *mean.Unary:
@@ -29,6 +31,15 @@ func (self *CodeGenerator) codegenInteger(node *mean.Integer) llvm.Value {
 func (self *CodeGenerator) codegenFloat(node *mean.Float) llvm.Value {
 	t := self.codegenType(node.GetType())
 	return llvm.ConstFloatFromString(t, node.Value.String())
+}
+
+func (self *CodeGenerator) codegenBool(node *mean.Boolean) llvm.Value {
+	t := self.codegenType(node.GetType())
+	if node.Value {
+		return llvm.ConstInt(t, 1, false)
+	} else {
+		return llvm.ConstInt(t, 0, false)
+	}
 }
 
 func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {

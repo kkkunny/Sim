@@ -31,6 +31,8 @@ const (
 	_KeywordBegin
 	FUNC
 	RETURN
+	TRUE
+	FALSE
 	_KeywordEnd
 )
 
@@ -55,6 +57,8 @@ var kindNames = [...]string{
 	SEM:     "sem",
 	FUNC:    "func",
 	RETURN:  "return",
+	TRUE:    "true",
+	FALSE:   "false",
 }
 
 // Lookup 区分标识符和关键字

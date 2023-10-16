@@ -25,6 +25,8 @@ func (self *Parser) parseOptionPrimary() util.Option[Expr] {
 		return util.Some[Expr](self.parseInteger())
 	case token.FLOAT:
 		return util.Some[Expr](self.parseFloat())
+	case token.TRUE, token.FALSE:
+		return util.Some[Expr](self.parseBool())
 	default:
 		return util.None[Expr]()
 	}
@@ -36,6 +38,16 @@ func (self *Parser) parseInteger() *Integer {
 
 func (self *Parser) parseFloat() *Float {
 	return &Float{Value: self.expectNextIs(token.FLOAT)}
+}
+
+func (self *Parser) parseBool() *Boolean {
+	var value token.Token
+	if self.skipNextIs(token.TRUE) {
+		value = self.curTok
+	} else {
+		value = self.expectNextIs(token.FALSE)
+	}
+	return &Boolean{Value: value}
 }
 
 func (self *Parser) parseOptionUnary() util.Option[Expr] {

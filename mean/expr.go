@@ -82,3 +82,14 @@ func (self *Unary) stmt() {}
 func (self *Unary) GetType() Type {
 	return self.Value.GetType()
 }
+
+// Boolean 布尔值
+type Boolean struct {
+	Value bool
+}
+
+func (self *Boolean) stmt() {}
+
+func (self *Boolean) GetType() Type {
+	return Bool
+}
