@@ -14,9 +14,9 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenFloat(exprNode)
 	case *mean.Boolean:
 		return self.codegenBool(exprNode)
-	case *mean.Binary:
+	case mean.Binary:
 		return self.codegenBinary(exprNode)
-	case *mean.Unary:
+	case mean.Unary:
 		return self.codegenUnary(exprNode)
 	default:
 		panic("unreachable")
@@ -42,33 +42,18 @@ func (self *CodeGenerator) codegenBool(node *mean.Boolean) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
-	left, right := self.codegenExpr(node.Left), self.codegenExpr(node.Right)
+func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
+	left, right := self.codegenExpr(node.GetLeft()), self.codegenExpr(node.GetRight())
 
-	switch node.Kind {
-	case mean.BinaryAnd:
-		switch node.Left.GetType().(type) {
-		case *mean.SintType:
-			return self.builder.CreateAnd(left, right, "")
-		default:
-			panic("unreachable")
-		}
-	case mean.BinaryOr:
-		switch node.Left.GetType().(type) {
-		case *mean.SintType:
-			return self.builder.CreateOr(left, right, "")
-		default:
-			panic("unreachable")
-		}
-	case mean.BinaryXor:
-		switch node.Left.GetType().(type) {
-		case *mean.SintType:
-			return self.builder.CreateXor(left, right, "")
-		default:
-			panic("unreachable")
-		}
-	case mean.BinaryAdd:
-		switch node.Left.GetType().(type) {
+	switch node.(type) {
+	case *mean.IntAndInt:
+		return self.builder.CreateAnd(left, right, "")
+	case *mean.IntOrInt:
+		return self.builder.CreateOr(left, right, "")
+	case *mean.IntXorInt:
+		return self.builder.CreateXor(left, right, "")
+	case *mean.NumAddNum:
+		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateNSWAdd(left, right, "")
 		case *mean.FloatType:
@@ -76,8 +61,8 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case mean.BinarySub:
-		switch node.Left.GetType().(type) {
+	case *mean.NumSubNum:
+		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateNSWSub(left, right, "")
 		case *mean.FloatType:
@@ -85,8 +70,8 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case mean.BinaryMul:
-		switch node.Left.GetType().(type) {
+	case *mean.NumMulNum:
+		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateNSWMul(left, right, "")
 		case *mean.FloatType:
@@ -94,8 +79,8 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case mean.BinaryDiv:
-		switch node.Left.GetType().(type) {
+	case *mean.NumDivNum:
+		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateSDiv(left, right, "")
 		case *mean.FloatType:
@@ -103,8 +88,8 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case mean.BinaryRem:
-		switch node.Left.GetType().(type) {
+	case *mean.NumRemNum:
+		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateSRem(left, right, "")
 		case *mean.FloatType:
@@ -112,8 +97,8 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case mean.BinaryLt:
-		switch node.Left.GetType().(type) {
+	case *mean.NumLtNum:
+		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateICmp(llvm.IntSLT, left, right, "")
 		case *mean.FloatType:
@@ -121,8 +106,8 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case mean.BinaryGt:
-		switch node.Left.GetType().(type) {
+	case *mean.NumGtNum:
+		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateICmp(llvm.IntSGT, left, right, "")
 		case *mean.FloatType:
@@ -130,8 +115,8 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case mean.BinaryLe:
-		switch node.Left.GetType().(type) {
+	case *mean.NumLeNum:
+		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateICmp(llvm.IntSLE, left, right, "")
 		case *mean.FloatType:
@@ -139,8 +124,8 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case mean.BinaryGe:
-		switch node.Left.GetType().(type) {
+	case *mean.NumGeNum:
+		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateICmp(llvm.IntSGE, left, right, "")
 		case *mean.FloatType:
@@ -153,12 +138,12 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenUnary(node *mean.Unary) llvm.Value {
-	value := self.codegenExpr(node.Value)
+func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
+	value := self.codegenExpr(node.GetValue())
 
-	switch node.Kind {
-	case mean.UnaryNegate:
-		switch node.Value.GetType().(type) {
+	switch node.(type) {
+	case *mean.NumNegate:
+		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateNSWNeg(value, "")
 		case *mean.FloatType:

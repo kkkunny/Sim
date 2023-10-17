@@ -50,95 +50,116 @@ func (self *Analyser) analyseBool(node *ast.Boolean) *Boolean {
 	return &Boolean{Value: node.Value.Is(token.TRUE)}
 }
 
-func (self *Analyser) analyseBinary(node *ast.Binary) *Binary {
+func (self *Analyser) analyseBinary(node *ast.Binary) Binary {
 	left, right := self.analyseExpr(node.Left), self.analyseExpr(node.Right)
 	lt, rt := left.GetType(), right.GetType()
 
-	var kind BinaryType
 	switch node.Opera.Kind {
 	case token.AND:
 		if lt.Equal(rt) && TypeIs[IntType](lt) {
-			kind = BinaryAnd
+			return &IntAndInt{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.OR:
 		if lt.Equal(rt) && TypeIs[IntType](lt) {
-			kind = BinaryOr
+			return &IntOrInt{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.XOR:
 		if lt.Equal(rt) && TypeIs[IntType](lt) {
-			kind = BinaryXor
+			return &IntXorInt{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.ADD:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinaryAdd
+			return &NumAddNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.SUB:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinarySub
+			return &NumSubNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.MUL:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinaryMul
+			return &NumMulNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.DIV:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinaryDiv
+			return &NumDivNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.REM:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinaryRem
+			return &NumRemNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.LT:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinaryLt
+			return &NumLtNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.GT:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinaryGt
+			return &NumGtNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.LE:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinaryLe
+			return &NumLeNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	case token.GE:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			kind = BinaryGe
+			return &NumGeNum{
+				Left:  left,
+				Right: right,
+			}
 		}
 	default:
 		panic("unreachable")
 	}
 
-	if kind == BinaryInvalid {
-		// TODO: 编译时异常：不能对两个类型进行二元运算
-		panic("unreachable")
-	}
-	return &Binary{
-		Kind:  kind,
-		Left:  left,
-		Right: right,
-	}
+	// TODO: 编译时异常：不能对两个类型进行二元运算
+	panic("unreachable")
 }
 
-func (self *Analyser) analyseUnary(node *ast.Unary) *Unary {
+func (self *Analyser) analyseUnary(node *ast.Unary) Unary {
 	value := self.analyseExpr(node.Value)
 	vt := value.GetType()
 
-	var kind UnaryType
 	switch node.Opera.Kind {
 	case token.SUB:
 		if TypeIs[NumberType](vt) {
-			kind = UnaryNegate
+			return &NumNegate{Value: value}
 		}
 	default:
 		panic("unreachable")
 	}
 
-	if kind == UnaryInvalid {
-		// TODO: 编译时异常：不能对两个类型进行一元运算
-		panic("unreachable")
-	}
-	return &Unary{
-		Kind:  kind,
-		Value: value,
-	}
+	// TODO: 编译时异常：不能对两个类型进行一元运算
+	panic("unreachable")
 }

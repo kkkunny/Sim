@@ -38,56 +38,260 @@ func (self *Float) GetType() Type {
 	return self.Type
 }
 
-type BinaryType uint8
-
-const (
-	BinaryInvalid BinaryType = iota
-	BinaryAnd
-	BinaryOr
-	BinaryXor
-	BinaryAdd
-	BinarySub
-	BinaryMul
-	BinaryDiv
-	BinaryRem
-	BinaryLt
-	BinaryGt
-	BinaryLe
-	BinaryGe
-)
-
 // Binary 二元运算
-type Binary struct {
-	Kind        BinaryType
+type Binary interface {
+	Expr
+	GetLeft() Expr
+	GetRight() Expr
+}
+
+// IntAndInt 整数且整数
+type IntAndInt struct {
 	Left, Right Expr
 }
 
-func (self *Binary) stmt() {}
+func (self *IntAndInt) stmt() {}
 
-func (self *Binary) GetType() Type {
-	if self.Kind == BinaryLt || self.Kind == BinaryGt || self.Kind == BinaryLe || self.Kind == BinaryGe {
-		return Bool
-	}
+func (self *IntAndInt) GetType() Type {
 	return self.Left.GetType()
 }
 
-type UnaryType uint8
+func (self *IntAndInt) GetLeft() Expr {
+	return self.Left
+}
 
-const (
-	UnaryInvalid UnaryType = iota
-	UnaryNegate
-)
+func (self *IntAndInt) GetRight() Expr {
+	return self.Right
+}
 
-// Binary 二元运算
-type Unary struct {
-	Kind  UnaryType
+// IntOrInt 整数或整数
+type IntOrInt struct {
+	Left, Right Expr
+}
+
+func (self *IntOrInt) stmt() {}
+
+func (self *IntOrInt) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *IntOrInt) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *IntOrInt) GetRight() Expr {
+	return self.Right
+}
+
+// IntXorInt 整数异或整数
+type IntXorInt struct {
+	Left, Right Expr
+}
+
+func (self *IntXorInt) stmt() {}
+
+func (self *IntXorInt) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *IntXorInt) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *IntXorInt) GetRight() Expr {
+	return self.Right
+}
+
+// NumAddNum 数字加数字
+type NumAddNum struct {
+	Left, Right Expr
+}
+
+func (self *NumAddNum) stmt() {}
+
+func (self *NumAddNum) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *NumAddNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumAddNum) GetRight() Expr {
+	return self.Right
+}
+
+// NumSubNum 数字减数字
+type NumSubNum struct {
+	Left, Right Expr
+}
+
+func (self *NumSubNum) stmt() {}
+
+func (self *NumSubNum) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *NumSubNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumSubNum) GetRight() Expr {
+	return self.Right
+}
+
+// NumMulNum 数字乘数字
+type NumMulNum struct {
+	Left, Right Expr
+}
+
+func (self *NumMulNum) stmt() {}
+
+func (self *NumMulNum) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *NumMulNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumMulNum) GetRight() Expr {
+	return self.Right
+}
+
+// NumDivNum 数字除数字
+type NumDivNum struct {
+	Left, Right Expr
+}
+
+func (self *NumDivNum) stmt() {}
+
+func (self *NumDivNum) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *NumDivNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumDivNum) GetRight() Expr {
+	return self.Right
+}
+
+// NumRemNum 数字取余数字
+type NumRemNum struct {
+	Left, Right Expr
+}
+
+func (self *NumRemNum) stmt() {}
+
+func (self *NumRemNum) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *NumRemNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumRemNum) GetRight() Expr {
+	return self.Right
+}
+
+// NumLtNum 数字小于数字
+type NumLtNum struct {
+	Left, Right Expr
+}
+
+func (self *NumLtNum) stmt() {}
+
+func (self *NumLtNum) GetType() Type {
+	return Bool
+}
+
+func (self *NumLtNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumLtNum) GetRight() Expr {
+	return self.Right
+}
+
+// NumGtNum 数字大于数字
+type NumGtNum struct {
+	Left, Right Expr
+}
+
+func (self *NumGtNum) stmt() {}
+
+func (self *NumGtNum) GetType() Type {
+	return Bool
+}
+
+func (self *NumGtNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumGtNum) GetRight() Expr {
+	return self.Right
+}
+
+// NumLeNum 数字小于等于数字
+type NumLeNum struct {
+	Left, Right Expr
+}
+
+func (self *NumLeNum) stmt() {}
+
+func (self *NumLeNum) GetType() Type {
+	return Bool
+}
+
+func (self *NumLeNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumLeNum) GetRight() Expr {
+	return self.Right
+}
+
+// NumGeNum 数字大于等于数字
+type NumGeNum struct {
+	Left, Right Expr
+}
+
+func (self *NumGeNum) stmt() {}
+
+func (self *NumGeNum) GetType() Type {
+	return Bool
+}
+
+func (self *NumGeNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumGeNum) GetRight() Expr {
+	return self.Right
+}
+
+// Unary 一元运算
+type Unary interface {
+	Expr
+	GetValue() Expr
+}
+
+// NumNegate 数字取反
+type NumNegate struct {
 	Value Expr
 }
 
-func (self *Unary) stmt() {}
+func (self *NumNegate) stmt() {}
 
-func (self *Unary) GetType() Type {
+func (self *NumNegate) GetType() Type {
 	return self.Value.GetType()
+}
+
+func (self *NumNegate) GetValue() Expr {
+	return self.Value
 }
 
 // Boolean 布尔值
