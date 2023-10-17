@@ -88,6 +88,22 @@ func (self *Analyser) analyseBinary(node *ast.Binary) *Binary {
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
 			kind = BinaryRem
 		}
+	case token.LT:
+		if lt.Equal(rt) && TypeIs[NumberType](lt) {
+			kind = BinaryLt
+		}
+	case token.GT:
+		if lt.Equal(rt) && TypeIs[NumberType](lt) {
+			kind = BinaryGt
+		}
+	case token.LE:
+		if lt.Equal(rt) && TypeIs[NumberType](lt) {
+			kind = BinaryLe
+		}
+	case token.GE:
+		if lt.Equal(rt) && TypeIs[NumberType](lt) {
+			kind = BinaryGe
+		}
 	default:
 		panic("unreachable")
 	}

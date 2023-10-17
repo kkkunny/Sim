@@ -50,6 +50,10 @@ const (
 	BinaryMul
 	BinaryDiv
 	BinaryRem
+	BinaryLt
+	BinaryGt
+	BinaryLe
+	BinaryGe
 )
 
 // Binary 二元运算
@@ -61,6 +65,9 @@ type Binary struct {
 func (self *Binary) stmt() {}
 
 func (self *Binary) GetType() Type {
+	if self.Kind == BinaryLt || self.Kind == BinaryGt || self.Kind == BinaryLe || self.Kind == BinaryGe {
+		return Bool
+	}
 	return self.Left.GetType()
 }
 

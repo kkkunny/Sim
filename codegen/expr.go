@@ -112,6 +112,42 @@ func (self *CodeGenerator) codegenBinary(node *mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
+	case mean.BinaryLt:
+		switch node.Left.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateICmp(llvm.IntSLT, left, right, "")
+		case *mean.FloatType:
+			return self.builder.CreateFCmp(llvm.FloatOLT, left, right, "")
+		default:
+			panic("unreachable")
+		}
+	case mean.BinaryGt:
+		switch node.Left.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateICmp(llvm.IntSGT, left, right, "")
+		case *mean.FloatType:
+			return self.builder.CreateFCmp(llvm.FloatOGT, left, right, "")
+		default:
+			panic("unreachable")
+		}
+	case mean.BinaryLe:
+		switch node.Left.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateICmp(llvm.IntSLE, left, right, "")
+		case *mean.FloatType:
+			return self.builder.CreateFCmp(llvm.FloatOLE, left, right, "")
+		default:
+			panic("unreachable")
+		}
+	case mean.BinaryGe:
+		switch node.Left.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateICmp(llvm.IntSGE, left, right, "")
+		case *mean.FloatType:
+			return self.builder.CreateFCmp(llvm.FloatOGE, left, right, "")
+		default:
+			panic("unreachable")
+		}
 	default:
 		panic("unreachable")
 	}

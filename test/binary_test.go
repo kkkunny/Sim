@@ -67,3 +67,35 @@ func main()isize{
 }
 `)
 }
+
+func TestLt(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return 2<1
+}
+`)
+}
+
+func TestGt(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return 1>2
+}
+`)
+}
+
+func TestLe(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return 2<=1
+}
+`)
+}
+
+func TestGe(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return 1>=2
+}
+`)
+}

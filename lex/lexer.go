@@ -116,6 +116,18 @@ func (self *Lexer) Scan() Token {
 			kind = DIV
 		case '%':
 			kind = REM
+		case '<':
+			kind = LT
+			if nextCh := self.peek(); nextCh == '=' {
+				self.next()
+				kind = LE
+			}
+		case '>':
+			kind = GT
+			if nextCh := self.peek(); nextCh == '=' {
+				self.next()
+				kind = GE
+			}
 		case '(':
 			kind = LPA
 		case ')':
