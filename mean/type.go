@@ -4,7 +4,20 @@ var (
 	Empty = &EmptyType{}
 
 	Isize = &SintType{Bits: 64}
+	I8    = &SintType{Bits: 8}
+	I16   = &SintType{Bits: 16}
+	I32   = &SintType{Bits: 32}
+	I64   = &SintType{Bits: 64}
+	I128  = &SintType{Bits: 128}
 
+	Usize = &UintType{Bits: 64}
+	U8    = &UintType{Bits: 8}
+	U16   = &UintType{Bits: 16}
+	U32   = &UintType{Bits: 32}
+	U64   = &UintType{Bits: 64}
+	U128  = &UintType{Bits: 128}
+
+	F32 = &FloatType{Bits: 32}
 	F64 = &FloatType{Bits: 64}
 
 	Bool = &BoolType{}
@@ -59,6 +72,27 @@ func (self *SintType) HasSign() bool {
 }
 
 func (self *SintType) GetBits() uint {
+	return self.Bits
+}
+
+// UintType 无符号整型
+type UintType struct {
+	Bits uint
+}
+
+func (self *UintType) Equal(dst Type) bool {
+	t, ok := dst.(*UintType)
+	if !ok {
+		return false
+	}
+	return self.Bits == t.Bits
+}
+
+func (self *UintType) HasSign() bool {
+	return false
+}
+
+func (self *UintType) GetBits() uint {
 	return self.Bits
 }
 

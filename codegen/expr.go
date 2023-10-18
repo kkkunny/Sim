@@ -60,6 +60,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateNSWAdd(left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateNUWAdd(left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFAdd(left, right, "")
 		default:
@@ -69,6 +71,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateNSWSub(left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateNUWSub(left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFSub(left, right, "")
 		default:
@@ -78,6 +82,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateNSWMul(left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateNUWMul(left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFMul(left, right, "")
 		default:
@@ -87,6 +93,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateSDiv(left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateUDiv(left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFDiv(left, right, "")
 		default:
@@ -96,6 +104,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateSRem(left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateURem(left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFRem(left, right, "")
 		default:
@@ -105,6 +115,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateICmp(llvm.IntSLT, left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateICmp(llvm.IntULT, left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFCmp(llvm.FloatOLT, left, right, "")
 		default:
@@ -114,6 +126,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateICmp(llvm.IntSGT, left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateICmp(llvm.IntUGT, left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFCmp(llvm.FloatOGT, left, right, "")
 		default:
@@ -123,6 +137,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateICmp(llvm.IntSLE, left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateICmp(llvm.IntULE, left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFCmp(llvm.FloatOLE, left, right, "")
 		default:
@@ -132,6 +148,8 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateICmp(llvm.IntSGE, left, right, "")
+		case *mean.UintType:
+			return self.builder.CreateICmp(llvm.IntUGE, left, right, "")
 		case *mean.FloatType:
 			return self.builder.CreateFCmp(llvm.FloatOGE, left, right, "")
 		default:

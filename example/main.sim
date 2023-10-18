@@ -1,11 +1,3 @@
 func main()isize{
-    return getFunc()()
-}
-
-func get()isize{
     return 0
-}
-
-func getFunc()func()isize{
-    return get
 }

@@ -157,7 +157,7 @@ func (self *Analyser) analyseUnary(node *ast.Unary) Unary {
 
 	switch node.Opera.Kind {
 	case token.SUB:
-		if TypeIs[NumberType](vt) {
+		if TypeIs[*SintType](vt) || TypeIs[*FloatType](vt) {
 			return &NumNegate{Value: value}
 		}
 	default:
