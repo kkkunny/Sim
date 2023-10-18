@@ -10,52 +10,69 @@ import (
 	"github.com/kkkunny/Sim/token"
 )
 
-func (self *Analyser) analyseExpr(node ast.Expr) Expr {
+func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 	switch exprNode := node.(type) {
 	case *ast.Integer:
-		return self.analyseInteger(exprNode)
+		return self.analyseInteger(expect, exprNode)
 	case *ast.Float:
-		return self.analyseFloat(exprNode)
+		return self.analyseFloat(expect, exprNode)
 	case *ast.Boolean:
-		return self.analyseBool(exprNode)
+		return self.analyseBool(expect, exprNode)
 	case *ast.Binary:
-		return self.analyseBinary(exprNode)
+		return self.analyseBinary(expect, exprNode)
 	case *ast.Unary:
-		return self.analyseUnary(exprNode)
+		return self.analyseUnary(expect, exprNode)
 	case *ast.Ident:
-		return self.analyseIdent(exprNode)
+		return self.analyseIdent(expect, exprNode)
 	case *ast.Call:
-		return self.analyseCall(exprNode)
+		return self.analyseCall(expect, exprNode)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseInteger(node *ast.Integer) *Integer {
-	value, ok := big.NewInt(0).SetString(node.Value.Source(), 10)
-	if !ok {
+func (self *Analyser) analyseInteger(expect Type, node *ast.Integer) Expr {
+	if expect == nil || !TypeIs[NumberType](expect) {
+		expect = Isize
+	}
+	switch t := expect.(type) {
+	case IntType:
+		value, ok := big.NewInt(0).SetString(node.Value.Source(), 10)
+		if !ok {
+			panic("unreachable")
+		}
+		return &Integer{
+			Type:  t,
+			Value: *value,
+		}
+	case *FloatType:
+		value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
+		return &Float{
+			Type:  t,
+			Value: *value,
+		}
+	default:
 		panic("unreachable")
 	}
-	return &Integer{
-		Type:  Isize,
-		Value: *value,
-	}
 }
 
-func (self *Analyser) analyseFloat(node *ast.Float) *Float {
+func (self *Analyser) analyseFloat(expect Type, node *ast.Float) *Float {
+	if expect == nil || !TypeIs[*FloatType](expect) {
+		expect = F64
+	}
 	value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
 	return &Float{
-		Type:  F64,
+		Type:  expect.(*FloatType),
 		Value: *value,
 	}
 }
 
-func (self *Analyser) analyseBool(node *ast.Boolean) *Boolean {
+func (self *Analyser) analyseBool(expect Type, node *ast.Boolean) *Boolean {
 	return &Boolean{Value: node.Value.Is(token.TRUE)}
 }
 
-func (self *Analyser) analyseBinary(node *ast.Binary) Binary {
-	left, right := self.analyseExpr(node.Left), self.analyseExpr(node.Right)
+func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
+	left, right := self.analyseExpr(expect, node.Left), self.analyseExpr(expect, node.Right)
 	lt, rt := left.GetType(), right.GetType()
 
 	switch node.Opera.Kind {
@@ -151,8 +168,8 @@ func (self *Analyser) analyseBinary(node *ast.Binary) Binary {
 	panic("unreachable")
 }
 
-func (self *Analyser) analyseUnary(node *ast.Unary) Unary {
-	value := self.analyseExpr(node.Value)
+func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
+	value := self.analyseExpr(expect, node.Value)
 	vt := value.GetType()
 
 	switch node.Opera.Kind {
@@ -168,7 +185,7 @@ func (self *Analyser) analyseUnary(node *ast.Unary) Unary {
 	panic("unreachable")
 }
 
-func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
+func (self *Analyser) analyseIdent(expect Type, node *ast.Ident) Ident {
 	value, ok := self.localScope.GetValue(node.Name.Source())
 	if !ok {
 		// TODO: 编译时异常：未知的变量
@@ -177,7 +194,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
 	return value
 }
 
-func (self *Analyser) analyseCall(node *ast.Call) *Call {
-	f := self.analyseExpr(node.Func)
+func (self *Analyser) analyseCall(expect Type, node *ast.Call) *Call {
+	f := self.analyseExpr(nil, node.Func)
 	return &Call{Func: f}
 }
