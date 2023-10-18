@@ -29,8 +29,16 @@ func New(analyser *analyse.Analyser) *CodeGenerator {
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() llvm.Module {
 	nodes := self.analyser.Analyse()
+	iter := nodes.Iterator()
+	// 声明
+	iter.Foreach(func(v mean.Global) bool {
+		self.codegenGlobalDecl(v)
+		return true
+	})
+	iter.Reset()
+	// 定义
 	nodes.Iterator().Foreach(func(v mean.Global) bool {
-		self.codegenGlobal(v)
+		self.codegenGlobalDef(v)
 		return true
 	})
 	return self.module

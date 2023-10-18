@@ -78,3 +78,30 @@ func (self *Boolean) Position() reader.Position {
 func (self *Boolean) stmt() {}
 
 func (self *Boolean) expr() {}
+
+// Ident 标识符
+type Ident struct {
+	Name token.Token
+}
+
+func (self *Ident) Position() reader.Position {
+	return self.Name.Position
+}
+
+func (self *Ident) stmt() {}
+
+func (self *Ident) expr() {}
+
+// Call 调用
+type Call struct {
+	Func Expr
+	End  reader.Position
+}
+
+func (self *Call) Position() reader.Position {
+	return reader.MixPosition(self.Func.Position(), self.End)
+}
+
+func (self *Call) stmt() {}
+
+func (self *Call) expr() {}

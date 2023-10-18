@@ -27,6 +27,8 @@ func (self *Parser) parseOptionPrimary() util.Option[Expr] {
 		return util.Some[Expr](self.parseFloat())
 	case token.TRUE, token.FALSE:
 		return util.Some[Expr](self.parseBool())
+	case token.IDENT:
+		return util.Some[Expr](self.parseIdent())
 	default:
 		return util.None[Expr]()
 	}
@@ -50,11 +52,11 @@ func (self *Parser) parseBool() *Boolean {
 	return &Boolean{Value: value}
 }
 
-func (self *Parser) parseOptionUnary() util.Option[Expr] {
+func (self *Parser) parseOptionPrefixUnary() util.Option[Expr] {
 	switch self.nextTok.Kind {
 	case token.SUB:
 		opera := self.expectNextIs(token.SUB)
-		value := self.mustExpr(self.parseOptionPrimary())
+		value := self.mustExpr(self.parseOptionPrefixUnary())
 		return util.Some[Expr](&Unary{
 			Opera: opera,
 			Value: value,
@@ -62,6 +64,42 @@ func (self *Parser) parseOptionUnary() util.Option[Expr] {
 	default:
 		return self.parseOptionPrimary()
 	}
+}
+
+func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[Expr] {
+	fv, ok := front.Value()
+	if !ok {
+		return front
+	}
+
+	switch self.nextTok.Kind {
+	case token.LPA:
+		self.expectNextIs(token.LPA)
+		self.expectNextIs(token.RPA)
+		front = util.Some[Expr](&Call{Func: fv})
+	default:
+		return front
+	}
+
+	return self.parseOptionSuffixUnary(front)
+}
+
+func (self *Parser) parseOptionTailUnary(front util.Option[Expr]) util.Option[Expr] {
+	_, ok := front.Value()
+	if !ok {
+		return front
+	}
+
+	switch self.nextTok.Kind {
+	default:
+		return front
+	}
+
+	return self.parseOptionTailUnary(front)
+}
+
+func (self *Parser) parseOptionUnary() util.Option[Expr] {
+	return self.parseOptionTailUnary(self.parseOptionSuffixUnary(self.parseOptionPrefixUnary()))
 }
 
 func (self *Parser) parseOptionBinary(priority uint8) util.Option[Expr] {
@@ -84,4 +122,8 @@ func (self *Parser) parseOptionBinary(priority uint8) util.Option[Expr] {
 		}
 	}
 	return util.Some(left)
+}
+
+func (self *Parser) parseIdent() *Ident {
+	return &Ident{Name: self.expectNextIs(token.IDENT)}
 }

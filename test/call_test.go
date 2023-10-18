@@ -1,3 +1,9 @@
+package test
+
+import "testing"
+
+func TestCall(t *testing.T) {
+	assertRetEqZero(t, `
 func main()isize{
     return getFunc()()
 }
@@ -8,4 +14,6 @@ func get()isize{
 
 func getFunc()func()isize{
     return get
+}
+`)
 }

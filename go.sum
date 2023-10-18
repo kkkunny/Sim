@@ -1,5 +1,7 @@
 github.com/kkkunny/llvm v0.0.0-20231015064820-7ae124d94a1b h1:vPQSBzZt50gseX4eFatWG+mjq1n9Umt0HNzRLxhZ5H0=
 github.com/kkkunny/llvm v0.0.0-20231015064820-7ae124d94a1b/go.mod h1:qRICKjV7NdxbcOkY1MvsrWlsy6AlU6mZ820FC3+Pgv0=
+github.com/kkkunny/llvm v0.0.0-20231018132910-3d0b2043a5ce h1:j64qtS4TQWZO3yQp5JaOb1LJKDsbOIBBEK6LDDoXrr8=
+github.com/kkkunny/llvm v0.0.0-20231018132910-3d0b2043a5ce/go.mod h1:qRICKjV7NdxbcOkY1MvsrWlsy6AlU6mZ820FC3+Pgv0=
 github.com/kkkunny/stl v0.0.0-20231014052322-46f1c45686f0 h1:VAtB9hn2SIdUjV9o+1ieqoaMQ95cuwgnzdbJGyrLBn4=
 github.com/kkkunny/stl v0.0.0-20231014052322-46f1c45686f0/go.mod h1:4TbqW9zjHIpp/0Auz1/nyec9WsiMN878ifaEPwVSdkE=
 github.com/klauspost/cpuid/v2 v2.0.9 h1:lgaqFMSdTdQYdZ04uHyN2d/eKdOMyi2YLSvlQIBFYa4=

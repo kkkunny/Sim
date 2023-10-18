@@ -26,8 +26,14 @@ func New(parser *parse.Parser) *Analyser {
 // Analyse 分析语义
 func (self *Analyser) Analyse() linkedlist.LinkedList[Global] {
 	meanNodes := linkedlist.NewLinkedList[Global]()
-	self.parser.Parse().Iterator().Foreach(func(v ast.Global) bool {
-		meanNodes.PushBack(self.analyseGlobal(v))
+	iter := self.parser.Parse().Iterator()
+	iter.Foreach(func(v ast.Global) bool {
+		self.analyseGlobalDecl(v)
+		return true
+	})
+	iter.Reset()
+	iter.Foreach(func(v ast.Global) bool {
+		meanNodes.PushBack(self.analyseGlobalDef(v))
 		return true
 	})
 	return meanNodes

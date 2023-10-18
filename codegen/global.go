@@ -6,18 +6,31 @@ import (
 	"github.com/kkkunny/Sim/mean"
 )
 
-func (self *CodeGenerator) codegenGlobal(node mean.Global) {
+func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 	switch globalNode := node.(type) {
 	case *mean.FuncDef:
-		self.codegenFuncDef(globalNode)
+		self.declFuncDef(globalNode)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenFuncDef(node *mean.FuncDef) {
+func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
 	ft := self.codegenType(node.GetType())
-	f := llvm.AddFunction(self.module, node.Name, ft)
+	llvm.AddFunction(self.module, node.Name, ft)
+}
+
+func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
+	switch globalNode := node.(type) {
+	case *mean.FuncDef:
+		self.defFuncDef(globalNode)
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
+	f := self.module.NamedFunction(node.Name)
 
 	self.builder.SetInsertPointAtEnd(llvm.AddBasicBlock(f, "entry"))
 

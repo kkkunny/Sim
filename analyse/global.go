@@ -5,16 +5,14 @@ import (
 	. "github.com/kkkunny/Sim/mean"
 )
 
-func (self *Analyser) analyseGlobal(node ast.Global) Global {
+func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
-		return self.analyseFuncDef(globalNode)
-	default:
-		panic("unreachable")
+		self.declFuncDef(globalNode)
 	}
 }
 
-func (self *Analyser) analyseFuncDef(node *ast.FuncDef) *FuncDef {
+func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	f := &FuncDef{
 		Name: node.Name.Source(),
 		Ret:  self.analyseOptionType(node.Ret),
@@ -23,6 +21,23 @@ func (self *Analyser) analyseFuncDef(node *ast.FuncDef) *FuncDef {
 		// TODO: 编译时异常：变量名冲突
 		panic("unreachable")
 	}
+}
+
+func (self *Analyser) analyseGlobalDef(node ast.Global) Global {
+	switch globalNode := node.(type) {
+	case *ast.FuncDef:
+		return self.defFuncDef(globalNode)
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
+	value, ok := self.pkgScope.GetValue(node.Name.Source())
+	if !ok {
+		panic("unreachable")
+	}
+	f := value.(*FuncDef)
 
 	self.localScope = _NewFuncScope(self.pkgScope, f.Ret)
 	defer func() {

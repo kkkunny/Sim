@@ -22,6 +22,10 @@ func (self *Analyser) analyseExpr(node ast.Expr) Expr {
 		return self.analyseBinary(exprNode)
 	case *ast.Unary:
 		return self.analyseUnary(exprNode)
+	case *ast.Ident:
+		return self.analyseIdent(exprNode)
+	case *ast.Call:
+		return self.analyseCall(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -162,4 +166,18 @@ func (self *Analyser) analyseUnary(node *ast.Unary) Unary {
 
 	// TODO: 编译时异常：不能对两个类型进行一元运算
 	panic("unreachable")
+}
+
+func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
+	value, ok := self.localScope.GetValue(node.Name.Source())
+	if !ok {
+		// TODO: 编译时异常：未知的变量
+		panic("unreachable")
+	}
+	return value
+}
+
+func (self *Analyser) analyseCall(node *ast.Call) *Call {
+	f := self.analyseExpr(node.Func)
+	return &Call{Func: f}
 }

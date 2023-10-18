@@ -18,6 +18,10 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenBinary(exprNode)
 	case mean.Unary:
 		return self.codegenUnary(exprNode)
+	case mean.Ident:
+		return self.codegenIdent(exprNode)
+	case *mean.Call:
+		return self.codegenCall(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -154,4 +158,20 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
 	default:
 		panic("unreachable")
 	}
+}
+
+func (self *CodeGenerator) codegenIdent(node mean.Ident) llvm.Value {
+	switch identNode := node.(type) {
+	case *mean.FuncDef:
+		f := self.module.NamedFunction(identNode.Name)
+		return f
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *CodeGenerator) codegenCall(node *mean.Call) llvm.Value {
+	t := self.codegenType(node.Func.GetType())
+	f := self.codegenExpr(node.Func)
+	return self.builder.CreateCall(t, f, nil, "")
 }

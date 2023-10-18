@@ -304,3 +304,14 @@ func (self *Boolean) stmt() {}
 func (self *Boolean) GetType() Type {
 	return Bool
 }
+
+// Call 调用
+type Call struct {
+	Func Expr
+}
+
+func (self *Call) stmt() {}
+
+func (self *Call) GetType() Type {
+	return self.Func.GetType().(*FuncType).Ret
+}
