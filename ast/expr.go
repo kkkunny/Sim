@@ -105,3 +105,18 @@ func (self *Call) Position() reader.Position {
 func (self *Call) stmt() {}
 
 func (self *Call) expr() {}
+
+// Unit 单元
+type Unit struct {
+	Begin reader.Position
+	Value Expr
+	End   reader.Position
+}
+
+func (self *Unit) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *Unit) stmt() {}
+
+func (self *Unit) expr() {}

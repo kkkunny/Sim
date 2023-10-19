@@ -26,6 +26,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseIdent(expect, exprNode)
 	case *ast.Call:
 		return self.analyseCall(expect, exprNode)
+	case *ast.Unit:
+		return self.analyseUnit(expect, exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -197,4 +199,8 @@ func (self *Analyser) analyseIdent(expect Type, node *ast.Ident) Ident {
 func (self *Analyser) analyseCall(expect Type, node *ast.Call) *Call {
 	f := self.analyseExpr(nil, node.Func)
 	return &Call{Func: f}
+}
+
+func (self *Analyser) analyseUnit(expect Type, node *ast.Unit) Expr {
+	return self.analyseExpr(expect, node.Value)
 }

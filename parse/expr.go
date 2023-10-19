@@ -29,6 +29,8 @@ func (self *Parser) parseOptionPrimary() util.Option[Expr] {
 		return util.Some[Expr](self.parseBool())
 	case token.IDENT:
 		return util.Some[Expr](self.parseIdent())
+	case token.LPA:
+		return util.Some[Expr](self.parseUnit())
 	default:
 		return util.None[Expr]()
 	}
@@ -50,6 +52,17 @@ func (self *Parser) parseBool() *Boolean {
 		value = self.expectNextIs(token.FALSE)
 	}
 	return &Boolean{Value: value}
+}
+
+func (self *Parser) parseUnit() *Unit {
+	begin := self.expectNextIs(token.LPA).Position
+	value := self.mustExpr(self.parseOptionExpr())
+	end := self.expectNextIs(token.RPA).Position
+	return &Unit{
+		Begin: begin,
+		Value: value,
+		End:   end,
+	}
 }
 
 func (self *Parser) parseOptionPrefixUnary() util.Option[Expr] {
