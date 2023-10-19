@@ -315,3 +315,25 @@ func (self *Call) stmt() {}
 func (self *Call) GetType() Type {
 	return self.Func.GetType().(*FuncType).Ret
 }
+
+// Covert 类型转换
+type Covert interface {
+	Expr
+	GetFrom() Expr
+}
+
+// Num2Num 数字类型转数字类型
+type Num2Num struct {
+	From Expr
+	To   NumberType
+}
+
+func (self *Num2Num) stmt() {}
+
+func (self *Num2Num) GetType() Type {
+	return self.To
+}
+
+func (self *Num2Num) GetFrom() Expr {
+	return self.From
+}

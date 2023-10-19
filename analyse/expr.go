@@ -28,6 +28,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseCall(expect, exprNode)
 	case *ast.Unit:
 		return self.analyseUnit(expect, exprNode)
+	case *ast.Covert:
+		return self.analyseCovert(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -203,4 +205,24 @@ func (self *Analyser) analyseCall(expect Type, node *ast.Call) *Call {
 
 func (self *Analyser) analyseUnit(expect Type, node *ast.Unit) Expr {
 	return self.analyseExpr(expect, node.Value)
+}
+
+func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
+	tt := self.analyseType(node.Type)
+	from := self.analyseExpr(tt, node.Value)
+	ft := from.GetType()
+	if ft.Equal(tt) {
+		return from
+	}
+
+	switch {
+	case TypeIs[NumberType](ft) && TypeIs[NumberType](tt):
+		return &Num2Num{
+			From: from,
+			To:   tt.(NumberType),
+		}
+	default:
+		// TODO: 编译期异常：类型A无法转换成B
+		panic("unreachable")
+	}
 }

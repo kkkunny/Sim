@@ -98,12 +98,19 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[
 }
 
 func (self *Parser) parseOptionTailUnary(front util.Option[Expr]) util.Option[Expr] {
-	_, ok := front.Value()
+	fv, ok := front.Value()
 	if !ok {
 		return front
 	}
 
 	switch self.nextTok.Kind {
+	case token.AS:
+		self.expectNextIs(token.AS)
+		t := self.parseType()
+		front = util.Some[Expr](&Covert{
+			Value: fv,
+			Type:  t,
+		})
 	default:
 		return front
 	}

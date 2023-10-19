@@ -120,3 +120,17 @@ func (self *Unit) Position() reader.Position {
 func (self *Unit) stmt() {}
 
 func (self *Unit) expr() {}
+
+// Covert 类型转换
+type Covert struct {
+	Value Expr
+	Type  Type
+}
+
+func (self *Covert) Position() reader.Position {
+	return reader.MixPosition(self.Value.Position(), self.Type.Position())
+}
+
+func (self *Covert) stmt() {}
+
+func (self *Covert) expr() {}

@@ -38,6 +38,7 @@ const (
 	RETURN
 	TRUE
 	FALSE
+	AS
 	_KeywordEnd
 )
 
@@ -68,6 +69,7 @@ var kindNames = [...]string{
 	RETURN:  "return",
 	TRUE:    "true",
 	FALSE:   "false",
+	AS:      "as",
 }
 
 // Lookup 区分标识符和关键字

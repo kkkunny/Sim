@@ -1,3 +1,7 @@
+func get()isize{
+    return 0
+}
+
 func main()u8{
-    return (2 + 2) % 2
+    return get() as u8
 }

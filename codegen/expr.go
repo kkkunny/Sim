@@ -22,6 +22,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenIdent(exprNode)
 	case *mean.Call:
 		return self.codegenCall(exprNode)
+	case mean.Covert:
+		return self.codegenCovert(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -192,4 +194,46 @@ func (self *CodeGenerator) codegenCall(node *mean.Call) llvm.Value {
 	t := self.codegenType(node.Func.GetType())
 	f := self.codegenExpr(node.Func)
 	return self.builder.CreateCall(t, f, nil, "")
+}
+
+func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
+	ft := node.GetFrom().GetType()
+	from := self.codegenExpr(node.GetFrom())
+	to := self.codegenType(node.GetType())
+
+	switch covertNode := node.(type) {
+	case *mean.Num2Num:
+		switch {
+		case mean.TypeIs[mean.IntType](ft) && mean.TypeIs[mean.IntType](covertNode.To):
+			ift, itt := ft.(mean.IntType), covertNode.To.(mean.IntType)
+			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
+				return self.builder.CreateSExt(from, to, "")
+			} else if ifb > itb {
+				return self.builder.CreateTrunc(from, to, "")
+			} else {
+				return from
+			}
+		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
+			ift, itt := ft.(*mean.FloatType), covertNode.To.(*mean.FloatType)
+			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
+				return self.builder.CreateFPExt(from, to, "")
+			} else if ifb > itb {
+				return self.builder.CreateFPTrunc(from, to, "")
+			} else {
+				return from
+			}
+		case mean.TypeIs[*mean.SintType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
+			return self.builder.CreateSIToFP(from, to, "")
+		case mean.TypeIs[*mean.UintType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
+			return self.builder.CreateUIToFP(from, to, "")
+		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.SintType](covertNode.To):
+			return self.builder.CreateFPToSI(from, to, "")
+		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.UintType](covertNode.To):
+			return self.builder.CreateFPToUI(from, to, "")
+		default:
+			panic("unreachable")
+		}
+	default:
+		panic("unreachable")
+	}
 }
