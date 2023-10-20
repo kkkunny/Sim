@@ -31,6 +31,8 @@ func (self *Parser) parseOptionPrimary() util.Option[Expr] {
 		return util.Some[Expr](self.parseIdent())
 	case token.LPA:
 		return util.Some[Expr](self.parseUnit())
+	case token.LBA:
+		return util.Some[Expr](self.parseArray())
 	default:
 		return util.None[Expr]()
 	}
@@ -146,4 +148,22 @@ func (self *Parser) parseOptionBinary(priority uint8) util.Option[Expr] {
 
 func (self *Parser) parseIdent() *Ident {
 	return &Ident{Name: self.expectNextIs(token.IDENT)}
+}
+
+func (self *Parser) parseArray() *Array {
+	at := self.parseArrayType()
+	self.expectNextIs(token.LBR)
+	var elems []Expr
+	for self.skipSEM(); !self.nextIs(token.RBR); self.skipSEM() {
+		elems = append(elems, self.mustExpr(self.parseOptionExpr()))
+		if !self.skipNextIs(token.COM) {
+			break
+		}
+	}
+	end := self.expectNextIs(token.RBR).Position
+	return &Array{
+		Type:  at,
+		Elems: elems,
+		End:   end,
+	}
 }

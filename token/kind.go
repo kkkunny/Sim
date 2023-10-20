@@ -28,10 +28,13 @@ const (
 
 	LPA
 	RPA
+	LBA
+	RBA
 	LBR
 	RBR
 
 	SEM
+	COM
 
 	_KeywordBegin
 	FUNC
@@ -56,15 +59,18 @@ var kindNames = [...]string{
 	MUL:     "mul",
 	DIV:     "div",
 	REM:     "rem",
-	LPA:     "lpa",
 	LT:      "lt",
 	GT:      "gt",
 	LE:      "le",
 	GE:      "ge",
+	LPA:     "lpa",
 	RPA:     "rpa",
+	LBA:     "lba",
+	RBA:     "rba",
 	LBR:     "lbr",
 	RBR:     "rbr",
 	SEM:     "sem",
+	COM:     "com",
 	FUNC:    "func",
 	RETURN:  "return",
 	TRUE:    "true",

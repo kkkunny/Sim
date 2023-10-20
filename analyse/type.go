@@ -1,6 +1,8 @@
 package analyse
 
 import (
+	"math/big"
+
 	"github.com/kkkunny/Sim/ast"
 	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/util"
@@ -12,6 +14,8 @@ func (self *Analyser) analyseType(node ast.Type) Type {
 		return self.analyseIdentType(typeNode)
 	case *ast.FuncType:
 		return self.analyseFuncType(typeNode)
+	case *ast.ArrayType:
+		return self.analyseArrayType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -65,4 +69,19 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType) *FuncType {
 	return &FuncType{Ret: self.analyseOptionType(node.Ret)}
+}
+
+func (self *Analyser) analyseArrayType(node *ast.ArrayType) *ArrayType {
+	size, ok := big.NewInt(0).SetString(node.Size.Source(), 10)
+	if !ok {
+		panic("unreachable")
+	} else if !size.IsUint64() {
+		// TODO: 编译时异常：超出值范围
+		panic("unreachable")
+	}
+	elem := self.analyseType(node.Elem)
+	return &ArrayType{
+		Size: uint(size.Uint64()),
+		Elem: elem,
+	}
 }

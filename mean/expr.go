@@ -337,3 +337,15 @@ func (self *Num2Num) GetType() Type {
 func (self *Num2Num) GetFrom() Expr {
 	return self.From
 }
+
+// Array 数组
+type Array struct {
+	Type  *ArrayType
+	Elems []Expr
+}
+
+func (self *Array) stmt() {}
+
+func (self *Array) GetType() Type {
+	return self.Type
+}

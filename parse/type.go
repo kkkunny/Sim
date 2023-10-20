@@ -12,6 +12,8 @@ func (self *Parser) parseOptionType() util.Option[Type] {
 		return util.Some[Type](self.parseIdentType())
 	case token.FUNC:
 		return util.Some[Type](self.parseFuncType())
+	case token.LBA:
+		return util.Some[Type](self.parseArrayType())
 	default:
 		return util.None[Type]()
 	}
@@ -42,5 +44,17 @@ func (self *Parser) parseFuncType() *FuncType {
 		Begin: begin,
 		Ret:   ret,
 		End:   end,
+	}
+}
+
+func (self *Parser) parseArrayType() *ArrayType {
+	begin := self.expectNextIs(token.LBA).Position
+	size := self.expectNextIs(token.INTEGER)
+	self.expectNextIs(token.RBA)
+	elem := self.parseType()
+	return &ArrayType{
+		Begin: begin,
+		Size:  size,
+		Elem:  elem,
 	}
 }

@@ -26,6 +26,9 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 		return llvm.FunctionType(ret, nil, false)
 	case *mean.BoolType:
 		return self.ctx.Int1Type()
+	case *mean.ArrayType:
+		elem := self.codegenType(typeNode.Elem)
+		return llvm.ArrayType(elem, int(typeNode.Size))
 	default:
 		panic("unreachable")
 	}

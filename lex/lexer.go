@@ -132,12 +132,18 @@ func (self *Lexer) Scan() Token {
 			kind = LPA
 		case ')':
 			kind = RPA
+		case '[':
+			kind = LBA
+		case ']':
+			kind = RBA
 		case '{':
 			kind = LBR
 		case '}':
 			kind = RBR
 		case ';', '\n':
 			kind = SEM
+		case ',':
+			kind = COM
 		default:
 			kind = ILLEGAL
 		}

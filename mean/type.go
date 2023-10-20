@@ -133,3 +133,17 @@ func (self *BoolType) Equal(dst Type) bool {
 	_, ok := dst.(*BoolType)
 	return ok
 }
+
+// ArrayType 数组型
+type ArrayType struct {
+	Size uint
+	Elem Type
+}
+
+func (self *ArrayType) Equal(dst Type) bool {
+	t, ok := dst.(*ArrayType)
+	if !ok {
+		return false
+	}
+	return self.Size == t.Size && self.Elem.Equal(t.Elem)
+}

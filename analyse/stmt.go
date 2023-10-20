@@ -38,11 +38,7 @@ func (self *Analyser) analyseBlock(node *ast.Block) (*Block, bool) {
 func (self *Analyser) analyseReturn(node *ast.Return) *Return {
 	expectRetType := self.localScope.GetRetType()
 	if v, ok := node.Value.Value(); ok {
-		value := self.analyseExpr(expectRetType, v)
-		if !value.GetType().Equal(expectRetType) {
-			// TODO: 编译时异常：类型不相等
-			panic("unreachable")
-		}
+		value := self.expectExpr(expectRetType, v)
 		return &Return{Value: util.Some[Expr](value)}
 	} else {
 		if !expectRetType.Equal(Empty) {

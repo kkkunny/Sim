@@ -23,6 +23,7 @@ func (self *IdentType) Position() reader.Position {
 
 func (self *IdentType) typ() {}
 
+// FuncType 函数类型
 type FuncType struct {
 	Begin reader.Position
 	Ret   util.Option[Type]
@@ -34,3 +35,16 @@ func (self *FuncType) Position() reader.Position {
 }
 
 func (self *FuncType) typ() {}
+
+// ArrayType 数组类型
+type ArrayType struct {
+	Begin reader.Position
+	Size  token.Token
+	Elem  Type
+}
+
+func (self *ArrayType) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Elem.Position())
+}
+
+func (self *ArrayType) typ() {}

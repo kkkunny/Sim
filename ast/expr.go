@@ -134,3 +134,18 @@ func (self *Covert) Position() reader.Position {
 func (self *Covert) stmt() {}
 
 func (self *Covert) expr() {}
+
+// Array 数组
+type Array struct {
+	Type  *ArrayType
+	Elems []Expr
+	End   reader.Position
+}
+
+func (self *Array) Position() reader.Position {
+	return reader.MixPosition(self.Type.Position(), self.End)
+}
+
+func (self *Array) stmt() {}
+
+func (self *Array) expr() {}

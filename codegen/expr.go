@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/llvm"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
 )
@@ -24,6 +25,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenCall(exprNode)
 	case mean.Covert:
 		return self.codegenCovert(exprNode)
+	case *mean.Array:
+		return self.codegenArray(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -236,4 +239,17 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 	default:
 		panic("unreachable")
 	}
+}
+
+func (self *CodeGenerator) codegenArray(node *mean.Array) llvm.Value {
+	elems := lo.Map(node.Elems, func(item mean.Expr, index int) llvm.Value {
+		return self.codegenExpr(item)
+	})
+	t := self.codegenType(node.Type)
+	ptr := self.builder.CreateAlloca(t, "")
+	for i, elem := range elems {
+		ep := self.builder.CreateInBoundsGEP(t.ElementType(), ptr, []llvm.Value{llvm.ConstInt(llvm.Int64Type(), uint64(i), false)}, "")
+		self.builder.CreateStore(elem, ep)
+	}
+	return self.builder.CreateLoad(t, ptr, "")
 }

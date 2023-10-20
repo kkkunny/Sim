@@ -30,6 +30,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseUnit(expect, exprNode)
 	case *ast.Covert:
 		return self.analyseCovert(exprNode)
+	case *ast.Array:
+		return self.analyseArray(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -224,5 +226,26 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 	default:
 		// TODO: 编译期异常：类型A无法转换成B
 		panic("unreachable")
+	}
+}
+
+func (self *Analyser) expectExpr(expect Type, node ast.Expr) Expr {
+	value := self.analyseExpr(expect, node)
+	if !value.GetType().Equal(expect) {
+		// TODO: 编译时异常：期待类型是A，但是这里是B
+		panic("unreachable")
+	}
+	return value
+}
+
+func (self *Analyser) analyseArray(node *ast.Array) *Array {
+	t := self.analyseArrayType(node.Type)
+	elems := make([]Expr, len(node.Elems))
+	for i, en := range node.Elems {
+		elems[i] = self.expectExpr(t.Elem, en)
+	}
+	return &Array{
+		Type:  t,
+		Elems: elems,
 	}
 }
