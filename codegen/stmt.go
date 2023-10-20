@@ -10,6 +10,8 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 	switch stmtNode := node.(type) {
 	case *mean.Return:
 		self.codegenReturn(stmtNode)
+	case mean.Expr:
+		self.codegenExpr(stmtNode)
 	default:
 		panic("unreachable")
 	}

@@ -12,6 +12,8 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, bool) {
 	switch stmtNode := node.(type) {
 	case *ast.Return:
 		return self.analyseReturn(stmtNode), true
+	case ast.Expr:
+		return self.analyseExpr(nil, stmtNode), false
 	default:
 		panic("unreachable")
 	}

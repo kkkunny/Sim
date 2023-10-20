@@ -1,7 +1,8 @@
-func get()isize{
+func test()i32{
     return 0
 }
 
 func main()u8{
-    return get() as u8
+    test()
+    return 0
 }
