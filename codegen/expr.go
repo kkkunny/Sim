@@ -27,6 +27,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenCovert(exprNode)
 	case *mean.Array:
 		return self.codegenArray(exprNode)
+	case *mean.Index:
+		return self.codegenIndex(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -242,6 +244,7 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenArray(node *mean.Array) llvm.Value {
+	// TODO 指针大小的int类型
 	elems := lo.Map(node.Elems, func(item mean.Expr, index int) llvm.Value {
 		return self.codegenExpr(item)
 	})
@@ -252,4 +255,16 @@ func (self *CodeGenerator) codegenArray(node *mean.Array) llvm.Value {
 		self.builder.CreateStore(elem, ep)
 	}
 	return self.builder.CreateLoad(t, ptr, "")
+}
+
+func (self *CodeGenerator) codegenIndex(node *mean.Index) llvm.Value {
+	// TODO: 运行时异常：超出索引下标
+	// TODO: error
+	ft := self.codegenType(node.From.GetType())
+	ptr := self.builder.CreateAlloca(ft, "")
+	from := self.codegenExpr(node.From)
+	self.builder.CreateStore(from, ptr)
+	index := self.codegenExpr(node.Index)
+	p := self.builder.CreateInBoundsGEP(ft.ElementType(), ptr, []llvm.Value{index}, "")
+	return self.builder.CreateLoad(ft.ElementType(), p, "")
 }

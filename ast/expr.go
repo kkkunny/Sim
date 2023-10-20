@@ -149,3 +149,17 @@ func (self *Array) Position() reader.Position {
 func (self *Array) stmt() {}
 
 func (self *Array) expr() {}
+
+// Index 索引
+type Index struct {
+	From  Expr
+	Index Expr
+}
+
+func (self *Index) Position() reader.Position {
+	return reader.MixPosition(self.From.Position(), self.Index.Position())
+}
+
+func (self *Index) stmt() {}
+
+func (self *Index) expr() {}

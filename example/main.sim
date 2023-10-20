@@ -1,8 +1,7 @@
-func test()[2]i32{
-    return [2]i32{1, 2}
+func test()[2]u8{
+    return [2]u8{0, 2}
 }
 
 func main()u8{
-    test()
-    return 0
+    return test()[0]
 }

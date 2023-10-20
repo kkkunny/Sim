@@ -349,3 +349,15 @@ func (self *Array) stmt() {}
 func (self *Array) GetType() Type {
 	return self.Type
 }
+
+// Index 索引
+type Index struct {
+	From  Expr
+	Index Expr
+}
+
+func (self *Index) stmt() {}
+
+func (self *Index) GetType() Type {
+	return self.From.GetType().(*ArrayType).Elem
+}

@@ -32,6 +32,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseCovert(exprNode)
 	case *ast.Array:
 		return self.analyseArray(exprNode)
+	case *ast.Index:
+		return self.analyseIndex(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -247,5 +249,18 @@ func (self *Analyser) analyseArray(node *ast.Array) *Array {
 	return &Array{
 		Type:  t,
 		Elems: elems,
+	}
+}
+
+func (self *Analyser) analyseIndex(node *ast.Index) *Index {
+	from := self.analyseExpr(nil, node.From)
+	if !TypeIs[*ArrayType](from.GetType()) {
+		// TODO: 编译时异常：不能获取类型A的索引
+		panic("unreachable")
+	}
+	index := self.expectExpr(Usize, node.Index)
+	return &Index{
+		From:  from,
+		Index: index,
 	}
 }

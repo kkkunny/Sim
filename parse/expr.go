@@ -92,6 +92,14 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[
 		self.expectNextIs(token.LPA)
 		self.expectNextIs(token.RPA)
 		front = util.Some[Expr](&Call{Func: fv})
+	case token.LBA:
+		self.expectNextIs(token.LBA)
+		index := self.mustExpr(self.parseOptionExpr())
+		self.expectNextIs(token.RBA)
+		front = util.Some[Expr](&Index{
+			From:  fv,
+			Index: index,
+		})
 	default:
 		return front
 	}
