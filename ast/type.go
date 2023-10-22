@@ -48,3 +48,16 @@ func (self *ArrayType) Position() reader.Position {
 }
 
 func (self *ArrayType) typ() {}
+
+// TupleType 元组类型
+type TupleType struct {
+	Begin reader.Position
+	Elems []Type
+	End   reader.Position
+}
+
+func (self *TupleType) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *TupleType) typ() {}

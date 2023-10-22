@@ -147,3 +147,21 @@ func (self *ArrayType) Equal(dst Type) bool {
 	}
 	return self.Size == t.Size && self.Elem.Equal(t.Elem)
 }
+
+// TupleType 元组型
+type TupleType struct {
+	Elems []Type
+}
+
+func (self *TupleType) Equal(dst Type) bool {
+	t, ok := dst.(*TupleType)
+	if !ok || len(self.Elems) != len(t.Elems) {
+		return false
+	}
+	for i, e := range self.Elems {
+		if !e.Equal(t.Elems[i]) {
+			return false
+		}
+	}
+	return true
+}

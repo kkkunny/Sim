@@ -29,6 +29,10 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenArray(exprNode)
 	case *mean.Index:
 		return self.codegenIndex(exprNode)
+	case *mean.Tuple:
+		return self.codegenTuple(exprNode)
+	case *mean.Extract:
+		return self.codegenExtract(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -253,14 +257,13 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenArray(node *mean.Array) llvm.Value {
-	// TODO 指针大小的int类型
 	elems := lo.Map(node.Elems, func(item mean.Expr, index int) llvm.Value {
 		return self.codegenExpr(item)
 	})
 	t := self.codegenType(node.Type)
 	ptr := self.builder.CreateAlloca("", t)
 	for i, elem := range elems {
-		ep := self.builder.CreateInBoundsGEP("", t, ptr, self.ctx.ConstInteger(self.ctx.IntegerType(64), 0), self.ctx.ConstInteger(self.ctx.IntegerType(64), int64(i)))
+		ep := self.builder.CreateInBoundsGEP("", t, ptr, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(i)))
 		self.builder.CreateStore(elem, ep)
 	}
 	return self.builder.CreateLoad("", t, ptr)
@@ -268,13 +271,33 @@ func (self *CodeGenerator) codegenArray(node *mean.Array) llvm.Value {
 
 func (self *CodeGenerator) codegenIndex(node *mean.Index) llvm.Value {
 	// TODO: 运行时异常：超出索引下标
-	// TODO: error
-	ft := self.codegenType(node.From.GetType()).(llvm.ArrayType)
-	et := self.codegenType(node.From.GetType().(*mean.ArrayType).Elem)
+	ft, et := self.codegenType(node.From.GetType()), self.codegenType(node.From.GetType().(*mean.ArrayType).Elem)
 	ptr := self.builder.CreateAlloca("", ft)
 	from := self.codegenExpr(node.From)
 	self.builder.CreateStore(from, ptr)
 	index := self.codegenExpr(node.Index)
-	p := self.builder.CreateInBoundsGEP("", ft, ptr, self.ctx.ConstInteger(self.ctx.IntegerType(64), 0), index)
+	p := self.builder.CreateInBoundsGEP("", ft, ptr, self.ctx.ConstInteger(index.Type().(llvm.IntegerType), 0), index)
+	return self.builder.CreateLoad("", et, p)
+}
+
+func (self *CodeGenerator) codegenTuple(node *mean.Tuple) llvm.Value {
+	elems := lo.Map(node.Elems, func(item mean.Expr, index int) llvm.Value {
+		return self.codegenExpr(item)
+	})
+	t := self.codegenTupleType(node.GetType().(*mean.TupleType))
+	ptr := self.builder.CreateAlloca("", t)
+	for i, elem := range elems {
+		ep := self.builder.CreateStructGEP("", t, ptr, uint(i))
+		self.builder.CreateStore(elem, ep)
+	}
+	return self.builder.CreateLoad("", t, ptr)
+}
+
+func (self *CodeGenerator) codegenExtract(node *mean.Extract) llvm.Value {
+	ft, et := self.codegenType(node.From.GetType()), self.codegenType(node.GetType())
+	ptr := self.builder.CreateAlloca("", ft)
+	from := self.codegenExpr(node.From)
+	self.builder.CreateStore(from, ptr)
+	p := self.builder.CreateStructGEP("", ft, ptr, node.Index)
 	return self.builder.CreateLoad("", et, p)
 }

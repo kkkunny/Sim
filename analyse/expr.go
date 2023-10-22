@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	stlerror "github.com/kkkunny/stl/error"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
 	. "github.com/kkkunny/Sim/mean"
@@ -26,14 +27,16 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseIdent(expect, exprNode)
 	case *ast.Call:
 		return self.analyseCall(expect, exprNode)
-	case *ast.Unit:
-		return self.analyseUnit(expect, exprNode)
+	case *ast.Tuple:
+		return self.analyseTuple(expect, exprNode)
 	case *ast.Covert:
 		return self.analyseCovert(exprNode)
 	case *ast.Array:
 		return self.analyseArray(exprNode)
 	case *ast.Index:
 		return self.analyseIndex(exprNode)
+	case *ast.Extract:
+		return self.analyseExtract(expect, exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -207,8 +210,27 @@ func (self *Analyser) analyseCall(expect Type, node *ast.Call) *Call {
 	return &Call{Func: f}
 }
 
-func (self *Analyser) analyseUnit(expect Type, node *ast.Unit) Expr {
-	return self.analyseExpr(expect, node.Value)
+func (self *Analyser) analyseTuple(expect Type, node *ast.Tuple) Expr {
+	if len(node.Elems) == 1 && (expect == nil || !TypeIs[*TupleType](expect)) {
+		return self.analyseExpr(expect, node.Elems[0])
+	}
+
+	elemExpects := make([]Type, len(node.Elems))
+	if expect != nil {
+		if tt, ok := expect.(*TupleType); ok {
+			if len(tt.Elems) < len(node.Elems) {
+				copy(elemExpects, tt.Elems)
+			} else if len(tt.Elems) > len(node.Elems) {
+				elemExpects = tt.Elems[:len(node.Elems)]
+			} else {
+				elemExpects = tt.Elems
+			}
+		}
+	}
+	elems := lo.Map(node.Elems, func(item ast.Expr, index int) Expr {
+		return self.analyseExpr(elemExpects[index], item)
+	})
+	return &Tuple{Elems: elems}
 }
 
 func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
@@ -260,6 +282,36 @@ func (self *Analyser) analyseIndex(node *ast.Index) *Index {
 	}
 	index := self.expectExpr(Usize, node.Index)
 	return &Index{
+		From:  from,
+		Index: index,
+	}
+}
+
+func (self *Analyser) analyseExtract(expect Type, node *ast.Extract) *Extract {
+	indexValue, ok := big.NewInt(0).SetString(node.Index.Source(), 10)
+	if !ok {
+		panic("unreachable")
+	}
+	if !indexValue.IsUint64() {
+		panic("unreachable")
+	}
+	index := uint(indexValue.Uint64())
+
+	expectFrom := &TupleType{Elems: make([]Type, index+1)}
+	expectFrom.Elems[index] = expect
+
+	from := self.analyseExpr(expectFrom, node.From)
+	tt, ok := from.GetType().(*TupleType)
+	if !ok {
+		// TODO: 编译时异常：不能提取类型A的元素
+		panic("unreachable")
+	}
+
+	if index >= uint(len(tt.Elems)) {
+		// TODO: 编译时异常：超出下标
+		panic("unreachable")
+	}
+	return &Extract{
 		From:  from,
 		Index: index,
 	}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/analyse"
@@ -17,13 +18,13 @@ import (
 )
 
 func main() {
-	f, r := stlerror.MustWith2(reader.NewReaderFromFile(os.Args[1]))
-	defer f.Close()
 	stlerror.Must(llvm.InitializeNativeTarget())
 	target := stlerror.MustWith(llvm.NativeTarget())
 	mean.Usize.Bits = target.PointerSize() * 8
 	mean.Isize.Bits = mean.Usize.Bits
-	analyser := analyse.New(target, parse.New(lex.New(r)))
+	f, r := stlerror.MustWith2(reader.NewReaderFromFile(os.Args[1]))
+	defer f.Close()
+	analyser := analyse.New(parse.New(lex.New(r)))
 	analyser.Analyse().Iterator().Foreach(func(v mean.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())
 		return true

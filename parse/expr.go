@@ -30,7 +30,7 @@ func (self *Parser) parseOptionPrimary() util.Option[Expr] {
 	case token.IDENT:
 		return util.Some[Expr](self.parseIdent())
 	case token.LPA:
-		return util.Some[Expr](self.parseUnit())
+		return util.Some[Expr](self.parseTuple())
 	case token.LBA:
 		return util.Some[Expr](self.parseArray())
 	default:
@@ -56,13 +56,19 @@ func (self *Parser) parseBool() *Boolean {
 	return &Boolean{Value: value}
 }
 
-func (self *Parser) parseUnit() *Unit {
+func (self *Parser) parseTuple() *Tuple {
 	begin := self.expectNextIs(token.LPA).Position
-	value := self.mustExpr(self.parseOptionExpr())
+	var elems []Expr
+	for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
+		elems = append(elems, self.mustExpr(self.parseOptionExpr()))
+		if !self.skipNextIs(token.COM) {
+			break
+		}
+	}
 	end := self.expectNextIs(token.RPA).Position
-	return &Unit{
+	return &Tuple{
 		Begin: begin,
-		Value: value,
+		Elems: elems,
 		End:   end,
 	}
 }
@@ -97,6 +103,13 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[
 		index := self.mustExpr(self.parseOptionExpr())
 		self.expectNextIs(token.RBA)
 		front = util.Some[Expr](&Index{
+			From:  fv,
+			Index: index,
+		})
+	case token.DOT:
+		self.expectNextIs(token.DOT)
+		index := self.expectNextIs(token.INTEGER)
+		front = util.Some[Expr](&Extract{
 			From:  fv,
 			Index: index,
 		})

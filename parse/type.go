@@ -14,6 +14,8 @@ func (self *Parser) parseOptionType() util.Option[Type] {
 		return util.Some[Type](self.parseFuncType())
 	case token.LBA:
 		return util.Some[Type](self.parseArrayType())
+	case token.LPA:
+		return util.Some[Type](self.parseTupleType())
 	default:
 		return util.None[Type]()
 	}
@@ -56,5 +58,22 @@ func (self *Parser) parseArrayType() *ArrayType {
 		Begin: begin,
 		Size:  size,
 		Elem:  elem,
+	}
+}
+
+func (self *Parser) parseTupleType() *TupleType {
+	begin := self.expectNextIs(token.LPA).Position
+	var elems []Type
+	for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
+		elems = append(elems, self.parseType())
+		if !self.skipNextIs(token.COM) {
+			break
+		}
+	}
+	end := self.expectNextIs(token.RPA).Position
+	return &TupleType{
+		Begin: begin,
+		Elems: elems,
+		End:   end,
 	}
 }
