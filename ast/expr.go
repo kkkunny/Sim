@@ -163,3 +163,17 @@ func (self *Tuple) Position() reader.Position {
 func (self *Tuple) stmt() {}
 
 func (self *Tuple) expr() {}
+
+// Extract 提取
+type Extract struct {
+	From  Expr
+	Index token.Token
+}
+
+func (self *Extract) Position() reader.Position {
+	return reader.MixPosition(self.From.Position(), self.Index.Position)
+}
+
+func (self *Extract) stmt() {}
+
+func (self *Extract) expr() {}

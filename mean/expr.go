@@ -379,3 +379,15 @@ func (self *Tuple) GetType() Type {
 	})
 	return &TupleType{Elems: ets}
 }
+
+// Extract 提取
+type Extract struct {
+	From  Expr
+	Index uint
+}
+
+func (self *Extract) stmt() {}
+
+func (self *Extract) GetType() Type {
+	return self.From.GetType().(*TupleType).Elems[self.Index]
+}

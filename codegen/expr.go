@@ -31,6 +31,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenIndex(exprNode)
 	case *mean.Tuple:
 		return self.codegenTuple(exprNode)
+	case *mean.Extract:
+		return self.codegenExtract(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -269,8 +271,7 @@ func (self *CodeGenerator) codegenArray(node *mean.Array) llvm.Value {
 
 func (self *CodeGenerator) codegenIndex(node *mean.Index) llvm.Value {
 	// TODO: 运行时异常：超出索引下标
-	ft := self.codegenType(node.From.GetType()).(llvm.ArrayType)
-	et := self.codegenType(node.From.GetType().(*mean.ArrayType).Elem)
+	ft, et := self.codegenType(node.From.GetType()), self.codegenType(node.From.GetType().(*mean.ArrayType).Elem)
 	ptr := self.builder.CreateAlloca("", ft)
 	from := self.codegenExpr(node.From)
 	self.builder.CreateStore(from, ptr)
@@ -286,8 +287,17 @@ func (self *CodeGenerator) codegenTuple(node *mean.Tuple) llvm.Value {
 	t := self.codegenTupleType(node.GetType().(*mean.TupleType))
 	ptr := self.builder.CreateAlloca("", t)
 	for i, elem := range elems {
-		ep := self.builder.CreateInBoundsGEP("", t, ptr, self.ctx.ConstInteger(self.ctx.IntegerType(32), 0), self.ctx.ConstInteger(self.ctx.IntegerType(32), int64(i)))
+		ep := self.builder.CreateStructGEP("", t, ptr, uint(i))
 		self.builder.CreateStore(elem, ep)
 	}
 	return self.builder.CreateLoad("", t, ptr)
+}
+
+func (self *CodeGenerator) codegenExtract(node *mean.Extract) llvm.Value {
+	ft, et := self.codegenType(node.From.GetType()), self.codegenType(node.GetType())
+	ptr := self.builder.CreateAlloca("", ft)
+	from := self.codegenExpr(node.From)
+	self.builder.CreateStore(from, ptr)
+	p := self.builder.CreateStructGEP("", ft, ptr, node.Index)
+	return self.builder.CreateLoad("", et, p)
 }

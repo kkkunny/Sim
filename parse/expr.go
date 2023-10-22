@@ -106,6 +106,13 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[
 			From:  fv,
 			Index: index,
 		})
+	case token.DOT:
+		self.expectNextIs(token.DOT)
+		index := self.expectNextIs(token.INTEGER)
+		front = util.Some[Expr](&Extract{
+			From:  fv,
+			Index: index,
+		})
 	default:
 		return front
 	}
