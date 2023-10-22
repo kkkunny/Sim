@@ -12,7 +12,7 @@ func (self *Parser) parseStmt() Stmt {
 	case token.RETURN:
 		return self.parseReturn()
 	default:
-		return self.mustExpr(self.parseOptionExpr())
+		return self.mustExpr(self.parseOptionExpr(true))
 	}
 }
 
@@ -41,7 +41,7 @@ func (self *Parser) parseBlock() *Block {
 
 func (self *Parser) parseReturn() *Return {
 	begin := self.expectNextIs(token.RETURN).Position
-	value := self.parseOptionExpr()
+	value := self.parseOptionExpr(true)
 	return &Return{
 		Begin: begin,
 		Value: value,

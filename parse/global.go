@@ -45,7 +45,7 @@ func (self *Parser) parseStructDef() *StructDef {
 	begin := self.expectNextIs(token.STRUCT).Position
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.SEM, token.RBR, func() pair.Pair[token.Token, Type] {
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, Type] {
 		fn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		ft := self.parseType()

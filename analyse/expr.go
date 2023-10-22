@@ -3,6 +3,7 @@ package analyse
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/hashset"
 	stlerror "github.com/kkkunny/stl/error"
 	"github.com/samber/lo"
 
@@ -37,6 +38,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseIndex(exprNode)
 	case *ast.Extract:
 		return self.analyseExtract(expect, exprNode)
+	case *ast.Struct:
+		return self.analyseStruct(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -328,5 +331,39 @@ func (self *Analyser) analyseExtract(expect Type, node *ast.Extract) *Extract {
 	return &Extract{
 		From:  from,
 		Index: index,
+	}
+}
+
+func (self *Analyser) analyseStruct(node *ast.Struct) *Struct {
+	st := self.analyseIdentType(node.Type).(*StructDef)
+	fieldNames := hashset.NewHashSet[string]()
+	for iter := st.Fields.Keys().Iterator(); iter.Next(); {
+		fieldNames.Push(iter.Value())
+	}
+
+	existedFields := make(map[string]Expr)
+	for _, nf := range node.Fields {
+		fn := nf.First.Source()
+		if !fieldNames.Contain(fn) {
+			// TODO: 编译时异常：未知的字段
+			panic("unreachable")
+		}
+		existedFields[fn] = self.expectExpr(st.Fields.Get(fn), nf.Second)
+	}
+
+	fields := make([]Expr, st.Fields.Length())
+	var i int
+	for iter := st.Fields.Iterator(); iter.Next(); i++ {
+		fn, ft := iter.Value().First, iter.Value().Second
+		if fv, ok := existedFields[fn]; ok {
+			fields[i] = fv
+		} else {
+			fields[i] = &Zero{Type: ft}
+		}
+	}
+
+	return &Struct{
+		Type:   st,
+		Fields: fields,
 	}
 }

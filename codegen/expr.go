@@ -33,6 +33,10 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenTuple(exprNode)
 	case *mean.Extract:
 		return self.codegenExtract(exprNode)
+	case *mean.Zero:
+		return self.codegenZero(exprNode)
+	case *mean.Struct:
+		return self.codegenStruct(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -307,4 +311,32 @@ func (self *CodeGenerator) codegenExtract(node *mean.Extract) llvm.Value {
 	self.builder.CreateStore(from, ptr)
 	p := self.builder.CreateStructGEP("", ft, ptr, node.Index)
 	return self.builder.CreateLoad("", et, p)
+}
+
+func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Value {
+	// TODO: 类型
+	t := self.codegenType(node.GetType())
+	switch node.GetType().(type) {
+	case mean.IntType:
+		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
+	case *mean.FloatType:
+		return self.ctx.ConstFloat(t.(llvm.FloatType), 0)
+	case *mean.BoolType:
+		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *CodeGenerator) codegenStruct(node *mean.Struct) llvm.Value {
+	fields := lo.Map(node.Fields, func(item mean.Expr, index int) llvm.Value {
+		return self.codegenExpr(item)
+	})
+	t := self.codegenStructType(node.GetType().(*mean.StructDef))
+	ptr := self.builder.CreateAlloca("", t)
+	for i, field := range fields {
+		ep := self.builder.CreateStructGEP("", t, ptr, uint(i))
+		self.builder.CreateStore(field, ep)
+	}
+	return self.builder.CreateLoad("", t, ptr)
 }

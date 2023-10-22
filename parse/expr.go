@@ -1,6 +1,8 @@
 package parse
 
 import (
+	"github.com/kkkunny/stl/container/pair"
+
 	. "github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
@@ -15,11 +17,11 @@ func (self *Parser) mustExpr(op util.Option[Expr]) Expr {
 	return v
 }
 
-func (self *Parser) parseOptionExpr() util.Option[Expr] {
-	return self.parseOptionBinary(0)
+func (self *Parser) parseOptionExpr(canStruct bool) util.Option[Expr] {
+	return self.parseOptionBinary(0, canStruct)
 }
 
-func (self *Parser) parseOptionPrimary() util.Option[Expr] {
+func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[Expr] {
 	switch self.nextTok.Kind {
 	case token.INTEGER:
 		return util.Some[Expr](self.parseInteger())
@@ -28,7 +30,11 @@ func (self *Parser) parseOptionPrimary() util.Option[Expr] {
 	case token.TRUE, token.FALSE:
 		return util.Some[Expr](self.parseBool())
 	case token.IDENT:
-		return util.Some[Expr](self.parseIdent())
+		ident := self.parseIdent()
+		if !canStruct || !self.nextIs(token.LBR) {
+			return util.Some[Expr](ident)
+		}
+		return util.Some[Expr](self.parseStruct(&IdentType{Name: ident.Name}))
 	case token.LPA:
 		return util.Some[Expr](self.parseTuple())
 	case token.LBA:
@@ -67,21 +73,21 @@ func (self *Parser) parseTuple() *Tuple {
 	}
 }
 
-func (self *Parser) parseOptionPrefixUnary() util.Option[Expr] {
+func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[Expr] {
 	switch self.nextTok.Kind {
 	case token.SUB:
 		opera := self.expectNextIs(token.SUB)
-		value := self.mustExpr(self.parseOptionPrefixUnary())
+		value := self.mustExpr(self.parseOptionPrefixUnary(canStruct))
 		return util.Some[Expr](&Unary{
 			Opera: opera,
 			Value: value,
 		})
 	default:
-		return self.parseOptionPrimary()
+		return self.parseOptionPrimary(canStruct)
 	}
 }
 
-func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[Expr] {
+func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr], canStruct bool) util.Option[Expr] {
 	fv, ok := front.Value()
 	if !ok {
 		return front
@@ -99,7 +105,7 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[
 		})
 	case token.LBA:
 		self.expectNextIs(token.LBA)
-		index := self.mustExpr(self.parseOptionExpr())
+		index := self.mustExpr(self.parseOptionExpr(canStruct))
 		self.expectNextIs(token.RBA)
 		front = util.Some[Expr](&Index{
 			From:  fv,
@@ -116,7 +122,7 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[
 		return front
 	}
 
-	return self.parseOptionSuffixUnary(front)
+	return self.parseOptionSuffixUnary(front, canStruct)
 }
 
 func (self *Parser) parseOptionTailUnary(front util.Option[Expr]) util.Option[Expr] {
@@ -140,12 +146,12 @@ func (self *Parser) parseOptionTailUnary(front util.Option[Expr]) util.Option[Ex
 	return self.parseOptionTailUnary(front)
 }
 
-func (self *Parser) parseOptionUnary() util.Option[Expr] {
-	return self.parseOptionTailUnary(self.parseOptionSuffixUnary(self.parseOptionPrefixUnary()))
+func (self *Parser) parseOptionUnary(canStruct bool) util.Option[Expr] {
+	return self.parseOptionTailUnary(self.parseOptionSuffixUnary(self.parseOptionPrefixUnary(canStruct), canStruct))
 }
 
-func (self *Parser) parseOptionBinary(priority uint8) util.Option[Expr] {
-	left, ok := self.parseOptionUnary().Value()
+func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) util.Option[Expr] {
+	left, ok := self.parseOptionUnary(canStruct).Value()
 	if !ok {
 		return util.None[Expr]()
 	}
@@ -156,7 +162,7 @@ func (self *Parser) parseOptionBinary(priority uint8) util.Option[Expr] {
 		}
 		self.next()
 
-		right := self.mustExpr(self.parseOptionBinary(nextOp.Kind.Priority()))
+		right := self.mustExpr(self.parseOptionBinary(nextOp.Kind.Priority(), canStruct))
 		left = &Binary{
 			Left:  left,
 			Opera: nextOp,
@@ -184,6 +190,22 @@ func (self *Parser) parseArray() *Array {
 
 func (self *Parser) parseExprList(end token.Kind) (res []Expr) {
 	return loopParseWithUtil(self, token.COM, end, func() Expr {
-		return self.mustExpr(self.parseOptionExpr())
+		return self.mustExpr(self.parseOptionExpr(true))
 	})
+}
+
+func (self *Parser) parseStruct(st *IdentType) *Struct {
+	self.expectNextIs(token.LBR)
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, Expr] {
+		fn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		fv := self.mustExpr(self.parseOptionExpr(true))
+		return pair.NewPair(fn, fv)
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &Struct{
+		Type:   st,
+		Fields: fields,
+		End:    end,
+	}
 }

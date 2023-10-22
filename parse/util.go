@@ -9,5 +9,6 @@ func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T) (re
 			break
 		}
 	}
+	self.skipSEM()
 	return res
 }

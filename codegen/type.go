@@ -23,6 +23,8 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 		return self.codegenArrayType(typeNode)
 	case *mean.TupleType:
 		return self.codegenTupleType(typeNode)
+	case *mean.StructDef:
+		return self.codegenStructType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -73,4 +75,13 @@ func (self *CodeGenerator) codegenTupleType(node *mean.TupleType) llvm.StructTyp
 		return self.codegenType(item)
 	})
 	return self.ctx.StructType(false, elems...)
+}
+
+func (self *CodeGenerator) codegenStructType(node *mean.StructDef) llvm.StructType {
+	fields := make([]llvm.Type, node.Fields.Length())
+	var i int
+	for iter := node.Fields.Iterator(); iter.Next(); i++ {
+		fields[i] = self.codegenType(iter.Value().Second)
+	}
+	return self.ctx.StructType(false, fields...)
 }

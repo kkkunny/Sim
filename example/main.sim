@@ -2,6 +2,10 @@ struct T{
     data: u8
 }
 
+func get()T{
+    return T{data: 0}
+}
+
 func main()u8{
     return 0
 }
