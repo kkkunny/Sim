@@ -95,6 +95,7 @@ func (self *Ident) expr() {}
 // Call 调用
 type Call struct {
 	Func Expr
+	Args []Expr
 	End  reader.Position
 }
 

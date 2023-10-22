@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"github.com/kkkunny/stl/container/pair"
+
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
@@ -14,10 +16,11 @@ type Global interface {
 
 // FuncDef 函数定义
 type FuncDef struct {
-	Begin reader.Position
-	Name  token.Token
-	Ret   util.Option[Type]
-	Body  *Block
+	Begin  reader.Position
+	Name   token.Token
+	Params []pair.Pair[token.Token, Type]
+	Ret    util.Option[Type]
+	Body   *Block
 }
 
 func (self *FuncDef) Position() reader.Position {

@@ -64,7 +64,7 @@ func (self *_FuncScope) SetValue(name string, v Ident) bool {
 
 func (self *_FuncScope) GetValue(name string) (Ident, bool) {
 	if self.values.ContainKey(name) {
-		self.values.Get(name)
+		return self.values.Get(name), true
 	}
 	return self.parent.GetValue(name)
 }
@@ -105,7 +105,7 @@ func (self *_BlockScope) SetValue(name string, v Ident) bool {
 
 func (self *_BlockScope) GetValue(name string) (Ident, bool) {
 	if self.values.ContainKey(name) {
-		self.values.Get(name)
+		return self.values.Get(name), true
 	}
 	return self.parent.GetValue(name)
 }

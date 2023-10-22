@@ -96,8 +96,19 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[
 	switch self.nextTok.Kind {
 	case token.LPA:
 		self.expectNextIs(token.LPA)
-		self.expectNextIs(token.RPA)
-		front = util.Some[Expr](&Call{Func: fv})
+		var args []Expr
+		for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
+			args = append(args, self.mustExpr(self.parseOptionExpr()))
+			if !self.skipNextIs(token.COM) {
+				break
+			}
+		}
+		end := self.expectNextIs(token.RPA).Position
+		front = util.Some[Expr](&Call{
+			Func: fv,
+			Args: args,
+			End:  end,
+		})
 	case token.LBA:
 		self.expectNextIs(token.LBA)
 		index := self.mustExpr(self.parseOptionExpr())

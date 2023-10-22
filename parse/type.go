@@ -37,15 +37,23 @@ func (self *Parser) parseIdentType() *IdentType {
 func (self *Parser) parseFuncType() *FuncType {
 	begin := self.expectNextIs(token.FUNC).Position
 	self.expectNextIs(token.LPA)
+	var params []Type
+	for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
+		params = append(params, self.parseType())
+		if !self.skipNextIs(token.COM) {
+			break
+		}
+	}
 	end := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
 	if v, ok := ret.Value(); ok {
 		end = v.Position()
 	}
 	return &FuncType{
-		Begin: begin,
-		Ret:   ret,
-		End:   end,
+		Begin:  begin,
+		Params: params,
+		Ret:    ret,
+		End:    end,
 	}
 }
 

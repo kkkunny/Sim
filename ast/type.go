@@ -25,9 +25,10 @@ func (self *IdentType) typ() {}
 
 // FuncType 函数类型
 type FuncType struct {
-	Begin reader.Position
-	Ret   util.Option[Type]
-	End   reader.Position
+	Begin  reader.Position
+	Params []Type
+	Ret    util.Option[Type]
+	End    reader.Position
 }
 
 func (self *FuncType) Position() reader.Position {
