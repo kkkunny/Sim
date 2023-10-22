@@ -429,3 +429,15 @@ func (*Zero) stmt() {}
 func (self *Zero) GetType() Type {
 	return self.Type
 }
+
+// Field 字段
+type Field struct {
+	From  Expr
+	Index uint
+}
+
+func (self *Field) stmt() {}
+
+func (self *Field) GetType() Type {
+	return self.From.GetType().(*StructDef).Fields.Values().Get(self.Index)
+}

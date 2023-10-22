@@ -195,3 +195,17 @@ func (self *Struct) Position() reader.Position {
 func (self *Struct) stmt() {}
 
 func (self *Struct) expr() {}
+
+// Field 取字段
+type Field struct {
+	From  Expr
+	Index token.Token
+}
+
+func (self *Field) Position() reader.Position {
+	return reader.MixPosition(self.From.Position(), self.Index.Position)
+}
+
+func (self *Field) stmt() {}
+
+func (self *Field) expr() {}

@@ -40,6 +40,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseExtract(expect, exprNode)
 	case *ast.Struct:
 		return self.analyseStruct(exprNode)
+	case *ast.Field:
+		return self.analyseField(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -365,5 +367,28 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *Struct {
 	return &Struct{
 		Type:   st,
 		Fields: fields,
+	}
+}
+
+func (self *Analyser) analyseField(node *ast.Field) *Field {
+	from := self.analyseExpr(nil, node.From)
+	fieldName := node.Index.Source()
+	st, ok := from.GetType().(*StructDef)
+	if !ok {
+		// TODO: 编译时异常：不能获取类型A的字段
+		panic("unreachable")
+	} else if !st.Fields.ContainKey(fieldName) {
+		// TODO: 编译时异常：超出下标
+		panic("unreachable")
+	}
+	var i int
+	for iter := st.Fields.Keys().Iterator(); iter.Next(); i++ {
+		if iter.Value() == fieldName {
+			break
+		}
+	}
+	return &Field{
+		From:  from,
+		Index: uint(i),
 	}
 }

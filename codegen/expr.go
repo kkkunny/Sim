@@ -37,6 +37,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 		return self.codegenZero(exprNode)
 	case *mean.Struct:
 		return self.codegenStruct(exprNode)
+	case *mean.Field:
+		return self.codegenField(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -339,4 +341,13 @@ func (self *CodeGenerator) codegenStruct(node *mean.Struct) llvm.Value {
 		self.builder.CreateStore(field, ep)
 	}
 	return self.builder.CreateLoad("", t, ptr)
+}
+
+func (self *CodeGenerator) codegenField(node *mean.Field) llvm.Value {
+	ft, et := self.codegenType(node.From.GetType()), self.codegenType(node.GetType())
+	ptr := self.builder.CreateAlloca("", ft)
+	from := self.codegenExpr(node.From)
+	self.builder.CreateStore(from, ptr)
+	p := self.builder.CreateStructGEP("", ft, ptr, node.Index)
+	return self.builder.CreateLoad("", et, p)
 }

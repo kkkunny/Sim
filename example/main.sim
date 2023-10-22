@@ -3,9 +3,9 @@ struct T{
 }
 
 func get()T{
-    return T{data: 0}
+    return T{data: 1}
 }
 
 func main()u8{
-    return 0
+    return get().data - 1
 }

@@ -113,11 +113,19 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr], canStruct bo
 		})
 	case token.DOT:
 		self.expectNextIs(token.DOT)
-		index := self.expectNextIs(token.INTEGER)
-		front = util.Some[Expr](&Extract{
-			From:  fv,
-			Index: index,
-		})
+		if self.skipNextIs(token.INTEGER) {
+			index := self.curTok
+			front = util.Some[Expr](&Extract{
+				From:  fv,
+				Index: index,
+			})
+		} else {
+			index := self.expectNextIs(token.IDENT)
+			front = util.Some[Expr](&Field{
+				From:  fv,
+				Index: index,
+			})
+		}
 	default:
 		return front
 	}
