@@ -144,6 +144,8 @@ func (self *Lexer) Scan() Token {
 			kind = SEM
 		case ',':
 			kind = COM
+		case '.':
+			kind = DOT
 		default:
 			kind = ILLEGAL
 		}

@@ -35,6 +35,7 @@ const (
 
 	SEM
 	COM
+	DOT
 
 	_KeywordBegin
 	FUNC
@@ -71,6 +72,7 @@ var kindNames = [...]string{
 	RBR:     "rbr",
 	SEM:     "sem",
 	COM:     "com",
+	DOT:     "dot",
 	FUNC:    "func",
 	RETURN:  "return",
 	TRUE:    "true",

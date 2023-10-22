@@ -3,6 +3,8 @@ package analyse
 import (
 	"math/big"
 
+	"github.com/samber/lo"
+
 	"github.com/kkkunny/Sim/ast"
 	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/util"
@@ -16,6 +18,8 @@ func (self *Analyser) analyseType(node ast.Type) Type {
 		return self.analyseFuncType(typeNode)
 	case *ast.ArrayType:
 		return self.analyseArrayType(typeNode)
+	case *ast.TupleType:
+		return self.analyseTupleType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -84,4 +88,11 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *ArrayType {
 		Size: uint(size.Uint64()),
 		Elem: elem,
 	}
+}
+
+func (self *Analyser) analyseTupleType(node *ast.TupleType) *TupleType {
+	elems := lo.Map(node.Elems, func(item ast.Type, index int) Type {
+		return self.analyseType(item)
+	})
+	return &TupleType{Elems: elems}
 }

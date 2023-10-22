@@ -1,6 +1,10 @@
 package mean
 
-import "math/big"
+import (
+	"math/big"
+
+	"github.com/samber/lo"
+)
 
 // Expr 表达式
 type Expr interface {
@@ -360,4 +364,18 @@ func (self *Index) stmt() {}
 
 func (self *Index) GetType() Type {
 	return self.From.GetType().(*ArrayType).Elem
+}
+
+// Tuple 元组
+type Tuple struct {
+	Elems []Expr
+}
+
+func (self *Tuple) stmt() {}
+
+func (self *Tuple) GetType() Type {
+	ets := lo.Map(self.Elems, func(item Expr, index int) Type {
+		return item.GetType()
+	})
+	return &TupleType{Elems: ets}
 }

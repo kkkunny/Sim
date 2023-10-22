@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	stlerror "github.com/kkkunny/stl/error"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
 	. "github.com/kkkunny/Sim/mean"
@@ -26,8 +27,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseIdent(expect, exprNode)
 	case *ast.Call:
 		return self.analyseCall(expect, exprNode)
-	case *ast.Unit:
-		return self.analyseUnit(expect, exprNode)
+	case *ast.Tuple:
+		return self.analyseTuple(expect, exprNode)
 	case *ast.Covert:
 		return self.analyseCovert(exprNode)
 	case *ast.Array:
@@ -207,8 +208,21 @@ func (self *Analyser) analyseCall(expect Type, node *ast.Call) *Call {
 	return &Call{Func: f}
 }
 
-func (self *Analyser) analyseUnit(expect Type, node *ast.Unit) Expr {
-	return self.analyseExpr(expect, node.Value)
+func (self *Analyser) analyseTuple(expect Type, node *ast.Tuple) Expr {
+	if len(node.Elems) == 1 && (expect == nil || !TypeIs[*TupleType](expect)) {
+		return self.analyseExpr(expect, node.Elems[0])
+	}
+
+	elemExpects := make([]Type, len(node.Elems))
+	if expect != nil {
+		if tt, ok := expect.(*TupleType); ok && len(node.Elems) == len(tt.Elems) {
+			elemExpects = tt.Elems
+		}
+	}
+	elems := lo.Map(node.Elems, func(item ast.Expr, index int) Expr {
+		return self.analyseExpr(elemExpects[index], item)
+	})
+	return &Tuple{Elems: elems}
 }
 
 func (self *Analyser) analyseCovert(node *ast.Covert) Expr {

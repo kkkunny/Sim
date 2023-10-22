@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
 )
@@ -20,6 +21,8 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 		return self.codegenBoolType(typeNode)
 	case *mean.ArrayType:
 		return self.codegenArrayType(typeNode)
+	case *mean.TupleType:
+		return self.codegenTupleType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -60,4 +63,11 @@ func (self *CodeGenerator) codegenBoolType(node *mean.BoolType) llvm.IntegerType
 func (self *CodeGenerator) codegenArrayType(node *mean.ArrayType) llvm.ArrayType {
 	elem := self.codegenType(node.Elem)
 	return self.ctx.ArrayType(elem, uint32(node.Size))
+}
+
+func (self *CodeGenerator) codegenTupleType(node *mean.TupleType) llvm.StructType {
+	elems := lo.Map(node.Elems, func(item mean.Type, index int) llvm.Type {
+		return self.codegenType(item)
+	})
+	return self.ctx.StructType(false, elems...)
 }

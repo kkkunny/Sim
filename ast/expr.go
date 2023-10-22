@@ -106,21 +106,6 @@ func (self *Call) stmt() {}
 
 func (self *Call) expr() {}
 
-// Unit 单元
-type Unit struct {
-	Begin reader.Position
-	Value Expr
-	End   reader.Position
-}
-
-func (self *Unit) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
-}
-
-func (self *Unit) stmt() {}
-
-func (self *Unit) expr() {}
-
 // Covert 类型转换
 type Covert struct {
 	Value Expr
@@ -163,3 +148,18 @@ func (self *Index) Position() reader.Position {
 func (self *Index) stmt() {}
 
 func (self *Index) expr() {}
+
+// Tuple 元组
+type Tuple struct {
+	Begin reader.Position
+	Elems []Expr
+	End   reader.Position
+}
+
+func (self *Tuple) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *Tuple) stmt() {}
+
+func (self *Tuple) expr() {}
