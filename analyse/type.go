@@ -34,7 +34,7 @@ func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) Type {
 }
 
 func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
-	switch node.Name.Source() {
+	switch name := node.Name.Source(); name {
 	case "isize":
 		return Isize
 	case "i8":
@@ -66,8 +66,12 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 	case "bool":
 		return Bool
 	default:
-		// TODO: 编译时异常：未知的类型
-		panic("unreachable")
+		if st, ok := self.pkgScope.GetStruct(name); ok {
+			return st
+		} else {
+			// TODO: 编译时异常：未知的类型
+			panic("unreachable")
+		}
 	}
 }
 

@@ -37,13 +37,7 @@ func (self *Parser) parseIdentType() *IdentType {
 func (self *Parser) parseFuncType() *FuncType {
 	begin := self.expectNextIs(token.FUNC).Position
 	self.expectNextIs(token.LPA)
-	var params []Type
-	for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
-		params = append(params, self.parseType())
-		if !self.skipNextIs(token.COM) {
-			break
-		}
-	}
+	params := self.parseTypeList(token.RPA)
 	end := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
 	if v, ok := ret.Value(); ok {
@@ -71,17 +65,17 @@ func (self *Parser) parseArrayType() *ArrayType {
 
 func (self *Parser) parseTupleType() *TupleType {
 	begin := self.expectNextIs(token.LPA).Position
-	var elems []Type
-	for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
-		elems = append(elems, self.parseType())
-		if !self.skipNextIs(token.COM) {
-			break
-		}
-	}
+	elems := self.parseTypeList(token.RPA)
 	end := self.expectNextIs(token.RPA).Position
 	return &TupleType{
 		Begin: begin,
 		Elems: elems,
 		End:   end,
 	}
+}
+
+func (self *Parser) parseTypeList(end token.Kind) (res []Type) {
+	return loopParseWithUtil(self, token.COM, end, func() Type {
+		return self.parseType()
+	})
 }

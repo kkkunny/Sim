@@ -28,3 +28,17 @@ func (self *FuncDef) Position() reader.Position {
 }
 
 func (self *FuncDef) global() {}
+
+// StructDef 结构体定义
+type StructDef struct {
+	Begin  reader.Position
+	Name   token.Token
+	Fields []pair.Pair[token.Token, Type]
+	End    reader.Position
+}
+
+func (self *StructDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *StructDef) global() {}

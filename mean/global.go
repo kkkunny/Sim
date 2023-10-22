@@ -1,6 +1,9 @@
 package mean
 
-import "github.com/samber/lo"
+import (
+	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/samber/lo"
+)
 
 // Global 全局
 type Global interface {
@@ -15,9 +18,9 @@ type FuncDef struct {
 	Body   *Block
 }
 
-func (self *FuncDef) global() {}
+func (*FuncDef) global() {}
 
-func (self *FuncDef) stmt() {}
+func (*FuncDef) stmt() {}
 
 func (self *FuncDef) GetType() Type {
 	params := lo.Map(self.Params, func(item *Param, index int) Type {
@@ -29,4 +32,20 @@ func (self *FuncDef) GetType() Type {
 	}
 }
 
-func (self *FuncDef) ident() {}
+func (*FuncDef) ident() {}
+
+// StructDef 结构体定义
+type StructDef struct {
+	Name   string
+	Fields linkedhashmap.LinkedHashMap[string, Type]
+}
+
+func (*StructDef) global() {}
+
+func (self *StructDef) Equal(dst Type) bool {
+	t, ok := dst.(*StructDef)
+	if !ok {
+		return false
+	}
+	return self == t
+}

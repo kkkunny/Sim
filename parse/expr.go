@@ -58,13 +58,7 @@ func (self *Parser) parseBool() *Boolean {
 
 func (self *Parser) parseTuple() *Tuple {
 	begin := self.expectNextIs(token.LPA).Position
-	var elems []Expr
-	for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
-		elems = append(elems, self.mustExpr(self.parseOptionExpr()))
-		if !self.skipNextIs(token.COM) {
-			break
-		}
-	}
+	elems := self.parseExprList(token.RPA)
 	end := self.expectNextIs(token.RPA).Position
 	return &Tuple{
 		Begin: begin,
@@ -96,13 +90,7 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[Expr]) util.Option[
 	switch self.nextTok.Kind {
 	case token.LPA:
 		self.expectNextIs(token.LPA)
-		var args []Expr
-		for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
-			args = append(args, self.mustExpr(self.parseOptionExpr()))
-			if !self.skipNextIs(token.COM) {
-				break
-			}
-		}
+		args := self.parseExprList(token.RPA)
 		end := self.expectNextIs(token.RPA).Position
 		front = util.Some[Expr](&Call{
 			Func: fv,
@@ -185,17 +173,17 @@ func (self *Parser) parseIdent() *Ident {
 func (self *Parser) parseArray() *Array {
 	at := self.parseArrayType()
 	self.expectNextIs(token.LBR)
-	var elems []Expr
-	for self.skipSEM(); !self.nextIs(token.RBR); self.skipSEM() {
-		elems = append(elems, self.mustExpr(self.parseOptionExpr()))
-		if !self.skipNextIs(token.COM) {
-			break
-		}
-	}
+	elems := self.parseExprList(token.RBR)
 	end := self.expectNextIs(token.RBR).Position
 	return &Array{
 		Type:  at,
 		Elems: elems,
 		End:   end,
 	}
+}
+
+func (self *Parser) parseExprList(end token.Kind) (res []Expr) {
+	return loopParseWithUtil(self, token.COM, end, func() Expr {
+		return self.mustExpr(self.parseOptionExpr())
+	})
 }

@@ -1,7 +1,7 @@
-func add(x:u8, y:u8)u8{
-    return x + y
+struct T{
+    data: u8
 }
 
 func main()u8{
-    return add(1, 2)
+    return 0
 }
