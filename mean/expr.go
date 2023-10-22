@@ -406,3 +406,38 @@ func (self *Param) GetType() Type {
 }
 
 func (*Param) ident() {}
+
+// Struct 结构体
+type Struct struct {
+	Type   *StructDef
+	Fields []Expr
+}
+
+func (*Struct) stmt() {}
+
+func (self *Struct) GetType() Type {
+	return self.Type
+}
+
+// Zero 零值
+type Zero struct {
+	Type Type
+}
+
+func (*Zero) stmt() {}
+
+func (self *Zero) GetType() Type {
+	return self.Type
+}
+
+// Field 字段
+type Field struct {
+	From  Expr
+	Index uint
+}
+
+func (self *Field) stmt() {}
+
+func (self *Field) GetType() Type {
+	return self.From.GetType().(*StructDef).Fields.Values().Get(self.Index)
+}

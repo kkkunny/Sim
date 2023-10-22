@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"github.com/kkkunny/stl/container/pair"
+
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 )
@@ -178,3 +180,32 @@ func (self *Extract) Position() reader.Position {
 func (self *Extract) stmt() {}
 
 func (self *Extract) expr() {}
+
+// Struct 结构体
+type Struct struct {
+	Type   *IdentType
+	Fields []pair.Pair[token.Token, Expr]
+	End    reader.Position
+}
+
+func (self *Struct) Position() reader.Position {
+	return reader.MixPosition(self.Type.Position(), self.End)
+}
+
+func (self *Struct) stmt() {}
+
+func (self *Struct) expr() {}
+
+// Field 取字段
+type Field struct {
+	From  Expr
+	Index token.Token
+}
+
+func (self *Field) Position() reader.Position {
+	return reader.MixPosition(self.From.Position(), self.Index.Position)
+}
+
+func (self *Field) stmt() {}
+
+func (self *Field) expr() {}

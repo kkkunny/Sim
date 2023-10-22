@@ -14,11 +14,15 @@ type _Scope interface {
 
 // 包作用域
 type _PkgScope struct {
-	values hashmap.HashMap[string, Ident]
+	values  hashmap.HashMap[string, Ident]
+	structs hashmap.HashMap[string, *StructDef]
 }
 
 func _NewPkgScope() *_PkgScope {
-	return &_PkgScope{values: hashmap.NewHashMap[string, Ident]()}
+	return &_PkgScope{
+		values:  hashmap.NewHashMap[string, Ident](),
+		structs: hashmap.NewHashMap[string, *StructDef](),
+	}
 }
 
 func (self *_PkgScope) SetValue(name string, v Ident) bool {
@@ -31,6 +35,18 @@ func (self *_PkgScope) SetValue(name string, v Ident) bool {
 
 func (self *_PkgScope) GetValue(name string) (Ident, bool) {
 	return self.values.Get(name), self.values.ContainKey(name)
+}
+
+func (self *_PkgScope) SetStruct(st *StructDef) bool {
+	if self.structs.ContainKey(st.Name) {
+		return false
+	}
+	self.structs.Set(st.Name, st)
+	return true
+}
+
+func (self *_PkgScope) GetStruct(name string) (*StructDef, bool) {
+	return self.structs.Get(name), self.structs.ContainKey(name)
 }
 
 // 本地作用域

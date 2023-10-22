@@ -11,6 +11,8 @@ func (self *Parser) parseGlobal() Global {
 	switch self.nextTok.Kind {
 	case token.FUNC:
 		return self.parseFuncDef()
+	case token.STRUCT:
+		return self.parseStructDef()
 	default:
 		// TODO: 编译时异常：未知的全局
 		panic("unreachable")
@@ -21,16 +23,12 @@ func (self *Parser) parseFuncDef() *FuncDef {
 	begin := self.expectNextIs(token.FUNC).Position
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
-	var args []pair.Pair[token.Token, Type]
-	for self.skipSEM(); !self.nextIs(token.RPA); self.skipSEM() {
+	args := loopParseWithUtil(self, token.COM, token.RPA, func() pair.Pair[token.Token, Type] {
 		pn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		pt := self.parseType()
-		args = append(args, pair.NewPair(pn, pt))
-		if !self.skipNextIs(token.COM) {
-			break
-		}
-	}
+		return pair.NewPair(pn, pt)
+	})
 	self.expectNextIs(token.RPA)
 	ret := self.parseOptionType()
 	body := self.parseBlock()
@@ -40,5 +38,24 @@ func (self *Parser) parseFuncDef() *FuncDef {
 		Name:   name,
 		Ret:    ret,
 		Body:   body,
+	}
+}
+
+func (self *Parser) parseStructDef() *StructDef {
+	begin := self.expectNextIs(token.STRUCT).Position
+	name := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.LBR)
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, Type] {
+		fn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		ft := self.parseType()
+		return pair.NewPair(fn, ft)
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &StructDef{
+		Begin:  begin,
+		Name:   name,
+		Fields: fields,
+		End:    end,
 	}
 }

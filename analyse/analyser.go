@@ -28,6 +28,13 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[Global] {
 	meanNodes := linkedlist.NewLinkedList[Global]()
 	iter := self.parser.Parse().Iterator()
 	iter.Foreach(func(v ast.Global) bool {
+		if st, ok := v.(*ast.StructDef); ok {
+			self.declTypeDef(st)
+		}
+		return true
+	})
+	iter.Reset()
+	iter.Foreach(func(v ast.Global) bool {
 		self.analyseGlobalDecl(v)
 		return true
 	})

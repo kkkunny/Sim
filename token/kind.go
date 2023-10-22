@@ -44,6 +44,7 @@ const (
 	TRUE
 	FALSE
 	AS
+	STRUCT
 	_KeywordEnd
 )
 
@@ -80,6 +81,7 @@ var kindNames = [...]string{
 	TRUE:    "true",
 	FALSE:   "false",
 	AS:      "as",
+	STRUCT:  "struct",
 }
 
 // Lookup 区分标识符和关键字
