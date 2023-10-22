@@ -409,7 +409,7 @@ func (*Param) ident() {}
 
 // Struct 结构体
 type Struct struct {
-	Type   *StructDef
+	Type   *StructType
 	Fields []Expr
 }
 
@@ -439,5 +439,5 @@ type Field struct {
 func (self *Field) stmt() {}
 
 func (self *Field) GetType() Type {
-	return self.From.GetType().(*StructDef).Fields.Values().Get(self.Index)
+	return self.From.GetType().(*StructType).Fields.Values().Get(self.Index)
 }

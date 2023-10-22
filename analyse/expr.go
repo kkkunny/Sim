@@ -337,7 +337,7 @@ func (self *Analyser) analyseExtract(expect Type, node *ast.Extract) *Extract {
 }
 
 func (self *Analyser) analyseStruct(node *ast.Struct) *Struct {
-	st := self.analyseIdentType(node.Type).(*StructDef)
+	st := self.analyseIdentType(node.Type).(*StructType)
 	fieldNames := hashset.NewHashSet[string]()
 	for iter := st.Fields.Keys().Iterator(); iter.Next(); {
 		fieldNames.Push(iter.Value())
@@ -373,7 +373,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *Struct {
 func (self *Analyser) analyseField(node *ast.Field) *Field {
 	from := self.analyseExpr(nil, node.From)
 	fieldName := node.Index.Source()
-	st, ok := from.GetType().(*StructDef)
+	st, ok := from.GetType().(*StructType)
 	if !ok {
 		// TODO: 编译时异常：不能获取类型A的字段
 		panic("unreachable")

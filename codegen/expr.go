@@ -325,6 +325,10 @@ func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Value {
 		return self.ctx.ConstFloat(t.(llvm.FloatType), 0)
 	case *mean.BoolType:
 		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
+	case *mean.ArrayType:
+		return self.ctx.ConstAggregateZero(t.(llvm.ArrayType))
+	case *mean.StructType:
+		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
 	default:
 		panic("unreachable")
 	}
@@ -334,7 +338,7 @@ func (self *CodeGenerator) codegenStruct(node *mean.Struct) llvm.Value {
 	fields := lo.Map(node.Fields, func(item mean.Expr, index int) llvm.Value {
 		return self.codegenExpr(item)
 	})
-	t := self.codegenStructType(node.GetType().(*mean.StructDef))
+	t := self.codegenStructType(node.GetType().(*mean.StructType))
 	ptr := self.builder.CreateAlloca("", t)
 	for i, field := range fields {
 		ep := self.builder.CreateStructGEP("", t, ptr, uint(i))
