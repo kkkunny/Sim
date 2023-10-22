@@ -1,7 +1,11 @@
-func test()[2]u8{
-    return [2]u8{0, 2}
+func main()u8{
+    return getFunc()()
 }
 
-func main()u8{
-    return test()[0]
+func get()u8{
+    return 0
+}
+
+func getFunc()func()u8{
+    return get
 }

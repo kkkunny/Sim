@@ -1,11 +1,12 @@
-package test
+//go:build !lex && !parse && !analyse && !codegen
+
+package main
 
 import (
-	"testing"
+	"os"
 
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
-	stltest "github.com/kkkunny/stl/test"
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/codegen"
@@ -15,26 +16,21 @@ import (
 	"github.com/kkkunny/Sim/reader"
 )
 
-func init() {
+func main() {
 	stlerror.Must(llvm.InitializeNativeTarget())
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
-}
-
-func assertRetEq(t *testing.T, code string, expect uint8) {
 	target := stlerror.MustWith(llvm.NativeTarget())
-	mean.Usize.Bits = target.PointerSize()
+	mean.Usize.Bits = target.PointerSize() * 8
 	mean.Isize.Bits = mean.Usize.Bits
-	r := stlerror.MustWith(reader.NewReaderFromString("test.sim", code))
-	module := codegen.New(target, analyse.New(parse.New(lex.New(r)))).Codegen()
+	source, r := stlerror.MustWith2(reader.NewReaderFromFile(os.Args[1]))
+	defer source.Close()
+	generator := codegen.New(target, analyse.New(parse.New(lex.New(r))))
+	module := generator.Codegen()
 	engine := stlerror.MustWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
-	f := engine.GetFunction("main")
-	if f == nil {
+	mainFn := engine.GetFunction("main")
+	if mainFn == nil {
 		panic("can not fond the main function")
 	}
-	ret := uint8(engine.RunFunction(*f).Integer(true))
-	stltest.AssertEq(t, ret, expect)
-}
-
-func assertRetEqZero(t *testing.T, code string) {
-	assertRetEq(t, code, 0)
+	ret := uint8(engine.RunFunction(*mainFn).Integer(false))
+	os.Exit(int(ret))
 }

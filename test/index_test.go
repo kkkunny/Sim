@@ -10,7 +10,7 @@ func test()[2]u8{
 }
 
 func main()u8{
-    return 0
+    return test()[0]
 }
 `)
 }

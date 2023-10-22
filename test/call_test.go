@@ -4,15 +4,15 @@ import "testing"
 
 func TestCall(t *testing.T) {
 	assertRetEqZero(t, `
-func main()isize{
+func main()u8{
     return getFunc()()
 }
 
-func get()isize{
+func get()u8{
     return 0
 }
 
-func getFunc()func()isize{
+func getFunc()func()u8{
     return get
 }
 `)

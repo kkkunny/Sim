@@ -1,7 +1,7 @@
 package codegen
 
 import (
-	"github.com/kkkunny/llvm"
+	"github.com/kkkunny/go-llvm"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
@@ -35,21 +35,21 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenInteger(node *mean.Integer) llvm.Value {
-	t := self.codegenType(node.GetType())
-	return llvm.ConstIntFromString(t, node.Value.String(), 10)
+	t := self.codegenIntType(node.Type)
+	return self.ctx.ConstIntegerFromString(t, node.Value.String(), 10)
 }
 
 func (self *CodeGenerator) codegenFloat(node *mean.Float) llvm.Value {
-	t := self.codegenType(node.GetType())
-	return llvm.ConstFloatFromString(t, node.Value.String())
+	t := self.codegenFloatType(node.Type)
+	return self.ctx.ConstFloatFromString(t, node.Value.String())
 }
 
 func (self *CodeGenerator) codegenBool(node *mean.Boolean) llvm.Value {
 	t := self.codegenType(node.GetType())
 	if node.Value {
-		return llvm.ConstInt(t, 1, false)
+		return self.ctx.ConstInteger(t.(llvm.IntegerType), 1)
 	} else {
-		return llvm.ConstInt(t, 0, false)
+		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
 	}
 }
 
@@ -58,107 +58,107 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 
 	switch node.(type) {
 	case *mean.IntAndInt:
-		return self.builder.CreateAnd(left, right, "")
+		return self.builder.CreateAnd("", left, right)
 	case *mean.IntOrInt:
-		return self.builder.CreateOr(left, right, "")
+		return self.builder.CreateOr("", left, right)
 	case *mean.IntXorInt:
-		return self.builder.CreateXor(left, right, "")
+		return self.builder.CreateXor("", left, right)
 	case *mean.NumAddNum:
 		switch node.GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateNSWAdd(left, right, "")
+			return self.builder.CreateSAdd("", left, right)
 		case *mean.UintType:
-			return self.builder.CreateNUWAdd(left, right, "")
+			return self.builder.CreateUAdd("", left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFAdd(left, right, "")
+			return self.builder.CreateFAdd("", left, right)
 		default:
 			panic("unreachable")
 		}
 	case *mean.NumSubNum:
 		switch node.GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateNSWSub(left, right, "")
+			return self.builder.CreateSSub("", left, right)
 		case *mean.UintType:
-			return self.builder.CreateNUWSub(left, right, "")
+			return self.builder.CreateUSub("", left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFSub(left, right, "")
+			return self.builder.CreateFSub("", left, right)
 		default:
 			panic("unreachable")
 		}
 	case *mean.NumMulNum:
 		switch node.GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateNSWMul(left, right, "")
+			return self.builder.CreateSMul("", left, right)
 		case *mean.UintType:
-			return self.builder.CreateNUWMul(left, right, "")
+			return self.builder.CreateUMul("", left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFMul(left, right, "")
+			return self.builder.CreateFMul("", left, right)
 		default:
 			panic("unreachable")
 		}
 	case *mean.NumDivNum:
 		switch node.GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateSDiv(left, right, "")
+			return self.builder.CreateSDiv("", left, right)
 		case *mean.UintType:
-			return self.builder.CreateUDiv(left, right, "")
+			return self.builder.CreateUDiv("", left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFDiv(left, right, "")
+			return self.builder.CreateFDiv("", left, right)
 		default:
 			panic("unreachable")
 		}
 	case *mean.NumRemNum:
 		switch node.GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateSRem(left, right, "")
+			return self.builder.CreateSRem("", left, right)
 		case *mean.UintType:
-			return self.builder.CreateURem(left, right, "")
+			return self.builder.CreateURem("", left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFRem(left, right, "")
+			return self.builder.CreateFRem("", left, right)
 		default:
 			panic("unreachable")
 		}
 	case *mean.NumLtNum:
 		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateICmp(llvm.IntSLT, left, right, "")
+			return self.builder.CreateIntCmp("", llvm.IntSLT, left, right)
 		case *mean.UintType:
-			return self.builder.CreateICmp(llvm.IntULT, left, right, "")
+			return self.builder.CreateIntCmp("", llvm.IntULT, left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFCmp(llvm.FloatOLT, left, right, "")
+			return self.builder.CreateFloatCmp("", llvm.FloatOLT, left, right)
 		default:
 			panic("unreachable")
 		}
 	case *mean.NumGtNum:
 		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateICmp(llvm.IntSGT, left, right, "")
+			return self.builder.CreateIntCmp("", llvm.IntSGT, left, right)
 		case *mean.UintType:
-			return self.builder.CreateICmp(llvm.IntUGT, left, right, "")
+			return self.builder.CreateIntCmp("", llvm.IntUGT, left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFCmp(llvm.FloatOGT, left, right, "")
+			return self.builder.CreateFloatCmp("", llvm.FloatOGT, left, right)
 		default:
 			panic("unreachable")
 		}
 	case *mean.NumLeNum:
 		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateICmp(llvm.IntSLE, left, right, "")
+			return self.builder.CreateIntCmp("", llvm.IntSLE, left, right)
 		case *mean.UintType:
-			return self.builder.CreateICmp(llvm.IntULE, left, right, "")
+			return self.builder.CreateIntCmp("", llvm.IntULE, left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFCmp(llvm.FloatOLE, left, right, "")
+			return self.builder.CreateFloatCmp("", llvm.FloatOLE, left, right)
 		default:
 			panic("unreachable")
 		}
 	case *mean.NumGeNum:
 		switch node.GetLeft().GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateICmp(llvm.IntSGE, left, right, "")
+			return self.builder.CreateIntCmp("", llvm.IntSGE, left, right)
 		case *mean.UintType:
-			return self.builder.CreateICmp(llvm.IntUGE, left, right, "")
+			return self.builder.CreateIntCmp("", llvm.IntUGE, left, right)
 		case *mean.FloatType:
-			return self.builder.CreateFCmp(llvm.FloatOGE, left, right, "")
+			return self.builder.CreateFloatCmp("", llvm.FloatOGE, left, right)
 		default:
 			panic("unreachable")
 		}
@@ -174,9 +174,9 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
 	case *mean.NumNegate:
 		switch node.GetType().(type) {
 		case *mean.SintType:
-			return self.builder.CreateNSWNeg(value, "")
+			return self.builder.CreateSNeg("", value)
 		case *mean.FloatType:
-			return self.builder.CreateFNeg(value, "")
+			return self.builder.CreateFNeg("", value)
 		default:
 			panic("unreachable")
 		}
@@ -188,7 +188,7 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
 func (self *CodeGenerator) codegenIdent(node mean.Ident) llvm.Value {
 	switch identNode := node.(type) {
 	case *mean.FuncDef:
-		f := self.module.NamedFunction(identNode.Name)
+		f := self.module.GetFunction(identNode.Name)
 		return f
 	default:
 		panic("unreachable")
@@ -196,9 +196,9 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenCall(node *mean.Call) llvm.Value {
-	t := self.codegenType(node.Func.GetType())
+	ft := self.codegenFuncType(node.Func.GetType().(*mean.FuncType))
 	f := self.codegenExpr(node.Func)
-	return self.builder.CreateCall(t, f, nil, "")
+	return self.builder.CreateCall("", ft, f)
 }
 
 func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
@@ -209,32 +209,41 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 	switch covertNode := node.(type) {
 	case *mean.Num2Num:
 		switch {
-		case mean.TypeIs[mean.IntType](ft) && mean.TypeIs[mean.IntType](covertNode.To):
-			ift, itt := ft.(mean.IntType), covertNode.To.(mean.IntType)
+		case mean.TypeIs[*mean.SintType](ft) && mean.TypeIs[mean.IntType](covertNode.To):
+			ift, itt := ft.(*mean.SintType), covertNode.To.(mean.IntType)
 			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
-				return self.builder.CreateSExt(from, to, "")
+				return self.builder.CreateSExt("", from, to.(llvm.IntegerType))
 			} else if ifb > itb {
-				return self.builder.CreateTrunc(from, to, "")
+				return self.builder.CreateTrunc("", from, to.(llvm.IntegerType))
+			} else {
+				return from
+			}
+		case mean.TypeIs[*mean.UintType](ft) && mean.TypeIs[mean.IntType](covertNode.To):
+			ift, itt := ft.(*mean.UintType), covertNode.To.(mean.IntType)
+			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
+				return self.builder.CreateZExt("", from, to.(llvm.IntegerType))
+			} else if ifb > itb {
+				return self.builder.CreateTrunc("", from, to.(llvm.IntegerType))
 			} else {
 				return from
 			}
 		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
 			ift, itt := ft.(*mean.FloatType), covertNode.To.(*mean.FloatType)
 			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
-				return self.builder.CreateFPExt(from, to, "")
+				return self.builder.CreateFPExt("", from, to.(llvm.FloatType))
 			} else if ifb > itb {
-				return self.builder.CreateFPTrunc(from, to, "")
+				return self.builder.CreateFPTrunc("", from, to.(llvm.FloatType))
 			} else {
 				return from
 			}
 		case mean.TypeIs[*mean.SintType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
-			return self.builder.CreateSIToFP(from, to, "")
+			return self.builder.CreateSIToFP("", from, to.(llvm.FloatType))
 		case mean.TypeIs[*mean.UintType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
-			return self.builder.CreateUIToFP(from, to, "")
+			return self.builder.CreateUIToFP("", from, to.(llvm.FloatType))
 		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.SintType](covertNode.To):
-			return self.builder.CreateFPToSI(from, to, "")
+			return self.builder.CreateFPToSI("", from, to.(llvm.IntegerType))
 		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.UintType](covertNode.To):
-			return self.builder.CreateFPToUI(from, to, "")
+			return self.builder.CreateFPToUI("", from, to.(llvm.IntegerType))
 		default:
 			panic("unreachable")
 		}
@@ -249,22 +258,23 @@ func (self *CodeGenerator) codegenArray(node *mean.Array) llvm.Value {
 		return self.codegenExpr(item)
 	})
 	t := self.codegenType(node.Type)
-	ptr := self.builder.CreateAlloca(t, "")
+	ptr := self.builder.CreateAlloca("", t)
 	for i, elem := range elems {
-		ep := self.builder.CreateInBoundsGEP(t.ElementType(), ptr, []llvm.Value{llvm.ConstInt(llvm.Int64Type(), uint64(i), false)}, "")
+		ep := self.builder.CreateInBoundsGEP("", t, ptr, self.ctx.ConstInteger(self.ctx.IntegerType(64), 0), self.ctx.ConstInteger(self.ctx.IntegerType(64), int64(i)))
 		self.builder.CreateStore(elem, ep)
 	}
-	return self.builder.CreateLoad(t, ptr, "")
+	return self.builder.CreateLoad("", t, ptr)
 }
 
 func (self *CodeGenerator) codegenIndex(node *mean.Index) llvm.Value {
 	// TODO: 运行时异常：超出索引下标
 	// TODO: error
-	ft := self.codegenType(node.From.GetType())
-	ptr := self.builder.CreateAlloca(ft, "")
+	ft := self.codegenType(node.From.GetType()).(llvm.ArrayType)
+	et := self.codegenType(node.From.GetType().(*mean.ArrayType).Elem)
+	ptr := self.builder.CreateAlloca("", ft)
 	from := self.codegenExpr(node.From)
 	self.builder.CreateStore(from, ptr)
 	index := self.codegenExpr(node.Index)
-	p := self.builder.CreateInBoundsGEP(ft.ElementType(), ptr, []llvm.Value{index}, "")
-	return self.builder.CreateLoad(ft.ElementType(), p, "")
+	p := self.builder.CreateInBoundsGEP("", ft, ptr, self.ctx.ConstInteger(self.ctx.IntegerType(64), 0), index)
+	return self.builder.CreateLoad("", et, p)
 }

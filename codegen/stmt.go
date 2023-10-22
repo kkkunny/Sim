@@ -1,7 +1,7 @@
 package codegen
 
 import (
-	"github.com/kkkunny/llvm"
+	"github.com/kkkunny/go-llvm"
 
 	"github.com/kkkunny/Sim/mean"
 )
@@ -17,12 +17,12 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 	}
 }
 
-func (self *CodeGenerator) codegenBlock(node *mean.Block) llvm.BasicBlock {
-	from := self.builder.GetInsertBlock()
-	defer self.builder.SetInsertPointAtEnd(from)
+func (self *CodeGenerator) codegenBlock(node *mean.Block) llvm.Block {
+	from := self.builder.CurrentBlock()
+	defer self.builder.MoveToAfter(from)
 
-	block := llvm.AddBasicBlock(from.Parent(), "")
-	self.builder.SetInsertPointAtEnd(block)
+	block := from.Belong().NewBlock("")
+	self.builder.MoveToAfter(block)
 
 	for iter := node.Stmts.Iterator(); iter.Next(); {
 		self.codegenStmt(iter.Value())
@@ -33,8 +33,9 @@ func (self *CodeGenerator) codegenBlock(node *mean.Block) llvm.BasicBlock {
 
 func (self *CodeGenerator) codegenReturn(node *mean.Return) {
 	if v, ok := node.Value.Value(); ok {
-		self.builder.CreateRet(self.codegenExpr(v))
+		v := self.codegenExpr(v)
+		self.builder.CreateRet(&v)
 	} else {
-		self.builder.CreateRetVoid()
+		self.builder.CreateRet(nil)
 	}
 }

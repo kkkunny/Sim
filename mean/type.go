@@ -3,14 +3,14 @@ package mean
 var (
 	Empty = &EmptyType{}
 
-	Isize = &SintType{Bits: 64}
+	Isize = &SintType{Bits: 0}
 	I8    = &SintType{Bits: 8}
 	I16   = &SintType{Bits: 16}
 	I32   = &SintType{Bits: 32}
 	I64   = &SintType{Bits: 64}
 	I128  = &SintType{Bits: 128}
 
-	Usize = &UintType{Bits: 64}
+	Usize = &UintType{Bits: 0}
 	U8    = &UintType{Bits: 8}
 	U16   = &UintType{Bits: 16}
 	U32   = &UintType{Bits: 32}

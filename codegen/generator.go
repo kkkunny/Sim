@@ -1,7 +1,7 @@
 package codegen
 
 import (
-	"github.com/kkkunny/llvm"
+	"github.com/kkkunny/go-llvm"
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/mean"
@@ -11,18 +11,22 @@ import (
 type CodeGenerator struct {
 	analyser *analyse.Analyser // 语法分析器
 
+	target  *llvm.Target
 	ctx     llvm.Context
 	module  llvm.Module
 	builder llvm.Builder
 }
 
-func New(analyser *analyse.Analyser) *CodeGenerator {
-	module := llvm.NewModule("main")
+func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {
+	ctx := llvm.NewContext()
+	module := ctx.NewModule("main")
+	module.SetTarget(target)
 	return &CodeGenerator{
 		analyser: analyser,
-		ctx:      module.Context(),
+		target:   target,
+		ctx:      ctx,
 		module:   module,
-		builder:  llvm.NewBuilder(),
+		builder:  ctx.NewBuilder(),
 	}
 }
 
