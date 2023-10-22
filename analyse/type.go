@@ -72,7 +72,13 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType) *FuncType {
-	return &FuncType{Ret: self.analyseOptionType(node.Ret)}
+	params := lo.Map(node.Params, func(item ast.Type, index int) Type {
+		return self.analyseType(item)
+	})
+	return &FuncType{
+		Ret:    self.analyseOptionType(node.Ret),
+		Params: params,
+	}
 }
 
 func (self *Analyser) analyseArrayType(node *ast.ArrayType) *ArrayType {

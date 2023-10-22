@@ -15,6 +15,8 @@ type CodeGenerator struct {
 	ctx     llvm.Context
 	module  llvm.Module
 	builder llvm.Builder
+
+	values map[mean.Ident]llvm.Value
 }
 
 func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {
@@ -27,6 +29,7 @@ func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {
 		ctx:      ctx,
 		module:   module,
 		builder:  ctx.NewBuilder(),
+		values:   make(map[mean.Ident]llvm.Value),
 	}
 }
 

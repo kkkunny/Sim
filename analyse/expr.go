@@ -24,9 +24,9 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 	case *ast.Unary:
 		return self.analyseUnary(expect, exprNode)
 	case *ast.Ident:
-		return self.analyseIdent(expect, exprNode)
+		return self.analyseIdent(exprNode)
 	case *ast.Call:
-		return self.analyseCall(expect, exprNode)
+		return self.analyseCall(exprNode)
 	case *ast.Tuple:
 		return self.analyseTuple(expect, exprNode)
 	case *ast.Covert:
@@ -196,7 +196,7 @@ func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
 	panic("unreachable")
 }
 
-func (self *Analyser) analyseIdent(expect Type, node *ast.Ident) Ident {
+func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
 	value, ok := self.localScope.GetValue(node.Name.Source())
 	if !ok {
 		// TODO: 编译时异常：未知的变量
@@ -205,9 +205,23 @@ func (self *Analyser) analyseIdent(expect Type, node *ast.Ident) Ident {
 	return value
 }
 
-func (self *Analyser) analyseCall(expect Type, node *ast.Call) *Call {
+func (self *Analyser) analyseCall(node *ast.Call) *Call {
 	f := self.analyseExpr(nil, node.Func)
-	return &Call{Func: f}
+	ft, ok := f.GetType().(*FuncType)
+	if !ok {
+		// TODO: 编译时异常：不能调用类型A
+		panic("unreachable")
+	} else if len(ft.Params) != len(node.Args) {
+		// TODO: 编译时异常：参数数量不匹配
+		panic("unreachable")
+	}
+	args := lo.Map(node.Args, func(item ast.Expr, index int) Expr {
+		return self.analyseExpr(ft.Params[index], item)
+	})
+	return &Call{
+		Func: f,
+		Args: args,
+	}
 }
 
 func (self *Analyser) analyseTuple(expect Type, node *ast.Tuple) Expr {

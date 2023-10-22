@@ -194,6 +194,10 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident) llvm.Value {
 	case *mean.FuncDef:
 		f := self.module.GetFunction(identNode.Name)
 		return f
+	case *mean.Param:
+		p := self.values[identNode]
+		t := self.codegenType(node.GetType())
+		return self.builder.CreateLoad("", t, p)
 	default:
 		panic("unreachable")
 	}
@@ -202,7 +206,10 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident) llvm.Value {
 func (self *CodeGenerator) codegenCall(node *mean.Call) llvm.Value {
 	ft := self.codegenFuncType(node.Func.GetType().(*mean.FuncType))
 	f := self.codegenExpr(node.Func)
-	return self.builder.CreateCall("", ft, f)
+	args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
+		return self.codegenExpr(item)
+	})
+	return self.builder.CreateCall("", ft, f, args...)
 }
 
 func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {

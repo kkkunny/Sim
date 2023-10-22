@@ -49,7 +49,10 @@ func (self *CodeGenerator) codegenFloatType(node *mean.FloatType) llvm.FloatType
 
 func (self *CodeGenerator) codegenFuncType(node *mean.FuncType) llvm.FunctionType {
 	ret := self.codegenType(node.Ret)
-	return self.ctx.FunctionType(ret, nil, false)
+	params := lo.Map(node.Params, func(item mean.Type, index int) llvm.Type {
+		return self.codegenType(item)
+	})
+	return self.ctx.FunctionType(ret, params, false)
 }
 
 func (self *CodeGenerator) codegenFuncTypePtr(node *mean.FuncType) llvm.PointerType {

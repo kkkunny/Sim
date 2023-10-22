@@ -312,6 +312,7 @@ func (self *Boolean) GetType() Type {
 // Call 调用
 type Call struct {
 	Func Expr
+	Args []Expr
 }
 
 func (self *Call) stmt() {}
@@ -391,3 +392,17 @@ func (self *Extract) stmt() {}
 func (self *Extract) GetType() Type {
 	return self.From.GetType().(*TupleType).Elems[self.Index]
 }
+
+// Param 参数
+type Param struct {
+	Type Type
+	Name string
+}
+
+func (*Param) stmt() {}
+
+func (self *Param) GetType() Type {
+	return self.Type
+}
+
+func (*Param) ident() {}

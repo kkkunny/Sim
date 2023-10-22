@@ -36,6 +36,7 @@ const (
 	SEM
 	COM
 	DOT
+	COL
 
 	_KeywordBegin
 	FUNC
@@ -73,6 +74,7 @@ var kindNames = [...]string{
 	SEM:     "sem",
 	COM:     "com",
 	DOT:     "dot",
+	COL:     "col",
 	FUNC:    "func",
 	RETURN:  "return",
 	TRUE:    "true",

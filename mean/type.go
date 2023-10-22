@@ -115,15 +115,21 @@ func (self *FloatType) GetBits() uint {
 
 // FuncType 函数类型
 type FuncType struct {
-	Ret Type
+	Ret    Type
+	Params []Type
 }
 
 func (self *FuncType) Equal(dst Type) bool {
 	t, ok := dst.(*FuncType)
-	if !ok {
+	if !ok || len(t.Params) != len(self.Params) {
 		return false
 	}
-	return self.Ret.Equal(t.Ret)
+	for i, p := range self.Params {
+		if !p.Equal(t.Params[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // BoolType 布尔型

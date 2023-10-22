@@ -31,6 +31,16 @@ func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 	f := self.module.GetFunction(node.Name)
 
 	self.builder.MoveToAfter(f.NewBlock("entry"))
+	for i, p := range f.Params() {
+		np := node.Params[i]
+
+		pt := self.codegenType(np.GetType())
+		param := self.builder.CreateAlloca("", pt)
+
+		self.builder.CreateStore(p, param)
+
+		self.values[np] = param
+	}
 
 	body := self.codegenBlock(node.Body)
 	self.builder.CreateBr(body)
