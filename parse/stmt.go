@@ -13,6 +13,8 @@ func (self *Parser) parseStmt() Stmt {
 		return self.parseReturn()
 	case token.LET:
 		return self.parseVariable()
+	case token.LBR:
+		return self.parseBlock()
 	default:
 		return self.mustExpr(self.parseOptionExpr(true))
 	}
