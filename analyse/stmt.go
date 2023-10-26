@@ -14,6 +14,8 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, bool) {
 		return self.analyseReturn(stmtNode), true
 	case *ast.Variable:
 		return self.analyseVariable(stmtNode), false
+	case *ast.Block:
+		return self.analyseBlock(stmtNode)
 	case ast.Expr:
 		return self.analyseExpr(nil, stmtNode), false
 	default:
@@ -32,7 +34,13 @@ func (self *Analyser) analyseBlock(node *ast.Block) (*Block, bool) {
 	for iter := node.Stmts.Iterator(); iter.Next(); {
 		stmt, stmtEnd := self.analyseStmt(iter.Value())
 		end = end || stmtEnd
-		stmts.PushBack(stmt)
+		if b, ok := stmt.(*Block); ok {
+			for iter := b.Stmts.Iterator(); iter.Next(); {
+				stmts.PushBack(iter.Value())
+			}
+		} else {
+			stmts.PushBack(stmt)
+		}
 	}
 	return &Block{Stmts: stmts}, end
 }
