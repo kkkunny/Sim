@@ -12,6 +12,8 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 		self.codegenReturn(stmtNode)
 	case *mean.Variable:
 		self.codegenVariable(stmtNode)
+	case *mean.If:
+		self.codegenIf(stmtNode)
 	case mean.Expr:
 		self.codegenExpr(stmtNode)
 	default:
@@ -48,4 +50,12 @@ func (self *CodeGenerator) codegenVariable(node *mean.Variable) {
 	ptr := self.builder.CreateAlloca("", t)
 	self.builder.CreateStore(value, ptr)
 	self.values[node] = ptr
+}
+
+func (self *CodeGenerator) codegenIf(node *mean.If) {
+	cond := self.codegenExpr(node.Cond)
+	trueBlock := self.codegenBlock(node.Body)
+	falseBlock := trueBlock.Belong().NewBlock("")
+	self.builder.CreateCondBr(cond, trueBlock, falseBlock)
+	self.builder.MoveToAfter(falseBlock)
 }

@@ -15,6 +15,8 @@ func (self *Parser) parseStmt() Stmt {
 		return self.parseVariable()
 	case token.LBR:
 		return self.parseBlock()
+	case token.IF:
+		return self.parseIf()
 	default:
 		return self.mustExpr(self.parseOptionExpr(true))
 	}
@@ -64,5 +66,16 @@ func (self *Parser) parseVariable() *Variable {
 		Name:  name,
 		Type:  typ,
 		Value: value,
+	}
+}
+
+func (self *Parser) parseIf() *If {
+	begin := self.expectNextIs(token.IF).Position
+	cond := self.mustExpr(self.parseOptionExpr(false))
+	body := self.parseBlock()
+	return &If{
+		Begin: begin,
+		Cond:  cond,
+		Body:  body,
 	}
 }

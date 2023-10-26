@@ -25,7 +25,7 @@ func (self *Block) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.End)
 }
 
-func (self *Block) stmt() {}
+func (*Block) stmt() {}
 
 // Return 函数返回
 type Return struct {
@@ -41,7 +41,7 @@ func (self *Return) Position() reader.Position {
 	return reader.MixPosition(self.Begin, v.Position())
 }
 
-func (self *Return) stmt() {}
+func (*Return) stmt() {}
 
 // Variable 变量定义
 type Variable struct {
@@ -55,4 +55,17 @@ func (self *Variable) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.Value.Position())
 }
 
-func (self *Variable) stmt() {}
+func (*Variable) stmt() {}
+
+// If if
+type If struct {
+	Begin reader.Position
+	Cond  Expr
+	Body  *Block
+}
+
+func (self *If) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*If) stmt() {}

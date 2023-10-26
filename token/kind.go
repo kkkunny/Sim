@@ -48,6 +48,7 @@ const (
 	AS
 	STRUCT
 	LET
+	IF
 	_KeywordEnd
 )
 
@@ -87,6 +88,7 @@ var kindNames = [...]string{
 	AS:      "as",
 	STRUCT:  "struct",
 	LET:     "let",
+	IF:      "if",
 }
 
 // Lookup 区分标识符和关键字

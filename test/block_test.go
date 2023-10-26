@@ -12,3 +12,14 @@ func main()u8{
 }
 `)
 }
+
+func TestIf(t *testing.T) {
+	assertRetEqZero(t, `
+func main()u8{
+    if true{
+        return 0
+    }
+    return 1
+}
+`)
+}
