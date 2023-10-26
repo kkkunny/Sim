@@ -1,11 +1,4 @@
-struct T{
-    data: u8
-}
-
-func get()T{
-    return T{data: 1}
-}
-
 func main()u8{
-    return get().data - 1
+    let i: u8 = 1;
+    return i
 }

@@ -16,10 +16,26 @@ type Block struct {
 	Stmts linkedlist.LinkedList[Stmt]
 }
 
-func (self *Block) stmt() {}
+func (*Block) stmt() {}
 
+// Return 函数返回
 type Return struct {
 	Value util.Option[Expr]
 }
 
-func (self *Return) stmt() {}
+func (*Return) stmt() {}
+
+// Variable 变量定义
+type Variable struct {
+	Type  Type
+	Name  string
+	Value Expr
+}
+
+func (*Variable) stmt() {}
+
+func (self *Variable) GetType() Type {
+	return self.Type
+}
+
+func (*Variable) ident() {}

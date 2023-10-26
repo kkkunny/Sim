@@ -171,3 +171,5 @@ func (self *TupleType) Equal(dst Type) bool {
 	}
 	return true
 }
+
+type StructType = StructDef

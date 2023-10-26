@@ -12,6 +12,8 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, bool) {
 	switch stmtNode := node.(type) {
 	case *ast.Return:
 		return self.analyseReturn(stmtNode), true
+	case *ast.Variable:
+		return self.analyseVariable(stmtNode), false
 	case ast.Expr:
 		return self.analyseExpr(nil, stmtNode), false
 	default:
@@ -47,4 +49,16 @@ func (self *Analyser) analyseReturn(node *ast.Return) *Return {
 		}
 		return &Return{Value: util.None[Expr]()}
 	}
+}
+
+func (self *Analyser) analyseVariable(node *ast.Variable) *Variable {
+	v := &Variable{Name: node.Name.Source()}
+	if !self.localScope.SetValue(v.Name, v) {
+		// TODO: 编译时异常：变量名冲突
+		panic("unreachable")
+	}
+
+	v.Type = self.analyseType(node.Type)
+	v.Value = self.expectExpr(v.Type, node.Value)
+	return v
 }
