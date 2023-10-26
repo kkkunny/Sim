@@ -11,6 +11,8 @@ func (self *Parser) parseStmt() Stmt {
 	switch self.nextTok.Kind {
 	case token.RETURN:
 		return self.parseReturn()
+	case token.LET:
+		return self.parseVariable()
 	default:
 		return self.mustExpr(self.parseOptionExpr(true))
 	}
@@ -44,6 +46,21 @@ func (self *Parser) parseReturn() *Return {
 	value := self.parseOptionExpr(true)
 	return &Return{
 		Begin: begin,
+		Value: value,
+	}
+}
+
+func (self *Parser) parseVariable() *Variable {
+	begin := self.expectNextIs(token.LET).Position
+	name := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.COL)
+	typ := self.parseType()
+	self.expectNextIs(token.ASS)
+	value := self.mustExpr(self.parseOptionExpr(true))
+	return &Variable{
+		Begin: begin,
+		Name:  name,
+		Type:  typ,
 		Value: value,
 	}
 }

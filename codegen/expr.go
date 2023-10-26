@@ -200,7 +200,7 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident) llvm.Value {
 	case *mean.FuncDef:
 		f := self.module.GetFunction(identNode.Name)
 		return f
-	case *mean.Param:
+	case *mean.Param, *mean.Variable:
 		p := self.values[identNode]
 		t := self.codegenType(node.GetType())
 		return self.builder.CreateLoad("", t, p)

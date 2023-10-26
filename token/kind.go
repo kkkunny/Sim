@@ -11,6 +11,8 @@ const (
 	INTEGER
 	FLOAT
 
+	ASS
+
 	AND
 	OR
 	XOR
@@ -45,6 +47,7 @@ const (
 	FALSE
 	AS
 	STRUCT
+	LET
 	_KeywordEnd
 )
 
@@ -54,6 +57,7 @@ var kindNames = [...]string{
 	IDENT:   "ident",
 	INTEGER: "integer",
 	FLOAT:   "float",
+	ASS:     "ass",
 	AND:     "and",
 	OR:      "or",
 	XOR:     "xor",
@@ -82,6 +86,7 @@ var kindNames = [...]string{
 	FALSE:   "false",
 	AS:      "as",
 	STRUCT:  "struct",
+	LET:     "let",
 }
 
 // Lookup 区分标识符和关键字
