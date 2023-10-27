@@ -74,11 +74,9 @@ func (self *Parser) parseIfElse() *IfElse {
 	begin := self.expectNextIs(token.IF).Position
 	cond := self.mustExpr(self.parseOptionExpr(false))
 	body := self.parseBlock()
-	self.skipSEM()
 	var next util.Option[*IfElse]
 	if self.skipNextIs(token.ELSE) {
 		nextBegin := self.curTok.Position
-		self.skipSEM()
 		if self.nextIs(token.IF) {
 			next = util.Some(self.parseIfElse())
 		} else {
