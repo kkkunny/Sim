@@ -5,6 +5,7 @@ import (
 
 	. "github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *Parser) parseStmt() Stmt {
@@ -16,7 +17,7 @@ func (self *Parser) parseStmt() Stmt {
 	case token.LBR:
 		return self.parseBlock()
 	case token.IF:
-		return self.parseIf()
+		return self.parseIfElse()
 	default:
 		return self.mustExpr(self.parseOptionExpr(true))
 	}
@@ -69,13 +70,28 @@ func (self *Parser) parseVariable() *Variable {
 	}
 }
 
-func (self *Parser) parseIf() *If {
+func (self *Parser) parseIfElse() *IfElse {
 	begin := self.expectNextIs(token.IF).Position
 	cond := self.mustExpr(self.parseOptionExpr(false))
 	body := self.parseBlock()
-	return &If{
+	self.skipSEM()
+	var next util.Option[*IfElse]
+	if self.skipNextIs(token.ELSE) {
+		nextBegin := self.curTok.Position
+		self.skipSEM()
+		if self.nextIs(token.IF) {
+			next = util.Some(self.parseIfElse())
+		} else {
+			next = util.Some(&IfElse{
+				Begin: nextBegin,
+				Body:  self.parseBlock(),
+			})
+		}
+	}
+	return &IfElse{
 		Begin: begin,
-		Cond:  cond,
+		Cond:  util.Some(cond),
 		Body:  body,
+		Next:  next,
 	}
 }

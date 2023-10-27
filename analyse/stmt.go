@@ -8,34 +8,34 @@ import (
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, SkipOut) {
+func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, JumpOut) {
 	switch stmtNode := node.(type) {
 	case *ast.Return:
 		ret := self.analyseReturn(stmtNode)
-		return ret, ret
+		return ret, JumpOutReturn
 	case *ast.Variable:
-		return self.analyseVariable(stmtNode), nil
+		return self.analyseVariable(stmtNode), JumpOutNone
 	case *ast.Block:
 		return self.analyseBlock(stmtNode)
-	case *ast.If:
-		return self.analyseIf(stmtNode), nil
+	case *ast.IfElse:
+		return self.analyseIfElse(stmtNode)
 	case ast.Expr:
-		return self.analyseExpr(nil, stmtNode), nil
+		return self.analyseExpr(nil, stmtNode), JumpOutNone
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseBlock(node *ast.Block) (*Block, SkipOut) {
+func (self *Analyser) analyseBlock(node *ast.Block) (*Block, JumpOut) {
 	self.localScope = _NewBlockScope(self.localScope)
 	defer func() {
 		self.localScope = self.localScope.GetParent().(_LocalScope)
 	}()
 
-	var end SkipOut
+	var jump JumpOut
 	stmts := linkedlist.NewLinkedList[Stmt]()
 	for iter := node.Stmts.Iterator(); iter.Next(); {
-		stmt, out := self.analyseStmt(iter.Value())
+		stmt, stmtJump := self.analyseStmt(iter.Value())
 		if b, ok := stmt.(*Block); ok {
 			for iter := b.Stmts.Iterator(); iter.Next(); {
 				stmts.PushBack(iter.Value())
@@ -43,17 +43,9 @@ func (self *Analyser) analyseBlock(node *ast.Block) (*Block, SkipOut) {
 		} else {
 			stmts.PushBack(stmt)
 		}
-		if out != nil {
-			switch out.(type) {
-			case *Return:
-				end = out
-			default:
-				panic("unreachable")
-			}
-			break
-		}
+		jump = max(jump, stmtJump)
 	}
-	return &Block{Stmts: stmts}, end
+	return &Block{Stmts: stmts}, jump
 }
 
 func (self *Analyser) analyseReturn(node *ast.Return) *Return {
@@ -82,11 +74,27 @@ func (self *Analyser) analyseVariable(node *ast.Variable) *Variable {
 	return v
 }
 
-func (self *Analyser) analyseIf(node *ast.If) *If {
-	cond := self.expectExpr(Bool, node.Cond)
-	body, _ := self.analyseBlock(node.Body)
-	return &If{
-		Cond: cond,
-		Body: body,
+func (self *Analyser) analyseIfElse(node *ast.IfElse) (*IfElse, JumpOut) {
+	if condNode, ok := node.Cond.Value(); ok {
+		cond := self.expectExpr(Bool, condNode)
+		body, jump := self.analyseBlock(node.Body)
+
+		var next util.Option[*IfElse]
+		if nextNode, ok := node.Next.Value(); ok {
+			nextIf, nextJump := self.analyseIfElse(nextNode)
+			next = util.Some(nextIf)
+			jump = max(jump, nextJump)
+		} else {
+			jump = JumpOutNone
+		}
+
+		return &IfElse{
+			Cond: util.Some(cond),
+			Body: body,
+			Next: next,
+		}, jump
+	} else {
+		body, jump := self.analyseBlock(node.Body)
+		return &IfElse{Body: body}, jump
 	}
 }

@@ -97,9 +97,9 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 		}
 	}
 
-	body, ret := self.analyseBlock(node.Body)
+	body, jump := self.analyseBlock(node.Body)
 	f.Body = body
-	if ret == nil {
+	if jump < JumpOutReturn {
 		// TODO: 编译时异常：缺少函数返回值
 		panic("unreachable")
 	}

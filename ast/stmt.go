@@ -57,15 +57,28 @@ func (self *Variable) Position() reader.Position {
 
 func (*Variable) stmt() {}
 
-// If if
-type If struct {
+// IfElse if else
+type IfElse struct {
 	Begin reader.Position
-	Cond  Expr
+	Cond  util.Option[Expr]
 	Body  *Block
+	Next  util.Option[*IfElse]
 }
 
-func (self *If) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Body.Position())
+func (self *IfElse) IsIf() bool {
+	return self.Cond.IsSome()
 }
 
-func (*If) stmt() {}
+func (self *IfElse) IsElse() bool {
+	return self.Cond.IsNone()
+}
+
+func (self *IfElse) Position() reader.Position {
+	if next, ok := self.Next.Value(); !ok {
+		return reader.MixPosition(self.Begin, self.Body.Position())
+	} else {
+		return reader.MixPosition(self.Begin, next.Position())
+	}
+}
+
+func (*IfElse) stmt() {}

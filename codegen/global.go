@@ -62,6 +62,6 @@ func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 		self.values[np] = param
 	}
 
-	body := self.codegenBlock(node.Body)
-	self.builder.CreateBr(body)
+	block, _ := self.codegenBlock(node.Body)
+	self.builder.CreateBr(block)
 }

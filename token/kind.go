@@ -49,6 +49,7 @@ const (
 	STRUCT
 	LET
 	IF
+	ELSE
 	_KeywordEnd
 )
 
@@ -88,6 +89,7 @@ var kindNames = [...]string{
 	AS:      "as",
 	STRUCT:  "struct",
 	LET:     "let",
+	ELSE:    "else",
 	IF:      "if",
 }
 
