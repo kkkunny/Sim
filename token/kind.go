@@ -16,6 +16,7 @@ const (
 	AND
 	OR
 	XOR
+	NOT
 
 	ADD
 	SUB
@@ -23,6 +24,8 @@ const (
 	DIV
 	REM
 
+	EQ
+	NE
 	LT
 	GT
 	LE
@@ -63,11 +66,14 @@ var kindNames = [...]string{
 	AND:     "and",
 	OR:      "or",
 	XOR:     "xor",
+	NOT:     "not",
 	ADD:     "add",
 	SUB:     "sub",
 	MUL:     "mul",
 	DIV:     "div",
 	REM:     "rem",
+	EQ:      "eq",
+	NE:      "ne",
 	LT:      "lt",
 	GT:      "gt",
 	LE:      "le",
@@ -114,10 +120,12 @@ func (self Kind) String() string {
 func (self Kind) Priority() uint8 {
 	switch self {
 	case MUL, DIV, REM:
-		return 6
+		return 7
 	case ADD, SUB:
-		return 5
+		return 6
 	case LT, GT, LE, GE:
+		return 5
+	case EQ, NE:
 		return 4
 	case AND:
 		return 3

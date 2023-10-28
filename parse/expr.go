@@ -75,8 +75,9 @@ func (self *Parser) parseTuple() *Tuple {
 
 func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[Expr] {
 	switch self.nextTok.Kind {
-	case token.SUB:
-		opera := self.expectNextIs(token.SUB)
+	case token.SUB, token.NOT:
+		self.next()
+		opera := self.curTok
 		value := self.mustExpr(self.parseOptionPrefixUnary(canStruct))
 		return util.Some[Expr](&Unary{
 			Opera: opera,

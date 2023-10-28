@@ -17,7 +17,7 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 	case *mean.IfElse:
 		self.codegenIfElse(stmtNode)
 	case mean.Expr:
-		self.codegenExpr(stmtNode)
+		self.codegenExpr(stmtNode, false)
 	default:
 		panic("unreachable")
 	}
@@ -46,7 +46,7 @@ func (self *CodeGenerator) codegenBlock(node *mean.Block) (llvm.Block, llvm.Bloc
 
 func (self *CodeGenerator) codegenReturn(node *mean.Return) {
 	if v, ok := node.Value.Value(); ok {
-		v := self.codegenExpr(v)
+		v := self.codegenExpr(v, true)
 		self.builder.CreateRet(&v)
 	} else {
 		self.builder.CreateRet(nil)
@@ -55,7 +55,7 @@ func (self *CodeGenerator) codegenReturn(node *mean.Return) {
 
 func (self *CodeGenerator) codegenVariable(node *mean.Variable) {
 	t := self.codegenType(node.Type)
-	value := self.codegenExpr(node.Value)
+	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.CreateAlloca("", t)
 	self.builder.CreateStore(value, ptr)
 	self.values[node] = ptr
@@ -91,7 +91,7 @@ func (self *CodeGenerator) codegenIfElse(node *mean.IfElse) {
 
 func (self *CodeGenerator) codegenIfElseNode(node *mean.IfElse) []llvm.Block {
 	if condNode, ok := node.Cond.Value(); ok {
-		cond := self.codegenExpr(condNode)
+		cond := self.codegenExpr(condNode, true)
 		trueStartBlock, trueEndBlock := self.codegenBlock(node.Body)
 		falseBlock := trueStartBlock.Belong().NewBlock("")
 		self.builder.CreateCondBr(cond, trueStartBlock, falseBlock)

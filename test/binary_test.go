@@ -51,3 +51,28 @@ func main()bool{
 }
 `)
 }
+
+func TestIntEq(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return 1==2
+}
+`)
+}
+
+func TestFlaotEq(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    let i: f64 = 1.2
+    return i==2.2
+}
+`)
+}
+
+func TestBoolEq(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return true == false
+}
+`)
+}

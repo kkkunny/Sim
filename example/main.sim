@@ -1,7 +1,4 @@
-func main()u8{
-    if true{
-        return 0
-    }else{
-		return 1
-	}
+func main()bool{
+    let i: f64 = 1.2
+    return i==2.2
 }
