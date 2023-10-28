@@ -2,6 +2,8 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/mean"
 )
@@ -23,6 +25,9 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 
 func (self *CodeGenerator) codegenFlatBlock(node *mean.Block) {
 	for iter := node.Stmts.Iterator(); iter.Next(); {
+		if self.builder.CurrentBlock().IsTerminating() {
+			break
+		}
 		self.codegenStmt(iter.Value())
 	}
 }
@@ -62,12 +67,22 @@ func (self *CodeGenerator) codegenIfElse(node *mean.IfElse) {
 	var brenchEndBlocks []llvm.Block
 	var endBlock llvm.Block
 	if node.HasElse() {
-		brenchEndBlocks, endBlock = blocks, blocks[0].Belong().NewBlock("")
+		brenchEndBlocks = blocks
+		end := iterator.All(dynarray.NewDynArrayWith(brenchEndBlocks...), func(v llvm.Block) bool {
+			return v.IsTerminating()
+		})
+		if end {
+			return
+		}
+		endBlock = blocks[0].Belong().NewBlock("")
 	} else {
 		brenchEndBlocks, endBlock = blocks[:len(blocks)-1], blocks[len(blocks)-1]
 	}
 
 	for _, brenchEndBlock := range brenchEndBlocks {
+		if brenchEndBlock.IsTerminating() {
+			continue
+		}
 		self.builder.MoveToAfter(brenchEndBlock)
 		self.builder.CreateBr(endBlock)
 	}

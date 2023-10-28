@@ -1,13 +1,7 @@
-github.com/kkkunny/go-llvm v0.0.0-20231022071440-970167808114 h1:nlchNf7iAtBXFP1MYEiPjS6SdQor4Tez5sCyQR+79Y0=
-github.com/kkkunny/go-llvm v0.0.0-20231022071440-970167808114/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
-github.com/kkkunny/go-llvm v0.0.0-20231022091327-288268740f4d h1:GTKwPcr9hrQBGUwzA16JD+h4k/Bp7Y+cUzuB6lb8L3Y=
-github.com/kkkunny/go-llvm v0.0.0-20231022091327-288268740f4d/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
-github.com/kkkunny/go-llvm v0.0.0-20231022112819-c995932e65e0 h1:TrL7WoxBUXfMdoNwFOWKOGWo9oBZTAkCmnczcEy5/YA=
-github.com/kkkunny/go-llvm v0.0.0-20231022112819-c995932e65e0/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
-github.com/kkkunny/go-llvm v0.0.0-20231022134249-a7ebd2dcb283 h1:BwHJQXiNrXXMiXDnFxsVTRXOsatEqtVOKwAyoVc06AA=
-github.com/kkkunny/go-llvm v0.0.0-20231022134249-a7ebd2dcb283/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
-github.com/kkkunny/stl v0.0.0-20231014052322-46f1c45686f0 h1:VAtB9hn2SIdUjV9o+1ieqoaMQ95cuwgnzdbJGyrLBn4=
-github.com/kkkunny/stl v0.0.0-20231014052322-46f1c45686f0/go.mod h1:4TbqW9zjHIpp/0Auz1/nyec9WsiMN878ifaEPwVSdkE=
+github.com/kkkunny/go-llvm v0.0.0-20231028011222-3cfd93cf839e h1:TJd+p3QuOfiWpBzWospN96JUpTMXY4lq0s7hW5x5Mr4=
+github.com/kkkunny/go-llvm v0.0.0-20231028011222-3cfd93cf839e/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231028014507-f8562b89d063 h1:liVKTxOz69KER6tvp8wA5qrdB62XDEj6O4shld1d3v8=
+github.com/kkkunny/go-llvm v0.0.0-20231028014507-f8562b89d063/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
 github.com/kkkunny/stl v0.0.0-20231022115244-2d9f235921a3 h1:okBRIiEPszBnpp5S+QAIFrXKh1uzoxE6cpCI26vuFlU=
 github.com/kkkunny/stl v0.0.0-20231022115244-2d9f235921a3/go.mod h1:ejV1eqgIILdhe27rI/mF+8VLiifmVdzpv66Ha/5AI0U=
 github.com/klauspost/cpuid/v2 v2.0.9 h1:lgaqFMSdTdQYdZ04uHyN2d/eKdOMyi2YLSvlQIBFYa4=
