@@ -115,6 +115,20 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 				Right: right,
 			}
 		}
+	case token.SHL:
+		if lt.Equal(rt) && TypeIs[IntType](lt) {
+			return &IntShlInt{
+				Left:  left,
+				Right: right,
+			}
+		}
+	case token.SHR:
+		if lt.Equal(rt) && TypeIs[IntType](lt) {
+			return &IntShrInt{
+				Left:  left,
+				Right: right,
+			}
+		}
 	case token.ADD:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
 			return &NumAddNum{

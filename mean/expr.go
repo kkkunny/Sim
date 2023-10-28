@@ -106,6 +106,44 @@ func (self *IntXorInt) GetRight() Expr {
 	return self.Right
 }
 
+// IntShlInt 整数左移整数
+type IntShlInt struct {
+	Left, Right Expr
+}
+
+func (self *IntShlInt) stmt() {}
+
+func (self *IntShlInt) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *IntShlInt) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *IntShlInt) GetRight() Expr {
+	return self.Right
+}
+
+// IntShrInt 整数右移整数
+type IntShrInt struct {
+	Left, Right Expr
+}
+
+func (self *IntShrInt) stmt() {}
+
+func (self *IntShrInt) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *IntShrInt) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *IntShrInt) GetRight() Expr {
+	return self.Right
+}
+
 // NumAddNum 数字加数字
 type NumAddNum struct {
 	Left, Right Expr

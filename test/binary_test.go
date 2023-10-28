@@ -76,3 +76,19 @@ func main()bool{
 }
 `)
 }
+
+func TestShl(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return (11 << 2) != 44
+}
+`)
+}
+
+func TestShr(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return (11 >> 2) != 2
+}
+`)
+}

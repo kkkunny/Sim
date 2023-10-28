@@ -72,6 +72,17 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		return self.builder.CreateOr("", left, right)
 	case *mean.IntXorInt:
 		return self.builder.CreateXor("", left, right)
+	case *mean.IntShlInt:
+		return self.builder.CreateShl("", left, right)
+	case *mean.IntShrInt:
+		switch node.GetType().(type) {
+		case *mean.SintType:
+			return self.builder.CreateAShr("", left, right)
+		case *mean.UintType:
+			return self.builder.CreateLShr("", left, right)
+		default:
+			panic("unreachable")
+		}
 	case *mean.NumAddNum:
 		switch node.GetType().(type) {
 		case *mean.SintType:

@@ -133,12 +133,18 @@ func (self *Lexer) Scan() Token {
 			if nextCh := self.peek(); nextCh == '=' {
 				self.next()
 				kind = LE
+			} else if nextCh == '<' {
+				self.next()
+				kind = SHL
 			}
 		case '>':
 			kind = GT
 			if nextCh := self.peek(); nextCh == '=' {
 				self.next()
 				kind = GE
+			} else if nextCh == '>' {
+				self.next()
+				kind = SHR
 			}
 		case '(':
 			kind = LPA
