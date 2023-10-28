@@ -23,7 +23,7 @@ jobs:
           go-version: '1.21.3'
 
       - name: Build
-        run: go env -w 'CC=clang' 'CXX=clang++' && go build -v ./...
+        run: llvm-config --libdir && llvm-config --libs && go env -w 'CC=clang' 'CXX=clang++' && go build -v ./...
 
       - name: Test
         uses: robherley/go-test-action@v0.1.0
