@@ -49,7 +49,7 @@ func (self Lexer) peek(skip ...uint) rune {
 
 // 跳过空白
 func (self *Lexer) skipWhite() {
-	for ch := self.peek(); ch == ' ' || ch == '\r'; ch = self.peek() {
+	for ch := self.peek(); ch == ' ' || ch == '\r' || ch == '\t'; ch = self.peek() {
 		_ = self.next()
 	}
 }
