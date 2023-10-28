@@ -23,3 +23,11 @@ func main()i32{
 }
 `)
 }
+
+func TestBoolNegate(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return !true
+}
+`)
+}

@@ -92,3 +92,19 @@ func main()bool{
 }
 `)
 }
+
+func TestLogicAnd(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return true && false
+}
+`)
+}
+
+func TestLogicOr(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return false || false
+}
+`)
+}

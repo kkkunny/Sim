@@ -108,8 +108,16 @@ func (self *Lexer) Scan() Token {
 			}
 		case '&':
 			kind = AND
+			if nextCh := self.peek(); nextCh == '&' {
+				self.next()
+				kind = LAND
+			}
 		case '|':
 			kind = OR
+			if nextCh := self.peek(); nextCh == '|' {
+				self.next()
+				kind = LOR
+			}
 		case '^':
 			kind = XOR
 		case '!':

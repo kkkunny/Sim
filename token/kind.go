@@ -33,6 +33,9 @@ const (
 	LE
 	GE
 
+	LAND
+	LOR
+
 	LPA
 	RPA
 	LBA
@@ -82,6 +85,8 @@ var kindNames = [...]string{
 	GT:      "gt",
 	LE:      "le",
 	GE:      "ge",
+	LAND:    "logic and",
+	LOR:     "logic or",
 	LPA:     "lpa",
 	RPA:     "rpa",
 	LBA:     "lba",
@@ -124,20 +129,24 @@ func (self Kind) String() string {
 func (self Kind) Priority() uint8 {
 	switch self {
 	case MUL, DIV, REM:
-		return 8
+		return 10
 	case ADD, SUB:
-		return 7
+		return 9
 	case SHL, SHR:
-		return 6
+		return 8
 	case LT, GT, LE, GE:
-		return 5
+		return 7
 	case EQ, NE:
-		return 4
+		return 6
 	case AND:
-		return 3
+		return 5
 	case XOR:
-		return 2
+		return 4
 	case OR:
+		return 3
+	case LAND:
+		return 2
+	case LOR:
 		return 1
 	default:
 		return 0

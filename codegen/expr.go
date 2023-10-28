@@ -66,9 +66,9 @@ func (self *CodeGenerator) codegenBool(node *mean.Boolean) llvm.Value {
 func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 	left, right := self.codegenExpr(node.GetLeft(), true), self.codegenExpr(node.GetRight(), true)
 	switch node.(type) {
-	case *mean.IntAndInt:
+	case *mean.IntAndInt, *mean.BoolAndBool:
 		return self.builder.CreateAnd("", left, right)
-	case *mean.IntOrInt:
+	case *mean.IntOrInt, *mean.BoolOrBool:
 		return self.builder.CreateOr("", left, right)
 	case *mean.IntXorInt:
 		return self.builder.CreateXor("", left, right)
@@ -204,7 +204,7 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case *mean.IntBitNegate:
+	case *mean.IntBitNegate, *mean.BoolNegate:
 		return self.builder.CreateNot("", value)
 	default:
 		panic("unreachable")

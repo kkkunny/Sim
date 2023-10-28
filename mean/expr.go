@@ -543,6 +543,44 @@ func (self *StructNeStruct) GetRight() Expr {
 	return self.Right
 }
 
+// BoolAndBool 布尔并且布尔
+type BoolAndBool struct {
+	Left, Right Expr
+}
+
+func (self *BoolAndBool) stmt() {}
+
+func (self *BoolAndBool) GetType() Type {
+	return Bool
+}
+
+func (self *BoolAndBool) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *BoolAndBool) GetRight() Expr {
+	return self.Right
+}
+
+// BoolOrBool 布尔或者布尔
+type BoolOrBool struct {
+	Left, Right Expr
+}
+
+func (self *BoolOrBool) stmt() {}
+
+func (self *BoolOrBool) GetType() Type {
+	return Bool
+}
+
+func (self *BoolOrBool) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *BoolOrBool) GetRight() Expr {
+	return self.Right
+}
+
 // Unary 一元运算
 type Unary interface {
 	Expr
@@ -576,6 +614,21 @@ func (self *IntBitNegate) GetType() Type {
 }
 
 func (self *IntBitNegate) GetValue() Expr {
+	return self.Value
+}
+
+// BoolNegate 布尔取反
+type BoolNegate struct {
+	Value Expr
+}
+
+func (self *BoolNegate) stmt() {}
+
+func (self *BoolNegate) GetType() Type {
+	return Bool
+}
+
+func (self *BoolNegate) GetValue() Expr {
 	return self.Value
 }
 

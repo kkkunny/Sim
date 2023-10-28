@@ -262,6 +262,20 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 				Right: right,
 			}
 		}
+	case token.LAND:
+		if lt.Equal(rt) && TypeIs[*BoolType](lt) {
+			return &BoolAndBool{
+				Left:  left,
+				Right: right,
+			}
+		}
+	case token.LOR:
+		if lt.Equal(rt) && TypeIs[*BoolType](lt) {
+			return &BoolOrBool{
+				Left:  left,
+				Right: right,
+			}
+		}
 	default:
 		panic("unreachable")
 	}
@@ -280,8 +294,11 @@ func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
 			return &NumNegate{Value: value}
 		}
 	case token.NOT:
-		if TypeIs[IntType](vt) {
+		switch {
+		case TypeIs[IntType](vt):
 			return &IntBitNegate{Value: value}
+		case TypeIs[*BoolType](vt):
+			return &BoolNegate{Value: value}
 		}
 	default:
 		panic("unreachable")
