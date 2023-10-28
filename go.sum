@@ -2,8 +2,16 @@ github.com/kkkunny/go-llvm v0.0.0-20231028011222-3cfd93cf839e h1:TJd+p3QuOfiWpBz
 github.com/kkkunny/go-llvm v0.0.0-20231028011222-3cfd93cf839e/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
 github.com/kkkunny/go-llvm v0.0.0-20231028014507-f8562b89d063 h1:liVKTxOz69KER6tvp8wA5qrdB62XDEj6O4shld1d3v8=
 github.com/kkkunny/go-llvm v0.0.0-20231028014507-f8562b89d063/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231028052716-37d571462267 h1:8ry2LWUoaHkBTO+DJUbqK0V18Ly7Mn1+kBpOVdpLWd8=
+github.com/kkkunny/go-llvm v0.0.0-20231028052716-37d571462267/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231028061758-dfc428a9f155 h1:mvCm2qm37qj3662yWBj/Af1wZjCDwHRIJIIpxCTmXcM=
+github.com/kkkunny/go-llvm v0.0.0-20231028061758-dfc428a9f155/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231028084748-f1238c17ee0c h1:upBpAlTmbgeBGYFNPsqBWED1QDaJcRfmJJP9qGbeJtc=
+github.com/kkkunny/go-llvm v0.0.0-20231028084748-f1238c17ee0c/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
 github.com/kkkunny/stl v0.0.0-20231022115244-2d9f235921a3 h1:okBRIiEPszBnpp5S+QAIFrXKh1uzoxE6cpCI26vuFlU=
 github.com/kkkunny/stl v0.0.0-20231022115244-2d9f235921a3/go.mod h1:ejV1eqgIILdhe27rI/mF+8VLiifmVdzpv66Ha/5AI0U=
+github.com/kkkunny/stl v0.0.0-20231028054835-9e62588d115e h1:Ygjwutmv7EgJgYy8GsRa/2HHBEyLKlY/rUQoHaNb2Y8=
+github.com/kkkunny/stl v0.0.0-20231028054835-9e62588d115e/go.mod h1:ejV1eqgIILdhe27rI/mF+8VLiifmVdzpv66Ha/5AI0U=
 github.com/klauspost/cpuid/v2 v2.0.9 h1:lgaqFMSdTdQYdZ04uHyN2d/eKdOMyi2YLSvlQIBFYa4=
 github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
 github.com/samber/lo v1.38.1 h1:j2XEAqXKb09Am4ebOg31SpvzUTTs6EN3VfgeLUhPdXM=

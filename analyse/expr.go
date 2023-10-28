@@ -19,7 +19,7 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 	case *ast.Float:
 		return self.analyseFloat(expect, exprNode)
 	case *ast.Boolean:
-		return self.analyseBool(expect, exprNode)
+		return self.analyseBool(exprNode)
 	case *ast.Binary:
 		return self.analyseBinary(expect, exprNode)
 	case *ast.Unary:
@@ -76,20 +76,22 @@ func (self *Analyser) analyseFloat(expect Type, node *ast.Float) *Float {
 	if expect == nil || !TypeIs[*FloatType](expect) {
 		expect = F64
 	}
-	value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
+	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
 	return &Float{
 		Type:  expect.(*FloatType),
 		Value: *value,
 	}
 }
 
-func (self *Analyser) analyseBool(expect Type, node *ast.Boolean) *Boolean {
+func (self *Analyser) analyseBool(node *ast.Boolean) *Boolean {
 	return &Boolean{Value: node.Value.Is(token.TRUE)}
 }
 
 func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
-	left, right := self.analyseExpr(expect, node.Left), self.analyseExpr(expect, node.Right)
-	lt, rt := left.GetType(), right.GetType()
+	left := self.analyseExpr(expect, node.Left)
+	lt := left.GetType()
+	right := self.analyseExpr(lt, node.Right)
+	rt := right.GetType()
 
 	switch node.Opera.Kind {
 	case token.AND:
@@ -109,6 +111,20 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 	case token.XOR:
 		if lt.Equal(rt) && TypeIs[IntType](lt) {
 			return &IntXorInt{
+				Left:  left,
+				Right: right,
+			}
+		}
+	case token.SHL:
+		if lt.Equal(rt) && TypeIs[IntType](lt) {
+			return &IntShlInt{
+				Left:  left,
+				Right: right,
+			}
+		}
+	case token.SHR:
+		if lt.Equal(rt) && TypeIs[IntType](lt) {
+			return &IntShrInt{
 				Left:  left,
 				Right: right,
 			}
@@ -148,6 +164,76 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 				Right: right,
 			}
 		}
+	case token.EQ:
+		if lt.Equal(rt) {
+			switch {
+			case TypeIs[NumberType](lt):
+				return &NumEqNum{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*BoolType](lt):
+				return &BoolEqBool{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*FuncType](lt):
+				return &FuncEqFunc{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*ArrayType](lt):
+				return &ArrayEqArray{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*TupleType](lt):
+				return &TupleEqTuple{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*StructType](lt):
+				return &StructEqStruct{
+					Left:  left,
+					Right: right,
+				}
+			}
+		}
+	case token.NE:
+		if lt.Equal(rt) {
+			switch {
+			case TypeIs[NumberType](lt):
+				return &NumNeNum{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*BoolType](lt):
+				return &BoolNeBool{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*FuncType](lt):
+				return &FuncNeFunc{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*ArrayType](lt):
+				return &ArrayNeArray{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*TupleType](lt):
+				return &TupleNeTuple{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*StructType](lt):
+				return &StructNeStruct{
+					Left:  left,
+					Right: right,
+				}
+			}
+		}
 	case token.LT:
 		if lt.Equal(rt) && TypeIs[NumberType](lt) {
 			return &NumLtNum{
@@ -176,6 +262,20 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 				Right: right,
 			}
 		}
+	case token.LAND:
+		if lt.Equal(rt) && TypeIs[*BoolType](lt) {
+			return &BoolAndBool{
+				Left:  left,
+				Right: right,
+			}
+		}
+	case token.LOR:
+		if lt.Equal(rt) && TypeIs[*BoolType](lt) {
+			return &BoolOrBool{
+				Left:  left,
+				Right: right,
+			}
+		}
 	default:
 		panic("unreachable")
 	}
@@ -192,6 +292,13 @@ func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
 	case token.SUB:
 		if TypeIs[*SintType](vt) || TypeIs[*FloatType](vt) {
 			return &NumNegate{Value: value}
+		}
+	case token.NOT:
+		switch {
+		case TypeIs[IntType](vt):
+			return &IntBitNegate{Value: value}
+		case TypeIs[*BoolType](vt):
+			return &BoolNegate{Value: value}
 		}
 	default:
 		panic("unreachable")

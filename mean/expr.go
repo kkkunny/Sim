@@ -106,6 +106,44 @@ func (self *IntXorInt) GetRight() Expr {
 	return self.Right
 }
 
+// IntShlInt 整数左移整数
+type IntShlInt struct {
+	Left, Right Expr
+}
+
+func (self *IntShlInt) stmt() {}
+
+func (self *IntShlInt) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *IntShlInt) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *IntShlInt) GetRight() Expr {
+	return self.Right
+}
+
+// IntShrInt 整数右移整数
+type IntShrInt struct {
+	Left, Right Expr
+}
+
+func (self *IntShrInt) stmt() {}
+
+func (self *IntShrInt) GetType() Type {
+	return self.Left.GetType()
+}
+
+func (self *IntShrInt) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *IntShrInt) GetRight() Expr {
+	return self.Right
+}
+
 // NumAddNum 数字加数字
 type NumAddNum struct {
 	Left, Right Expr
@@ -277,13 +315,279 @@ func (self *NumGeNum) GetRight() Expr {
 	return self.Right
 }
 
+// NumEqNum 数字等于数字
+type NumEqNum struct {
+	Left, Right Expr
+}
+
+func (self *NumEqNum) stmt() {}
+
+func (self *NumEqNum) GetType() Type {
+	return Bool
+}
+
+func (self *NumEqNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumEqNum) GetRight() Expr {
+	return self.Right
+}
+
+// BoolEqBool 布尔等于布尔
+type BoolEqBool struct {
+	Left, Right Expr
+}
+
+func (self *BoolEqBool) stmt() {}
+
+func (self *BoolEqBool) GetType() Type {
+	return Bool
+}
+
+func (self *BoolEqBool) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *BoolEqBool) GetRight() Expr {
+	return self.Right
+}
+
+// FuncEqFunc 函数等于函数
+type FuncEqFunc struct {
+	Left, Right Expr
+}
+
+func (self *FuncEqFunc) stmt() {}
+
+func (self *FuncEqFunc) GetType() Type {
+	return Bool
+}
+
+func (self *FuncEqFunc) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *FuncEqFunc) GetRight() Expr {
+	return self.Right
+}
+
+// ArrayEqArray 数组等于数组
+type ArrayEqArray struct {
+	Left, Right Expr
+}
+
+func (self *ArrayEqArray) stmt() {}
+
+func (self *ArrayEqArray) GetType() Type {
+	return Bool
+}
+
+func (self *ArrayEqArray) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *ArrayEqArray) GetRight() Expr {
+	return self.Right
+}
+
+// TupleEqTuple 元组等于元组
+type TupleEqTuple struct {
+	Left, Right Expr
+}
+
+func (self *TupleEqTuple) stmt() {}
+
+func (self *TupleEqTuple) GetType() Type {
+	return Bool
+}
+
+func (self *TupleEqTuple) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *TupleEqTuple) GetRight() Expr {
+	return self.Right
+}
+
+// StructEqStruct 结构体等于结构体
+type StructEqStruct struct {
+	Left, Right Expr
+}
+
+func (self *StructEqStruct) stmt() {}
+
+func (self *StructEqStruct) GetType() Type {
+	return Bool
+}
+
+func (self *StructEqStruct) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *StructEqStruct) GetRight() Expr {
+	return self.Right
+}
+
+// NumNeNum 数字不等数字
+type NumNeNum struct {
+	Left, Right Expr
+}
+
+func (self *NumNeNum) stmt() {}
+
+func (self *NumNeNum) GetType() Type {
+	return Bool
+}
+
+func (self *NumNeNum) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *NumNeNum) GetRight() Expr {
+	return self.Right
+}
+
+// BoolNeBool 布尔不等布尔
+type BoolNeBool struct {
+	Left, Right Expr
+}
+
+func (self *BoolNeBool) stmt() {}
+
+func (self *BoolNeBool) GetType() Type {
+	return Bool
+}
+
+func (self *BoolNeBool) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *BoolNeBool) GetRight() Expr {
+	return self.Right
+}
+
+// FuncNeFunc 函数不等函数
+type FuncNeFunc struct {
+	Left, Right Expr
+}
+
+func (self *FuncNeFunc) stmt() {}
+
+func (self *FuncNeFunc) GetType() Type {
+	return Bool
+}
+
+func (self *FuncNeFunc) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *FuncNeFunc) GetRight() Expr {
+	return self.Right
+}
+
+// ArrayNeArray 数组不等数组
+type ArrayNeArray struct {
+	Left, Right Expr
+}
+
+func (self *ArrayNeArray) stmt() {}
+
+func (self *ArrayNeArray) GetType() Type {
+	return Bool
+}
+
+func (self *ArrayNeArray) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *ArrayNeArray) GetRight() Expr {
+	return self.Right
+}
+
+// TupleNeTuple 元组不等元组
+type TupleNeTuple struct {
+	Left, Right Expr
+}
+
+func (self *TupleNeTuple) stmt() {}
+
+func (self *TupleNeTuple) GetType() Type {
+	return Bool
+}
+
+func (self *TupleNeTuple) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *TupleNeTuple) GetRight() Expr {
+	return self.Right
+}
+
+// StructNeStruct 结构体不等结构体
+type StructNeStruct struct {
+	Left, Right Expr
+}
+
+func (self *StructNeStruct) stmt() {}
+
+func (self *StructNeStruct) GetType() Type {
+	return Bool
+}
+
+func (self *StructNeStruct) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *StructNeStruct) GetRight() Expr {
+	return self.Right
+}
+
+// BoolAndBool 布尔并且布尔
+type BoolAndBool struct {
+	Left, Right Expr
+}
+
+func (self *BoolAndBool) stmt() {}
+
+func (self *BoolAndBool) GetType() Type {
+	return Bool
+}
+
+func (self *BoolAndBool) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *BoolAndBool) GetRight() Expr {
+	return self.Right
+}
+
+// BoolOrBool 布尔或者布尔
+type BoolOrBool struct {
+	Left, Right Expr
+}
+
+func (self *BoolOrBool) stmt() {}
+
+func (self *BoolOrBool) GetType() Type {
+	return Bool
+}
+
+func (self *BoolOrBool) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *BoolOrBool) GetRight() Expr {
+	return self.Right
+}
+
 // Unary 一元运算
 type Unary interface {
 	Expr
 	GetValue() Expr
 }
 
-// NumNegate 数字取反
+// NumNegate 数字取相反数
 type NumNegate struct {
 	Value Expr
 }
@@ -295,6 +599,36 @@ func (self *NumNegate) GetType() Type {
 }
 
 func (self *NumNegate) GetValue() Expr {
+	return self.Value
+}
+
+// IntBitNegate 整数按位取反
+type IntBitNegate struct {
+	Value Expr
+}
+
+func (self *IntBitNegate) stmt() {}
+
+func (self *IntBitNegate) GetType() Type {
+	return self.Value.GetType()
+}
+
+func (self *IntBitNegate) GetValue() Expr {
+	return self.Value
+}
+
+// BoolNegate 布尔取反
+type BoolNegate struct {
+	Value Expr
+}
+
+func (self *BoolNegate) stmt() {}
+
+func (self *BoolNegate) GetType() Type {
+	return Bool
+}
+
+func (self *BoolNegate) GetValue() Expr {
 	return self.Value
 }
 

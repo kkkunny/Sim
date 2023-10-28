@@ -11,3 +11,23 @@ func main()isize{
 }
 `)
 }
+
+func TestBitNegate(t *testing.T) {
+	assertRetEqZero(t, `
+func main()i32{
+    let i: u8 = 10
+    if !i == 245{
+        return 0
+    }
+    return 1
+}
+`)
+}
+
+func TestBoolNegate(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+    return !true
+}
+`)
+}

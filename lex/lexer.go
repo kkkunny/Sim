@@ -102,12 +102,30 @@ func (self *Lexer) Scan() Token {
 			kind = EOF
 		case '=':
 			kind = ASS
+			if nextCh := self.peek(); nextCh == '=' {
+				self.next()
+				kind = EQ
+			}
 		case '&':
 			kind = AND
+			if nextCh := self.peek(); nextCh == '&' {
+				self.next()
+				kind = LAND
+			}
 		case '|':
 			kind = OR
+			if nextCh := self.peek(); nextCh == '|' {
+				self.next()
+				kind = LOR
+			}
 		case '^':
 			kind = XOR
+		case '!':
+			kind = NOT
+			if nextCh := self.peek(); nextCh == '=' {
+				self.next()
+				kind = NE
+			}
 		case '+':
 			kind = ADD
 		case '-':
@@ -123,12 +141,18 @@ func (self *Lexer) Scan() Token {
 			if nextCh := self.peek(); nextCh == '=' {
 				self.next()
 				kind = LE
+			} else if nextCh == '<' {
+				self.next()
+				kind = SHL
 			}
 		case '>':
 			kind = GT
 			if nextCh := self.peek(); nextCh == '=' {
 				self.next()
 				kind = GE
+			} else if nextCh == '>' {
+				self.next()
+				kind = SHR
 			}
 		case '(':
 			kind = LPA
