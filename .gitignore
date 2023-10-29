@@ -17,6 +17,3 @@
 # IDE
 .idea
 .vscode
-
-# config
-llvm_config.go
