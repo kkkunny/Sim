@@ -23,10 +23,10 @@ jobs:
           go-version: '1.21.3'
 
       - name: Config llvm
-        run: make config EXPECT_VERSION=17 && cat llvm_config.go
+        run: make config EXPECT_VERSION=17
 
       - name: Build
-        run: go build -v ./...
+        run: cat llvm_config.go && go build -v ./...
 
       - name: Test
         uses: robherley/go-test-action@v0.1.0
