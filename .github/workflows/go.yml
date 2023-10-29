@@ -15,12 +15,15 @@ jobs:
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1.9.0
         with:
-          version: '17'
+          version: '16'
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.21.3'
+
+      - name: Config LLVM
+        run: rm -rf llvm_config_linux.go && make config EXPECT_VERSION=16
 
       - name: Build
         run: go build -v ./...
