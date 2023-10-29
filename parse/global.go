@@ -15,7 +15,7 @@ func (self *Parser) parseGlobal() Global {
 		return self.parseStructDef()
 	default:
 		// TODO: 编译时异常：未知的全局
-		panic("unreachable")
+		panic("编译时异常：未知的全局")
 	}
 }
 

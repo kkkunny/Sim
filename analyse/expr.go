@@ -94,6 +94,17 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 	rt := right.GetType()
 
 	switch node.Opera.Kind {
+	case token.ASS:
+		if lt.Equal(rt) {
+			if !left.Mutable() {
+				// TODO: 编译时异常：左值不能被赋值
+				panic("编译时异常：左值不能被赋值")
+			}
+			return &Assign{
+				Left:  left,
+				Right: right,
+			}
+		}
 	case token.AND:
 		if lt.Equal(rt) && TypeIs[IntType](lt) {
 			return &IntAndInt{
@@ -281,7 +292,7 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 	}
 
 	// TODO: 编译时异常：不能对两个类型进行二元运算
-	panic("unreachable")
+	panic("编译时异常：不能对两个类型进行二元运算")
 }
 
 func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
@@ -305,14 +316,14 @@ func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
 	}
 
 	// TODO: 编译时异常：不能对两个类型进行一元运算
-	panic("unreachable")
+	panic("编译时异常：不能对两个类型进行一元运算")
 }
 
 func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
 	value, ok := self.localScope.GetValue(node.Name.Source())
 	if !ok {
 		// TODO: 编译时异常：未知的变量
-		panic("unreachable")
+		panic("编译时异常：未知的变量")
 	}
 	return value
 }
@@ -322,10 +333,10 @@ func (self *Analyser) analyseCall(node *ast.Call) *Call {
 	ft, ok := f.GetType().(*FuncType)
 	if !ok {
 		// TODO: 编译时异常：不能调用类型A
-		panic("unreachable")
+		panic("编译时异常：不能调用类型A")
 	} else if len(ft.Params) != len(node.Args) {
 		// TODO: 编译时异常：参数数量不匹配
-		panic("unreachable")
+		panic("编译时异常：参数数量不匹配")
 	}
 	args := lo.Map(node.Args, func(item ast.Expr, index int) Expr {
 		return self.analyseExpr(ft.Params[index], item)
@@ -375,7 +386,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 		}
 	default:
 		// TODO: 编译期异常：类型A无法转换成B
-		panic("unreachable")
+		panic("编译期异常：类型A无法转换成B")
 	}
 }
 
@@ -383,7 +394,7 @@ func (self *Analyser) expectExpr(expect Type, node ast.Expr) Expr {
 	value := self.analyseExpr(expect, node)
 	if !value.GetType().Equal(expect) {
 		// TODO: 编译时异常：期待类型是A，但是这里是B
-		panic("unreachable")
+		panic("编译时异常：期待类型是A，但是这里是B")
 	}
 	return value
 }
@@ -404,7 +415,7 @@ func (self *Analyser) analyseIndex(node *ast.Index) *Index {
 	from := self.analyseExpr(nil, node.From)
 	if !TypeIs[*ArrayType](from.GetType()) {
 		// TODO: 编译时异常：不能获取类型A的索引
-		panic("unreachable")
+		panic("编译时异常：不能获取类型A的索引")
 	}
 	index := self.expectExpr(Usize, node.Index)
 	return &Index{
@@ -430,12 +441,12 @@ func (self *Analyser) analyseExtract(expect Type, node *ast.Extract) *Extract {
 	tt, ok := from.GetType().(*TupleType)
 	if !ok {
 		// TODO: 编译时异常：不能提取类型A的元素
-		panic("unreachable")
+		panic("编译时异常：不能提取类型A的元素")
 	}
 
 	if index >= uint(len(tt.Elems)) {
 		// TODO: 编译时异常：超出下标
-		panic("unreachable")
+		panic("编译时异常：超出下标")
 	}
 	return &Extract{
 		From:  from,
@@ -455,7 +466,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *Struct {
 		fn := nf.First.Source()
 		if !fieldNames.Contain(fn) {
 			// TODO: 编译时异常：未知的字段
-			panic("unreachable")
+			panic("编译时异常：未知的字段")
 		}
 		existedFields[fn] = self.expectExpr(st.Fields.Get(fn), nf.Second)
 	}
@@ -483,10 +494,10 @@ func (self *Analyser) analyseField(node *ast.Field) *Field {
 	st, ok := from.GetType().(*StructType)
 	if !ok {
 		// TODO: 编译时异常：不能获取类型A的字段
-		panic("unreachable")
+		panic("编译时异常：不能获取类型A的字段")
 	} else if !st.Fields.ContainKey(fieldName) {
 		// TODO: 编译时异常：超出下标
-		panic("unreachable")
+		panic("编译时异常：超出下标")
 	}
 	var i int
 	for iter := st.Fields.Keys().Iterator(); iter.Next(); i++ {

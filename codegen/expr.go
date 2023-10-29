@@ -16,7 +16,12 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 	case *mean.Boolean:
 		return self.codegenBool(exprNode)
 	case mean.Binary:
-		return self.codegenBinary(exprNode)
+		if ass, ok := exprNode.(*mean.Assign); ok {
+			self.codegenAssign(ass)
+			return self.ctx.ConstNull(self.ctx.IntPtrType(self.target))
+		} else {
+			return self.codegenBinary(exprNode)
+		}
 	case mean.Unary:
 		return self.codegenUnary(exprNode)
 	case mean.Ident:
@@ -61,6 +66,11 @@ func (self *CodeGenerator) codegenBool(node *mean.Boolean) llvm.Value {
 	} else {
 		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
 	}
+}
+
+func (self *CodeGenerator) codegenAssign(node *mean.Assign) {
+	left, right := self.codegenExpr(node.GetLeft(), false), self.codegenExpr(node.GetRight(), true)
+	self.builder.CreateStore(right, left)
 }
 
 func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
@@ -334,7 +344,6 @@ func (self *CodeGenerator) codegenExtract(node *mean.Extract) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Value {
-	// TODO: 类型
 	t := self.codegenType(node.GetType())
 	switch node.GetType().(type) {
 	case mean.IntType:

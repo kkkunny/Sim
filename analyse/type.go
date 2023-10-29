@@ -70,7 +70,7 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 			return st
 		} else {
 			// TODO: 编译时异常：未知的类型
-			panic("unreachable")
+			panic("编译时异常：未知的类型")
 		}
 	}
 }
@@ -91,7 +91,7 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *ArrayType {
 		panic("unreachable")
 	} else if !size.IsUint64() {
 		// TODO: 编译时异常：超出值范围
-		panic("unreachable")
+		panic("编译时异常：超出值范围")
 	}
 	elem := self.analyseType(node.Elem)
 	return &ArrayType{

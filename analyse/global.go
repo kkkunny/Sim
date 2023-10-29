@@ -18,7 +18,7 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	}
 	if !self.pkgScope.SetStruct(st) {
 		// TODO: 编译时异常：变量名冲突
-		panic("unreachable")
+		panic("编译时异常：变量名冲突")
 	}
 }
 
@@ -49,7 +49,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		name := item.First.Source()
 		if !paramNameSet.Push(name) {
 			// TODO: 编译时异常：变量名冲突
-			panic("unreachable")
+			panic("编译时异常：变量名冲突")
 		}
 		return &Param{
 			Type: self.analyseType(item.Second),
@@ -63,7 +63,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	}
 	if !self.pkgScope.SetValue(f.Name, f) {
 		// TODO: 编译时异常：变量名冲突
-		panic("unreachable")
+		panic("编译时异常：变量名冲突")
 	}
 }
 
@@ -93,7 +93,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 	for _, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {
 			// TODO: 编译时异常：变量名冲突
-			panic("unreachable")
+			panic("编译时异常：变量名冲突")
 		}
 	}
 
@@ -101,7 +101,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 	f.Body = body
 	if jump < JumpOutReturn {
 		// TODO: 编译时异常：缺少函数返回值
-		panic("unreachable")
+		panic("编译时异常：缺少函数返回值")
 	}
 	return f
 }

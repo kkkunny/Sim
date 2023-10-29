@@ -12,7 +12,7 @@ func (self *Parser) mustExpr(op util.Option[Expr]) Expr {
 	v, ok := op.Value()
 	if !ok {
 		// TODO: 编译时异常：期待一个表达式
-		panic("unreachable")
+		panic("编译时异常：期待一个表达式")
 	}
 	return v
 }
