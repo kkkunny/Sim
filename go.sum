@@ -10,6 +10,8 @@ github.com/kkkunny/go-llvm v0.0.0-20231028084748-f1238c17ee0c h1:upBpAlTmbgeBGYF
 github.com/kkkunny/go-llvm v0.0.0-20231028084748-f1238c17ee0c/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
 github.com/kkkunny/go-llvm v0.0.0-20231028141336-0c6762090667 h1:LVM3zThJLADcoGJpgqiskhMvF/QYIcnEocsTUPFKnzA=
 github.com/kkkunny/go-llvm v0.0.0-20231028141336-0c6762090667/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231029023034-4238b41ab3de h1:Q8qAcniSpcmSAFr0jq1C7Vsd4BaBhrWvdSRG4xDLoaQ=
+github.com/kkkunny/go-llvm v0.0.0-20231029023034-4238b41ab3de/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
 github.com/kkkunny/stl v0.0.0-20231022115244-2d9f235921a3 h1:okBRIiEPszBnpp5S+QAIFrXKh1uzoxE6cpCI26vuFlU=
 github.com/kkkunny/stl v0.0.0-20231022115244-2d9f235921a3/go.mod h1:ejV1eqgIILdhe27rI/mF+8VLiifmVdzpv66Ha/5AI0U=
 github.com/kkkunny/stl v0.0.0-20231028054835-9e62588d115e h1:Ygjwutmv7EgJgYy8GsRa/2HHBEyLKlY/rUQoHaNb2Y8=
