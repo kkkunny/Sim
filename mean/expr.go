@@ -10,6 +10,7 @@ import (
 type Expr interface {
 	Stmt
 	GetType() Type
+	Mutable() bool
 }
 
 // Ident 标识符
@@ -30,6 +31,10 @@ func (self *Integer) GetType() Type {
 	return self.Type
 }
 
+func (self *Integer) Mutable() bool {
+	return false
+}
+
 // Float 浮点数
 type Float struct {
 	Type  *FloatType
@@ -42,11 +47,38 @@ func (self *Float) GetType() Type {
 	return self.Type
 }
 
+func (self *Float) Mutable() bool {
+	return false
+}
+
 // Binary 二元运算
 type Binary interface {
 	Expr
 	GetLeft() Expr
 	GetRight() Expr
+}
+
+// Assign 赋值
+type Assign struct {
+	Left, Right Expr
+}
+
+func (self *Assign) stmt() {}
+
+func (self *Assign) GetType() Type {
+	return Empty
+}
+
+func (self *Assign) Mutable() bool {
+	return false
+}
+
+func (self *Assign) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *Assign) GetRight() Expr {
+	return self.Right
 }
 
 // IntAndInt 整数且整数
@@ -58,6 +90,10 @@ func (self *IntAndInt) stmt() {}
 
 func (self *IntAndInt) GetType() Type {
 	return self.Left.GetType()
+}
+
+func (self *IntAndInt) Mutable() bool {
+	return false
 }
 
 func (self *IntAndInt) GetLeft() Expr {
@@ -79,6 +115,10 @@ func (self *IntOrInt) GetType() Type {
 	return self.Left.GetType()
 }
 
+func (self *IntOrInt) Mutable() bool {
+	return false
+}
+
 func (self *IntOrInt) GetLeft() Expr {
 	return self.Left
 }
@@ -96,6 +136,10 @@ func (self *IntXorInt) stmt() {}
 
 func (self *IntXorInt) GetType() Type {
 	return self.Left.GetType()
+}
+
+func (self *IntXorInt) Mutable() bool {
+	return false
 }
 
 func (self *IntXorInt) GetLeft() Expr {
@@ -117,6 +161,10 @@ func (self *IntShlInt) GetType() Type {
 	return self.Left.GetType()
 }
 
+func (self *IntShlInt) Mutable() bool {
+	return false
+}
+
 func (self *IntShlInt) GetLeft() Expr {
 	return self.Left
 }
@@ -134,6 +182,10 @@ func (self *IntShrInt) stmt() {}
 
 func (self *IntShrInt) GetType() Type {
 	return self.Left.GetType()
+}
+
+func (self *IntShrInt) Mutable() bool {
+	return false
 }
 
 func (self *IntShrInt) GetLeft() Expr {
@@ -155,6 +207,10 @@ func (self *NumAddNum) GetType() Type {
 	return self.Left.GetType()
 }
 
+func (self *NumAddNum) Mutable() bool {
+	return false
+}
+
 func (self *NumAddNum) GetLeft() Expr {
 	return self.Left
 }
@@ -172,6 +228,10 @@ func (self *NumSubNum) stmt() {}
 
 func (self *NumSubNum) GetType() Type {
 	return self.Left.GetType()
+}
+
+func (self *NumSubNum) Mutable() bool {
+	return false
 }
 
 func (self *NumSubNum) GetLeft() Expr {
@@ -193,6 +253,10 @@ func (self *NumMulNum) GetType() Type {
 	return self.Left.GetType()
 }
 
+func (self *NumMulNum) Mutable() bool {
+	return false
+}
+
 func (self *NumMulNum) GetLeft() Expr {
 	return self.Left
 }
@@ -210,6 +274,10 @@ func (self *NumDivNum) stmt() {}
 
 func (self *NumDivNum) GetType() Type {
 	return self.Left.GetType()
+}
+
+func (self *NumDivNum) Mutable() bool {
+	return false
 }
 
 func (self *NumDivNum) GetLeft() Expr {
@@ -231,6 +299,10 @@ func (self *NumRemNum) GetType() Type {
 	return self.Left.GetType()
 }
 
+func (self *NumRemNum) Mutable() bool {
+	return false
+}
+
 func (self *NumRemNum) GetLeft() Expr {
 	return self.Left
 }
@@ -248,6 +320,10 @@ func (self *NumLtNum) stmt() {}
 
 func (self *NumLtNum) GetType() Type {
 	return Bool
+}
+
+func (self *NumLtNum) Mutable() bool {
+	return false
 }
 
 func (self *NumLtNum) GetLeft() Expr {
@@ -269,6 +345,10 @@ func (self *NumGtNum) GetType() Type {
 	return Bool
 }
 
+func (self *NumGtNum) Mutable() bool {
+	return false
+}
+
 func (self *NumGtNum) GetLeft() Expr {
 	return self.Left
 }
@@ -286,6 +366,10 @@ func (self *NumLeNum) stmt() {}
 
 func (self *NumLeNum) GetType() Type {
 	return Bool
+}
+
+func (self *NumLeNum) Mutable() bool {
+	return false
 }
 
 func (self *NumLeNum) GetLeft() Expr {
@@ -307,6 +391,10 @@ func (self *NumGeNum) GetType() Type {
 	return Bool
 }
 
+func (self *NumGeNum) Mutable() bool {
+	return false
+}
+
 func (self *NumGeNum) GetLeft() Expr {
 	return self.Left
 }
@@ -324,6 +412,10 @@ func (self *NumEqNum) stmt() {}
 
 func (self *NumEqNum) GetType() Type {
 	return Bool
+}
+
+func (self *NumEqNum) Mutable() bool {
+	return false
 }
 
 func (self *NumEqNum) GetLeft() Expr {
@@ -345,6 +437,10 @@ func (self *BoolEqBool) GetType() Type {
 	return Bool
 }
 
+func (self *BoolEqBool) Mutable() bool {
+	return false
+}
+
 func (self *BoolEqBool) GetLeft() Expr {
 	return self.Left
 }
@@ -362,6 +458,10 @@ func (self *FuncEqFunc) stmt() {}
 
 func (self *FuncEqFunc) GetType() Type {
 	return Bool
+}
+
+func (self *FuncEqFunc) Mutable() bool {
+	return false
 }
 
 func (self *FuncEqFunc) GetLeft() Expr {
@@ -383,6 +483,10 @@ func (self *ArrayEqArray) GetType() Type {
 	return Bool
 }
 
+func (self *ArrayEqArray) Mutable() bool {
+	return false
+}
+
 func (self *ArrayEqArray) GetLeft() Expr {
 	return self.Left
 }
@@ -400,6 +504,10 @@ func (self *TupleEqTuple) stmt() {}
 
 func (self *TupleEqTuple) GetType() Type {
 	return Bool
+}
+
+func (self *TupleEqTuple) Mutable() bool {
+	return false
 }
 
 func (self *TupleEqTuple) GetLeft() Expr {
@@ -421,6 +529,10 @@ func (self *StructEqStruct) GetType() Type {
 	return Bool
 }
 
+func (self *StructEqStruct) Mutable() bool {
+	return false
+}
+
 func (self *StructEqStruct) GetLeft() Expr {
 	return self.Left
 }
@@ -438,6 +550,10 @@ func (self *NumNeNum) stmt() {}
 
 func (self *NumNeNum) GetType() Type {
 	return Bool
+}
+
+func (self *NumNeNum) Mutable() bool {
+	return false
 }
 
 func (self *NumNeNum) GetLeft() Expr {
@@ -459,6 +575,10 @@ func (self *BoolNeBool) GetType() Type {
 	return Bool
 }
 
+func (self *BoolNeBool) Mutable() bool {
+	return false
+}
+
 func (self *BoolNeBool) GetLeft() Expr {
 	return self.Left
 }
@@ -476,6 +596,10 @@ func (self *FuncNeFunc) stmt() {}
 
 func (self *FuncNeFunc) GetType() Type {
 	return Bool
+}
+
+func (self *FuncNeFunc) Mutable() bool {
+	return false
 }
 
 func (self *FuncNeFunc) GetLeft() Expr {
@@ -497,6 +621,10 @@ func (self *ArrayNeArray) GetType() Type {
 	return Bool
 }
 
+func (self *ArrayNeArray) Mutable() bool {
+	return false
+}
+
 func (self *ArrayNeArray) GetLeft() Expr {
 	return self.Left
 }
@@ -514,6 +642,10 @@ func (self *TupleNeTuple) stmt() {}
 
 func (self *TupleNeTuple) GetType() Type {
 	return Bool
+}
+
+func (self *TupleNeTuple) Mutable() bool {
+	return false
 }
 
 func (self *TupleNeTuple) GetLeft() Expr {
@@ -535,6 +667,10 @@ func (self *StructNeStruct) GetType() Type {
 	return Bool
 }
 
+func (self *StructNeStruct) Mutable() bool {
+	return false
+}
+
 func (self *StructNeStruct) GetLeft() Expr {
 	return self.Left
 }
@@ -554,6 +690,10 @@ func (self *BoolAndBool) GetType() Type {
 	return Bool
 }
 
+func (self *BoolAndBool) Mutable() bool {
+	return false
+}
+
 func (self *BoolAndBool) GetLeft() Expr {
 	return self.Left
 }
@@ -571,6 +711,10 @@ func (self *BoolOrBool) stmt() {}
 
 func (self *BoolOrBool) GetType() Type {
 	return Bool
+}
+
+func (self *BoolOrBool) Mutable() bool {
+	return false
 }
 
 func (self *BoolOrBool) GetLeft() Expr {
@@ -598,6 +742,10 @@ func (self *NumNegate) GetType() Type {
 	return self.Value.GetType()
 }
 
+func (self *NumNegate) Mutable() bool {
+	return false
+}
+
 func (self *NumNegate) GetValue() Expr {
 	return self.Value
 }
@@ -611,6 +759,10 @@ func (self *IntBitNegate) stmt() {}
 
 func (self *IntBitNegate) GetType() Type {
 	return self.Value.GetType()
+}
+
+func (self *IntBitNegate) Mutable() bool {
+	return false
 }
 
 func (self *IntBitNegate) GetValue() Expr {
@@ -628,6 +780,10 @@ func (self *BoolNegate) GetType() Type {
 	return Bool
 }
 
+func (self *BoolNegate) Mutable() bool {
+	return false
+}
+
 func (self *BoolNegate) GetValue() Expr {
 	return self.Value
 }
@@ -643,6 +799,10 @@ func (self *Boolean) GetType() Type {
 	return Bool
 }
 
+func (self *Boolean) Mutable() bool {
+	return false
+}
+
 // Call 调用
 type Call struct {
 	Func Expr
@@ -653,6 +813,10 @@ func (self *Call) stmt() {}
 
 func (self *Call) GetType() Type {
 	return self.Func.GetType().(*FuncType).Ret
+}
+
+func (self *Call) Mutable() bool {
+	return false
 }
 
 // Covert 类型转换
@@ -673,6 +837,10 @@ func (self *Num2Num) GetType() Type {
 	return self.To
 }
 
+func (self *Num2Num) Mutable() bool {
+	return self.From.Mutable()
+}
+
 func (self *Num2Num) GetFrom() Expr {
 	return self.From
 }
@@ -689,6 +857,10 @@ func (self *Array) GetType() Type {
 	return self.Type
 }
 
+func (self *Array) Mutable() bool {
+	return false
+}
+
 // Index 索引
 type Index struct {
 	From  Expr
@@ -699,6 +871,10 @@ func (self *Index) stmt() {}
 
 func (self *Index) GetType() Type {
 	return self.From.GetType().(*ArrayType).Elem
+}
+
+func (self *Index) Mutable() bool {
+	return self.From.Mutable()
 }
 
 // Tuple 元组
@@ -715,6 +891,10 @@ func (self *Tuple) GetType() Type {
 	return &TupleType{Elems: ets}
 }
 
+func (self *Tuple) Mutable() bool {
+	return false
+}
+
 // Extract 提取
 type Extract struct {
 	From  Expr
@@ -727,6 +907,10 @@ func (self *Extract) GetType() Type {
 	return self.From.GetType().(*TupleType).Elems[self.Index]
 }
 
+func (self *Extract) Mutable() bool {
+	return self.From.Mutable()
+}
+
 // Param 参数
 type Param struct {
 	Type Type
@@ -737,6 +921,10 @@ func (*Param) stmt() {}
 
 func (self *Param) GetType() Type {
 	return self.Type
+}
+
+func (self *Param) Mutable() bool {
+	return true
 }
 
 func (*Param) ident() {}
@@ -753,6 +941,10 @@ func (self *Struct) GetType() Type {
 	return self.Type
 }
 
+func (self *Struct) Mutable() bool {
+	return false
+}
+
 // Zero 零值
 type Zero struct {
 	Type Type
@@ -762,6 +954,10 @@ func (*Zero) stmt() {}
 
 func (self *Zero) GetType() Type {
 	return self.Type
+}
+
+func (self *Zero) Mutable() bool {
+	return false
 }
 
 // Field 字段
@@ -774,4 +970,8 @@ func (self *Field) stmt() {}
 
 func (self *Field) GetType() Type {
 	return self.From.GetType().(*StructType).Fields.Values().Get(self.Index)
+}
+
+func (self *Field) Mutable() bool {
+	return self.From.Mutable()
 }

@@ -45,8 +45,8 @@ func (self *Parser) expectNextIs(k token.Kind) token.Token {
 	if self.skipNextIs(k) {
 		return self.curTok
 	}
-	// TODO: 报错
-	panic("unreachable")
+	// TODO: 编译时异常：下一个token不是所期待的
+	panic("编译时异常：下一个token不是所期待的")
 	return token.Token{}
 }
 

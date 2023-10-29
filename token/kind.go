@@ -129,24 +129,26 @@ func (self Kind) String() string {
 func (self Kind) Priority() uint8 {
 	switch self {
 	case MUL, DIV, REM:
-		return 10
+		return 11
 	case ADD, SUB:
-		return 9
+		return 10
 	case SHL, SHR:
-		return 8
+		return 9
 	case LT, GT, LE, GE:
-		return 7
+		return 8
 	case EQ, NE:
-		return 6
+		return 7
 	case AND:
-		return 5
+		return 6
 	case XOR:
-		return 4
+		return 5
 	case OR:
-		return 3
+		return 4
 	case LAND:
-		return 2
+		return 3
 	case LOR:
+		return 2
+	case ASS:
 		return 1
 	default:
 		return 0

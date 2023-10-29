@@ -10,6 +10,7 @@ import (
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/codegen"
+	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/parse"

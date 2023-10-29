@@ -49,6 +49,10 @@ func (self *Variable) GetType() Type {
 	return self.Type
 }
 
+func (self *Variable) Mutable() bool {
+	return true
+}
+
 func (*Variable) ident() {}
 
 // IfElse if else

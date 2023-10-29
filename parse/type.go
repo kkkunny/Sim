@@ -25,7 +25,7 @@ func (self *Parser) parseType() Type {
 	t, ok := self.parseOptionType().Value()
 	if !ok {
 		// TODO: 编译时异常：期待一个类型
-		panic("unreachable")
+		panic("编译时异常：期待一个类型")
 	}
 	return t
 }

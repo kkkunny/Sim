@@ -56,7 +56,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *Return {
 	} else {
 		if !expectRetType.Equal(Empty) {
 			// TODO: 编译时异常：类型不相等
-			panic("unreachable")
+			panic("编译时异常：类型不相等")
 		}
 		return &Return{Value: util.None[Expr]()}
 	}
@@ -66,7 +66,7 @@ func (self *Analyser) analyseVariable(node *ast.Variable) *Variable {
 	v := &Variable{Name: node.Name.Source()}
 	if !self.localScope.SetValue(v.Name, v) {
 		// TODO: 编译时异常：变量名冲突
-		panic("unreachable")
+		panic("编译时异常：变量名冲突")
 	}
 
 	v.Type = self.analyseType(node.Type)

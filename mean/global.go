@@ -32,6 +32,10 @@ func (self *FuncDef) GetType() Type {
 	}
 }
 
+func (self *FuncDef) Mutable() bool {
+	return false
+}
+
 func (*FuncDef) ident() {}
 
 // StructDef 结构体定义
