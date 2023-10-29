@@ -24,8 +24,9 @@ func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 	switch globalNode := node.(type) {
 	case *mean.FuncDef:
 		self.declFuncDef(globalNode)
+	case *mean.Variable:
+		self.declGlobalVariable(globalNode)
 	case *mean.StructDef:
-		return
 	default:
 		panic("unreachable")
 	}
@@ -33,7 +34,15 @@ func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 
 func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
 	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
-	self.module.NewFunction(node.Name, ft)
+	f := self.module.NewFunction("", ft)
+	self.values[node] = f
+}
+
+func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
+	t := self.codegenType(node.Type)
+	v := self.module.NewGlobal("", t)
+	self.values[node] = v
+	v.SetInitializer(self.codegenZero(&mean.Zero{Type: node.GetType()}))
 }
 
 func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
@@ -42,13 +51,15 @@ func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
 		self.defFuncDef(globalNode)
 	case *mean.StructDef:
 		self.defStructDef(globalNode)
+	case *mean.Variable:
+		self.defGlobalVariable(globalNode)
 	default:
 		panic("unreachable")
 	}
 }
 
 func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
-	f := self.module.GetFunction(node.Name)
+	f := self.values[node].(llvm.Function)
 
 	self.builder.MoveToAfter(f.NewBlock("entry"))
 	for i, p := range f.Params() {
@@ -64,4 +75,10 @@ func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 
 	block, _ := self.codegenBlock(node.Body)
 	self.builder.CreateBr(block)
+}
+
+func (self *CodeGenerator) defGlobalVariable(node *mean.Variable) {
+	v := self.values[node].(llvm.GlobalValue)
+	self.builder.MoveToAfter(self.getMainFunction().EntryBlock())
+	self.builder.CreateStore(self.codegenExpr(node.Value, true), v)
 }

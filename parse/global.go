@@ -13,6 +13,8 @@ func (self *Parser) parseGlobal() Global {
 		return self.parseFuncDef()
 	case token.STRUCT:
 		return self.parseStructDef()
+	case token.LET:
+		return self.parseVariable()
 	default:
 		// TODO: 编译时异常：未知的全局
 		panic("编译时异常：未知的全局")
@@ -57,5 +59,20 @@ func (self *Parser) parseStructDef() *StructDef {
 		Name:   name,
 		Fields: fields,
 		End:    end,
+	}
+}
+
+func (self *Parser) parseVariable() *Variable {
+	begin := self.expectNextIs(token.LET).Position
+	name := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.COL)
+	typ := self.parseType()
+	self.expectNextIs(token.ASS)
+	value := self.mustExpr(self.parseOptionExpr(true))
+	return &Variable{
+		Begin: begin,
+		Name:  name,
+		Type:  typ,
+		Value: value,
 	}
 }

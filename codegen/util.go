@@ -71,3 +71,13 @@ func (self *CodeGenerator) buildNotEqual(l, r llvm.Value) llvm.Value {
 		panic("unreachable")
 	}
 }
+
+func (self *CodeGenerator) getMainFunction() llvm.Function {
+	mainFnPtr := self.module.GetFunction("main")
+	if mainFnPtr == nil {
+		mainFn := self.module.NewFunction("main", self.ctx.FunctionType(self.ctx.IntegerType(8), nil, false))
+		mainFn.NewBlock("entry")
+		mainFnPtr = &mainFn
+	}
+	return *mainFnPtr
+}

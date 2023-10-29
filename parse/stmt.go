@@ -55,21 +55,6 @@ func (self *Parser) parseReturn() *Return {
 	}
 }
 
-func (self *Parser) parseVariable() *Variable {
-	begin := self.expectNextIs(token.LET).Position
-	name := self.expectNextIs(token.IDENT)
-	self.expectNextIs(token.COL)
-	typ := self.parseType()
-	self.expectNextIs(token.ASS)
-	value := self.mustExpr(self.parseOptionExpr(true))
-	return &Variable{
-		Begin: begin,
-		Name:  name,
-		Type:  typ,
-		Value: value,
-	}
-}
-
 func (self *Parser) parseIfElse() *IfElse {
 	begin := self.expectNextIs(token.IF).Position
 	cond := self.mustExpr(self.parseOptionExpr(false))

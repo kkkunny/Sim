@@ -40,6 +40,11 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
 		self.declFuncDef(globalNode)
+	case *ast.Variable:
+		self.declGlobalVariable(globalNode)
+	case *ast.StructDef:
+	default:
+		panic("unreachable")
 	}
 }
 
@@ -67,12 +72,25 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	}
 }
 
+func (self *Analyser) declGlobalVariable(node *ast.Variable) {
+	v := &Variable{
+		Type: self.analyseType(node.Type),
+		Name: node.Name.Source(),
+	}
+	if !self.pkgScope.SetValue(v.Name, v) {
+		// TODO: 编译时异常：变量名冲突
+		panic("编译时异常：变量名冲突")
+	}
+}
+
 func (self *Analyser) analyseGlobalDef(node ast.Global) Global {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
 		return self.defFuncDef(globalNode)
 	case *ast.StructDef:
 		return self.defTypeDef(globalNode)
+	case *ast.Variable:
+		return self.defGlobalVariable(globalNode)
 	default:
 		panic("unreachable")
 	}
@@ -104,4 +122,15 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 		panic("编译时异常：缺少函数返回值")
 	}
 	return f
+}
+
+func (self *Analyser) defGlobalVariable(node *ast.Variable) *Variable {
+	value, ok := self.pkgScope.GetValue(node.Name.Source())
+	if !ok {
+		panic("unreachable")
+	}
+	v := value.(*Variable)
+
+	v.Value = self.expectExpr(v.Type, node.Value)
+	return v
 }

@@ -27,7 +27,7 @@ func (self *FuncDef) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.Body.Position())
 }
 
-func (self *FuncDef) global() {}
+func (*FuncDef) global() {}
 
 // StructDef 结构体定义
 type StructDef struct {
@@ -41,4 +41,20 @@ func (self *StructDef) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.End)
 }
 
-func (self *StructDef) global() {}
+func (*StructDef) global() {}
+
+// Variable 变量定义
+type Variable struct {
+	Begin reader.Position
+	Name  token.Token
+	Type  Type
+	Value Expr
+}
+
+func (self *Variable) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Value.Position())
+}
+
+func (*Variable) stmt() {}
+
+func (*Variable) global() {}

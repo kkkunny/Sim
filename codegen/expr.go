@@ -224,8 +224,7 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
 func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) llvm.Value {
 	switch identNode := node.(type) {
 	case *mean.FuncDef:
-		f := self.module.GetFunction(identNode.Name)
-		return f
+		return self.values[identNode].(llvm.Function)
 	case *mean.Param, *mean.Variable:
 		p := self.values[identNode]
 		t := self.codegenType(node.GetType())
@@ -343,7 +342,7 @@ func (self *CodeGenerator) codegenExtract(node *mean.Extract) llvm.Value {
 	return self.buildStructIndex(t, ptr, node.Index, true)
 }
 
-func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Value {
+func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Constant {
 	t := self.codegenType(node.GetType())
 	switch node.GetType().(type) {
 	case mean.IntType:

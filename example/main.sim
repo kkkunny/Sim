@@ -1,5 +1,1 @@
-func main()u8{
-	let i: u8 =10
-	i = i - 10
-    return i
-}
+let i: u8 = 10

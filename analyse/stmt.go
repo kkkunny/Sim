@@ -14,7 +14,7 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, JumpOut) {
 		ret := self.analyseReturn(stmtNode)
 		return ret, JumpOutReturn
 	case *ast.Variable:
-		return self.analyseVariable(stmtNode), JumpOutNone
+		return self.analyseLocalVariable(stmtNode), JumpOutNone
 	case *ast.Block:
 		return self.analyseBlock(stmtNode)
 	case *ast.IfElse:
@@ -62,7 +62,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *Return {
 	}
 }
 
-func (self *Analyser) analyseVariable(node *ast.Variable) *Variable {
+func (self *Analyser) analyseLocalVariable(node *ast.Variable) *Variable {
 	v := &Variable{Name: node.Name.Source()}
 	if !self.localScope.SetValue(v.Name, v) {
 		// TODO: 编译时异常：变量名冲突

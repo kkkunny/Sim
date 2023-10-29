@@ -13,7 +13,7 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 	case *mean.Return:
 		self.codegenReturn(stmtNode)
 	case *mean.Variable:
-		self.codegenVariable(stmtNode)
+		self.codegenLocalVariable(stmtNode)
 	case *mean.IfElse:
 		self.codegenIfElse(stmtNode)
 	case mean.Expr:
@@ -53,7 +53,7 @@ func (self *CodeGenerator) codegenReturn(node *mean.Return) {
 	}
 }
 
-func (self *CodeGenerator) codegenVariable(node *mean.Variable) {
+func (self *CodeGenerator) codegenLocalVariable(node *mean.Variable) {
 	t := self.codegenType(node.Type)
 	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.CreateAlloca("", t)
