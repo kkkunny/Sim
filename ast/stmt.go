@@ -4,7 +4,6 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
 
@@ -42,20 +41,6 @@ func (self *Return) Position() reader.Position {
 }
 
 func (*Return) stmt() {}
-
-// Variable 变量定义
-type Variable struct {
-	Begin reader.Position
-	Name  token.Token
-	Type  Type
-	Value Expr
-}
-
-func (self *Variable) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Value.Position())
-}
-
-func (*Variable) stmt() {}
 
 // IfElse if else
 type IfElse struct {

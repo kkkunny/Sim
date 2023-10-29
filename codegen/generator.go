@@ -57,5 +57,17 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 		self.codegenGlobalDef(v)
 		return true
 	})
+	iter.Reset()
+	// 主函数
+	nodes.Iterator().Foreach(func(node mean.Global) bool {
+		if funcNode, ok := node.(*mean.FuncDef); ok && funcNode.Name == "main" {
+			f := self.values[funcNode].(llvm.Function)
+			self.builder.MoveToAfter(self.getMainFunction().EntryBlock())
+			var ret llvm.Value = self.builder.CreateCall("", self.codegenFuncType(funcNode.GetType().(*mean.FuncType)), f)
+			self.builder.CreateRet(&ret)
+			return false
+		}
+		return true
+	})
 	return self.module
 }

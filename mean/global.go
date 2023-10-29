@@ -53,3 +53,24 @@ func (self *StructDef) Equal(dst Type) bool {
 	}
 	return self == t
 }
+
+// Variable 变量定义
+type Variable struct {
+	Type  Type
+	Name  string
+	Value Expr
+}
+
+func (*Variable) stmt() {}
+
+func (self *Variable) GetType() Type {
+	return self.Type
+}
+
+func (self *Variable) Mutable() bool {
+	return true
+}
+
+func (*Variable) ident() {}
+
+func (*Variable) global() {}

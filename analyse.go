@@ -11,6 +11,7 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/analyse"
+	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/parse"
