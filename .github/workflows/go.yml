@@ -23,7 +23,8 @@ jobs:
           go-version: '1.21.3'
 
       - name: Build
-        run: make config EXPECT_VERSION=17 && go build -v ./...
+        run: make config EXPECT_VERSION=17
+             go build -v ./...
 
       - name: Test
         uses: robherley/go-test-action@v0.1.0
