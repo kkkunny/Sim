@@ -63,7 +63,10 @@ func (self *Analyser) analyseReturn(node *ast.Return) *Return {
 }
 
 func (self *Analyser) analyseLocalVariable(node *ast.Variable) *Variable {
-	v := &Variable{Name: node.Name.Source()}
+	v := &Variable{
+		Mut:  node.Mutable,
+		Name: node.Name.Source(),
+	}
 	if !self.localScope.SetValue(v.Name, v) {
 		// TODO: 编译时异常：变量名冲突
 		panic("编译时异常：变量名冲突")

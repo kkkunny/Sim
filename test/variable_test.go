@@ -13,7 +13,7 @@ func main()u8{
 
 func TestGlobalVariable(t *testing.T) {
 	assertRetEqZero(t, `
-let i: u8 = 10;
+let mut i: u8 = 10;
 func main()u8{
     i = i - 8
     return i - 2

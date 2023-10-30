@@ -58,6 +58,7 @@ const (
 	LET
 	IF
 	ELSE
+	MUT
 	_KeywordEnd
 )
 
@@ -106,6 +107,7 @@ var kindNames = [...]string{
 	LET:     "let",
 	ELSE:    "else",
 	IF:      "if",
+	MUT:     "mut",
 }
 
 // Lookup 区分标识符和关键字

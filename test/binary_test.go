@@ -112,7 +112,7 @@ func main()bool{
 func TestAssign(t *testing.T) {
 	assertRetEqZero(t, `
 func main()u8{
-	let i: u8 =10
+	let mut i: u8 = 10
 	i = i - 10
     return i
 }

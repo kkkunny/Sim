@@ -56,6 +56,7 @@ func (self *StructDef) Equal(dst Type) bool {
 
 // Variable 变量定义
 type Variable struct {
+	Mut   bool
 	Type  Type
 	Name  string
 	Value Expr
@@ -68,7 +69,7 @@ func (self *Variable) GetType() Type {
 }
 
 func (self *Variable) Mutable() bool {
-	return true
+	return self.Mut
 }
 
 func (*Variable) ident() {}

@@ -25,11 +25,16 @@ func (self *Parser) parseFuncDef() *FuncDef {
 	begin := self.expectNextIs(token.FUNC).Position
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
-	args := loopParseWithUtil(self, token.COM, token.RPA, func() pair.Pair[token.Token, Type] {
+	args := loopParseWithUtil(self, token.COM, token.RPA, func() Param {
+		mut := self.skipNextIs(token.MUT)
 		pn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		pt := self.parseType()
-		return pair.NewPair(pn, pt)
+		return Param{
+			Mutable: mut,
+			Name:    pn,
+			Type:    pt,
+		}
 	})
 	self.expectNextIs(token.RPA)
 	ret := self.parseOptionType()
@@ -64,15 +69,17 @@ func (self *Parser) parseStructDef() *StructDef {
 
 func (self *Parser) parseVariable() *Variable {
 	begin := self.expectNextIs(token.LET).Position
+	mut := self.skipNextIs(token.MUT)
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.COL)
 	typ := self.parseType()
 	self.expectNextIs(token.ASS)
 	value := self.mustExpr(self.parseOptionExpr(true))
 	return &Variable{
-		Begin: begin,
-		Name:  name,
-		Type:  typ,
-		Value: value,
+		Mutable: mut,
+		Begin:   begin,
+		Name:    name,
+		Type:    typ,
+		Value:   value,
 	}
 }

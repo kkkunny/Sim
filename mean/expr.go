@@ -913,6 +913,7 @@ func (self *Extract) Mutable() bool {
 
 // Param 参数
 type Param struct {
+	Mut  bool
 	Type Type
 	Name string
 }
@@ -924,7 +925,7 @@ func (self *Param) GetType() Type {
 }
 
 func (self *Param) Mutable() bool {
-	return true
+	return self.Mut
 }
 
 func (*Param) ident() {}

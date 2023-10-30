@@ -3,12 +3,10 @@ package analyse
 import (
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/linkedhashmap"
-	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
 	. "github.com/kkkunny/Sim/mean"
-	"github.com/kkkunny/Sim/token"
 )
 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
@@ -50,15 +48,17 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 
 func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	paramNameSet := hashset.NewHashSet[string]()
-	params := lo.Map(node.Params, func(item pair.Pair[token.Token, ast.Type], index int) *Param {
-		name := item.First.Source()
-		if !paramNameSet.Push(name) {
+	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *Param {
+		pn := paramNode.Name.Source()
+		if !paramNameSet.Push(pn) {
 			// TODO: 编译时异常：变量名冲突
 			panic("编译时异常：变量名冲突")
 		}
+		pt := self.analyseType(paramNode.Type)
 		return &Param{
-			Type: self.analyseType(item.Second),
-			Name: name,
+			Mut:  paramNode.Mutable,
+			Type: pt,
+			Name: pn,
 		}
 	})
 	f := &FuncDef{
@@ -74,6 +74,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 
 func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 	v := &Variable{
+		Mut:  node.Mutable,
 		Type: self.analyseType(node.Type),
 		Name: node.Name.Source(),
 	}
