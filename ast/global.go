@@ -18,7 +18,7 @@ type Global interface {
 type FuncDef struct {
 	Begin  reader.Position
 	Name   token.Token
-	Params []pair.Pair[token.Token, Type]
+	Params []Param
 	Ret    util.Option[Type]
 	Body   *Block
 }
@@ -45,10 +45,11 @@ func (*StructDef) global() {}
 
 // Variable 变量定义
 type Variable struct {
-	Begin reader.Position
-	Name  token.Token
-	Type  Type
-	Value Expr
+	Begin   reader.Position
+	Mutable bool
+	Name    token.Token
+	Type    Type
+	Value   Expr
 }
 
 func (self *Variable) Position() reader.Position {
