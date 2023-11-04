@@ -118,3 +118,16 @@ func main()u8{
 }
 `)
 }
+
+func TestUnpack(t *testing.T) {
+	assertRetEqZero(t, `
+func main()i32{
+	let mut i: i32 = 0
+	let mut j: i32 = 0
+	let mut m: i32 = 0
+	let n: ((i32, i32), i32) = ((1, 2), 3)
+	((i, j), m) = n
+    return m - 3
+}
+`)
+}
