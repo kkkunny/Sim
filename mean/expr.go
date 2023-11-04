@@ -892,7 +892,12 @@ func (self *Tuple) GetType() Type {
 }
 
 func (self *Tuple) Mutable() bool {
-	return false
+	for _, elem := range self.Elems {
+		if !elem.Mutable() {
+			return false
+		}
+	}
+	return true
 }
 
 // Extract 提取

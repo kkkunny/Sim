@@ -69,8 +69,31 @@ func (self *CodeGenerator) codegenBool(node *mean.Boolean) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenAssign(node *mean.Assign) {
-	left, right := self.codegenExpr(node.GetLeft(), false), self.codegenExpr(node.GetRight(), true)
-	self.builder.CreateStore(right, left)
+	if lpack, ok := node.Left.(*mean.Tuple); ok {
+		// 解包
+		if rpack, ok := node.Right.(*mean.Tuple); ok {
+			for i, le := range lpack.Elems {
+				re := rpack.Elems[i]
+				self.codegenAssign(&mean.Assign{
+					Left:  le,
+					Right: re,
+				})
+			}
+		} else {
+			for i, le := range lpack.Elems {
+				self.codegenAssign(&mean.Assign{
+					Left: le,
+					Right: &mean.Extract{
+						From:  node.Right,
+						Index: uint(i),
+					},
+				})
+			}
+		}
+	} else {
+		left, right := self.codegenExpr(node.GetLeft(), false), self.codegenExpr(node.GetRight(), true)
+		self.builder.CreateStore(right, left)
+	}
 }
 
 func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
