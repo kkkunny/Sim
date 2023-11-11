@@ -18,6 +18,8 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 		self.codegenIfElse(stmtNode)
 	case mean.Expr:
 		self.codegenExpr(stmtNode, false)
+	case *mean.Loop:
+		self.codegenLoop(stmtNode)
 	default:
 		panic("unreachable")
 	}
@@ -106,5 +108,14 @@ func (self *CodeGenerator) codegenIfElseNode(node *mean.IfElse) []llvm.Block {
 	} else {
 		self.codegenFlatBlock(node.Body)
 		return []llvm.Block{self.builder.CurrentBlock()}
+	}
+}
+
+func (self *CodeGenerator) codegenLoop(node *mean.Loop) {
+	nextBlock, nextEndBlock := self.codegenBlock(node.Body)
+	self.builder.CreateBr(nextBlock)
+	if !nextEndBlock.IsTerminating() {
+		self.builder.MoveToAfter(nextEndBlock)
+		self.builder.CreateBr(nextBlock)
 	}
 }

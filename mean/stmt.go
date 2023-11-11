@@ -62,3 +62,9 @@ func (self *IfElse) HasElse() bool {
 }
 
 func (*IfElse) stmt() {}
+
+type Loop struct {
+	Body *Block
+}
+
+func (*Loop) stmt() {}

@@ -18,6 +18,8 @@ func (self *Parser) parseStmt() Stmt {
 		return self.parseBlock()
 	case token.IF:
 		return self.parseIfElse()
+	case token.LOOP:
+		return self.parseLoop()
 	default:
 		return self.mustExpr(self.parseOptionExpr(true))
 	}
@@ -76,5 +78,14 @@ func (self *Parser) parseIfElse() *IfElse {
 		Cond:  util.Some(cond),
 		Body:  body,
 		Next:  next,
+	}
+}
+
+func (self *Parser) parseLoop() *Loop {
+	begin := self.expectNextIs(token.LOOP).Position
+	body := self.parseBlock()
+	return &Loop{
+		Begin: begin,
+		Body:  body,
 	}
 }

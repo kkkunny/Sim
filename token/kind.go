@@ -59,6 +59,7 @@ const (
 	IF
 	ELSE
 	MUT
+	LOOP
 	_KeywordEnd
 )
 
@@ -108,6 +109,7 @@ var kindNames = [...]string{
 	ELSE:    "else",
 	IF:      "if",
 	MUT:     "mut",
+	LOOP:    "loop",
 }
 
 // Lookup 区分标识符和关键字

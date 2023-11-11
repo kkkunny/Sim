@@ -1,8 +1,10 @@
 func main()i32{
-	let mut i: i32 = 0
-	let mut j: i32 = 0
-	let mut m: i32 = 0
-	let n: ((i32, i32), i32) = ((1, 2), 3)
-	((i, j), m) = n
-    return m
+	let a: [2]i32 = [2]i32{1, 2}
+	let mut i: usize = 0
+	let mut res: i32 = 0
+	loop {
+	    res = res + a[i]
+	    i = i + 1
+	}
+    return res
 }

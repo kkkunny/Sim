@@ -22,6 +22,8 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, JumpOut) {
 		return self.analyseIfElse(stmtNode)
 	case ast.Expr:
 		return self.analyseExpr(nil, stmtNode), JumpOutNone
+	case *ast.Loop:
+		return self.analyseLoop(stmtNode)
 	default:
 		panic("unreachable")
 	}
@@ -99,4 +101,9 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) (*IfElse, JumpOut) {
 		body, jump := self.analyseBlock(node.Body)
 		return &IfElse{Body: body}, jump
 	}
+}
+
+func (self *Analyser) analyseLoop(node *ast.Loop) (*Loop, JumpOut) {
+	body, jump := self.analyseBlock(node.Body)
+	return &Loop{Body: body}, jump
 }

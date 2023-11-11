@@ -67,3 +67,15 @@ func (self *IfElse) Position() reader.Position {
 }
 
 func (*IfElse) stmt() {}
+
+// Loop 循环
+type Loop struct {
+	Begin reader.Position
+	Body  *Block
+}
+
+func (self *Loop) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*Loop) stmt() {}
