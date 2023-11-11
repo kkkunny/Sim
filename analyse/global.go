@@ -6,6 +6,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
 )
 
@@ -50,9 +51,8 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	paramNameSet := hashset.NewHashSet[string]()
 	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *Param {
 		pn := paramNode.Name.Source()
-		if !paramNameSet.Push(pn) {
-			// TODO: 编译时异常：变量名冲突
-			panic("编译时异常：变量名冲突")
+		if !paramNameSet.Add(pn) {
+			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 		}
 		pt := self.analyseType(paramNode.Type)
 		return &Param{

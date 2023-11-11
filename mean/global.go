@@ -46,6 +46,10 @@ type StructDef struct {
 
 func (*StructDef) global() {}
 
+func (self StructDef) String() string {
+	return self.Name
+}
+
 func (self *StructDef) Equal(dst Type) bool {
 	t, ok := dst.(*StructDef)
 	if !ok {

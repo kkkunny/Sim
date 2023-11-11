@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/mean"
@@ -36,32 +37,28 @@ func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() llvm.Module {
 	nodes := self.analyser.Analyse()
-	iter := nodes.Iterator()
 	// 类型声明
-	iter.Foreach(func(v mean.Global) bool {
+	iterator.Foreach(nodes, func(v mean.Global) bool {
 		st, ok := v.(*mean.StructDef)
 		if ok {
 			self.declStructDef(st)
 		}
 		return true
 	})
-	iter.Reset()
 	// 值声明
-	iter.Foreach(func(v mean.Global) bool {
+	iterator.Foreach(nodes, func(v mean.Global) bool {
 		self.codegenGlobalDecl(v)
 		return true
 	})
-	iter.Reset()
 	// 值定义
-	nodes.Iterator().Foreach(func(v mean.Global) bool {
+	iterator.Foreach(nodes, func(v mean.Global) bool {
 		self.codegenGlobalDef(v)
 		return true
 	})
-	iter.Reset()
 	// 主函数
 	var hasMain bool
-	nodes.Iterator().Foreach(func(node mean.Global) bool {
-		if funcNode, ok := node.(*mean.FuncDef); ok && funcNode.Name == "main" {
+	iterator.Foreach(nodes, func(v mean.Global) bool {
+		if funcNode, ok := v.(*mean.FuncDef); ok && funcNode.Name == "main" {
 			hasMain = true
 			f := self.values[funcNode].(llvm.Function)
 			self.builder.MoveToAfter(self.getMainFunction().EntryBlock())

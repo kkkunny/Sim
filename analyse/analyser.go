@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/ast"
@@ -26,20 +27,18 @@ func New(parser *parse.Parser) *Analyser {
 // Analyse 分析语义
 func (self *Analyser) Analyse() linkedlist.LinkedList[Global] {
 	meanNodes := linkedlist.NewLinkedList[Global]()
-	iter := self.parser.Parse().Iterator()
-	iter.Foreach(func(v ast.Global) bool {
+	astNodes := self.parser.Parse()
+	iterator.Foreach(astNodes, func(v ast.Global) bool {
 		if st, ok := v.(*ast.StructDef); ok {
 			self.declTypeDef(st)
 		}
 		return true
 	})
-	iter.Reset()
-	iter.Foreach(func(v ast.Global) bool {
+	iterator.Foreach(astNodes, func(v ast.Global) bool {
 		self.analyseGlobalDecl(v)
 		return true
 	})
-	iter.Reset()
-	iter.Foreach(func(v ast.Global) bool {
+	iterator.Foreach(astNodes, func(v ast.Global) bool {
 		meanNodes.PushBack(self.analyseGlobalDef(v))
 		return true
 	})
