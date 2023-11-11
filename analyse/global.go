@@ -119,7 +119,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 
 	body, jump := self.analyseBlock(node.Body, nil)
 	f.Body = body
-	if jump != JumpOutReturn {
+	if jump != BlockEofReturn {
 		if !f.Ret.Equal(Empty) {
 			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
 		}

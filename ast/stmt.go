@@ -91,3 +91,14 @@ func (self *Break) Position() reader.Position {
 }
 
 func (*Break) stmt() {}
+
+// Continue 下一次循环
+type Continue struct {
+	Token token.Token
+}
+
+func (self *Continue) Position() reader.Position {
+	return self.Token.Position
+}
+
+func (*Continue) stmt() {}

@@ -22,6 +22,8 @@ func (self *Parser) parseStmt() Stmt {
 		return self.parseLoop()
 	case token.BREAK:
 		return self.parseBreak()
+	case token.CONTINUE:
+		return self.parseContinue()
 	default:
 		return self.mustExpr(self.parseOptionExpr(true))
 	}
@@ -94,4 +96,8 @@ func (self *Parser) parseLoop() *Loop {
 
 func (self *Parser) parseBreak() *Break {
 	return &Break{Token: self.expectNextIs(token.BREAK)}
+}
+
+func (self *Parser) parseContinue() *Continue {
+	return &Continue{Token: self.expectNextIs(token.CONTINUE)}
 }

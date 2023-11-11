@@ -23,6 +23,8 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 		self.codegenLoop(stmtNode)
 	case *mean.Break:
 		self.codegenBreak(stmtNode)
+	case *mean.Continue:
+		self.codegenContinue(stmtNode)
 	default:
 		panic("unreachable")
 	}
@@ -143,4 +145,9 @@ func (self *CodeGenerator) codegenBreak(node *mean.Break) {
 	}
 	endBlock, _ := loop.End.Value()
 	self.builder.CreateBr(endBlock)
+}
+
+func (self *CodeGenerator) codegenContinue(node *mean.Continue) {
+	loop := self.loops.Get(node.Loop)
+	self.builder.CreateBr(loop.Entry)
 }

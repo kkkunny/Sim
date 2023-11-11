@@ -11,14 +11,15 @@ type Stmt interface {
 	stmt()
 }
 
-// JumpOut 跳出
-type JumpOut uint8
+// BlockEof 代码块结束符
+type BlockEof uint8
 
 // 值越大优先级越大
 const (
-	JumpOutNone JumpOut = iota
-	JumpOutLoop
-	JumpOutReturn
+	BlockEofNone BlockEof = iota
+	BlockEofNextLoop
+	BlockEofBreakLoop
+	BlockEofReturn
 )
 
 // Block 代码块
@@ -75,3 +76,9 @@ type Break struct {
 }
 
 func (*Break) stmt() {}
+
+type Continue struct {
+	Loop *Loop
+}
+
+func (*Continue) stmt() {}
