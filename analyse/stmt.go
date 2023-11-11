@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/util"
 )
@@ -55,8 +56,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *Return {
 		return &Return{Value: util.Some[Expr](value)}
 	} else {
 		if !expectRetType.Equal(Empty) {
-			// TODO: 编译时异常：类型不相等
-			panic("编译时异常：类型不相等")
+			errors.ThrowTypeMismatchError(node.Position(), expectRetType, Empty)
 		}
 		return &Return{Value: util.None[Expr]()}
 	}
@@ -68,8 +68,7 @@ func (self *Analyser) analyseLocalVariable(node *ast.Variable) *Variable {
 		Name: node.Name.Source(),
 	}
 	if !self.localScope.SetValue(v.Name, v) {
-		// TODO: 编译时异常：变量名冲突
-		panic("编译时异常：变量名冲突")
+		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
 
 	v.Type = self.analyseType(node.Type)

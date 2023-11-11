@@ -8,6 +8,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/token"
 )
@@ -97,8 +98,7 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 	case token.ASS:
 		if lt.Equal(rt) {
 			if !left.Mutable() {
-				// TODO: 编译时异常：左值不能被赋值
-				panic("编译时异常：左值不能被赋值")
+				errors.ThrowNotMutableError(node.Left.Position())
 			}
 			return &Assign{
 				Left:  left,
@@ -291,8 +291,8 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 		panic("unreachable")
 	}
 
-	// TODO: 编译时异常：不能对两个类型进行二元运算
-	panic("编译时异常：不能对两个类型进行二元运算")
+	errors.ThrowIllegalBinaryError(node.Position(), node.Opera, left, right)
+	return nil
 }
 
 func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
@@ -315,15 +315,14 @@ func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
 		panic("unreachable")
 	}
 
-	// TODO: 编译时异常：不能对两个类型进行一元运算
-	panic("编译时异常：不能对两个类型进行一元运算")
+	errors.ThrowIllegalUnaryError(node.Position(), node.Opera, value)
+	return nil
 }
 
 func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
 	value, ok := self.localScope.GetValue(node.Name.Source())
 	if !ok {
-		// TODO: 编译时异常：未知的变量
-		panic("编译时异常：未知的变量")
+		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
 	return value
 }
@@ -332,11 +331,9 @@ func (self *Analyser) analyseCall(node *ast.Call) *Call {
 	f := self.analyseExpr(nil, node.Func)
 	ft, ok := f.GetType().(*FuncType)
 	if !ok {
-		// TODO: 编译时异常：不能调用类型A
-		panic("编译时异常：不能调用类型A")
+		errors.ThrowNotFunctionError(node.Func.Position(), f.GetType())
 	} else if len(ft.Params) != len(node.Args) {
-		// TODO: 编译时异常：参数数量不匹配
-		panic("编译时异常：参数数量不匹配")
+		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ft.Params)), uint(len(node.Args)))
 	}
 	args := lo.Map(node.Args, func(item ast.Expr, index int) Expr {
 		return self.analyseExpr(ft.Params[index], item)
@@ -385,16 +382,15 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 			To:   tt.(NumberType),
 		}
 	default:
-		// TODO: 编译期异常：类型A无法转换成B
-		panic("编译期异常：类型A无法转换成B")
+		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
+		return nil
 	}
 }
 
 func (self *Analyser) expectExpr(expect Type, node ast.Expr) Expr {
 	value := self.analyseExpr(expect, node)
-	if !value.GetType().Equal(expect) {
-		// TODO: 编译时异常：期待类型是A，但是这里是B
-		panic("编译时异常：期待类型是A，但是这里是B")
+	if vt := value.GetType(); !vt.Equal(expect) {
+		errors.ThrowTypeMismatchError(node.Position(), vt, expect)
 	}
 	return value
 }
@@ -414,8 +410,7 @@ func (self *Analyser) analyseArray(node *ast.Array) *Array {
 func (self *Analyser) analyseIndex(node *ast.Index) *Index {
 	from := self.analyseExpr(nil, node.From)
 	if !TypeIs[*ArrayType](from.GetType()) {
-		// TODO: 编译时异常：不能获取类型A的索引
-		panic("编译时异常：不能获取类型A的索引")
+		errors.ThrowNotArrayError(node.From.Position(), from.GetType())
 	}
 	index := self.expectExpr(Usize, node.Index)
 	return &Index{
@@ -440,13 +435,11 @@ func (self *Analyser) analyseExtract(expect Type, node *ast.Extract) *Extract {
 	from := self.analyseExpr(expectFrom, node.From)
 	tt, ok := from.GetType().(*TupleType)
 	if !ok {
-		// TODO: 编译时异常：不能提取类型A的元素
-		panic("编译时异常：不能提取类型A的元素")
+		errors.ThrowNotTupleError(node.From.Position(), from.GetType())
 	}
 
 	if index >= uint(len(tt.Elems)) {
-		// TODO: 编译时异常：超出下标
-		panic("编译时异常：超出下标")
+		errors.ThrowInvalidIndexError(node.Index.Position, index)
 	}
 	return &Extract{
 		From:  from,
@@ -458,15 +451,14 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *Struct {
 	st := self.analyseIdentType(node.Type).(*StructType)
 	fieldNames := hashset.NewHashSet[string]()
 	for iter := st.Fields.Keys().Iterator(); iter.Next(); {
-		fieldNames.Push(iter.Value())
+		fieldNames.Add(iter.Value())
 	}
 
 	existedFields := make(map[string]Expr)
 	for _, nf := range node.Fields {
 		fn := nf.First.Source()
 		if !fieldNames.Contain(fn) {
-			// TODO: 编译时异常：未知的字段
-			panic("编译时异常：未知的字段")
+			errors.ThrowIdentifierDuplicationError(nf.First.Position, nf.First)
 		}
 		existedFields[fn] = self.expectExpr(st.Fields.Get(fn), nf.Second)
 	}
@@ -493,11 +485,9 @@ func (self *Analyser) analyseField(node *ast.Field) *Field {
 	fieldName := node.Index.Source()
 	st, ok := from.GetType().(*StructType)
 	if !ok {
-		// TODO: 编译时异常：不能获取类型A的字段
-		panic("编译时异常：不能获取类型A的字段")
+		errors.ThrowNotStructError(node.From.Position(), from.GetType())
 	} else if !st.Fields.ContainKey(fieldName) {
-		// TODO: 编译时异常：超出下标
-		panic("编译时异常：超出下标")
+		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
 	var i int
 	for iter := st.Fields.Keys().Iterator(); iter.Next(); i++ {
