@@ -3,6 +3,7 @@ func main()i32{
 	let mut i: usize = 0
 	let mut res: i32 = 0
 	loop {
+	    break
 	    res = res + a[i]
 	    i = i + 1
 	}

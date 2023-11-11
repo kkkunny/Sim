@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/reader"
+	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
 
@@ -79,3 +80,14 @@ func (self *Loop) Position() reader.Position {
 }
 
 func (*Loop) stmt() {}
+
+// Break 跳出循环
+type Break struct {
+	Token token.Token
+}
+
+func (self *Break) Position() reader.Position {
+	return self.Token.Position
+}
+
+func (*Break) stmt() {}

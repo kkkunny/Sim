@@ -60,6 +60,7 @@ const (
 	ELSE
 	MUT
 	LOOP
+	BREAK
 	_KeywordEnd
 )
 
@@ -109,6 +110,7 @@ var kindNames = [...]string{
 	ELSE:    "else",
 	IF:      "if",
 	MUT:     "mut",
+	BREAK:   "break",
 	LOOP:    "loop",
 }
 

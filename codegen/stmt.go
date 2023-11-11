@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
@@ -20,6 +21,8 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 		self.codegenExpr(stmtNode, false)
 	case *mean.Loop:
 		self.codegenLoop(stmtNode)
+	case *mean.Break:
+		self.codegenBreak(stmtNode)
 	default:
 		panic("unreachable")
 	}
@@ -34,12 +37,15 @@ func (self *CodeGenerator) codegenFlatBlock(node *mean.Block) {
 	}
 }
 
-func (self *CodeGenerator) codegenBlock(node *mean.Block) (llvm.Block, llvm.Block) {
+func (self *CodeGenerator) codegenBlock(node *mean.Block, afterBlockCreate func(block llvm.Block)) (llvm.Block, llvm.Block) {
 	from := self.builder.CurrentBlock()
-	defer self.builder.MoveToAfter(from)
-
 	block := from.Belong().NewBlock("")
+	if afterBlockCreate != nil {
+		afterBlockCreate(block)
+	}
+
 	self.builder.MoveToAfter(block)
+	defer self.builder.MoveToAfter(from)
 
 	self.codegenFlatBlock(node)
 
@@ -94,7 +100,7 @@ func (self *CodeGenerator) codegenIfElse(node *mean.IfElse) {
 func (self *CodeGenerator) codegenIfElseNode(node *mean.IfElse) []llvm.Block {
 	if condNode, ok := node.Cond.Value(); ok {
 		cond := self.codegenExpr(condNode, true)
-		trueStartBlock, trueEndBlock := self.codegenBlock(node.Body)
+		trueStartBlock, trueEndBlock := self.codegenBlock(node.Body, nil)
 		falseBlock := trueStartBlock.Belong().NewBlock("")
 		self.builder.CreateCondBr(cond, trueStartBlock, falseBlock)
 		self.builder.MoveToAfter(falseBlock)
@@ -111,11 +117,30 @@ func (self *CodeGenerator) codegenIfElseNode(node *mean.IfElse) []llvm.Block {
 	}
 }
 
+type Loop struct {
+	Entry llvm.Block
+	End   util.Option[llvm.Block]
+}
+
 func (self *CodeGenerator) codegenLoop(node *mean.Loop) {
-	nextBlock, nextEndBlock := self.codegenBlock(node.Body)
+	nextBlock, nextEndBlock := self.codegenBlock(node.Body, func(block llvm.Block) {
+		self.loops.Set(node, &Loop{Entry: block})
+	})
 	self.builder.CreateBr(nextBlock)
 	if !nextEndBlock.IsTerminating() {
 		self.builder.MoveToAfter(nextEndBlock)
 		self.builder.CreateBr(nextBlock)
 	}
+	if endBlock, ok := self.loops.Get(node).End.Value(); ok {
+		self.builder.MoveToAfter(endBlock)
+	}
+}
+
+func (self *CodeGenerator) codegenBreak(node *mean.Break) {
+	loop := self.loops.Get(node.Loop)
+	if loop.End.IsNone() {
+		loop.End = util.Some(self.builder.CurrentBlock().Belong().NewBlock(""))
+	}
+	endBlock, _ := loop.End.Value()
+	self.builder.CreateBr(endBlock)
 }

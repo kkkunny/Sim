@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/ast"
@@ -17,20 +18,23 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, JumpOut) {
 	case *ast.Variable:
 		return self.analyseLocalVariable(stmtNode), JumpOutNone
 	case *ast.Block:
-		return self.analyseBlock(stmtNode)
+		return self.analyseBlock(stmtNode, nil)
 	case *ast.IfElse:
 		return self.analyseIfElse(stmtNode)
 	case ast.Expr:
 		return self.analyseExpr(nil, stmtNode), JumpOutNone
 	case *ast.Loop:
 		return self.analyseLoop(stmtNode)
+	case *ast.Break:
+		return self.analyseBreak(stmtNode), JumpOutLoop
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseBlock(node *ast.Block) (*Block, JumpOut) {
+func (self *Analyser) analyseBlock(node *ast.Block, loop *Loop) (*Block, JumpOut) {
 	self.localScope = _NewBlockScope(self.localScope)
+	self.localScope.SetLoop(loop)
 	defer func() {
 		self.localScope = self.localScope.GetParent().(_LocalScope)
 	}()
@@ -81,7 +85,7 @@ func (self *Analyser) analyseLocalVariable(node *ast.Variable) *Variable {
 func (self *Analyser) analyseIfElse(node *ast.IfElse) (*IfElse, JumpOut) {
 	if condNode, ok := node.Cond.Value(); ok {
 		cond := self.expectExpr(Bool, condNode)
-		body, jump := self.analyseBlock(node.Body)
+		body, jump := self.analyseBlock(node.Body, nil)
 
 		var next util.Option[*IfElse]
 		if nextNode, ok := node.Next.Value(); ok {
@@ -98,12 +102,22 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) (*IfElse, JumpOut) {
 			Next: next,
 		}, jump
 	} else {
-		body, jump := self.analyseBlock(node.Body)
+		body, jump := self.analyseBlock(node.Body, nil)
 		return &IfElse{Body: body}, jump
 	}
 }
 
 func (self *Analyser) analyseLoop(node *ast.Loop) (*Loop, JumpOut) {
-	body, jump := self.analyseBlock(node.Body)
-	return &Loop{Body: body}, jump
+	loop := &Loop{}
+	body, jump := self.analyseBlock(node.Body, loop)
+	loop.Body = body
+	return loop, stlbasic.Ternary(jump == JumpOutLoop, JumpOutNone, jump)
+}
+
+func (self *Analyser) analyseBreak(node *ast.Break) *Break {
+	loop := self.localScope.GetLoop()
+	if loop == nil {
+		errors.ThrowLoopControlError(node.Position())
+	}
+	return &Break{Loop: loop}
 }

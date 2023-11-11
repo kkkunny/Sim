@@ -82,3 +82,13 @@ func ThrowNotStructError(pos reader.Position, t mean.Type) {
 func ThrowInvalidIndexError(pos reader.Position, index uint) {
 	ThrowError(pos, "invalid index with `%d`", index)
 }
+
+// ThrowLoopControlError 非法的循环控制
+func ThrowLoopControlError(pos reader.Position) {
+	ThrowError(pos, "must in a loop")
+}
+
+// ThrowMissingReturnValueError 缺失返回值
+func ThrowMissingReturnValueError(pos reader.Position, t mean.Type) {
+	ThrowError(pos, "missing a return value type `%s`", t)
+}

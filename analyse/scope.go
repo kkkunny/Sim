@@ -56,6 +56,8 @@ type _LocalScope interface {
 	GetFuncScope() *_FuncScope
 	GetPkgScope() *_PkgScope
 	GetRetType() Type
+	SetLoop(loop *Loop)
+	GetLoop() *Loop
 }
 
 // 函数作用域
@@ -105,6 +107,7 @@ func (self *_FuncScope) GetRetType() Type {
 type _BlockScope struct {
 	parent _LocalScope
 	values hashmap.HashMap[string, Ident]
+	loop   *Loop
 }
 
 func _NewBlockScope(p _LocalScope) *_BlockScope {
@@ -140,4 +143,18 @@ func (self *_BlockScope) GetPkgScope() *_PkgScope {
 
 func (self *_BlockScope) GetRetType() Type {
 	return self.parent.GetRetType()
+}
+
+func (self *_BlockScope) SetLoop(loop *Loop) {
+	self.loop = loop
+}
+
+func (self *_BlockScope) GetLoop() *Loop {
+	if self.loop != nil {
+		return self.loop
+	}
+	if self.parent != nil {
+		return self.parent.GetLoop()
+	}
+	return nil
 }

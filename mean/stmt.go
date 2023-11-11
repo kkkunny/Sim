@@ -17,6 +17,7 @@ type JumpOut uint8
 // 值越大优先级越大
 const (
 	JumpOutNone JumpOut = iota
+	JumpOutLoop
 	JumpOutReturn
 )
 
@@ -68,3 +69,9 @@ type Loop struct {
 }
 
 func (*Loop) stmt() {}
+
+type Break struct {
+	Loop *Loop
+}
+
+func (*Break) stmt() {}
