@@ -6,7 +6,6 @@ import (
 	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/mean"
-	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
@@ -19,12 +18,14 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 		self.codegenIfElse(stmtNode)
 	case mean.Expr:
 		self.codegenExpr(stmtNode, false)
-	case *mean.Loop:
-		self.codegenLoop(stmtNode)
+	case *mean.EndlessLoop:
+		self.codegenEndlessLoop(stmtNode)
 	case *mean.Break:
 		self.codegenBreak(stmtNode)
 	case *mean.Continue:
 		self.codegenContinue(stmtNode)
+	case *mean.For:
+		self.codegenFor(stmtNode)
 	default:
 		panic("unreachable")
 	}
@@ -63,12 +64,13 @@ func (self *CodeGenerator) codegenReturn(node *mean.Return) {
 	}
 }
 
-func (self *CodeGenerator) codegenLocalVariable(node *mean.Variable) {
+func (self *CodeGenerator) codegenLocalVariable(node *mean.Variable) llvm.Value {
 	t := self.codegenType(node.Type)
 	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.CreateAlloca("", t)
 	self.builder.CreateStore(value, ptr)
 	self.values[node] = ptr
+	return ptr
 }
 
 func (self *CodeGenerator) codegenIfElse(node *mean.IfElse) {
@@ -119,35 +121,122 @@ func (self *CodeGenerator) codegenIfElseNode(node *mean.IfElse) []llvm.Block {
 	}
 }
 
-type Loop struct {
-	Entry llvm.Block
-	End   util.Option[llvm.Block]
+type loop interface {
+	SetOutBlock(block llvm.Block)
+	GetOutBlock() (*llvm.Block, bool)
+	GetNextBlock() llvm.Block
 }
 
-func (self *CodeGenerator) codegenLoop(node *mean.Loop) {
-	nextBlock, nextEndBlock := self.codegenBlock(node.Body, func(block llvm.Block) {
-		self.loops.Set(node, &Loop{Entry: block})
+type endlessLoop struct {
+	BodyEntry llvm.Block
+	Out       *llvm.Block
+}
+
+func (self *endlessLoop) SetOutBlock(block llvm.Block) {
+	self.Out = &block
+}
+
+func (self *endlessLoop) GetOutBlock() (*llvm.Block, bool) {
+	return self.Out, self.Out != nil
+}
+
+func (self *endlessLoop) GetNextBlock() llvm.Block {
+	return self.BodyEntry
+}
+
+func (self *CodeGenerator) codegenEndlessLoop(node *mean.EndlessLoop) {
+	entryBlock, endBlock := self.codegenBlock(node.Body, func(block llvm.Block) {
+		self.loops.Set(node, &endlessLoop{BodyEntry: block})
 	})
-	self.builder.CreateBr(nextBlock)
-	if !nextEndBlock.IsTerminating() {
-		self.builder.MoveToAfter(nextEndBlock)
-		self.builder.CreateBr(nextBlock)
-	}
-	if endBlock, ok := self.loops.Get(node).End.Value(); ok {
+	self.builder.CreateBr(entryBlock)
+	if !endBlock.IsTerminating() {
 		self.builder.MoveToAfter(endBlock)
+		self.builder.CreateBr(entryBlock)
+	}
+	if outBlock, ok := self.loops.Get(node).GetOutBlock(); ok {
+		self.builder.MoveToAfter(*outBlock)
 	}
 }
 
 func (self *CodeGenerator) codegenBreak(node *mean.Break) {
 	loop := self.loops.Get(node.Loop)
-	if loop.End.IsNone() {
-		loop.End = util.Some(self.builder.CurrentBlock().Belong().NewBlock(""))
+	if _, ok := loop.GetOutBlock(); !ok {
+		loop.SetOutBlock(self.builder.CurrentBlock().Belong().NewBlock(""))
 	}
-	endBlock, _ := loop.End.Value()
-	self.builder.CreateBr(endBlock)
+	endBlock, _ := loop.GetOutBlock()
+	self.builder.CreateBr(*endBlock)
 }
 
 func (self *CodeGenerator) codegenContinue(node *mean.Continue) {
 	loop := self.loops.Get(node.Loop)
-	self.builder.CreateBr(loop.Entry)
+	self.builder.CreateBr(loop.GetNextBlock())
+}
+
+type forRange struct {
+	Action llvm.Block
+	Out    llvm.Block
+}
+
+func (self *forRange) SetOutBlock(block llvm.Block) {}
+
+func (self *forRange) GetOutBlock() (*llvm.Block, bool) {
+	return &self.Out, true
+}
+
+func (self *forRange) GetNextBlock() llvm.Block {
+	return self.Action
+}
+
+func (self *CodeGenerator) codegenFor(node *mean.For) {
+	// pre
+	iter := self.codegenExpr(node.Iterator, false)
+	iterArrayTypeMean := node.Iterator.GetType().(*mean.ArrayType)
+	indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
+	self.builder.CreateStore(self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0), indexPtr)
+	cursorPtr := self.codegenLocalVariable(node.Cursor)
+	condBlock := self.builder.CurrentBlock().Belong().NewBlock("")
+	self.builder.CreateBr(condBlock)
+	self.builder.MoveToAfter(condBlock)
+	var actionBlock llvm.Block
+
+	beforeBody := func(entry llvm.Block) {
+		curBlock := self.builder.CurrentBlock()
+		defer func() {
+			self.builder.MoveToAfter(curBlock)
+		}()
+
+		actionBlock = curBlock.Belong().NewBlock("")
+		outBlock := curBlock.Belong().NewBlock("")
+
+		// cond
+		self.builder.MoveToAfter(condBlock)
+		self.builder.CreateCondBr(
+			self.builder.CreateIntCmp("", llvm.IntULT, self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(iterArrayTypeMean.Size))),
+			entry,
+			outBlock,
+		)
+
+		// action
+		self.builder.MoveToAfter(actionBlock)
+		self.builder.CreateStore(self.builder.CreateUAdd("", self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
+		self.builder.CreateBr(condBlock)
+
+		// body
+		self.builder.MoveToAfter(entry)
+		self.builder.CreateStore(self.buildArrayIndex(self.codegenArrayType(iterArrayTypeMean), iter, self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), true), cursorPtr)
+
+		self.loops.Set(node, &forRange{
+			Action: actionBlock,
+			Out:    outBlock,
+		})
+	}
+
+	_, endBlock := self.codegenBlock(node.Body, beforeBody)
+	if !endBlock.IsTerminating() {
+		self.builder.MoveToAfter(endBlock)
+		self.builder.CreateBr(actionBlock)
+	}
+	if outBlock, ok := self.loops.Get(node).GetOutBlock(); ok {
+		self.builder.MoveToAfter(*outBlock)
+	}
 }

@@ -1,11 +1,13 @@
-func main()i32{
-	let a: [2]i32 = [2]i32{1, 2}
-	let mut i: usize = 0
-	let mut res: i32 = 0
-	loop {
-	    continue
-	    res = res + a[i]
-	    i = i + 1
+func main()u8{
+	let mut a: u8 = 10
+    loop {
+		if a == 0{
+            break
+        }else if a < 5{
+			a = a - 1
+			continue
+		}
+		a = a - 2
 	}
-    return res
+	return a
 }

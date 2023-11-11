@@ -65,20 +65,35 @@ func (self *IfElse) HasElse() bool {
 
 func (*IfElse) stmt() {}
 
-type Loop struct {
+type Loop interface {
+	Stmt
+	loop()
+}
+
+type EndlessLoop struct {
 	Body *Block
 }
 
-func (*Loop) stmt() {}
+func (*EndlessLoop) stmt() {}
+func (*EndlessLoop) loop() {}
 
 type Break struct {
-	Loop *Loop
+	Loop Loop
 }
 
 func (*Break) stmt() {}
 
 type Continue struct {
-	Loop *Loop
+	Loop Loop
 }
 
 func (*Continue) stmt() {}
+
+type For struct {
+	Cursor   *Variable
+	Iterator Expr
+	Body     *Block
+}
+
+func (*For) stmt() {}
+func (*For) loop() {}

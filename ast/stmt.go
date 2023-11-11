@@ -102,3 +102,18 @@ func (self *Continue) Position() reader.Position {
 }
 
 func (*Continue) stmt() {}
+
+// For 遍历
+type For struct {
+	Begin     reader.Position
+	CursorMut bool
+	Cursor    token.Token
+	Iterator  Expr
+	Body      *Block
+}
+
+func (self *For) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*For) stmt() {}

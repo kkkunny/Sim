@@ -24,6 +24,8 @@ func (self *Parser) parseStmt() Stmt {
 		return self.parseBreak()
 	case token.CONTINUE:
 		return self.parseContinue()
+	case token.FOR:
+		return self.parseFor()
 	default:
 		return self.mustExpr(self.parseOptionExpr(true))
 	}
@@ -100,4 +102,20 @@ func (self *Parser) parseBreak() *Break {
 
 func (self *Parser) parseContinue() *Continue {
 	return &Continue{Token: self.expectNextIs(token.CONTINUE)}
+}
+
+func (self *Parser) parseFor() *For {
+	begin := self.expectNextIs(token.FOR).Position
+	mut := self.skipNextIs(token.MUT)
+	cursor := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.IN)
+	iter := self.mustExpr(self.parseOptionExpr(false))
+	body := self.parseBlock()
+	return &For{
+		Begin:     begin,
+		CursorMut: mut,
+		Cursor:    cursor,
+		Iterator:  iter,
+		Body:      body,
+	}
 }

@@ -23,19 +23,25 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (Stmt, BlockEof) {
 	case ast.Expr:
 		return self.analyseExpr(nil, stmtNode), BlockEofNone
 	case *ast.Loop:
-		return self.analyseLoop(stmtNode)
+		return self.analyseEndlessLoop(stmtNode)
 	case *ast.Break:
 		return self.analyseBreak(stmtNode), BlockEofBreakLoop
 	case *ast.Continue:
 		return self.analyseContinue(stmtNode), BlockEofNextLoop
+	case *ast.For:
+		return self.analyseFor(stmtNode)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseBlock(node *ast.Block, loop *Loop) (*Block, BlockEof) {
-	self.localScope = _NewBlockScope(self.localScope)
-	self.localScope.SetLoop(loop)
+func (self *Analyser) analyseBlock(node *ast.Block, afterBlockCreate func(scope _LocalScope)) (*Block, BlockEof) {
+	blockScope := _NewBlockScope(self.localScope)
+	if afterBlockCreate != nil {
+		afterBlockCreate(blockScope)
+	}
+
+	self.localScope = blockScope
 	defer func() {
 		self.localScope = self.localScope.GetParent().(_LocalScope)
 	}()
@@ -108,9 +114,11 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) (*IfElse, BlockEof) {
 	}
 }
 
-func (self *Analyser) analyseLoop(node *ast.Loop) (*Loop, BlockEof) {
-	loop := &Loop{}
-	body, eof := self.analyseBlock(node.Body, loop)
+func (self *Analyser) analyseEndlessLoop(node *ast.Loop) (*EndlessLoop, BlockEof) {
+	loop := &EndlessLoop{}
+	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {
+		scope.SetLoop(loop)
+	})
 	loop.Body = body
 
 	if eof == BlockEofNextLoop || eof == BlockEofBreakLoop {
@@ -133,4 +141,35 @@ func (self *Analyser) analyseContinue(node *ast.Continue) *Continue {
 		errors.ThrowLoopControlError(node.Position())
 	}
 	return &Continue{Loop: loop}
+}
+
+func (self *Analyser) analyseFor(node *ast.For) (*For, BlockEof) {
+	iterator := self.analyseExpr(nil, node.Iterator)
+	iterType := iterator.GetType()
+	if !TypeIs[*ArrayType](iterType) {
+		errors.ThrowNotArrayError(node.Iterator.Position(), iterType)
+	}
+
+	et := iterType.(*ArrayType).Elem
+	loop := &For{
+		Iterator: iterator,
+		Cursor: &Variable{
+			Mut:   node.CursorMut,
+			Type:  et,
+			Name:  node.Cursor.Source(),
+			Value: &Zero{Type: et},
+		},
+	}
+	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {
+		if !scope.SetValue(loop.Cursor.Name, loop.Cursor) {
+			errors.ThrowIdentifierDuplicationError(node.Cursor.Position, node.Cursor)
+		}
+		scope.SetLoop(loop)
+	})
+	loop.Body = body
+
+	if eof == BlockEofNextLoop || eof == BlockEofBreakLoop {
+		eof = BlockEofNone
+	}
+	return loop, eof
 }

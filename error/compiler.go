@@ -11,7 +11,7 @@ import (
 
 // ThrowError 抛出异常
 func ThrowError(pos reader.Position, format string, args ...any) {
-	_, err := fmt.Fprintf(os.Stderr, format, args...)
+	_, err := fmt.Fprintln(os.Stderr, fmt.Sprintf("%s:%d:%d: %s", pos.Reader.Path(), pos.BeginRow, pos.BeginCol, fmt.Sprintf(format, args...)))
 	if err != nil {
 		panic(err)
 	}

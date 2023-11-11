@@ -62,6 +62,8 @@ const (
 	LOOP
 	BREAK
 	CONTINUE
+	FOR
+	IN
 	_KeywordEnd
 )
 
@@ -114,6 +116,8 @@ var kindNames = [...]string{
 	BREAK:    "break",
 	CONTINUE: "continue",
 	LOOP:     "loop",
+	FOR:      "for",
+	IN:       "in",
 }
 
 // Lookup 区分标识符和关键字
