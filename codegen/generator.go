@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/analyse"
@@ -18,6 +19,7 @@ type CodeGenerator struct {
 	builder llvm.Builder
 
 	values map[mean.Ident]llvm.Value
+	loops  hashmap.HashMap[mean.Loop, loop]
 }
 
 func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {

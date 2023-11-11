@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/reader"
+	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
 
@@ -67,3 +68,52 @@ func (self *IfElse) Position() reader.Position {
 }
 
 func (*IfElse) stmt() {}
+
+// Loop 循环
+type Loop struct {
+	Begin reader.Position
+	Body  *Block
+}
+
+func (self *Loop) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*Loop) stmt() {}
+
+// Break 跳出循环
+type Break struct {
+	Token token.Token
+}
+
+func (self *Break) Position() reader.Position {
+	return self.Token.Position
+}
+
+func (*Break) stmt() {}
+
+// Continue 下一次循环
+type Continue struct {
+	Token token.Token
+}
+
+func (self *Continue) Position() reader.Position {
+	return self.Token.Position
+}
+
+func (*Continue) stmt() {}
+
+// For 遍历
+type For struct {
+	Begin     reader.Position
+	CursorMut bool
+	Cursor    token.Token
+	Iterator  Expr
+	Body      *Block
+}
+
+func (self *For) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*For) stmt() {}

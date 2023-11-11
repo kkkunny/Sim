@@ -1,8 +1,13 @@
-func main()i32{
-	let mut i: i32 = 0
-	let mut j: i32 = 0
-	let mut m: i32 = 0
-	let n: ((i32, i32), i32) = ((1, 2), 3)
-	((i, j), m) = n
-    return m
+func main()u8{
+	let mut a: u8 = 10
+    loop {
+		if a == 0{
+            break
+        }else if a < 5{
+			a = a - 1
+			continue
+		}
+		a = a - 2
+	}
+	return a
 }

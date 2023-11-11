@@ -11,7 +11,7 @@ import (
 
 // ThrowError 抛出异常
 func ThrowError(pos reader.Position, format string, args ...any) {
-	_, err := fmt.Fprintf(os.Stderr, format, args...)
+	_, err := fmt.Fprintln(os.Stderr, fmt.Sprintf("%s:%d:%d: %s", pos.Reader.Path(), pos.BeginRow, pos.BeginCol, fmt.Sprintf(format, args...)))
 	if err != nil {
 		panic(err)
 	}
@@ -81,4 +81,14 @@ func ThrowNotStructError(pos reader.Position, t mean.Type) {
 // ThrowInvalidIndexError 超出下标
 func ThrowInvalidIndexError(pos reader.Position, index uint) {
 	ThrowError(pos, "invalid index with `%d`", index)
+}
+
+// ThrowLoopControlError 非法的循环控制
+func ThrowLoopControlError(pos reader.Position) {
+	ThrowError(pos, "must in a loop")
+}
+
+// ThrowMissingReturnValueError 缺失返回值
+func ThrowMissingReturnValueError(pos reader.Position, t mean.Type) {
+	ThrowError(pos, "missing a return value type `%s`", t)
 }

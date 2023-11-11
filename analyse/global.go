@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
@@ -116,11 +117,13 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 		}
 	}
 
-	body, jump := self.analyseBlock(node.Body)
+	body, jump := self.analyseBlock(node.Body, nil)
 	f.Body = body
-	if jump < JumpOutReturn {
-		// TODO: 编译时异常：缺少函数返回值
-		panic("编译时异常：缺少函数返回值")
+	if jump != BlockEofReturn {
+		if !f.Ret.Equal(Empty) {
+			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
+		}
+		f.Body.Stmts.PushBack(&Return{Value: util.None[Expr]()})
 	}
 	return f
 }

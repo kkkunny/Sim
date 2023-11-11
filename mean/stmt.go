@@ -11,13 +11,15 @@ type Stmt interface {
 	stmt()
 }
 
-// JumpOut 跳出
-type JumpOut uint8
+// BlockEof 代码块结束符
+type BlockEof uint8
 
 // 值越大优先级越大
 const (
-	JumpOutNone JumpOut = iota
-	JumpOutReturn
+	BlockEofNone BlockEof = iota
+	BlockEofNextLoop
+	BlockEofBreakLoop
+	BlockEofReturn
 )
 
 // Block 代码块
@@ -62,3 +64,36 @@ func (self *IfElse) HasElse() bool {
 }
 
 func (*IfElse) stmt() {}
+
+type Loop interface {
+	Stmt
+	loop()
+}
+
+type EndlessLoop struct {
+	Body *Block
+}
+
+func (*EndlessLoop) stmt() {}
+func (*EndlessLoop) loop() {}
+
+type Break struct {
+	Loop Loop
+}
+
+func (*Break) stmt() {}
+
+type Continue struct {
+	Loop Loop
+}
+
+func (*Continue) stmt() {}
+
+type For struct {
+	Cursor   *Variable
+	Iterator Expr
+	Body     *Block
+}
+
+func (*For) stmt() {}
+func (*For) loop() {}
