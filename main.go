@@ -15,9 +15,11 @@ import (
 	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
+	"github.com/kkkunny/Sim/util"
 )
 
 func main() {
+	util.InitLLVM()
 	stlerror.Must(llvm.InitializeNativeTarget())
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 	target := stlerror.MustWith(llvm.NativeTarget())
