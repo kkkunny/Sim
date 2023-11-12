@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
 
@@ -17,7 +18,9 @@ type Analyser struct {
 	localScope _LocalScope
 }
 
-func New(parser *parse.Parser) *Analyser {
+func New(parser *parse.Parser, target *llvm.Target) *Analyser {
+	Isize.Bits = target.PointerSize()
+	Usize.Bits = target.PointerSize()
 	return &Analyser{
 		parser:   parser,
 		pkgScope: _NewPkgScope(),
