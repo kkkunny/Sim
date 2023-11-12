@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/pair"
 
 	. "github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
 )
 
@@ -16,8 +17,8 @@ func (self *Parser) parseGlobal() Global {
 	case token.LET:
 		return self.parseVariable()
 	default:
-		// TODO: 编译时异常：未知的全局
-		panic("编译时异常：未知的全局")
+		errors.ThrowIllegalGlobal(self.nextTok.Position)
+		return nil
 	}
 }
 

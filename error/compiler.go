@@ -97,3 +97,23 @@ func ThrowMissingReturnValueError(pos reader.Position, t mean.Type) {
 func ThrowNotExpectToken(pos reader.Position, expect token.Kind, token token.Token) {
 	ThrowError(pos, "expect next token is `%s`, but there is `%s`", expect, token.Kind)
 }
+
+// ThrowIllegalInteger 非法的整数
+func ThrowIllegalInteger(pos reader.Position, token token.Token) {
+	ThrowError(pos, "illegal integer `%s`", token.Source())
+}
+
+// ThrowIllegalExpression 非法的表达式
+func ThrowIllegalExpression(pos reader.Position) {
+	ThrowError(pos, "illegal expression")
+}
+
+// ThrowIllegalGlobal 非法的全局
+func ThrowIllegalGlobal(pos reader.Position) {
+	ThrowError(pos, "illegal global")
+}
+
+// ThrowIllegalType 非法的类型
+func ThrowIllegalType(pos reader.Position) {
+	ThrowError(pos, "illegal type")
+}

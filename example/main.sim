@@ -1,11 +1,6 @@
-struct A{
-    f1: i32,
-    f2: i32
-}
-
 func main()u8{
-	let a: A = A{f1: 1, f2: 2}
-	let b: A = A{f1: 2, f2: 2}
+	let a: [2]i32 = [2]i32{1, 2}
+	let b: [2]i32 = [2]i32{1, 2}
 	if a == b{
 	    return 1
 	}

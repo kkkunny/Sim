@@ -50,8 +50,50 @@ func (self *CodeGenerator) buildEqual(l, r llvm.Value) llvm.Value {
 	case llvm.FloatType:
 		return self.builder.CreateFloatCmp("", llvm.FloatOEQ, l, r)
 	case llvm.ArrayType:
-		// TODO
-		panic("unreachable")
+		// BUG: array类型不能用ExtractElement
+		at := l.Type().(llvm.ArrayType)
+		if at.Capacity() == 0 {
+			return self.ctx.ConstInteger(self.ctx.IntegerType(1), 1)
+		}
+
+		indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
+		self.builder.CreateStore(self.ctx.ConstNull(self.ctx.IntPtrType(self.target)), indexPtr)
+		condBlock := self.builder.CurrentBlock().Belong().NewBlock("")
+		self.builder.CreateBr(condBlock)
+
+		// cond
+		self.builder.MoveToAfter(condBlock)
+		var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(at.Capacity())))
+		bodyBlock, outBlock := self.builder.CurrentBlock().Belong().NewBlock(""), self.builder.CurrentBlock().Belong().NewBlock("")
+		self.builder.CreateCondBr(cond, bodyBlock, outBlock)
+
+		// body
+		self.builder.MoveToAfter(bodyBlock)
+		index := self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr)
+		cond = self.buildEqual(self.buildArrayIndex(at, l, index, true), self.buildArrayIndex(at, r, index, true))
+		bodyEndBlock := self.builder.CurrentBlock()
+		actionBlock := bodyEndBlock.Belong().NewBlock("")
+		self.builder.CreateCondBr(cond, actionBlock, outBlock)
+
+		// action
+		self.builder.MoveToAfter(actionBlock)
+		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
+		self.builder.CreateBr(condBlock)
+
+		// out
+		self.builder.MoveToAfter(outBlock)
+		phi := self.builder.CreatePHI("", self.ctx.IntegerType(1))
+		phi.AddIncomings(
+			struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.ctx.ConstInteger(self.ctx.IntegerType(1), 1), Block: condBlock},
+			struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.ctx.ConstInteger(self.ctx.IntegerType(1), 0), Block: bodyEndBlock},
+		)
+		return phi
 	case llvm.StructType:
 		st := l.Type().(llvm.StructType)
 		if st.CountElems() == 0 {
@@ -102,7 +144,17 @@ func (self *CodeGenerator) buildNotEqual(l, r llvm.Value) llvm.Value {
 		return self.builder.CreateIntCmp("", llvm.IntNE, l, r)
 	case llvm.FloatType:
 		return self.builder.CreateFloatCmp("", llvm.FloatUNE, l, r)
-	case llvm.ArrayType, llvm.StructType:
+	case llvm.ArrayType:
+		at := l.Type().(llvm.ArrayType)
+		if at.Capacity() == 0 {
+			return self.ctx.ConstInteger(self.ctx.IntegerType(1), 0)
+		}
+		return self.builder.CreateNot("", self.buildEqual(l, r))
+	case llvm.StructType:
+		st := l.Type().(llvm.StructType)
+		if st.CountElems() == 0 {
+			return self.ctx.ConstInteger(self.ctx.IntegerType(1), 0)
+		}
 		return self.builder.CreateNot("", self.buildEqual(l, r))
 	default:
 		panic("unreachable")

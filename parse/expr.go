@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/pair"
 
 	. "github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
@@ -11,8 +12,7 @@ import (
 func (self *Parser) mustExpr(op util.Option[Expr]) Expr {
 	v, ok := op.Value()
 	if !ok {
-		// TODO: 编译时异常：期待一个表达式
-		panic("编译时异常：期待一个表达式")
+		errors.ThrowIllegalExpression(self.nextTok.Position)
 	}
 	return v
 }
