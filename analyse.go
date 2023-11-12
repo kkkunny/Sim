@@ -12,14 +12,15 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/analyse"
-	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
+	"github.com/kkkunny/Sim/util"
 )
 
 func main() {
+	util.InitLLVM()
 	stlerror.Must(llvm.InitializeNativeTarget())
 	target := stlerror.MustWith(llvm.NativeTarget())
 	mean.Usize.Bits = target.PointerSize() * 8
