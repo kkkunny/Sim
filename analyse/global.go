@@ -17,8 +17,7 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 		Fields: linkedhashmap.NewLinkedHashMap[string, Type](),
 	}
 	if !self.pkgScope.SetStruct(st) {
-		// TODO: 编译时异常：变量名冲突
-		panic("编译时异常：变量名冲突")
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
 }
 
@@ -68,8 +67,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		Ret:    self.analyseOptionType(node.Ret),
 	}
 	if !self.pkgScope.SetValue(f.Name, f) {
-		// TODO: 编译时异常：变量名冲突
-		panic("编译时异常：变量名冲突")
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
 }
 
@@ -80,8 +78,7 @@ func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 		Name: node.Name.Source(),
 	}
 	if !self.pkgScope.SetValue(v.Name, v) {
-		// TODO: 编译时异常：变量名冲突
-		panic("编译时异常：变量名冲突")
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
 }
 
@@ -112,8 +109,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 
 	for _, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {
-			// TODO: 编译时异常：变量名冲突
-			panic("编译时异常：变量名冲突")
+			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 		}
 	}
 

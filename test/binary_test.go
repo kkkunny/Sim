@@ -77,6 +77,20 @@ func main()bool{
 `)
 }
 
+func TestStructEq(t *testing.T) {
+	assertRetEqZero(t, `
+struct A{
+	f1: i32,
+	f2: i32
+}
+
+func main()bool{
+	let a: A = A{f1: 1, f2: 2}
+    return a != a
+}
+`)
+}
+
 func TestShl(t *testing.T) {
 	assertRetEqZero(t, `
 func main()bool{

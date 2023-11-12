@@ -2,6 +2,9 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/pair"
 )
 
 func (self *CodeGenerator) buildArrayIndex(t llvm.ArrayType, from, index llvm.Value, load bool) llvm.Value {
@@ -41,17 +44,93 @@ func (self *CodeGenerator) buildStructIndex(t llvm.StructType, from llvm.Value, 
 func (self *CodeGenerator) buildEqual(l, r llvm.Value) llvm.Value {
 	t := l.Type()
 
-	switch t.(type) {
+	switch tt := t.(type) {
 	case llvm.IntegerType, llvm.PointerType:
 		return self.builder.CreateIntCmp("", llvm.IntEQ, l, r)
 	case llvm.FloatType:
 		return self.builder.CreateFloatCmp("", llvm.FloatOEQ, l, r)
 	case llvm.ArrayType:
-		// TODO
-		panic("unreachable")
+		// BUG: array类型不能用ExtractElement
+		at := l.Type().(llvm.ArrayType)
+		if at.Capacity() == 0 {
+			return self.ctx.ConstInteger(self.ctx.IntegerType(1), 1)
+		}
+
+		indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
+		self.builder.CreateStore(self.ctx.ConstNull(self.ctx.IntPtrType(self.target)), indexPtr)
+		condBlock := self.builder.CurrentBlock().Belong().NewBlock("")
+		self.builder.CreateBr(condBlock)
+
+		// cond
+		self.builder.MoveToAfter(condBlock)
+		var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(at.Capacity())))
+		bodyBlock, outBlock := self.builder.CurrentBlock().Belong().NewBlock(""), self.builder.CurrentBlock().Belong().NewBlock("")
+		self.builder.CreateCondBr(cond, bodyBlock, outBlock)
+
+		// body
+		self.builder.MoveToAfter(bodyBlock)
+		index := self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr)
+		cond = self.buildEqual(self.buildArrayIndex(at, l, index, true), self.buildArrayIndex(at, r, index, true))
+		bodyEndBlock := self.builder.CurrentBlock()
+		actionBlock := bodyEndBlock.Belong().NewBlock("")
+		self.builder.CreateCondBr(cond, actionBlock, outBlock)
+
+		// action
+		self.builder.MoveToAfter(actionBlock)
+		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
+		self.builder.CreateBr(condBlock)
+
+		// out
+		self.builder.MoveToAfter(outBlock)
+		phi := self.builder.CreatePHI("", self.ctx.IntegerType(1))
+		phi.AddIncomings(
+			struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.ctx.ConstInteger(self.ctx.IntegerType(1), 1), Block: condBlock},
+			struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.ctx.ConstInteger(self.ctx.IntegerType(1), 0), Block: bodyEndBlock},
+		)
+		return phi
 	case llvm.StructType:
-		// TODO
-		panic("unreachable")
+		st := l.Type().(llvm.StructType)
+		if st.CountElems() == 0 {
+			return self.ctx.ConstInteger(self.ctx.IntegerType(1), 1)
+		}
+
+		beginBlock := self.builder.CurrentBlock()
+		nextBlocks := dynarray.NewDynArrayWithLength[pair.Pair[llvm.Value, llvm.Block]](uint(tt.CountElems()))
+		srcBlocks := dynarray.NewDynArrayWithLength[llvm.Block](uint(tt.CountElems()))
+		for i := uint32(0); i < tt.CountElems(); i++ {
+			cond := self.buildEqual(self.buildStructIndex(st, l, uint(i), true), self.buildStructIndex(st, r, uint(i), true))
+			nextBlock := beginBlock.Belong().NewBlock("")
+			nextBlocks.Set(uint(i), pair.NewPair(cond, nextBlock))
+			srcBlocks.Set(uint(i), self.builder.CurrentBlock())
+			self.builder.MoveToAfter(nextBlock)
+		}
+		self.builder.MoveToAfter(beginBlock)
+
+		endBlock := nextBlocks.Back().Second
+		for iter := nextBlocks.Iterator(); iter.Next(); {
+			item := iter.Value()
+			if iter.HasNext() {
+				self.builder.CreateCondBr(item.First, item.Second, endBlock)
+			} else {
+				self.builder.CreateBr(endBlock)
+			}
+			self.builder.MoveToAfter(item.Second)
+		}
+
+		phi := self.builder.CreatePHI("", self.ctx.IntegerType(1))
+		for iter := srcBlocks.Iterator(); iter.Next(); {
+			phi.AddIncomings(struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: stlbasic.Ternary[llvm.Value](iter.HasNext(), self.ctx.ConstInteger(self.ctx.IntegerType(1), 0), nextBlocks.Back().First), Block: iter.Value()})
+		}
+		return phi
 	default:
 		panic("unreachable")
 	}
@@ -65,7 +144,17 @@ func (self *CodeGenerator) buildNotEqual(l, r llvm.Value) llvm.Value {
 		return self.builder.CreateIntCmp("", llvm.IntNE, l, r)
 	case llvm.FloatType:
 		return self.builder.CreateFloatCmp("", llvm.FloatUNE, l, r)
-	case llvm.ArrayType, llvm.StructType:
+	case llvm.ArrayType:
+		at := l.Type().(llvm.ArrayType)
+		if at.Capacity() == 0 {
+			return self.ctx.ConstInteger(self.ctx.IntegerType(1), 0)
+		}
+		return self.builder.CreateNot("", self.buildEqual(l, r))
+	case llvm.StructType:
+		st := l.Type().(llvm.StructType)
+		if st.CountElems() == 0 {
+			return self.ctx.ConstInteger(self.ctx.IntegerType(1), 0)
+		}
 		return self.builder.CreateNot("", self.buildEqual(l, r))
 	default:
 		panic("unreachable")

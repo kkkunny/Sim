@@ -6,6 +6,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/util"
 )
@@ -69,9 +70,9 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 		if st, ok := self.pkgScope.GetStruct(name); ok {
 			return st
 		} else {
-			// TODO: 编译时异常：未知的类型
-			panic("编译时异常：未知的类型")
+			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		}
+		return nil
 	}
 }
 
@@ -90,8 +91,8 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *ArrayType {
 	if !ok {
 		panic("unreachable")
 	} else if !size.IsUint64() {
-		// TODO: 编译时异常：超出值范围
-		panic("编译时异常：超出值范围")
+		// FIXME: 数组最大容量
+		errors.ThrowIllegalInteger(node.Position(), node.Size)
 	}
 	elem := self.analyseType(node.Elem)
 	return &ArrayType{

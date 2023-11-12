@@ -2,6 +2,7 @@ package parse
 
 import (
 	. "github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
@@ -24,8 +25,7 @@ func (self *Parser) parseOptionType() util.Option[Type] {
 func (self *Parser) parseType() Type {
 	t, ok := self.parseOptionType().Value()
 	if !ok {
-		// TODO: 编译时异常：期待一个类型
-		panic("编译时异常：期待一个类型")
+		errors.ThrowIllegalType(self.nextTok.Position)
 	}
 	return t
 }
