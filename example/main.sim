@@ -1,13 +1,13 @@
+struct A{
+    f1: i32,
+    f2: i32
+}
+
 func main()u8{
-	let mut a: u8 = 10
-    loop {
-		if a == 0{
-            break
-        }else if a < 5{
-			a = a - 1
-			continue
-		}
-		a = a - 2
+	let a: A = A{f1: 1, f2: 2}
+	let b: A = A{f1: 2, f2: 2}
+	if a == b{
+	    return 1
 	}
-	return a
+	return 0
 }

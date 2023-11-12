@@ -92,3 +92,8 @@ func ThrowLoopControlError(pos reader.Position) {
 func ThrowMissingReturnValueError(pos reader.Position, t mean.Type) {
 	ThrowError(pos, "missing a return value type `%s`", t)
 }
+
+// ThrowNotExpectToken 不期待的token
+func ThrowNotExpectToken(pos reader.Position, expect token.Kind, token token.Token) {
+	ThrowError(pos, "expect next token is `%s`, but there is `%s`", expect, token.Kind)
+}

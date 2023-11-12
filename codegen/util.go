@@ -2,6 +2,9 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/pair"
 )
 
 func (self *CodeGenerator) buildArrayIndex(t llvm.ArrayType, from, index llvm.Value, load bool) llvm.Value {
@@ -41,7 +44,7 @@ func (self *CodeGenerator) buildStructIndex(t llvm.StructType, from llvm.Value, 
 func (self *CodeGenerator) buildEqual(l, r llvm.Value) llvm.Value {
 	t := l.Type()
 
-	switch t.(type) {
+	switch tt := t.(type) {
 	case llvm.IntegerType, llvm.PointerType:
 		return self.builder.CreateIntCmp("", llvm.IntEQ, l, r)
 	case llvm.FloatType:
@@ -50,8 +53,42 @@ func (self *CodeGenerator) buildEqual(l, r llvm.Value) llvm.Value {
 		// TODO
 		panic("unreachable")
 	case llvm.StructType:
-		// TODO
-		panic("unreachable")
+		st := l.Type().(llvm.StructType)
+		if st.CountElems() == 0 {
+			return self.ctx.ConstInteger(self.ctx.IntegerType(1), 1)
+		}
+
+		beginBlock := self.builder.CurrentBlock()
+		nextBlocks := dynarray.NewDynArrayWithLength[pair.Pair[llvm.Value, llvm.Block]](uint(tt.CountElems()))
+		srcBlocks := dynarray.NewDynArrayWithLength[llvm.Block](uint(tt.CountElems()))
+		for i := uint32(0); i < tt.CountElems(); i++ {
+			cond := self.buildEqual(self.buildStructIndex(st, l, uint(i), true), self.buildStructIndex(st, r, uint(i), true))
+			nextBlock := beginBlock.Belong().NewBlock("")
+			nextBlocks.Set(uint(i), pair.NewPair(cond, nextBlock))
+			srcBlocks.Set(uint(i), self.builder.CurrentBlock())
+			self.builder.MoveToAfter(nextBlock)
+		}
+		self.builder.MoveToAfter(beginBlock)
+
+		endBlock := nextBlocks.Back().Second
+		for iter := nextBlocks.Iterator(); iter.Next(); {
+			item := iter.Value()
+			if iter.HasNext() {
+				self.builder.CreateCondBr(item.First, item.Second, endBlock)
+			} else {
+				self.builder.CreateBr(endBlock)
+			}
+			self.builder.MoveToAfter(item.Second)
+		}
+
+		phi := self.builder.CreatePHI("", self.ctx.IntegerType(1))
+		for iter := srcBlocks.Iterator(); iter.Next(); {
+			phi.AddIncomings(struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: stlbasic.Ternary[llvm.Value](iter.HasNext(), self.ctx.ConstInteger(self.ctx.IntegerType(1), 0), nextBlocks.Back().First), Block: iter.Value()})
+		}
+		return phi
 	default:
 		panic("unreachable")
 	}
