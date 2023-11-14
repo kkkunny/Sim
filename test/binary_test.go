@@ -60,7 +60,7 @@ func main()bool{
 `)
 }
 
-func TestFlaotEq(t *testing.T) {
+func TestFloatEq(t *testing.T) {
 	assertRetEqZero(t, `
 func main()bool{
     let i: f64 = 1.2
@@ -73,6 +73,26 @@ func TestBoolEq(t *testing.T) {
 	assertRetEqZero(t, `
 func main()bool{
     return true == false
+}
+`)
+}
+
+func TestArrayEq(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+	let a: [2]i32 = [2]i32{1, 2}
+	let b: [2]i32 = [2]i32{3, 2}
+    return a == b
+}
+`)
+}
+
+func TestTupleEq(t *testing.T) {
+	assertRetEqZero(t, `
+func main()bool{
+	let a: (i32, i32) = (1, 2)
+	let b: (i32, i32) = (3, 2)
+    return a == b
 }
 `)
 }
