@@ -11,7 +11,6 @@ import (
 	"github.com/kkkunny/Sim/codegen"
 	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/lex"
-	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
 )
@@ -23,10 +22,8 @@ func init() {
 
 func assertRetEq(t *testing.T, code string, expect uint8) {
 	target := stlerror.MustWith(llvm.NativeTarget())
-	mean.Usize.Bits = target.PointerSize()
-	mean.Isize.Bits = mean.Usize.Bits
 	r := stlerror.MustWith(reader.NewReaderFromString("test.sim", code))
-	module := codegen.New(target, analyse.New(parse.New(lex.New(r)))).Codegen()
+	module := codegen.New(target, analyse.New(parse.New(lex.New(r)), target)).Codegen()
 	engine := stlerror.MustWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
 	f := engine.GetFunction("main")
 	if f == nil {

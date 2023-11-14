@@ -13,3 +13,13 @@ func main()u8{
 }
 `)
 }
+
+func TestExtract(t *testing.T) {
+	assertRetEqZero(t, `
+func main()u8{
+	let mut t:(u8, u8) = (1, 2)
+	t.0 = 3
+    return t.0 - 3
+}
+`)
+}

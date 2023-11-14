@@ -15,13 +15,11 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 		return self.codegenFloat(exprNode)
 	case *mean.Boolean:
 		return self.codegenBool(exprNode)
+	case *mean.Assign:
+		self.codegenAssign(exprNode)
+		return self.ctx.ConstNull(self.ctx.IntPtrType(self.target))
 	case mean.Binary:
-		if ass, ok := exprNode.(*mean.Assign); ok {
-			self.codegenAssign(ass)
-			return self.ctx.ConstNull(self.ctx.IntPtrType(self.target))
-		} else {
-			return self.codegenBinary(exprNode)
-		}
+		return self.codegenBinary(exprNode)
 	case mean.Unary:
 		return self.codegenUnary(exprNode)
 	case mean.Ident:
@@ -33,17 +31,17 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 	case *mean.Array:
 		return self.codegenArray(exprNode, load)
 	case *mean.Index:
-		return self.codegenIndex(exprNode)
+		return self.codegenIndex(exprNode, load)
 	case *mean.Tuple:
 		return self.codegenTuple(exprNode, load)
 	case *mean.Extract:
-		return self.codegenExtract(exprNode)
+		return self.codegenExtract(exprNode, load)
 	case *mean.Zero:
 		return self.codegenZero(exprNode)
 	case *mean.Struct:
 		return self.codegenStruct(exprNode, load)
 	case *mean.Field:
-		return self.codegenField(exprNode)
+		return self.codegenField(exprNode, load)
 	default:
 		panic("unreachable")
 	}
@@ -335,12 +333,16 @@ func (self *CodeGenerator) codegenArray(node *mean.Array, load bool) llvm.Value 
 	return self.builder.CreateLoad("", t, ptr)
 }
 
-func (self *CodeGenerator) codegenIndex(node *mean.Index) llvm.Value {
+func (self *CodeGenerator) codegenIndex(node *mean.Index, load bool) llvm.Value {
 	// TODO: 运行时异常：超出索引下标
 	t := self.codegenType(node.From.GetType()).(llvm.ArrayType)
-	ptr := self.builder.CreateAlloca("", t)
-	self.builder.CreateStore(self.codegenExpr(node.From, true), ptr)
-	return self.buildArrayIndex(t, ptr, self.codegenExpr(node.Index, true), true)
+	from := self.codegenExpr(node.From, false)
+	if _, ok := from.Type().(llvm.PointerType); !ok {
+		ptr := self.builder.CreateAlloca("", t)
+		self.builder.CreateStore(from, ptr)
+		from = ptr
+	}
+	return self.buildArrayIndex(t, from, self.codegenExpr(node.Index, true), load)
 }
 
 func (self *CodeGenerator) codegenTuple(node *mean.Tuple, load bool) llvm.Value {
@@ -358,11 +360,15 @@ func (self *CodeGenerator) codegenTuple(node *mean.Tuple, load bool) llvm.Value 
 	return self.builder.CreateLoad("", t, ptr)
 }
 
-func (self *CodeGenerator) codegenExtract(node *mean.Extract) llvm.Value {
+func (self *CodeGenerator) codegenExtract(node *mean.Extract, load bool) llvm.Value {
 	t := self.codegenType(node.From.GetType()).(llvm.StructType)
-	ptr := self.builder.CreateAlloca("", t)
-	self.builder.CreateStore(self.codegenExpr(node.From, true), ptr)
-	return self.buildStructIndex(t, ptr, node.Index, true)
+	from := self.codegenExpr(node.From, false)
+	if _, ok := from.Type().(llvm.PointerType); !ok {
+		ptr := self.builder.CreateAlloca("", t)
+		self.builder.CreateStore(from, ptr)
+		from = ptr
+	}
+	return self.buildStructIndex(t, from, node.Index, load)
 }
 
 func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Constant {
@@ -398,9 +404,13 @@ func (self *CodeGenerator) codegenStruct(node *mean.Struct, load bool) llvm.Valu
 	return self.builder.CreateLoad("", t, ptr)
 }
 
-func (self *CodeGenerator) codegenField(node *mean.Field) llvm.Value {
+func (self *CodeGenerator) codegenField(node *mean.Field, load bool) llvm.Value {
 	t := self.codegenType(node.From.GetType()).(llvm.StructType)
-	ptr := self.builder.CreateAlloca("", t)
-	self.builder.CreateStore(self.codegenExpr(node.From, true), ptr)
-	return self.buildStructIndex(t, ptr, node.Index, true)
+	from := self.codegenExpr(node.From, false)
+	if _, ok := from.Type().(llvm.PointerType); !ok {
+		ptr := self.builder.CreateAlloca("", t)
+		self.builder.CreateStore(from, ptr)
+		from = ptr
+	}
+	return self.buildStructIndex(t, from, node.Index, load)
 }

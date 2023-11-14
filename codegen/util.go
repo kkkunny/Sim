@@ -8,22 +8,22 @@ import (
 )
 
 func (self *CodeGenerator) buildArrayIndex(t llvm.ArrayType, from, index llvm.Value, load bool) llvm.Value {
+	elemPtr := self.builder.CreateInBoundsGEP("", t, from, self.ctx.ConstInteger(index.Type().(llvm.IntegerType), 0), index)
+	if !load {
+		return elemPtr
+	}
+	return self.builder.CreateLoad("", t.Element(), elemPtr)
+}
+
+func (self *CodeGenerator) buildArrayIndexWith(t llvm.ArrayType, from llvm.Value, index uint, load bool) llvm.Value {
 	if _, ptr := from.Type().(llvm.PointerType); ptr {
-		elemPtr := self.builder.CreateInBoundsGEP("", t, from, self.ctx.ConstInteger(index.Type().(llvm.IntegerType), 0), index)
-		if !load {
-			return elemPtr
-		}
-		return self.builder.CreateLoad("", t.Element(), elemPtr)
+		return self.buildArrayIndex(t, from, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(index)), load)
 	} else {
 		if !load {
 			panic("unreachable")
 		}
-		return self.builder.CreateExtractElement("", from, index)
+		return self.builder.CreateExtractValue("", from, index)
 	}
-}
-
-func (self *CodeGenerator) buildArrayIndexWith(t llvm.ArrayType, from llvm.Value, index uint, load bool) llvm.Value {
-	return self.buildArrayIndex(t, from, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(index)), load)
 }
 
 func (self *CodeGenerator) buildStructIndex(t llvm.StructType, from llvm.Value, index uint, load bool) llvm.Value {
