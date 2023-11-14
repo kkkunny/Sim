@@ -6,7 +6,7 @@ import (
 
 func TestBinary1(t *testing.T) {
 	assertRetEqZero(t, `
-func main()isize{
+func main()u8{
     return (0&1)|0^0
 }
 `)
@@ -14,7 +14,7 @@ func main()isize{
 
 func TestBinary2(t *testing.T) {
 	assertRetEqZero(t, `
-func main()isize{
+func main()u8{
     return (5+1-2/2*2)%2
 }
 `)
@@ -22,77 +22,104 @@ func main()isize{
 
 func TestLt(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return 2<1
+func main()u8{
+    if 2<1{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestGt(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return 1>2
+func main()u8{
+    if 1>2{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestLe(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return 2<=1
+func main()u8{
+    if 2<=1{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestGe(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return 1>=2
+func main()u8{
+    if 1>=2{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestIntEq(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return 1==2
+func main()u8{
+    if 1==2{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestFloatEq(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
+func main()u8{
     let i: f64 = 1.2
-    return i==2.2
+    if i==2.2{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestBoolEq(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return true == false
+func main()u8{
+    if true == false{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestArrayEq(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
+func main()u8{
 	let a: [2]i32 = [2]i32{1, 2}
 	let b: [2]i32 = [2]i32{3, 2}
-    return a == b
+    if a == b{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestTupleEq(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
+func main()u8{
 	let a: (i32, i32) = (1, 2)
 	let b: (i32, i32) = (3, 2)
-    return a == b
+    if a == b{
+        return 1
+    }
+    return 0
 }
 `)
 }
@@ -104,41 +131,56 @@ struct A{
 	f2: i32
 }
 
-func main()bool{
+func main()u8{
 	let a: A = A{f1: 1, f2: 2}
-    return a != a
+    if a != a{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestShl(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return (11 << 2) != 44
+func main()u8{
+    if (11 << 2) != 44{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestShr(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return (11 >> 2) != 2
+func main()u8{
+    if (11 >> 2) != 2{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestLogicAnd(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return true && false
+func main()u8{
+    if true && false{
+        return 1
+    }
+    return 0
 }
 `)
 }
 
 func TestLogicOr(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return false || false
+func main()u8{
+    if false || false{
+        return 1
+    }
+    return 0
 }
 `)
 }
@@ -155,11 +197,11 @@ func main()u8{
 
 func TestUnpack(t *testing.T) {
 	assertRetEqZero(t, `
-func main()i32{
-	let mut i: i32 = 0
-	let mut j: i32 = 0
-	let mut m: i32 = 0
-	let n: ((i32, i32), i32) = ((1, 2), 3)
+func main()u8{
+	let mut i: u8 = 0
+	let mut j: u8 = 0
+	let mut m: u8 = 0
+	let n: ((u8, u8), u8) = ((1, 2), 3)
 	((i, j), m) = n
     return m - 3
 }

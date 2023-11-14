@@ -24,6 +24,7 @@ func assertRetEq(t *testing.T, code string, expect uint8) {
 	target := stlerror.MustWith(llvm.NativeTarget())
 	r := stlerror.MustWith(reader.NewReaderFromString("test.sim", code))
 	module := codegen.New(target, analyse.New(parse.New(lex.New(r)), target)).Codegen()
+	stlerror.Must(module.Verify())
 	engine := stlerror.MustWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
 	f := engine.GetFunction("main")
 	if f == nil {
