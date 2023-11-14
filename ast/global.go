@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/reader"
@@ -59,3 +60,15 @@ func (self *Variable) Position() reader.Position {
 func (*Variable) stmt() {}
 
 func (*Variable) global() {}
+
+// Import 包导入
+type Import struct {
+	Begin reader.Position
+	Paths dynarray.DynArray[token.Token]
+}
+
+func (self *Import) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Paths.Back().Position)
+}
+
+func (*Import) global() {}

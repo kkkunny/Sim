@@ -174,6 +174,10 @@ func (self *Lexer) Scan() Token {
 			kind = DOT
 		case ':':
 			kind = COL
+			if nextCh := self.peek(); nextCh == ':' {
+				self.next()
+				kind = SCOPE
+			}
 		default:
 			kind = ILLEGAL
 		}

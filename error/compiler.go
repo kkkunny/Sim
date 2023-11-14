@@ -3,6 +3,10 @@ package errors
 import (
 	"fmt"
 	"os"
+	"strings"
+
+	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/reader"
@@ -116,4 +120,12 @@ func ThrowIllegalGlobal(pos reader.Position) {
 // ThrowIllegalType 非法的类型
 func ThrowIllegalType(pos reader.Position) {
 	ThrowError(pos, "illegal type")
+}
+
+// ThrowInvalidPackage 无效包
+func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Token]) {
+	pathStrs := iterator.Map[token.Token, string, dynarray.DynArray[string]](paths, func(v token.Token) string {
+		return v.Source()
+	})
+	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs.ToSlice(), "."))
 }

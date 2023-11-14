@@ -18,8 +18,10 @@ type Analyser struct {
 }
 
 func New(asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
-	Isize.Bits = target.PointerSize()
-	Usize.Bits = target.PointerSize()
+	if target != nil {
+		Isize.Bits = target.PointerSize()
+		Usize.Bits = target.PointerSize()
+	}
 	return &Analyser{
 		asts:     asts,
 		pkgScope: _NewPkgScope(),
@@ -28,6 +30,13 @@ func New(asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser 
 
 // Analyse 分析语义
 func (self *Analyser) Analyse() linkedlist.LinkedList[Global] {
+	meanNodes := linkedlist.NewLinkedList[Global]()
+	iterator.Foreach(self.asts, func(v ast.Global) bool {
+		if im, ok := v.(*ast.Import); ok {
+			meanNodes.Append(self.analyseImport(im))
+		}
+		return true
+	})
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
 		if st, ok := v.(*ast.StructDef); ok {
 			self.declTypeDef(st)
@@ -38,9 +47,10 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[Global] {
 		self.analyseGlobalDecl(v)
 		return true
 	})
-	meanNodes := linkedlist.NewLinkedList[Global]()
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
-		meanNodes.PushBack(self.analyseGlobalDef(v))
+		if global := self.analyseGlobalDef(v); global != nil {
+			meanNodes.PushBack(global)
+		}
 		return true
 	})
 	return meanNodes

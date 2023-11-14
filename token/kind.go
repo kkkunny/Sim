@@ -47,6 +47,7 @@ const (
 	COM
 	DOT
 	COL
+	SCOPE
 
 	_KeywordBegin
 	FUNC
@@ -64,6 +65,7 @@ const (
 	CONTINUE
 	FOR
 	IN
+	IMPORT
 	_KeywordEnd
 )
 
@@ -103,6 +105,7 @@ var kindNames = [...]string{
 	COM:      "com",
 	DOT:      "dot",
 	COL:      "col",
+	SCOPE:    "scope",
 	FUNC:     "func",
 	RETURN:   "return",
 	TRUE:     "true",
@@ -118,6 +121,7 @@ var kindNames = [...]string{
 	LOOP:     "loop",
 	FOR:      "for",
 	IN:       "in",
+	IMPORT:   "import",
 }
 
 // Lookup 区分标识符和关键字

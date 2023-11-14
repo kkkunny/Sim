@@ -14,6 +14,7 @@ import (
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/parse"
+	"github.com/kkkunny/Sim/util"
 )
 
 func main() {

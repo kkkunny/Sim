@@ -14,12 +14,14 @@ type _Scope interface {
 
 // 包作用域
 type _PkgScope struct {
+	externs hashmap.HashMap[string, *_PkgScope]
 	values  hashmap.HashMap[string, Ident]
 	structs hashmap.HashMap[string, *StructType]
 }
 
 func _NewPkgScope() *_PkgScope {
 	return &_PkgScope{
+		externs: hashmap.NewHashMap[string, *_PkgScope](),
 		values:  hashmap.NewHashMap[string, Ident](),
 		structs: hashmap.NewHashMap[string, *StructType](),
 	}
