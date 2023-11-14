@@ -8,7 +8,7 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 )
 
-// 文件读取器
+// IO读取器
 type _IOReader struct {
 	path    string
 	reader  io.ReadSeeker

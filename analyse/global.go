@@ -1,17 +1,47 @@
 package analyse
 
 import (
+	"path/filepath"
+
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/hashset"
+	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/config"
 	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
+	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
+
+func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Global] {
+	// BUG: 包循环引用
+	pkgName := node.Paths.Back().Source()
+	if self.pkgScope.externs.ContainKey(pkgName) {
+		errors.ThrowIdentifierDuplicationError(node.Paths.Back().Position, node.Paths.Back())
+	}
+
+	paths := iterator.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
+		return v.Source()
+	}).ToSlice()
+	pkgAsts, err := parse.ParseDir(filepath.Join(append([]string{config.ROOT}, paths...)...))
+	if err != nil {
+		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
+	}
+
+	pkgAnalyser := New(pkgAsts, nil)
+	pkgMeans := pkgAnalyser.Analyse()
+	self.pkgScope.externs.Set(pkgName, pkgAnalyser.pkgScope)
+	// BUG: 包代码重复
+	return pkgMeans
+}
 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	st := &StructDef{
@@ -24,7 +54,7 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 }
 
 func (self *Analyser) defTypeDef(node *ast.StructDef) *StructDef {
-	st, ok := self.pkgScope.GetStruct(node.Name.Source())
+	st, ok := self.pkgScope.GetStruct("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
@@ -43,7 +73,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declFuncDef(globalNode)
 	case *ast.Variable:
 		self.declGlobalVariable(globalNode)
-	case *ast.StructDef:
+	case *ast.StructDef, *ast.Import:
 	default:
 		panic("unreachable")
 	}
@@ -101,13 +131,15 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) Global {
 		return self.defTypeDef(globalNode)
 	case *ast.Variable:
 		return self.defGlobalVariable(globalNode)
+	case *ast.Import:
+		return nil
 	default:
 		panic("unreachable")
 	}
 }
 
 func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
-	value, ok := self.pkgScope.GetValue(node.Name.Source())
+	value, ok := self.pkgScope.GetValue("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
@@ -136,7 +168,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 }
 
 func (self *Analyser) defGlobalVariable(node *ast.Variable) *Variable {
-	value, ok := self.pkgScope.GetValue(node.Name.Source())
+	value, ok := self.pkgScope.GetValue("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}

@@ -34,7 +34,10 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[Expr] {
 		if !canStruct || !self.nextIs(token.LBR) {
 			return util.Some[Expr](ident)
 		}
-		return util.Some[Expr](self.parseStruct(&IdentType{Name: ident.Name}))
+		return util.Some[Expr](self.parseStruct(&IdentType{
+			Pkg:  ident.Pkg,
+			Name: ident.Name,
+		}))
 	case token.LPA:
 		return util.Some[Expr](self.parseTuple())
 	case token.LBA:
@@ -182,7 +185,19 @@ func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) util.Optio
 }
 
 func (self *Parser) parseIdent() *Ident {
-	return &Ident{Name: self.expectNextIs(token.IDENT)}
+	pkg := util.None[token.Token]()
+	var name token.Token
+	pkgOrName := self.expectNextIs(token.IDENT)
+	if self.skipNextIs(token.SCOPE) {
+		pkg = util.Some(pkgOrName)
+		name = self.expectNextIs(token.IDENT)
+	} else {
+		name = pkgOrName
+	}
+	return &Ident{
+		Pkg:  pkg,
+		Name: name,
+	}
 }
 
 func (self *Parser) parseArray() *Array {

@@ -1,6 +1,7 @@
 package parse
 
 import (
+	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
 
 	. "github.com/kkkunny/Sim/ast"
@@ -16,6 +17,8 @@ func (self *Parser) parseGlobal() Global {
 		return self.parseStructDef()
 	case token.LET:
 		return self.parseVariable()
+	case token.IMPORT:
+		return self.parseImport()
 	default:
 		errors.ThrowIllegalGlobal(self.nextTok.Position)
 		return nil
@@ -82,5 +85,20 @@ func (self *Parser) parseVariable() *Variable {
 		Name:    name,
 		Type:    typ,
 		Value:   value,
+	}
+}
+
+func (self *Parser) parseImport() *Import {
+	begin := self.expectNextIs(token.IMPORT).Position
+	var paths dynarray.DynArray[token.Token]
+	for {
+		paths.PushBack(self.expectNextIs(token.IDENT))
+		if !self.skipNextIs(token.DOT) {
+			break
+		}
+	}
+	return &Import{
+		Begin: begin,
+		Paths: paths,
 	}
 }

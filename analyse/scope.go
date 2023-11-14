@@ -9,17 +9,19 @@ import (
 // 作用域
 type _Scope interface {
 	SetValue(name string, v Ident) bool
-	GetValue(name string) (Ident, bool)
+	GetValue(pkg, name string) (Ident, bool)
 }
 
 // 包作用域
 type _PkgScope struct {
+	externs hashmap.HashMap[string, *_PkgScope]
 	values  hashmap.HashMap[string, Ident]
 	structs hashmap.HashMap[string, *StructType]
 }
 
 func _NewPkgScope() *_PkgScope {
 	return &_PkgScope{
+		externs: hashmap.NewHashMap[string, *_PkgScope](),
 		values:  hashmap.NewHashMap[string, Ident](),
 		structs: hashmap.NewHashMap[string, *StructType](),
 	}
@@ -33,8 +35,15 @@ func (self *_PkgScope) SetValue(name string, v Ident) bool {
 	return true
 }
 
-func (self *_PkgScope) GetValue(name string) (Ident, bool) {
-	return self.values.Get(name), self.values.ContainKey(name)
+func (self *_PkgScope) GetValue(pkg, name string) (Ident, bool) {
+	if pkg == "" {
+		return self.values.Get(name), self.values.ContainKey(name)
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		return nil, false
+	}
+	return pkgScope.GetValue("", name)
 }
 
 func (self *_PkgScope) SetStruct(st *StructType) bool {
@@ -45,8 +54,15 @@ func (self *_PkgScope) SetStruct(st *StructType) bool {
 	return true
 }
 
-func (self *_PkgScope) GetStruct(name string) (*StructType, bool) {
-	return self.structs.Get(name), self.structs.ContainKey(name)
+func (self *_PkgScope) GetStruct(pkg, name string) (*StructType, bool) {
+	if pkg == "" {
+		return self.structs.Get(name), self.structs.ContainKey(name)
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		return nil, false
+	}
+	return pkgScope.GetStruct("", name)
 }
 
 // 本地作用域
@@ -80,11 +96,14 @@ func (self *_FuncScope) SetValue(name string, v Ident) bool {
 	return self._BlockScope.SetValue(name, v)
 }
 
-func (self *_FuncScope) GetValue(name string) (Ident, bool) {
+func (self *_FuncScope) GetValue(pkg, name string) (Ident, bool) {
+	if pkg != "" {
+		return self.parent.GetValue(pkg, name)
+	}
 	if self.values.ContainKey(name) {
 		return self.values.Get(name), true
 	}
-	return self.parent.GetValue(name)
+	return self.parent.GetValue("", name)
 }
 
 func (self *_FuncScope) GetParent() _Scope {
@@ -122,11 +141,14 @@ func (self *_BlockScope) SetValue(name string, v Ident) bool {
 	return true
 }
 
-func (self *_BlockScope) GetValue(name string) (Ident, bool) {
+func (self *_BlockScope) GetValue(pkg, name string) (Ident, bool) {
+	if pkg != "" {
+		return self.parent.GetValue(pkg, name)
+	}
 	if self.values.ContainKey(name) {
 		return self.values.Get(name), true
 	}
-	return self.parent.GetValue(name)
+	return self.parent.GetValue("", name)
 }
 
 func (self *_BlockScope) GetParent() _Scope {
