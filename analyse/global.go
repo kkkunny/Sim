@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/samber/lo"
@@ -8,6 +9,7 @@ import (
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/util"
 )
 
@@ -65,6 +67,15 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		Name:   node.Name.Source(),
 		Params: params,
 		Ret:    self.analyseOptionType(node.Ret),
+	}
+	if f.Name == "main" && !f.Ret.Equal(U8) {
+		pos := stlbasic.TernaryAction(node.Ret.IsNone(), func() reader.Position {
+			return node.Name.Position
+		}, func() reader.Position {
+			ret, _ := node.Ret.Value()
+			return ret.Position()
+		})
+		errors.ThrowTypeMismatchError(pos, f.Ret, U8)
 	}
 	if !self.pkgScope.SetValue(f.Name, f) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)

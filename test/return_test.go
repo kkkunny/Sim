@@ -6,7 +6,7 @@ import (
 
 func TestReturn(t *testing.T) {
 	assertRetEqZero(t, `
-func main()isize{
+func main()u8{
     return 0
 }
 `)

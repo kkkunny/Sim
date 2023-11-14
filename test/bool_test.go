@@ -6,8 +6,11 @@ import (
 
 func TestBool(t *testing.T) {
 	assertRetEqZero(t, `
-func main()bool{
-    return false
+func main()u8{
+	if false{
+		return 1
+	}
+    return 0
 }
 `)
 }

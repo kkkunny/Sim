@@ -17,3 +17,17 @@ func main()u8{
 }
 `)
 }
+
+func TestField(t *testing.T) {
+	assertRetEqZero(t, `
+struct T{
+    data: u8
+}
+
+func main()u8{
+	let mut s: T = T{data: 1}
+	s.data = 3
+    return s.data - 3
+}
+`)
+}

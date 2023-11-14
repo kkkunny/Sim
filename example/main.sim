@@ -1,8 +1,7 @@
 func main()u8{
-	let a: [2]i32 = [2]i32{1, 2}
-	let b: [2]i32 = [2]i32{1, 2}
-	if a == b{
-	    return 1
-	}
-	return 0
+    let i: f64 = 1.2
+    if i==2.2{
+        return 1
+    }
+    return 0
 }
