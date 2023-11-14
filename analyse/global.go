@@ -12,6 +12,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/config"
 	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/parse"
@@ -30,7 +31,7 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Glob
 	paths := iterator.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
 		return v.Source()
 	}).ToSlice()
-	pkgAsts, err := parse.ParseDir(filepath.Join(append([]string{"example"}, paths...)...))
+	pkgAsts, err := parse.ParseDir(filepath.Join(append([]string{config.ROOT}, paths...)...))
 	if err != nil {
 		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
 	}
