@@ -31,7 +31,19 @@ func (self *Parser) parseType() Type {
 }
 
 func (self *Parser) parseIdentType() *IdentType {
-	return &IdentType{Name: self.expectNextIs(token.IDENT)}
+	pkg := util.None[token.Token]()
+	var name token.Token
+	pkgOrName := self.expectNextIs(token.IDENT)
+	if self.skipNextIs(token.SCOPE) {
+		pkg = util.Some(pkgOrName)
+		name = self.expectNextIs(token.IDENT)
+	} else {
+		name = pkgOrName
+	}
+	return &IdentType{
+		Pkg:  pkg,
+		Name: name,
+	}
 }
 
 func (self *Parser) parseFuncType() *FuncType {

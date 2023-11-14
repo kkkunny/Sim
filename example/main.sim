@@ -1,5 +1,5 @@
 import test
 
 func main()u8{
-    return 0
+    return test::get()
 }

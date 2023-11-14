@@ -53,7 +53,7 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 }
 
 func (self *Analyser) defTypeDef(node *ast.StructDef) *StructDef {
-	st, ok := self.pkgScope.GetStruct(node.Name.Source())
+	st, ok := self.pkgScope.GetStruct("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
@@ -138,7 +138,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) Global {
 }
 
 func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
-	value, ok := self.pkgScope.GetValue(node.Name.Source())
+	value, ok := self.pkgScope.GetValue("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
@@ -167,7 +167,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 }
 
 func (self *Analyser) defGlobalVariable(node *ast.Variable) *Variable {
-	value, ok := self.pkgScope.GetValue(node.Name.Source())
+	value, ok := self.pkgScope.GetValue("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}

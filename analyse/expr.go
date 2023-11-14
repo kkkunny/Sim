@@ -320,7 +320,14 @@ func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
 }
 
 func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
-	value, ok := self.localScope.GetValue(node.Name.Source())
+	var pkgName string
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		pkgName = pkgToken.Source()
+		if !self.pkgScope.externs.ContainKey(pkgName) {
+			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+		}
+	}
+	value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
 	if !ok {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}

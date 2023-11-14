@@ -67,7 +67,14 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 	case "bool":
 		return Bool
 	default:
-		if st, ok := self.pkgScope.GetStruct(name); ok {
+		var pkgName string
+		if pkgToken, ok := node.Pkg.Value(); ok {
+			pkgName = pkgToken.Source()
+			if !self.pkgScope.externs.ContainKey(pkgName) {
+				errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+			}
+		}
+		if st, ok := self.pkgScope.GetStruct(pkgName, name); ok {
 			return st
 		} else {
 			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)

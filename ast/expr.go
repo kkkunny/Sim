@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 // Expr 表达式
@@ -83,10 +84,14 @@ func (self *Boolean) expr() {}
 
 // Ident 标识符
 type Ident struct {
+	Pkg  util.Option[token.Token]
 	Name token.Token
 }
 
 func (self *Ident) Position() reader.Position {
+	if pkg, ok := self.Pkg.Value(); ok {
+		return reader.MixPosition(pkg.Position, self.Name.Position)
+	}
 	return self.Name.Position
 }
 
