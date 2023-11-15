@@ -22,7 +22,6 @@ import (
 )
 
 func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Global] {
-	// BUG: 包循环引用
 	pkgName := node.Paths.Back().Source()
 	if self.pkgScope.externs.ContainKey(pkgName) {
 		errors.ThrowIdentifierDuplicationError(node.Paths.Back().Position, node.Paths.Back())
@@ -31,15 +30,25 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Glob
 	paths := iterator.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
 		return v.Source()
 	}).ToSlice()
-	pkgAsts, err := parse.ParseDir(filepath.Join(append([]string{config.ROOT}, paths...)...))
+	pkgPath := filepath.Join(append([]string{config.ROOT}, paths...)...)
+
+	if self.checkLoopImport(pkgPath) {
+		errors.ThrowCircularImport(node.Paths.Back().Position, node.Paths.Back())
+	}
+	if pkgScope := self.pkgs.Get(pkgPath); pkgScope != nil {
+		self.pkgScope.externs.Set(pkgName, pkgScope)
+		return linkedlist.LinkedList[Global]{}
+	}
+
+	pkgAsts, err := parse.ParseDir(pkgPath)
 	if err != nil {
 		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
 	}
-
-	pkgAnalyser := New(pkgAsts, nil)
+	pkgAnalyser := newSon(self, pkgPath, pkgAsts)
 	pkgMeans := pkgAnalyser.Analyse()
+
+	self.pkgs.Set(pkgPath, pkgAnalyser.pkgScope)
 	self.pkgScope.externs.Set(pkgName, pkgAnalyser.pkgScope)
-	// BUG: 包代码重复
 	return pkgMeans
 }
 

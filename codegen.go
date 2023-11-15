@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
@@ -20,8 +21,9 @@ func main() {
 	stlerror.Must(llvm.InitializeNativeTarget())
 	target := stlerror.MustWith(llvm.NativeTarget())
 
-	asts := stlerror.MustWith(parse.ParseFile(os.Args[1]))
-	generator := codegen.New(target, analyse.New(asts, target))
+	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
+	asts := stlerror.MustWith(parse.ParseFile(path))
+	generator := codegen.New(target, analyse.New(path, asts, target))
 	module := generator.Codegen()
 	fmt.Println(module)
 	stlerror.Must(module.Verify())

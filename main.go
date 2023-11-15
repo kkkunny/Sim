@@ -4,6 +4,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
@@ -21,8 +22,9 @@ func main() {
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 	target := stlerror.MustWith(llvm.NativeTarget())
 
-	asts := stlerror.MustWith(parse.ParseDir(os.Args[1]))
-	generator := codegen.New(target, analyse.New(asts, target))
+	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
+	asts := stlerror.MustWith(parse.ParseDir(path))
+	generator := codegen.New(target, analyse.New(path, asts, target))
 	module := generator.Codegen()
 	stlerror.Must(module.Verify())
 	engine := stlerror.MustWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))

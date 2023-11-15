@@ -129,3 +129,8 @@ func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Toke
 	})
 	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs.ToSlice(), "."))
 }
+
+// ThrowCircularImport 循环导入
+func ThrowCircularImport(pos reader.Position, path token.Token) {
+	ThrowError(pos, "circular import `%s`", path.Source())
+}
