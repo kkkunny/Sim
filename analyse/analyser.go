@@ -2,6 +2,7 @@ package analyse
 
 import (
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
 
@@ -11,21 +12,44 @@ import (
 
 // Analyser 语义分析器
 type Analyser struct {
-	asts linkedlist.LinkedList[ast.Global]
+	parent *Analyser
+	asts   linkedlist.LinkedList[ast.Global]
 
+	pkgs       *hashmap.HashMap[string, *_PkgScope]
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 }
 
-func New(asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
+func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
 	if target != nil {
 		Isize.Bits = target.PointerSize()
 		Usize.Bits = target.PointerSize()
 	}
+	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
 	return &Analyser{
 		asts:     asts,
-		pkgScope: _NewPkgScope(),
+		pkgs:     &pkgs,
+		pkgScope: _NewPkgScope(path),
 	}
+}
+
+func newSon(parent *Analyser, path string, asts linkedlist.LinkedList[ast.Global]) *Analyser {
+	return &Analyser{
+		parent:   parent,
+		asts:     asts,
+		pkgs:     parent.pkgs,
+		pkgScope: _NewPkgScope(path),
+	}
+}
+
+func (self *Analyser) checkLoopImport(path string) bool {
+	if self.pkgScope.path == path {
+		return true
+	}
+	if self.parent != nil {
+		return self.parent.checkLoopImport(path)
+	}
+	return false
 }
 
 // Analyse 分析语义

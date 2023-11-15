@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 
 	"github.com/kkkunny/go-llvm"
@@ -22,8 +23,9 @@ func main() {
 	stlerror.Must(llvm.InitializeNativeTarget())
 	target := stlerror.MustWith(llvm.NativeTarget())
 
-	asts := stlerror.MustWith(parse.ParseFile(os.Args[1]))
-	analyser := analyse.New(asts, target)
+	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
+	asts := stlerror.MustWith(parse.ParseFile(path))
+	analyser := analyse.New(path, asts, target)
 	iterator.Foreach(analyser.Analyse(), func(v mean.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())
 		return true
