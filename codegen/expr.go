@@ -42,6 +42,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 		return self.codegenStruct(exprNode, load)
 	case *mean.Field:
 		return self.codegenField(exprNode, load)
+	case *mean.String:
+		return self.codegenString(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -413,4 +415,25 @@ func (self *CodeGenerator) codegenField(node *mean.Field, load bool) llvm.Value 
 		from = ptr
 	}
 	return self.buildStructIndex(t, from, node.Index, load)
+}
+
+func (self *CodeGenerator) codegenString(node *mean.String) llvm.Value {
+	st := self.codegenStringType(node.GetType().(*mean.StringType))
+	ptr := self.strings.Get(node.Value)
+	if ptr == nil {
+		data := self.ctx.ConstString(node.Value)
+		dataPtr := self.module.NewGlobal("", data.Type())
+		dataPtr.SetGlobalConstant(true)
+		dataPtr.SetLinkage(llvm.PrivateLinkage)
+		dataPtr.SetUnnamedAddress(llvm.GlobalUnnamedAddr)
+		dataPtr.SetInitializer(data)
+		global := self.module.NewGlobal("", st)
+		ptr = &global
+		ptr.SetGlobalConstant(true)
+		ptr.SetLinkage(llvm.PrivateLinkage)
+		ptr.SetUnnamedAddress(llvm.GlobalUnnamedAddr)
+		ptr.SetInitializer(self.ctx.ConstNamedStruct(st, dataPtr, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(len(node.Value)))))
+		self.strings.Set(node.Value, ptr)
+	}
+	return self.builder.CreateLoad("", st, ptr)
 }

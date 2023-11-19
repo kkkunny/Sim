@@ -227,3 +227,16 @@ func (self *Field) Position() reader.Position {
 func (self *Field) stmt() {}
 
 func (self *Field) expr() {}
+
+// String 字符串
+type String struct {
+	Value token.Token
+}
+
+func (self *String) Position() reader.Position {
+	return self.Value.Position
+}
+
+func (self *String) stmt() {}
+
+func (self *String) expr() {}

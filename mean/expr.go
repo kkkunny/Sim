@@ -981,3 +981,18 @@ func (self *Field) GetType() Type {
 func (self *Field) Mutable() bool {
 	return self.From.Mutable()
 }
+
+// String 字符串
+type String struct {
+	Value string
+}
+
+func (self *String) stmt() {}
+
+func (self *String) GetType() Type {
+	return Str
+}
+
+func (self *String) Mutable() bool {
+	return false
+}

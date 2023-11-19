@@ -1,3 +1,4 @@
 func main()u8{
-    return '\0'
+    let s: str = "123"
+    return 0
 }

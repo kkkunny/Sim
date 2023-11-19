@@ -29,6 +29,8 @@ var (
 	F64 = &FloatType{Bits: 64}
 
 	Bool = &BoolType{}
+
+	Str = &StringType{}
 )
 
 // Type 类型
@@ -221,3 +223,15 @@ func (self *TupleType) Equal(dst Type) bool {
 }
 
 type StructType = StructDef
+
+// StringType 字符串型
+type StringType struct{}
+
+func (_ StringType) String() string {
+	return "string"
+}
+
+func (self *StringType) Equal(dst Type) bool {
+	_, ok := dst.(*StringType)
+	return ok
+}

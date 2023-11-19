@@ -46,6 +46,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseStruct(exprNode)
 	case *ast.Field:
 		return self.analyseField(exprNode)
+	case *ast.String:
+		return self.analyseString(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -533,4 +535,10 @@ func (self *Analyser) analyseField(node *ast.Field) *Field {
 		From:  from,
 		Index: uint(i),
 	}
+}
+
+func (self *Analyser) analyseString(node *ast.String) *String {
+	s := node.Value.Source()
+	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
+	return &String{Value: s}
 }

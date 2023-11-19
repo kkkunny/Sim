@@ -105,6 +105,19 @@ func (self *Lexer) scanChar(ch rune) Kind {
 	return CHAR
 }
 
+// 扫描字符串
+func (self *Lexer) scanString(ch rune) Kind {
+	prevChar := ch
+	for ch = self.peek(); ch != '"' || prevChar == '\\'; ch, prevChar = self.peek(), ch {
+		if ch == 0 {
+			return ILLEGAL
+		}
+		self.next()
+	}
+	self.next()
+	return STRING
+}
+
 func (self *Lexer) Scan() Token {
 	self.skipWhite()
 
@@ -119,6 +132,8 @@ func (self *Lexer) Scan() Token {
 		kind = self.scanNumber(ch)
 	case ch == '\'':
 		kind = self.scanChar(ch)
+	case ch == '"':
+		kind = self.scanString(ch)
 	default:
 		switch ch {
 		case 0:
