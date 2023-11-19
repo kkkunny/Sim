@@ -17,15 +17,22 @@ type Global interface {
 
 // FuncDef 函数定义
 type FuncDef struct {
-	Begin  reader.Position
-	Name   token.Token
-	Params []Param
-	Ret    util.Option[Type]
-	Body   *Block
+	Begin    reader.Position
+	Name     token.Token
+	Params   []Param
+	ParamEnd reader.Position
+	Ret      util.Option[Type]
+	Body     util.Option[*Block]
 }
 
 func (self *FuncDef) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Body.Position())
+	if b, ok := self.Body.Value(); ok {
+		return reader.MixPosition(self.Begin, b.Position())
+	} else if r, ok := self.Ret.Value(); ok {
+		return reader.MixPosition(self.Begin, r.Position())
+	} else {
+		return reader.MixPosition(self.Begin, self.ParamEnd)
+	}
 }
 
 func (*FuncDef) global() {}

@@ -12,6 +12,7 @@ import (
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/codegen"
 	_ "github.com/kkkunny/Sim/config"
+	"github.com/kkkunny/Sim/output/jit"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/util"
 )
@@ -23,15 +24,9 @@ func main() {
 	target := stlerror.MustWith(llvm.NativeTarget())
 
 	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
-	asts := stlerror.MustWith(parse.ParseDir(path))
+	asts := stlerror.MustWith(parse.ParseFile(path))
 	generator := codegen.New(target, analyse.New(path, asts, target))
 	module := generator.Codegen()
 	stlerror.Must(module.Verify())
-	engine := stlerror.MustWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
-	mainFn := engine.GetFunction("main")
-	if mainFn == nil {
-		panic("can not fond the main function")
-	}
-	ret := uint8(engine.RunFunction(*mainFn).Integer(false))
-	os.Exit(int(ret))
+	os.Exit(int(stlerror.MustWith(jit.RunJit(module))))
 }

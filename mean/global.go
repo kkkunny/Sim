@@ -3,6 +3,8 @@ package mean
 import (
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/samber/lo"
+
+	"github.com/kkkunny/Sim/util"
 )
 
 // Global 全局
@@ -15,7 +17,7 @@ type FuncDef struct {
 	Name   string
 	Params []*Param
 	Ret    Type
-	Body   *Block
+	Body   util.Option[*Block]
 }
 
 func (*FuncDef) global() {}

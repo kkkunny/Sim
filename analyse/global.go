@@ -106,6 +106,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		Name:   node.Name.Source(),
 		Params: params,
 		Ret:    self.analyseOptionType(node.Ret),
+		Body:   util.None[*Block](),
 	}
 	if f.Name == "main" && !f.Ret.Equal(U8) {
 		pos := stlbasic.TernaryAction(node.Ret.IsNone(), func() reader.Position {
@@ -154,6 +155,10 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 	}
 	f := value.(*FuncDef)
 
+	if node.Body.IsNone() {
+		return f
+	}
+
 	self.localScope = _NewFuncScope(self.pkgScope, f.Ret)
 	defer func() {
 		self.localScope = nil
@@ -165,13 +170,13 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 		}
 	}
 
-	body, jump := self.analyseBlock(node.Body, nil)
-	f.Body = body
+	body, jump := self.analyseBlock(node.Body.MustValue(), nil)
+	f.Body = util.Some(body)
 	if jump != BlockEofReturn {
 		if !f.Ret.Equal(Empty) {
 			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
 		}
-		f.Body.Stmts.PushBack(&Return{Value: util.None[Expr]()})
+		body.Stmts.PushBack(&Return{Value: util.None[Expr]()})
 	}
 	return f
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/kkkunny/Sim/codegen"
 	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/lex"
+	"github.com/kkkunny/Sim/output/jit"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
 )
@@ -25,13 +26,7 @@ func assertRetEq(t *testing.T, code string, expect uint8) {
 	r := stlerror.MustWith(reader.NewReaderFromString("test.sim", code))
 	module := codegen.New(target, analyse.New("test.sim", parse.New(lex.New(r)).Parse(), target)).Codegen()
 	stlerror.Must(module.Verify())
-	engine := stlerror.MustWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
-	f := engine.GetFunction("main")
-	if f == nil {
-		panic("can not fond the main function")
-	}
-	ret := uint8(engine.RunFunction(*f).Integer(true))
-	stltest.AssertEq(t, ret, expect)
+	stltest.AssertEq(t, stlerror.MustWith(jit.RunJit(module)), expect)
 }
 
 func assertRetEqZero(t *testing.T, code string) {

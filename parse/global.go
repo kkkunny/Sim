@@ -1,12 +1,14 @@
 package parse
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
 
 	. "github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *Parser) parseGlobal() Global {
@@ -42,7 +44,11 @@ func (self *Parser) parseFuncDef() *FuncDef {
 	})
 	self.expectNextIs(token.RPA)
 	ret := self.parseOptionType()
-	body := self.parseBlock()
+	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*Block] {
+		return util.Some(self.parseBlock())
+	}, func() util.Option[*Block] {
+		return util.None[*Block]()
+	})
 	return &FuncDef{
 		Begin:  begin,
 		Params: args,

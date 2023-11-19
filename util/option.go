@@ -35,3 +35,11 @@ func (self Option[T]) Value() (T, bool) {
 	}
 	return *self.v, true
 }
+
+func (self Option[T]) MustValue() T {
+	v, ok := self.Value()
+	if !ok {
+		panic("unreachable")
+	}
+	return v
+}

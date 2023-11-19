@@ -48,7 +48,11 @@ func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
 func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
 	switch globalNode := node.(type) {
 	case *mean.FuncDef:
-		self.defFuncDef(globalNode)
+		if globalNode.Body.IsNone() {
+			self.defFuncDecl(globalNode)
+		} else {
+			self.defFuncDef(globalNode)
+		}
 	case *mean.StructDef:
 		self.defStructDef(globalNode)
 	case *mean.Variable:
@@ -73,8 +77,12 @@ func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 		self.values[np] = param
 	}
 
-	block, _ := self.codegenBlock(node.Body, nil)
+	block, _ := self.codegenBlock(node.Body.MustValue(), nil)
 	self.builder.CreateBr(block)
+}
+
+func (self *CodeGenerator) defFuncDecl(node *mean.FuncDef) {
+	_ = self.values[node].(llvm.Function)
 }
 
 func (self *CodeGenerator) defGlobalVariable(node *mean.Variable) {
