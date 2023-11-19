@@ -1012,3 +1012,19 @@ func (self *Union) GetType() Type {
 func (self *Union) Mutable() bool {
 	return false
 }
+
+// UnionTypeJudgment 联合类型判断
+type UnionTypeJudgment struct {
+	Value Expr
+	Type  Type
+}
+
+func (self *UnionTypeJudgment) stmt() {}
+
+func (self *UnionTypeJudgment) GetType() Type {
+	return Bool
+}
+
+func (self *UnionTypeJudgment) Mutable() bool {
+	return false
+}

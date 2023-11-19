@@ -371,3 +371,18 @@ func (self *UnionType) AssignableTo(dst Type) bool {
 	}
 	return false
 }
+
+// GetElemIndex 获取子类型下标
+func (self UnionType) GetElemIndex(elem Type) int {
+	if !self.Elems.ContainKey(elem.String()) {
+		return -1
+	}
+	var index int
+	for iter := self.Elems.Values().Iterator(); iter.Next(); {
+		if elem.Equal(iter.Value()) {
+			break
+		}
+		index++
+	}
+	return index
+}

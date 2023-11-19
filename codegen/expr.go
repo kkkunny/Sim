@@ -46,6 +46,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 		return self.codegenString(exprNode)
 	case *mean.Union:
 		return self.codegenUnion(exprNode, load)
+	case *mean.UnionTypeJudgment:
+		return self.codegenUnionTypeJudgment(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -442,20 +444,19 @@ func (self *CodeGenerator) codegenString(node *mean.String) llvm.Value {
 
 func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) llvm.Value {
 	ut := self.codegenUnionType(node.Type)
-	var index uint
-	for iter := node.Type.Elems.Values().Iterator(); iter.Next(); {
-		if node.Value.GetType().Equal(iter.Value()) {
-			break
-		}
-		index++
-	}
-
 	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.CreateAlloca("", ut)
 	self.builder.CreateStore(value, self.buildStructIndex(ut, ptr, 0, false))
-	self.builder.CreateStore(self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)), self.buildStructIndex(ut, ptr, 1, false))
+	self.builder.CreateStore(self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(node.Type.GetElemIndex(node.Value.GetType()))), self.buildStructIndex(ut, ptr, 1, false))
 	if load {
 		return self.builder.CreateLoad("", ut, ptr)
 	}
 	return ptr
+}
+
+func (self *CodeGenerator) codegenUnionTypeJudgment(node *mean.UnionTypeJudgment) llvm.Value {
+	utMean := node.Value.GetType().(*mean.UnionType)
+	ut := self.codegenUnionType(utMean)
+	typeIndex := self.buildStructIndex(ut, self.codegenExpr(node.Value, false), 1, true)
+	return self.builder.CreateIntCmp("", llvm.IntEQ, typeIndex, self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(utMean.GetElemIndex(node.Type))))
 }

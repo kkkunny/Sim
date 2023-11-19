@@ -48,6 +48,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseField(exprNode)
 	case *ast.String:
 		return self.analyseString(exprNode)
+	case *ast.Judgment:
+		return self.analyseJudgment(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -559,4 +561,22 @@ func (self *Analyser) analyseString(node *ast.String) *String {
 	s := node.Value.Source()
 	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
 	return &String{Value: s}
+}
+
+func (self *Analyser) analyseJudgment(node *ast.Judgment) Expr {
+	target := self.analyseType(node.Type)
+	value := self.analyseExpr(target, node.Value)
+	vt := value.GetType()
+
+	switch {
+	case vt.Equal(target):
+		return &Boolean{Value: true}
+	case TypeIs[*UnionType](vt) && vt.(*UnionType).GetElemIndex(target) >= 0:
+		return &UnionTypeJudgment{
+			Value: value,
+			Type:  target,
+		}
+	default:
+		return &Boolean{Value: false}
+	}
 }
