@@ -30,6 +30,8 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 		return self.codegenStringType(typeNode)
 	case *mean.UnionType:
 		return self.codegenUnionType(typeNode)
+	case *mean.PtrType:
+		return self.codegenPtrType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -110,4 +112,8 @@ func (self *CodeGenerator) codegenUnionType(node *mean.UnionType) llvm.StructTyp
 		return true
 	})
 	return self.ctx.StructType(true, maxSizeType, self.ctx.IntegerType(8))
+}
+
+func (self *CodeGenerator) codegenPtrType(node *mean.PtrType) llvm.PointerType {
+	return self.ctx.PointerType(self.codegenType(node.Elem))
 }
