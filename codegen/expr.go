@@ -22,7 +22,7 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 	case mean.Binary:
 		return self.codegenBinary(exprNode)
 	case mean.Unary:
-		return self.codegenUnary(exprNode)
+		return self.codegenUnary(exprNode, load)
 	case mean.Ident:
 		return self.codegenIdent(exprNode, load)
 	case *mean.Call:
@@ -231,11 +231,10 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
-	value := self.codegenExpr(node.GetValue(), true)
-
+func (self *CodeGenerator) codegenUnary(node mean.Unary, load bool) llvm.Value {
 	switch node.(type) {
 	case *mean.NumNegate:
+		value := self.codegenExpr(node.GetValue(), true)
 		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateSNeg("", value)
@@ -245,7 +244,16 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
 			panic("unreachable")
 		}
 	case *mean.IntBitNegate, *mean.BoolNegate:
+		value := self.codegenExpr(node.GetValue(), true)
 		return self.builder.CreateNot("", value)
+	case *mean.GetPtr:
+		return self.codegenExpr(node.GetValue(), false)
+	case *mean.GetValue:
+		ptr := self.codegenExpr(node.GetValue(), true)
+		if !load {
+			return ptr
+		}
+		return self.builder.CreateLoad("", self.codegenType(node.GetType()), ptr)
 	default:
 		panic("unreachable")
 	}

@@ -1,5 +1,8 @@
-func test(p: *u8){}
+func test(p: *u8)u8{
+    return *p
+}
 
 func main()u8{
-    return 0
+    let i: u8 = 1
+    return test(&i)
 }

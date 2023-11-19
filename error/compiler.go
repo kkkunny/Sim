@@ -48,8 +48,8 @@ func ThrowIllegalBinaryError(pos reader.Position, op token.Token, left, right me
 }
 
 // ThrowIllegalUnaryError 非法的一元运算
-func ThrowIllegalUnaryError(pos reader.Position, op token.Token, value mean.Expr) {
-	ThrowError(pos, "illegal unary operation with `%s` type `%s`", op.Source(), value.GetType())
+func ThrowIllegalUnaryError(pos reader.Position, op token.Token, t mean.Type) {
+	ThrowError(pos, "illegal unary operation with `%s` type `%s`", op.Source(), t)
 }
 
 // ThrowNotFunctionError 必须是函数
@@ -133,4 +133,9 @@ func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Toke
 // ThrowCircularImport 循环导入
 func ThrowCircularImport(pos reader.Position, path token.Token) {
 	ThrowError(pos, "circular import `%s`", path.Source())
+}
+
+// ThrowCanNotGetPointer 不能取指针
+func ThrowCanNotGetPointer(pos reader.Position) {
+	ThrowError(pos, "can not get the pointer of this expression")
 }
