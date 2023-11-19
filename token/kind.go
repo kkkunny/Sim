@@ -69,6 +69,7 @@ const (
 	IN
 	IMPORT
 	IS
+	PUBLIC
 	_KeywordEnd
 )
 
@@ -128,6 +129,7 @@ var kindNames = [...]string{
 	IN:       "in",
 	IMPORT:   "import",
 	IS:       "is",
+	PUBLIC:   "pub",
 }
 
 // Lookup 区分标识符和关键字

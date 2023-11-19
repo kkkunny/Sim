@@ -54,6 +54,7 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Glob
 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	st := &StructDef{
+		Public: node.Public,
 		Name:   node.Name.Source(),
 		Fields: linkedhashmap.NewLinkedHashMap[string, Type](),
 	}
@@ -103,6 +104,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		}
 	})
 	f := &FuncDef{
+		Public: node.Public,
 		Name:   node.Name.Source(),
 		Params: params,
 		Ret:    self.analyseOptionType(node.Ret),
@@ -123,9 +125,10 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 
 func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 	v := &Variable{
-		Mut:  node.Mutable,
-		Type: self.analyseType(node.Type),
-		Name: node.Name.Source(),
+		Public: node.Public,
+		Mut:    node.Mutable,
+		Type:   self.analyseType(node.Type),
+		Name:   node.Name.Source(),
 	}
 	if !self.pkgScope.SetValue(v.Name, v) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)

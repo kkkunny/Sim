@@ -30,10 +30,6 @@ func ParseFile(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) 
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
 	}
-	defer func() {
-		// HACK: 打开的文件需要关闭
-		// _ = closer.Close()
-	}()
 	return New(lex.New(r)).Parse(), nil
 }
 
@@ -45,6 +41,9 @@ func ParseDir(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 	}
 	var asts linkedlist.LinkedList[ast.Global]
 	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sim" {
+			continue
+		}
 		fileAst, err := ParseFile(filepath.Join(path, entry.Name()))
 		if err != nil {
 			return linkedlist.LinkedList[ast.Global]{}, err

@@ -45,7 +45,11 @@ func (self *_PkgScope) GetValue(pkg, name string) (Ident, bool) {
 	if pkgScope == nil {
 		return nil, false
 	}
-	return pkgScope.GetValue("", name)
+	v, ok := pkgScope.GetValue("", name)
+	if !ok || !v.(Global).GetPublic() {
+		return nil, false
+	}
+	return v, true
 }
 
 func (self *_PkgScope) SetStruct(st *StructType) bool {
@@ -64,7 +68,11 @@ func (self *_PkgScope) GetStruct(pkg, name string) (*StructType, bool) {
 	if pkgScope == nil {
 		return nil, false
 	}
-	return pkgScope.GetStruct("", name)
+	t, ok := pkgScope.GetStruct("", name)
+	if !ok || !t.GetPublic() {
+		return nil, false
+	}
+	return t, true
 }
 
 // 本地作用域
