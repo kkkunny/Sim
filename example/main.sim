@@ -1,4 +1,4 @@
 func main()u8{
     let s: str = "123"
-    return 0
+    return len(s) as u8
 }
