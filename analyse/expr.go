@@ -11,12 +11,15 @@ import (
 	errors "github.com/kkkunny/Sim/error"
 	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 	switch exprNode := node.(type) {
 	case *ast.Integer:
 		return self.analyseInteger(expect, exprNode)
+	case *ast.Char:
+		return self.analyseChar(expect, exprNode)
 	case *ast.Float:
 		return self.analyseFloat(expect, exprNode)
 	case *ast.Boolean:
@@ -43,6 +46,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseStruct(exprNode)
 	case *ast.Field:
 		return self.analyseField(exprNode)
+	case *ast.String:
+		return self.analyseString(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -64,6 +69,30 @@ func (self *Analyser) analyseInteger(expect Type, node *ast.Integer) Expr {
 		}
 	case *FloatType:
 		value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
+		return &Float{
+			Type:  t,
+			Value: *value,
+		}
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *Analyser) analyseChar(expect Type, node *ast.Char) Expr {
+	if expect == nil || !TypeIs[NumberType](expect) {
+		expect = I32
+	}
+	s := node.Value.Source()
+	char := util.ParseEscapeCharacter(s[1:len(s)-1], `\'`, `'`)[0]
+	switch t := expect.(type) {
+	case IntType:
+		value := big.NewInt(int64(char))
+		return &Integer{
+			Type:  t,
+			Value: *value,
+		}
+	case *FloatType:
+		value := big.NewFloat(float64(char))
 		return &Float{
 			Type:  t,
 			Value: *value,
@@ -506,4 +535,10 @@ func (self *Analyser) analyseField(node *ast.Field) *Field {
 		From:  from,
 		Index: uint(i),
 	}
+}
+
+func (self *Analyser) analyseString(node *ast.String) *String {
+	s := node.Value.Source()
+	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
+	return &String{Value: s}
 }

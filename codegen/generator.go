@@ -18,8 +18,9 @@ type CodeGenerator struct {
 	module  llvm.Module
 	builder llvm.Builder
 
-	values map[mean.Ident]llvm.Value
-	loops  hashmap.HashMap[mean.Loop, loop]
+	values  map[mean.Ident]llvm.Value
+	loops   hashmap.HashMap[mean.Loop, loop]
+	strings hashmap.HashMap[string, *llvm.GlobalValue]
 }
 
 func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {

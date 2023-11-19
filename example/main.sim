@@ -1,5 +1,4 @@
-import test
-
 func main()u8{
-    return test::get()
+    let s: str = "123"
+    return 0
 }

@@ -25,6 +25,8 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[Expr] {
 	switch self.nextTok.Kind {
 	case token.INTEGER:
 		return util.Some[Expr](self.parseInteger())
+	case token.CHAR:
+		return util.Some[Expr](self.parseChar())
 	case token.FLOAT:
 		return util.Some[Expr](self.parseFloat())
 	case token.TRUE, token.FALSE:
@@ -42,6 +44,8 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[Expr] {
 		return util.Some[Expr](self.parseTuple())
 	case token.LBA:
 		return util.Some[Expr](self.parseArray())
+	case token.STRING:
+		return util.Some[Expr](self.parseString())
 	default:
 		return util.None[Expr]()
 	}
@@ -49,6 +53,14 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[Expr] {
 
 func (self *Parser) parseInteger() *Integer {
 	return &Integer{Value: self.expectNextIs(token.INTEGER)}
+}
+
+func (self *Parser) parseChar() *Char {
+	return &Char{Value: self.expectNextIs(token.CHAR)}
+}
+
+func (self *Parser) parseString() *String {
+	return &String{Value: self.expectNextIs(token.STRING)}
 }
 
 func (self *Parser) parseFloat() *Float {

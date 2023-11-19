@@ -66,6 +66,8 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) Type {
 		return F64
 	case "bool":
 		return Bool
+	case "str":
+		return Str
 	default:
 		var pkgName string
 		if pkgToken, ok := node.Pkg.Value(); ok {

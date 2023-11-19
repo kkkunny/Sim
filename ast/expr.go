@@ -27,6 +27,19 @@ func (self *Integer) stmt() {}
 
 func (self *Integer) expr() {}
 
+// Char 字符
+type Char struct {
+	Value token.Token
+}
+
+func (self *Char) Position() reader.Position {
+	return self.Value.Position
+}
+
+func (self *Char) stmt() {}
+
+func (self *Char) expr() {}
+
 // Float 浮点数
 type Float struct {
 	Value token.Token
@@ -214,3 +227,16 @@ func (self *Field) Position() reader.Position {
 func (self *Field) stmt() {}
 
 func (self *Field) expr() {}
+
+// String 字符串
+type String struct {
+	Value token.Token
+}
+
+func (self *String) Position() reader.Position {
+	return self.Value.Position
+}
+
+func (self *String) stmt() {}
+
+func (self *String) expr() {}

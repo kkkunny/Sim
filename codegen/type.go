@@ -25,12 +25,14 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 		return self.codegenTupleType(typeNode)
 	case *mean.StructType:
 		return self.codegenStructType(typeNode)
+	case *mean.StringType:
+		return self.codegenStringType(typeNode)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenEmptyType(node *mean.EmptyType) llvm.VoidType {
+func (self *CodeGenerator) codegenEmptyType(_ *mean.EmptyType) llvm.VoidType {
 	return self.ctx.VoidType()
 }
 
@@ -61,7 +63,7 @@ func (self *CodeGenerator) codegenFuncTypePtr(node *mean.FuncType) llvm.PointerT
 	return self.ctx.PointerType(self.codegenFuncType(node))
 }
 
-func (self *CodeGenerator) codegenBoolType(node *mean.BoolType) llvm.IntegerType {
+func (self *CodeGenerator) codegenBoolType(_ *mean.BoolType) llvm.IntegerType {
 	return self.ctx.IntegerType(1)
 }
 
@@ -84,4 +86,12 @@ func (self *CodeGenerator) codegenStructType(node *mean.StructType) llvm.StructT
 		fields[i] = self.codegenType(iter.Value().Second)
 	}
 	return self.ctx.StructType(false, fields...)
+}
+
+func (self *CodeGenerator) codegenStringType(_ *mean.StringType) llvm.StructType {
+	st := self.ctx.GetTypeByName("str")
+	if st != nil {
+		return *st
+	}
+	return self.ctx.NamedStructType("str", false, self.ctx.PointerType(self.ctx.IntegerType(8)), self.ctx.IntPtrType(self.target))
 }
