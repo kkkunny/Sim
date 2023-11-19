@@ -407,7 +407,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 	tt := self.analyseType(node.Type)
 	from := self.analyseExpr(tt, node.Value)
 	ft := from.GetType()
-	if ft.Equal(tt) {
+	if ft.AssignableTo(tt) {
 		return from
 	}
 
@@ -425,10 +425,28 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 
 func (self *Analyser) expectExpr(expect Type, node ast.Expr) Expr {
 	value := self.analyseExpr(expect, node)
-	if vt := value.GetType(); !vt.Equal(expect) {
+	if vt := value.GetType(); !vt.AssignableTo(expect) {
 		errors.ThrowTypeMismatchError(node.Position(), vt, expect)
 	}
-	return value
+	return self.autoTypeCovert(expect, value)
+}
+
+// 自动类型转换
+func (self *Analyser) autoTypeCovert(expect Type, v Expr) Expr {
+	vt := v.GetType()
+	if vt.Equal(expect) {
+		return v
+	}
+
+	switch {
+	case TypeIs[*UnionType](expect):
+		return &Union{
+			Type:  expect.(*UnionType),
+			Value: v,
+		}
+	default:
+		panic("unreachable")
+	}
 }
 
 func (self *Analyser) analyseArray(node *ast.Array) *Array {

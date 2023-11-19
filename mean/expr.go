@@ -996,3 +996,19 @@ func (self *String) GetType() Type {
 func (self *String) Mutable() bool {
 	return false
 }
+
+// Union 联合
+type Union struct {
+	Type  *UnionType
+	Value Expr
+}
+
+func (self *Union) stmt() {}
+
+func (self *Union) GetType() Type {
+	return self.Type
+}
+
+func (self *Union) Mutable() bool {
+	return false
+}

@@ -3,8 +3,9 @@ package analyse
 import (
 	"math/big"
 
-	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/iterator"
+	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
@@ -122,8 +123,9 @@ func (self *Analyser) analyseTupleType(node *ast.TupleType) *TupleType {
 }
 
 func (self *Analyser) analyseUnionType(node *ast.UnionType) *UnionType {
-	elems := iterator.Map[ast.Type, Type, dynarray.DynArray[Type]](node.Elems, func(v ast.Type) Type {
-		return self.analyseType(v)
+	elems := iterator.Map[ast.Type, pair.Pair[string, Type], linkedhashmap.LinkedHashMap[string, Type]](node.Elems, func(v ast.Type) pair.Pair[string, Type] {
+		et := self.analyseType(v)
+		return pair.NewPair(et.String(), et)
 	})
 	return &UnionType{Elems: elems}
 }

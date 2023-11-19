@@ -102,12 +102,12 @@ func (self *CodeGenerator) codegenStringType(_ *mean.StringType) llvm.StructType
 func (self *CodeGenerator) codegenUnionType(node *mean.UnionType) llvm.StructType {
 	var maxSizeType llvm.Type
 	var maxSize uint
-	iterator.Foreach(node.Elems, func(v mean.Type) bool {
+	iterator.Foreach(node.Elems.Values(), func(v mean.Type) bool {
 		et := self.codegenType(v)
 		if esize := self.target.GetSizeOfType(et); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}
 		return true
 	})
-	return self.ctx.StructType(true, self.ctx.IntegerType(8), maxSizeType)
+	return self.ctx.StructType(true, maxSizeType, self.ctx.IntegerType(8))
 }

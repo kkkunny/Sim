@@ -44,6 +44,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 		return self.codegenField(exprNode, load)
 	case *mean.String:
 		return self.codegenString(exprNode)
+	case *mean.Union:
+		return self.codegenUnion(exprNode, load)
 	default:
 		panic("unreachable")
 	}
@@ -436,4 +438,24 @@ func (self *CodeGenerator) codegenString(node *mean.String) llvm.Value {
 		self.strings.Set(node.Value, ptr)
 	}
 	return self.builder.CreateLoad("", st, ptr)
+}
+
+func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) llvm.Value {
+	ut := self.codegenUnionType(node.Type)
+	var index uint
+	for iter := node.Type.Elems.Values().Iterator(); iter.Next(); {
+		if node.Value.GetType().Equal(iter.Value()) {
+			break
+		}
+		index++
+	}
+
+	value := self.codegenExpr(node.Value, true)
+	ptr := self.builder.CreateAlloca("", ut)
+	self.builder.CreateStore(value, self.buildStructIndex(ut, ptr, 0, false))
+	self.builder.CreateStore(self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)), self.buildStructIndex(ut, ptr, 1, false))
+	if load {
+		return self.builder.CreateLoad("", ut, ptr)
+	}
+	return ptr
 }
