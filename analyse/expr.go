@@ -360,7 +360,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
 	}
 	value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
 	if !ok {
-		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
+		errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 	}
 	return value
 }

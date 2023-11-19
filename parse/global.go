@@ -10,13 +10,18 @@ import (
 )
 
 func (self *Parser) parseGlobal() Global {
+	var pub *token.Token
+	if self.skipNextIs(token.PUBLIC) {
+		pub = &self.curTok
+	}
+
 	switch self.nextTok.Kind {
 	case token.FUNC:
-		return self.parseFuncDef()
+		return self.parseFuncDef(pub)
 	case token.STRUCT:
-		return self.parseStructDef()
+		return self.parseStructDef(pub)
 	case token.LET:
-		return self.parseVariable()
+		return self.parseVariable(pub)
 	case token.IMPORT:
 		return self.parseImport()
 	default:
@@ -25,8 +30,11 @@ func (self *Parser) parseGlobal() Global {
 	}
 }
 
-func (self *Parser) parseFuncDef() *FuncDef {
+func (self *Parser) parseFuncDef(pub *token.Token) *FuncDef {
 	begin := self.expectNextIs(token.FUNC).Position
+	if pub != nil {
+		begin = pub.Position
+	}
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
 	args := loopParseWithUtil(self, token.COM, token.RPA, func() Param {
@@ -45,6 +53,7 @@ func (self *Parser) parseFuncDef() *FuncDef {
 	body := self.parseBlock()
 	return &FuncDef{
 		Begin:  begin,
+		Public: pub != nil,
 		Params: args,
 		Name:   name,
 		Ret:    ret,
@@ -52,8 +61,11 @@ func (self *Parser) parseFuncDef() *FuncDef {
 	}
 }
 
-func (self *Parser) parseStructDef() *StructDef {
+func (self *Parser) parseStructDef(pub *token.Token) *StructDef {
 	begin := self.expectNextIs(token.STRUCT).Position
+	if pub != nil {
+		begin = pub.Position
+	}
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, Type] {
@@ -65,14 +77,18 @@ func (self *Parser) parseStructDef() *StructDef {
 	end := self.expectNextIs(token.RBR).Position
 	return &StructDef{
 		Begin:  begin,
+		Public: pub != nil,
 		Name:   name,
 		Fields: fields,
 		End:    end,
 	}
 }
 
-func (self *Parser) parseVariable() *Variable {
+func (self *Parser) parseVariable(pub *token.Token) *Variable {
 	begin := self.expectNextIs(token.LET).Position
+	if pub != nil {
+		begin = pub.Position
+	}
 	mut := self.skipNextIs(token.MUT)
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.COL)
@@ -80,8 +96,9 @@ func (self *Parser) parseVariable() *Variable {
 	self.expectNextIs(token.ASS)
 	value := self.mustExpr(self.parseOptionExpr(true))
 	return &Variable{
-		Mutable: mut,
+		Public:  mut,
 		Begin:   begin,
+		Mutable: mut,
 		Name:    name,
 		Type:    typ,
 		Value:   value,

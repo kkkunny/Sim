@@ -13,7 +13,7 @@ func (self *Parser) parseStmt() Stmt {
 	case token.RETURN:
 		return self.parseReturn()
 	case token.LET:
-		return self.parseVariable()
+		return self.parseVariable(nil)
 	case token.LBR:
 		return self.parseBlock()
 	case token.IF:

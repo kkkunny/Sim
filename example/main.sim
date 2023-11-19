@@ -1,5 +1,5 @@
+import test
+
 func main()u8{
-    let i: i8|u8 = 1 as u8
-    let j: u8 = i as u8
-    return j
+    return test::get() - 1
 }
