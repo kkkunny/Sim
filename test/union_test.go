@@ -15,3 +15,15 @@ func main()u8{
 }
 `)
 }
+
+func TestUnionTypeCovert(t *testing.T) {
+	assertRetEqZero(t, `
+func main()u8{
+    let i: i8|u8 = 2 as u8
+    if i is u8{
+        return i as u8 - 2
+    }
+    return 1
+}
+`)
+}

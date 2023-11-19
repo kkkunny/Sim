@@ -1028,3 +1028,19 @@ func (self *UnionTypeJudgment) GetType() Type {
 func (self *UnionTypeJudgment) Mutable() bool {
 	return false
 }
+
+// UnUnion 解联合
+type UnUnion struct {
+	Type  Type
+	Value Expr
+}
+
+func (self *UnUnion) stmt() {}
+
+func (self *UnUnion) GetType() Type {
+	return self.Type
+}
+
+func (self *UnUnion) Mutable() bool {
+	return false
+}

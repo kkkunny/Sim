@@ -1,7 +1,5 @@
 func main()u8{
-    let i: i8|u8 = 0
-    if i is i8{
-        return 1
-    }
-    return 0
+    let i: i8|u8 = 1 as u8
+    let j: u8 = i as u8
+    return j
 }

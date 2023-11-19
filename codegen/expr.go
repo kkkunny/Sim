@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
@@ -48,6 +49,8 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 		return self.codegenUnion(exprNode, load)
 	case *mean.UnionTypeJudgment:
 		return self.codegenUnionTypeJudgment(exprNode)
+	case *mean.UnUnion:
+		return self.codegenUnUnion(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -459,4 +462,16 @@ func (self *CodeGenerator) codegenUnionTypeJudgment(node *mean.UnionTypeJudgment
 	ut := self.codegenUnionType(utMean)
 	typeIndex := self.buildStructIndex(ut, self.codegenExpr(node.Value, false), 1, true)
 	return self.builder.CreateIntCmp("", llvm.IntEQ, typeIndex, self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(utMean.GetElemIndex(node.Type))))
+}
+
+func (self *CodeGenerator) codegenUnUnion(node *mean.UnUnion) llvm.Value {
+	t := self.codegenType(node.GetType())
+	value := self.codegenExpr(node.Value, false)
+	if stlbasic.Is[llvm.PointerType](value.Type()) {
+		return self.builder.CreateLoad("", t, value)
+	}
+	elem := self.buildStructIndex(value.Type().(llvm.StructType), value, 0, true)
+	ptr := self.builder.CreateAlloca("", elem.Type())
+	self.builder.CreateStore(elem, ptr)
+	return self.builder.CreateLoad("", t, ptr)
 }

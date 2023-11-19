@@ -419,6 +419,16 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 			From: from,
 			To:   tt.(NumberType),
 		}
+	case TypeIs[*UnionType](tt) && tt.(*UnionType).GetElemIndex(ft) >= 0:
+		return &Union{
+			Type:  tt.(*UnionType),
+			Value: from,
+		}
+	case TypeIs[*UnionType](ft) && ft.(*UnionType).GetElemIndex(tt) >= 0:
+		return &UnUnion{
+			Type:  tt,
+			Value: from,
+		}
 	default:
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
 		return nil
