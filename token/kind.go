@@ -68,6 +68,7 @@ const (
 	FOR
 	IN
 	IMPORT
+	IS
 	_KeywordEnd
 )
 
@@ -126,6 +127,7 @@ var kindNames = [...]string{
 	FOR:      "for",
 	IN:       "in",
 	IMPORT:   "import",
+	IS:       "is",
 }
 
 // Lookup 区分标识符和关键字

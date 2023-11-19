@@ -1,28 +1,26 @@
-//go:build !lex && !parse && !analyse && !codegen
-
 package main
 
 import (
 	"os"
 	"path/filepath"
+	"testing"
 
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/codegen"
-	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/util"
 )
 
-func main() {
+func TestDebug(t *testing.T) {
 	_ = util.Logger.Infof(0, "LLVM VERSION: %s", llvm.Version)
 	stlerror.Must(llvm.InitializeNativeTarget())
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 	target := stlerror.MustWith(llvm.NativeTarget())
 
-	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
+	path := stlerror.MustWith(filepath.Abs("example/main.sim"))
 	asts := stlerror.MustWith(parse.ParseFile(path))
 	generator := codegen.New(target, analyse.New(path, asts, target))
 	module := generator.Codegen()

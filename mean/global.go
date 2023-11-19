@@ -58,6 +58,18 @@ func (self *StructDef) Equal(dst Type) bool {
 	return self == t
 }
 
+func (self *StructDef) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
 // Variable 变量定义
 type Variable struct {
 	Mut   bool

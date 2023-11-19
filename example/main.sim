@@ -1,4 +1,5 @@
 func main()u8{
-    let s: str = "123"
-    return 0
+    let i: i8|u8 = 1 as u8
+    let j: u8 = i as u8
+    return j
 }

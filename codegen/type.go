@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/stl/container/iterator"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
@@ -27,6 +28,8 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 		return self.codegenStructType(typeNode)
 	case *mean.StringType:
 		return self.codegenStringType(typeNode)
+	case *mean.UnionType:
+		return self.codegenUnionType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -94,4 +97,17 @@ func (self *CodeGenerator) codegenStringType(_ *mean.StringType) llvm.StructType
 		return *st
 	}
 	return self.ctx.NamedStructType("str", false, self.ctx.PointerType(self.ctx.IntegerType(8)), self.ctx.IntPtrType(self.target))
+}
+
+func (self *CodeGenerator) codegenUnionType(node *mean.UnionType) llvm.StructType {
+	var maxSizeType llvm.Type
+	var maxSize uint
+	iterator.Foreach(node.Elems.Values(), func(v mean.Type) bool {
+		et := self.codegenType(v)
+		if esize := self.target.GetSizeOfType(et); esize > maxSize {
+			maxSizeType, maxSize = et, esize
+		}
+		return true
+	})
+	return self.ctx.StructType(true, maxSizeType, self.ctx.IntegerType(8))
 }

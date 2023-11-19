@@ -163,6 +163,13 @@ func (self *Parser) parseOptionTailUnary(front util.Option[Expr]) util.Option[Ex
 			Value: fv,
 			Type:  t,
 		})
+	case token.IS:
+		self.expectNextIs(token.IS)
+		t := self.parseType()
+		front = util.Some[Expr](&Judgment{
+			Value: fv,
+			Type:  t,
+		})
 	default:
 		return front
 	}

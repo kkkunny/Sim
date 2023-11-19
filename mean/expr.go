@@ -996,3 +996,51 @@ func (self *String) GetType() Type {
 func (self *String) Mutable() bool {
 	return false
 }
+
+// Union 联合
+type Union struct {
+	Type  *UnionType
+	Value Expr
+}
+
+func (self *Union) stmt() {}
+
+func (self *Union) GetType() Type {
+	return self.Type
+}
+
+func (self *Union) Mutable() bool {
+	return false
+}
+
+// UnionTypeJudgment 联合类型判断
+type UnionTypeJudgment struct {
+	Value Expr
+	Type  Type
+}
+
+func (self *UnionTypeJudgment) stmt() {}
+
+func (self *UnionTypeJudgment) GetType() Type {
+	return Bool
+}
+
+func (self *UnionTypeJudgment) Mutable() bool {
+	return false
+}
+
+// UnUnion 解联合
+type UnUnion struct {
+	Type  Type
+	Value Expr
+}
+
+func (self *UnUnion) stmt() {}
+
+func (self *UnUnion) GetType() Type {
+	return self.Type
+}
+
+func (self *UnUnion) Mutable() bool {
+	return false
+}
