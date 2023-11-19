@@ -9,6 +9,7 @@ import (
 
 	"github.com/kkkunny/Sim/reader"
 	. "github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 // Lexer 词法分析器
@@ -64,7 +65,7 @@ func (self *Lexer) scanIdent(ch rune) Kind {
 	return Lookup(buf.String())
 }
 
-// 扫描整数
+// 扫描数字
 func (self *Lexer) scanNumber(ch rune) Kind {
 	var point bool
 	for ch = self.peek(); ch == '.' || (ch >= '0' && ch <= '9'); ch = self.peek() {
@@ -84,6 +85,26 @@ func (self *Lexer) scanNumber(ch rune) Kind {
 	}
 }
 
+// 扫描字符
+func (self *Lexer) scanChar(ch rune) Kind {
+	var buf strings.Builder
+	prevChar := ch
+	for ch = self.peek(); ch != '\'' || prevChar == '\\'; ch, prevChar = self.peek(), ch {
+		if ch == 0 {
+			return ILLEGAL
+		}
+		self.next()
+		buf.WriteRune(ch)
+	}
+	self.next()
+
+	s := util.ParseEscapeCharacter(buf.String(), `\'`, `'`)
+	if len(s) != 1 {
+		return ILLEGAL
+	}
+	return CHAR
+}
+
 func (self *Lexer) Scan() Token {
 	self.skipWhite()
 
@@ -96,6 +117,8 @@ func (self *Lexer) Scan() Token {
 		kind = self.scanIdent(ch)
 	case ch >= '0' && ch <= '9':
 		kind = self.scanNumber(ch)
+	case ch == '\'':
+		kind = self.scanChar(ch)
 	default:
 		switch ch {
 		case 0:

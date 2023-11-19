@@ -1,5 +1,3 @@
-import test
-
 func main()u8{
-    return test::get()
+    return '\0'
 }

@@ -10,6 +10,7 @@ const (
 	IDENT
 	INTEGER
 	FLOAT
+	CHAR
 
 	ASS
 
@@ -75,6 +76,7 @@ var kindNames = [...]string{
 	IDENT:    "ident",
 	INTEGER:  "integer",
 	FLOAT:    "float",
+	CHAR:     "char",
 	ASS:      "ass",
 	AND:      "and",
 	OR:       "or",
