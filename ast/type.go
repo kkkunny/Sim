@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"github.com/kkkunny/stl/container/dynarray"
+
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
@@ -66,3 +68,14 @@ func (self *TupleType) Position() reader.Position {
 }
 
 func (self *TupleType) typ() {}
+
+// UnionType 联合类型
+type UnionType struct {
+	Elems dynarray.DynArray[Type]
+}
+
+func (self *UnionType) Position() reader.Position {
+	return reader.MixPosition(self.Elems.Front().Position(), self.Elems.Back().Position())
+}
+
+func (self *UnionType) typ() {}

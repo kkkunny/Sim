@@ -1,6 +1,8 @@
 package parse
 
 import (
+	"github.com/kkkunny/stl/container/dynarray"
+
 	. "github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
@@ -8,18 +10,24 @@ import (
 )
 
 func (self *Parser) parseOptionType() util.Option[Type] {
+	var first Type
 	switch self.nextTok.Kind {
 	case token.IDENT:
-		return util.Some[Type](self.parseIdentType())
+		first = self.parseIdentType()
 	case token.FUNC:
-		return util.Some[Type](self.parseFuncType())
+		first = self.parseFuncType()
 	case token.LBA:
-		return util.Some[Type](self.parseArrayType())
+		first = self.parseArrayType()
 	case token.LPA:
-		return util.Some[Type](self.parseTupleType())
+		first = self.parseTupleType()
 	default:
 		return util.None[Type]()
 	}
+
+	if self.nextIs(token.OR) {
+		return util.Some[Type](self.parseUnionType(first))
+	}
+	return util.Some[Type](first)
 }
 
 func (self *Parser) parseType() Type {
@@ -90,4 +98,17 @@ func (self *Parser) parseTypeList(end token.Kind) (res []Type) {
 	return loopParseWithUtil(self, token.COM, end, func() Type {
 		return self.parseType()
 	})
+}
+
+func (self *Parser) parseUnionType(first Type) *UnionType {
+	elems := dynarray.NewDynArrayWith[Type](first)
+	for self.skipNextIs(token.OR) {
+		t := self.parseType()
+		if ut, ok := t.(*UnionType); ok {
+			elems.Append(ut.Elems)
+		} else {
+			elems.PushBack(t)
+		}
+	}
+	return &UnionType{Elems: elems}
 }

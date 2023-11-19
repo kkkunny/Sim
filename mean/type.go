@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/iterator"
 	"github.com/samber/lo"
 )
 
@@ -234,4 +236,29 @@ func (_ StringType) String() string {
 func (self *StringType) Equal(dst Type) bool {
 	_, ok := dst.(*StringType)
 	return ok
+}
+
+// UnionType 联合类型
+type UnionType struct {
+	Elems dynarray.DynArray[Type]
+}
+
+func (self UnionType) String() string {
+	ts := iterator.Map[Type, string, dynarray.DynArray[string]](self.Elems, func(v Type) string {
+		return v.String()
+	})
+	return strings.Join(ts.ToSlice(), "|")
+}
+
+func (self *UnionType) Equal(dst Type) bool {
+	ut, ok := dst.(*UnionType)
+	if !ok {
+		return false
+	}
+	for li, ri := self.Elems.Iterator(), ut.Elems.Iterator(); li.Next() && ri.Next(); {
+		if !li.Value().Equal(ri.Value()) {
+			return false
+		}
+	}
+	return true
 }

@@ -3,6 +3,8 @@ package analyse
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/iterator"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
@@ -21,6 +23,8 @@ func (self *Analyser) analyseType(node ast.Type) Type {
 		return self.analyseArrayType(typeNode)
 	case *ast.TupleType:
 		return self.analyseTupleType(typeNode)
+	case *ast.UnionType:
+		return self.analyseUnionType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -115,4 +119,11 @@ func (self *Analyser) analyseTupleType(node *ast.TupleType) *TupleType {
 		return self.analyseType(item)
 	})
 	return &TupleType{Elems: elems}
+}
+
+func (self *Analyser) analyseUnionType(node *ast.UnionType) *UnionType {
+	elems := iterator.Map[ast.Type, Type, dynarray.DynArray[Type]](node.Elems, func(v ast.Type) Type {
+		return self.analyseType(v)
+	})
+	return &UnionType{Elems: elems}
 }

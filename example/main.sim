@@ -1,3 +1,7 @@
+func test(v: u8|i8) u8 {
+    return 0
+}
+
 func main()u8{
     let s: str = "123"
     return 0
