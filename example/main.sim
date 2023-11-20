@@ -1,5 +1,5 @@
-import std.buildin as b
+import std.buildin as *
 
 func main()u8{
-    return b::get()
+    return get()
 }

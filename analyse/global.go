@@ -24,9 +24,11 @@ import (
 func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Global] {
 	// 包名
 	var pkgName string
+	var importAll bool
 	if alias, ok := node.Alias.Value(); ok && alias.Is(token.IDENT) {
 		pkgName = alias.Source()
 	} else {
+		importAll = alias.Is(token.MUL)
 		pkgName = node.Paths.Back().Source()
 	}
 	if self.pkgScope.externs.ContainKey(pkgName) {
@@ -45,7 +47,11 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Glob
 	}
 	// 如果有缓存则直接返回
 	if pkgScope := self.pkgs.Get(pkgPath); pkgScope != nil {
-		self.pkgScope.externs.Set(pkgName, pkgScope)
+		if importAll {
+			self.pkgScope.links.Add(pkgScope)
+		} else {
+			self.pkgScope.externs.Set(pkgName, pkgScope)
+		}
 		return linkedlist.LinkedList[Global]{}
 	}
 
@@ -58,7 +64,11 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Glob
 	pkgMeans := pkgAnalyser.Analyse()
 	// 放进缓存
 	self.pkgs.Set(pkgPath, pkgAnalyser.pkgScope)
-	self.pkgScope.externs.Set(pkgName, pkgAnalyser.pkgScope)
+	if importAll {
+		self.pkgScope.links.Add(pkgAnalyser.pkgScope)
+	} else {
+		self.pkgScope.externs.Set(pkgName, pkgAnalyser.pkgScope)
+	}
 	return pkgMeans
 }
 
