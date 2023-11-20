@@ -9,18 +9,21 @@ import (
 
 // Global 全局
 type Global interface {
-	global()
+	GetPublic() bool
 }
 
 // FuncDef 函数定义
 type FuncDef struct {
+	Public bool
 	Name   string
 	Params []*Param
 	Ret    Type
 	Body   util.Option[*Block]
 }
 
-func (*FuncDef) global() {}
+func (self FuncDef) GetPublic() bool {
+	return self.Public
+}
 
 func (*FuncDef) stmt() {}
 
@@ -42,11 +45,14 @@ func (*FuncDef) ident() {}
 
 // StructDef 结构体定义
 type StructDef struct {
+	Public bool
 	Name   string
 	Fields linkedhashmap.LinkedHashMap[string, Type]
 }
 
-func (*StructDef) global() {}
+func (self StructDef) GetPublic() bool {
+	return self.Public
+}
 
 func (self StructDef) String() string {
 	return self.Name
@@ -60,12 +66,29 @@ func (self *StructDef) Equal(dst Type) bool {
 	return self == t
 }
 
+func (self *StructDef) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
 // Variable 变量定义
 type Variable struct {
-	Mut   bool
-	Type  Type
-	Name  string
-	Value Expr
+	Public bool
+	Mut    bool
+	Type   Type
+	Name   string
+	Value  Expr
+}
+
+func (self Variable) GetPublic() bool {
+	return self.Public
 }
 
 func (*Variable) stmt() {}
@@ -79,5 +102,3 @@ func (self *Variable) Mutable() bool {
 }
 
 func (*Variable) ident() {}
-
-func (*Variable) global() {}

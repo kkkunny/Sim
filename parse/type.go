@@ -1,6 +1,8 @@
 package parse
 
 import (
+	"github.com/kkkunny/stl/container/dynarray"
+
 	. "github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
@@ -17,6 +19,10 @@ func (self *Parser) parseOptionType() util.Option[Type] {
 		return util.Some[Type](self.parseArrayType())
 	case token.LPA:
 		return util.Some[Type](self.parseTupleType())
+	case token.LT:
+		return util.Some[Type](self.parseUnionType())
+	case token.MUL:
+		return util.Some[Type](self.parsePtrType())
 	default:
 		return util.None[Type]()
 	}
@@ -90,4 +96,24 @@ func (self *Parser) parseTypeList(end token.Kind) (res []Type) {
 	return loopParseWithUtil(self, token.COM, end, func() Type {
 		return self.parseType()
 	})
+}
+
+func (self *Parser) parseUnionType() *UnionType {
+	begin := self.expectNextIs(token.LT).Position
+	elems := dynarray.NewDynArrayWith[Type](self.parseTypeList(token.GT)...)
+	end := self.expectNextIs(token.GT).Position
+	return &UnionType{
+		Begin: begin,
+		Elems: elems,
+		End:   end,
+	}
+}
+
+func (self *Parser) parsePtrType() *PtrType {
+	begin := self.expectNextIs(token.MUL).Position
+	elem := self.parseType()
+	return &PtrType{
+		Begin: begin,
+		Elem:  elem,
+	}
 }

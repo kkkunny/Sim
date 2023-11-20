@@ -2,7 +2,7 @@ module github.com/kkkunny/Sim
 
 go 1.21.3
 
-require github.com/kkkunny/stl v0.0.0-20231112062318-67b64003af12
+require github.com/kkkunny/stl v0.0.0-20231114084730-4ad25211cae2
 
 require (
 	github.com/kkkunny/go-llvm v0.0.0-20231119105611-23e36d20d76b

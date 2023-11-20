@@ -3,6 +3,9 @@ package analyse
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/iterator"
+	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
@@ -21,6 +24,10 @@ func (self *Analyser) analyseType(node ast.Type) Type {
 		return self.analyseArrayType(typeNode)
 	case *ast.TupleType:
 		return self.analyseTupleType(typeNode)
+	case *ast.UnionType:
+		return self.analyseUnionType(typeNode)
+	case *ast.PtrType:
+		return self.analysePtrType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -115,4 +122,16 @@ func (self *Analyser) analyseTupleType(node *ast.TupleType) *TupleType {
 		return self.analyseType(item)
 	})
 	return &TupleType{Elems: elems}
+}
+
+func (self *Analyser) analyseUnionType(node *ast.UnionType) *UnionType {
+	elems := iterator.Map[ast.Type, pair.Pair[string, Type], linkedhashmap.LinkedHashMap[string, Type]](node.Elems, func(v ast.Type) pair.Pair[string, Type] {
+		et := self.analyseType(v)
+		return pair.NewPair(et.String(), et)
+	})
+	return &UnionType{Elems: elems}
+}
+
+func (self *Analyser) analysePtrType(node *ast.PtrType) *PtrType {
+	return &PtrType{Elem: self.analyseType(node.Elem)}
 }

@@ -10,6 +10,7 @@ import (
 )
 
 func (self *CodeGenerator) buildArrayIndex(t llvm.ArrayType, from, index llvm.Value, load bool) llvm.Value {
+	// NOTE: from必须是该数组的指针
 	elemPtr := self.builder.CreateInBoundsGEP("", t, from, self.ctx.ConstInteger(index.Type().(llvm.IntegerType), 0), index)
 	if !load {
 		return elemPtr
@@ -29,6 +30,7 @@ func (self *CodeGenerator) buildArrayIndexWith(t llvm.ArrayType, from llvm.Value
 }
 
 func (self *CodeGenerator) buildStructIndex(t llvm.StructType, from llvm.Value, index uint, load bool) llvm.Value {
+	// TODO: 结构体和数组取下标和指针类型冲突
 	if _, ptr := from.Type().(llvm.PointerType); ptr {
 		elemPtr := self.builder.CreateStructGEP("", t, from, index)
 		if !load {
@@ -47,7 +49,7 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r llvm.Value, not bool) ll
 	switch meanType := t.(type) {
 	case *mean.EmptyType:
 		return self.ctx.ConstInteger(self.ctx.IntegerType(1), stlbasic.Ternary[int64](!not, 1, 0))
-	case mean.IntType, *mean.BoolType, *mean.FuncType:
+	case mean.IntType, *mean.BoolType, *mean.FuncType, *mean.PtrType:
 		return self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
 	case *mean.FloatType:
 		return self.builder.CreateFloatCmp("", stlbasic.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
@@ -68,6 +70,12 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r llvm.Value, not bool) ll
 			res = self.builder.CreateNot("", res)
 		}
 		return res
+	case *mean.StringType:
+		// TODO: 字符串类型比较
+		panic("unreachable")
+	case *mean.UnionType:
+		// TODO: 联合类型比较
+		panic("unreachable")
 	default:
 		panic("unreachable")
 	}

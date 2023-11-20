@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/samber/lo"
 )
 
@@ -37,6 +38,7 @@ var (
 type Type interface {
 	fmt.Stringer
 	Equal(dst Type) bool
+	AssignableTo(dst Type) bool
 }
 
 // TypeIs 类型是否是
@@ -55,6 +57,10 @@ func (_ EmptyType) String() string {
 func (self *EmptyType) Equal(dst Type) bool {
 	_, ok := dst.(*EmptyType)
 	return ok
+}
+
+func (self *EmptyType) AssignableTo(dst Type) bool {
+	return false
 }
 
 // NumberType 数字型
@@ -86,6 +92,18 @@ func (self *SintType) Equal(dst Type) bool {
 	return self.Bits == t.Bits
 }
 
+func (self *SintType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
 func (self *SintType) HasSign() bool {
 	return true
 }
@@ -111,6 +129,18 @@ func (self *UintType) Equal(dst Type) bool {
 	return self.Bits == t.Bits
 }
 
+func (self *UintType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
 func (self *UintType) HasSign() bool {
 	return false
 }
@@ -134,6 +164,18 @@ func (self *FloatType) Equal(dst Type) bool {
 		return false
 	}
 	return self.Bits == t.Bits
+}
+
+func (self *FloatType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
 }
 
 func (self *FloatType) GetBits() uint {
@@ -167,6 +209,18 @@ func (self *FuncType) Equal(dst Type) bool {
 	return true
 }
 
+func (self *FuncType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
 // BoolType 布尔型
 type BoolType struct{}
 
@@ -177,6 +231,18 @@ func (_ BoolType) String() string {
 func (self *BoolType) Equal(dst Type) bool {
 	_, ok := dst.(*BoolType)
 	return ok
+}
+
+func (self *BoolType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
 }
 
 // ArrayType 数组型
@@ -195,6 +261,18 @@ func (self *ArrayType) Equal(dst Type) bool {
 		return false
 	}
 	return self.Size == t.Size && self.Elem.Equal(t.Elem)
+}
+
+func (self *ArrayType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
 }
 
 // TupleType 元组型
@@ -222,6 +300,18 @@ func (self *TupleType) Equal(dst Type) bool {
 	return true
 }
 
+func (self *TupleType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
 type StructType = StructDef
 
 // StringType 字符串型
@@ -234,4 +324,94 @@ func (_ StringType) String() string {
 func (self *StringType) Equal(dst Type) bool {
 	_, ok := dst.(*StringType)
 	return ok
+}
+
+func (self *StringType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
+// UnionType 联合类型
+type UnionType struct {
+	Elems linkedhashmap.LinkedHashMap[string, Type]
+}
+
+func (self UnionType) String() string {
+	return fmt.Sprintf("<%s>", strings.Join(self.Elems.Keys().ToSlice(), ", "))
+}
+
+func (self *UnionType) Equal(dst Type) bool {
+	ut, ok := dst.(*UnionType)
+	if !ok {
+		return false
+	}
+	for li, ri := self.Elems.Iterator(), ut.Elems.Iterator(); li.Next() && ri.Next(); {
+		if !li.Value().Equal(ri.Value()) {
+			return false
+		}
+	}
+	return true
+}
+
+func (self *UnionType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
+// GetElemIndex 获取子类型下标
+func (self UnionType) GetElemIndex(elem Type) int {
+	if !self.Elems.ContainKey(elem.String()) {
+		return -1
+	}
+	var index int
+	for iter := self.Elems.Values().Iterator(); iter.Next(); {
+		if elem.Equal(iter.Value()) {
+			break
+		}
+		index++
+	}
+	return index
+}
+
+// PtrType 指针类型
+type PtrType struct {
+	Elem Type
+}
+
+func (self PtrType) String() string {
+	return "*" + self.Elem.String()
+}
+
+func (self *PtrType) Equal(dst Type) bool {
+	pt, ok := dst.(*PtrType)
+	if !ok {
+		return false
+	}
+	return self.Elem.Equal(pt.Elem)
+}
+
+func (self *PtrType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
 }

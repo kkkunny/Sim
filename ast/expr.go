@@ -240,3 +240,17 @@ func (self *String) Position() reader.Position {
 func (self *String) stmt() {}
 
 func (self *String) expr() {}
+
+// Judgment 判断
+type Judgment struct {
+	Value Expr
+	Type  Type
+}
+
+func (self *Judgment) Position() reader.Position {
+	return reader.MixPosition(self.Value.Position(), self.Type.Position())
+}
+
+func (self *Judgment) stmt() {}
+
+func (self *Judgment) expr() {}

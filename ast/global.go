@@ -18,6 +18,7 @@ type Global interface {
 // FuncDef 函数定义
 type FuncDef struct {
 	Begin    reader.Position
+	Public   bool
 	Name     token.Token
 	Params   []Param
 	ParamEnd reader.Position
@@ -40,6 +41,7 @@ func (*FuncDef) global() {}
 // StructDef 结构体定义
 type StructDef struct {
 	Begin  reader.Position
+	Public bool
 	Name   token.Token
 	Fields []pair.Pair[token.Token, Type]
 	End    reader.Position
@@ -54,6 +56,7 @@ func (*StructDef) global() {}
 // Variable 变量定义
 type Variable struct {
 	Begin   reader.Position
+	Public  bool
 	Mutable bool
 	Name    token.Token
 	Type    Type
@@ -72,9 +75,13 @@ func (*Variable) global() {}
 type Import struct {
 	Begin reader.Position
 	Paths dynarray.DynArray[token.Token]
+	Alias util.Option[token.Token]
 }
 
 func (self *Import) Position() reader.Position {
+	if alias, ok := self.Alias.Value(); ok {
+		return reader.MixPosition(self.Begin, alias.Position)
+	}
 	return reader.MixPosition(self.Begin, self.Paths.Back().Position)
 }
 

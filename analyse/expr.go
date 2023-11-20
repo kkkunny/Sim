@@ -3,6 +3,7 @@ package analyse
 import (
 	"math/big"
 
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashset"
 	stlerror "github.com/kkkunny/stl/error"
 	"github.com/samber/lo"
@@ -48,6 +49,8 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 		return self.analyseField(exprNode)
 	case *ast.String:
 		return self.analyseString(exprNode)
+	case *ast.Judgment:
+		return self.analyseJudgment(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -325,27 +328,44 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 }
 
 func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
-	value := self.analyseExpr(expect, node.Value)
-	vt := value.GetType()
-
 	switch node.Opera.Kind {
 	case token.SUB:
+		value := self.analyseExpr(expect, node.Value)
+		vt := value.GetType()
 		if TypeIs[*SintType](vt) || TypeIs[*FloatType](vt) {
 			return &NumNegate{Value: value}
 		}
+		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
+		return nil
 	case token.NOT:
+		value := self.analyseExpr(expect, node.Value)
+		vt := value.GetType()
 		switch {
 		case TypeIs[IntType](vt):
 			return &IntBitNegate{Value: value}
 		case TypeIs[*BoolType](vt):
 			return &BoolNegate{Value: value}
+		default:
+			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
+			return nil
 		}
+	case token.AND:
+		if expect != nil && TypeIs[*PtrType](expect) {
+			expect = expect.(*PtrType).Elem
+		}
+		value := self.analyseExpr(expect, node.Value)
+		if !stlbasic.Is[Ident](value) {
+			errors.ThrowCanNotGetPointer(node.Value.Position())
+		}
+		return &GetPtr{Value: value}
+	case token.MUL:
+		if expect != nil {
+			expect = &PtrType{Elem: expect}
+		}
+		return &GetValue{Value: self.analyseExpr(expect, node.Value)}
 	default:
 		panic("unreachable")
 	}
-
-	errors.ThrowIllegalUnaryError(node.Position(), node.Opera, value)
-	return nil
 }
 
 func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
@@ -358,7 +378,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
 	}
 	value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
 	if !ok {
-		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
+		errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 	}
 	return value
 }
@@ -407,7 +427,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 	tt := self.analyseType(node.Type)
 	from := self.analyseExpr(tt, node.Value)
 	ft := from.GetType()
-	if ft.Equal(tt) {
+	if ft.AssignableTo(tt) {
 		return from
 	}
 
@@ -417,6 +437,16 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 			From: from,
 			To:   tt.(NumberType),
 		}
+	case TypeIs[*UnionType](tt) && tt.(*UnionType).GetElemIndex(ft) >= 0:
+		return &Union{
+			Type:  tt.(*UnionType),
+			Value: from,
+		}
+	case TypeIs[*UnionType](ft) && ft.(*UnionType).GetElemIndex(tt) >= 0:
+		return &UnUnion{
+			Type:  tt,
+			Value: from,
+		}
 	default:
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
 		return nil
@@ -425,10 +455,28 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 
 func (self *Analyser) expectExpr(expect Type, node ast.Expr) Expr {
 	value := self.analyseExpr(expect, node)
-	if vt := value.GetType(); !vt.Equal(expect) {
+	if vt := value.GetType(); !vt.AssignableTo(expect) {
 		errors.ThrowTypeMismatchError(node.Position(), vt, expect)
 	}
-	return value
+	return self.autoTypeCovert(expect, value)
+}
+
+// 自动类型转换
+func (self *Analyser) autoTypeCovert(expect Type, v Expr) Expr {
+	vt := v.GetType()
+	if vt.Equal(expect) {
+		return v
+	}
+
+	switch {
+	case TypeIs[*UnionType](expect):
+		return &Union{
+			Type:  expect.(*UnionType),
+			Value: v,
+		}
+	default:
+		panic("unreachable")
+	}
 }
 
 func (self *Analyser) analyseArray(node *ast.Array) *Array {
@@ -541,4 +589,22 @@ func (self *Analyser) analyseString(node *ast.String) *String {
 	s := node.Value.Source()
 	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
 	return &String{Value: s}
+}
+
+func (self *Analyser) analyseJudgment(node *ast.Judgment) Expr {
+	target := self.analyseType(node.Type)
+	value := self.analyseExpr(target, node.Value)
+	vt := value.GetType()
+
+	switch {
+	case vt.Equal(target):
+		return &Boolean{Value: true}
+	case TypeIs[*UnionType](vt) && vt.(*UnionType).GetElemIndex(target) >= 0:
+		return &UnionTypeJudgment{
+			Value: value,
+			Type:  target,
+		}
+	default:
+		return &Boolean{Value: false}
+	}
 }

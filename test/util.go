@@ -1,6 +1,7 @@
 package test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/codegen"
+	"github.com/kkkunny/Sim/config"
 	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/output/jit"
@@ -17,6 +19,7 @@ import (
 )
 
 func init() {
+	config.ROOT = filepath.Dir(config.ROOT)
 	stlerror.Must(llvm.InitializeNativeTarget())
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 }

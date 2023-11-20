@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
@@ -21,7 +22,7 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 	case mean.Binary:
 		return self.codegenBinary(exprNode)
 	case mean.Unary:
-		return self.codegenUnary(exprNode)
+		return self.codegenUnary(exprNode, load)
 	case mean.Ident:
 		return self.codegenIdent(exprNode, load)
 	case *mean.Call:
@@ -44,6 +45,12 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 		return self.codegenField(exprNode, load)
 	case *mean.String:
 		return self.codegenString(exprNode)
+	case *mean.Union:
+		return self.codegenUnion(exprNode, load)
+	case *mean.UnionTypeJudgment:
+		return self.codegenUnionTypeJudgment(exprNode)
+	case *mean.UnUnion:
+		return self.codegenUnUnion(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -224,11 +231,10 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
-	value := self.codegenExpr(node.GetValue(), true)
-
+func (self *CodeGenerator) codegenUnary(node mean.Unary, load bool) llvm.Value {
 	switch node.(type) {
 	case *mean.NumNegate:
+		value := self.codegenExpr(node.GetValue(), true)
 		switch node.GetType().(type) {
 		case *mean.SintType:
 			return self.builder.CreateSNeg("", value)
@@ -238,7 +244,16 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary) llvm.Value {
 			panic("unreachable")
 		}
 	case *mean.IntBitNegate, *mean.BoolNegate:
+		value := self.codegenExpr(node.GetValue(), true)
 		return self.builder.CreateNot("", value)
+	case *mean.GetPtr:
+		return self.codegenExpr(node.GetValue(), false)
+	case *mean.GetValue:
+		ptr := self.codegenExpr(node.GetValue(), true)
+		if !load {
+			return ptr
+		}
+		return self.builder.CreateLoad("", self.codegenType(node.GetType()), ptr)
 	default:
 		panic("unreachable")
 	}
@@ -436,4 +451,35 @@ func (self *CodeGenerator) codegenString(node *mean.String) llvm.Value {
 		self.strings.Set(node.Value, ptr)
 	}
 	return self.builder.CreateLoad("", st, ptr)
+}
+
+func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) llvm.Value {
+	ut := self.codegenUnionType(node.Type)
+	value := self.codegenExpr(node.Value, true)
+	ptr := self.builder.CreateAlloca("", ut)
+	self.builder.CreateStore(value, self.buildStructIndex(ut, ptr, 0, false))
+	self.builder.CreateStore(self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(node.Type.GetElemIndex(node.Value.GetType()))), self.buildStructIndex(ut, ptr, 1, false))
+	if load {
+		return self.builder.CreateLoad("", ut, ptr)
+	}
+	return ptr
+}
+
+func (self *CodeGenerator) codegenUnionTypeJudgment(node *mean.UnionTypeJudgment) llvm.Value {
+	utMean := node.Value.GetType().(*mean.UnionType)
+	ut := self.codegenUnionType(utMean)
+	typeIndex := self.buildStructIndex(ut, self.codegenExpr(node.Value, false), 1, true)
+	return self.builder.CreateIntCmp("", llvm.IntEQ, typeIndex, self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(utMean.GetElemIndex(node.Type))))
+}
+
+func (self *CodeGenerator) codegenUnUnion(node *mean.UnUnion) llvm.Value {
+	t := self.codegenType(node.GetType())
+	value := self.codegenExpr(node.Value, false)
+	if stlbasic.Is[llvm.PointerType](value.Type()) {
+		return self.builder.CreateLoad("", t, value)
+	}
+	elem := self.buildStructIndex(value.Type().(llvm.StructType), value, 0, true)
+	ptr := self.builder.CreateAlloca("", elem.Type())
+	self.builder.CreateStore(elem, ptr)
+	return self.builder.CreateLoad("", t, ptr)
 }
