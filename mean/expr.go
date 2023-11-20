@@ -1044,3 +1044,41 @@ func (self *UnUnion) GetType() Type {
 func (self *UnUnion) Mutable() bool {
 	return false
 }
+
+// GetPtr 取指针
+type GetPtr struct {
+	Value Expr
+}
+
+func (self *GetPtr) stmt() {}
+
+func (self *GetPtr) GetType() Type {
+	return &PtrType{Elem: self.Value.GetType()}
+}
+
+func (self *GetPtr) Mutable() bool {
+	return false
+}
+
+func (self *GetPtr) GetValue() Expr {
+	return self.Value
+}
+
+// GetValue 取值
+type GetValue struct {
+	Value Expr
+}
+
+func (self *GetValue) stmt() {}
+
+func (self *GetValue) GetType() Type {
+	return self.Value.GetType().(*PtrType).Elem
+}
+
+func (self *GetValue) Mutable() bool {
+	return self.Value.Mutable()
+}
+
+func (self *GetValue) GetValue() Expr {
+	return self.Value
+}

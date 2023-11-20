@@ -344,7 +344,7 @@ type UnionType struct {
 }
 
 func (self UnionType) String() string {
-	return strings.Join(self.Elems.Keys().ToSlice(), "|")
+	return fmt.Sprintf("<%s>", strings.Join(self.Elems.Keys().ToSlice(), ", "))
 }
 
 func (self *UnionType) Equal(dst Type) bool {
@@ -385,4 +385,33 @@ func (self UnionType) GetElemIndex(elem Type) int {
 		index++
 	}
 	return index
+}
+
+// PtrType 指针类型
+type PtrType struct {
+	Elem Type
+}
+
+func (self PtrType) String() string {
+	return "*" + self.Elem.String()
+}
+
+func (self *PtrType) Equal(dst Type) bool {
+	pt, ok := dst.(*PtrType)
+	if !ok {
+		return false
+	}
+	return self.Elem.Equal(pt.Elem)
+}
+
+func (self *PtrType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
 }

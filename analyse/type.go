@@ -26,6 +26,8 @@ func (self *Analyser) analyseType(node ast.Type) Type {
 		return self.analyseTupleType(typeNode)
 	case *ast.UnionType:
 		return self.analyseUnionType(typeNode)
+	case *ast.PtrType:
+		return self.analysePtrType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -128,4 +130,8 @@ func (self *Analyser) analyseUnionType(node *ast.UnionType) *UnionType {
 		return pair.NewPair(et.String(), et)
 	})
 	return &UnionType{Elems: elems}
+}
+
+func (self *Analyser) analysePtrType(node *ast.PtrType) *PtrType {
+	return &PtrType{Elem: self.analyseType(node.Elem)}
 }
