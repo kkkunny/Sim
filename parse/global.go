@@ -7,6 +7,7 @@ import (
 	. "github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *Parser) parseGlobal() Global {
@@ -114,8 +115,17 @@ func (self *Parser) parseImport() *Import {
 			break
 		}
 	}
+	alias := util.None[token.Token]()
+	if self.skipNextIs(token.AS) {
+		if self.skipNextIs(token.MUL) {
+			alias = util.Some(self.curTok)
+		} else {
+			alias = util.Some(self.expectNextIs(token.IDENT))
+		}
+	}
 	return &Import{
 		Begin: begin,
 		Paths: paths,
+		Alias: alias,
 	}
 }

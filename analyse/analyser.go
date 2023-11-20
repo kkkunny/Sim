@@ -55,12 +55,18 @@ func (self *Analyser) checkLoopImport(path string) bool {
 // Analyse 分析语义
 func (self *Analyser) Analyse() linkedlist.LinkedList[Global] {
 	meanNodes := linkedlist.NewLinkedList[Global]()
+
+	// 包
+	if !self.pkgScope.IsBuildIn() {
+		meanNodes.Append(self.importBuildInPackage())
+	}
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
 		if im, ok := v.(*ast.Import); ok {
 			meanNodes.Append(self.analyseImport(im))
 		}
 		return true
 	})
+
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
 		if st, ok := v.(*ast.StructDef); ok {
 			self.declTypeDef(st)

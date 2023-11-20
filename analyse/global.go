@@ -22,33 +22,77 @@ import (
 )
 
 func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Global] {
-	pkgName := node.Paths.Back().Source()
+	// 包名
+	var pkgName string
+	var importAll bool
+	if alias, ok := node.Alias.Value(); ok && alias.Is(token.IDENT) {
+		pkgName = alias.Source()
+	} else {
+		importAll = alias.Is(token.MUL)
+		pkgName = node.Paths.Back().Source()
+	}
 	if self.pkgScope.externs.ContainKey(pkgName) {
 		errors.ThrowIdentifierDuplicationError(node.Paths.Back().Position, node.Paths.Back())
 	}
 
+	// 包地址（唯一标识符）
 	paths := iterator.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
 		return v.Source()
 	}).ToSlice()
 	pkgPath := filepath.Join(append([]string{config.ROOT}, paths...)...)
 
+	// 检查循环导入
 	if self.checkLoopImport(pkgPath) {
 		errors.ThrowCircularImport(node.Paths.Back().Position, node.Paths.Back())
 	}
+	// 如果有缓存则直接返回
 	if pkgScope := self.pkgs.Get(pkgPath); pkgScope != nil {
-		self.pkgScope.externs.Set(pkgName, pkgScope)
+		if importAll {
+			self.pkgScope.links.Add(pkgScope)
+		} else {
+			self.pkgScope.externs.Set(pkgName, pkgScope)
+		}
 		return linkedlist.LinkedList[Global]{}
 	}
 
+	// 语义分析目标包
 	pkgAsts, err := parse.ParseDir(pkgPath)
 	if err != nil {
 		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
 	}
 	pkgAnalyser := newSon(self, pkgPath, pkgAsts)
 	pkgMeans := pkgAnalyser.Analyse()
-
+	// 放进缓存
 	self.pkgs.Set(pkgPath, pkgAnalyser.pkgScope)
-	self.pkgScope.externs.Set(pkgName, pkgAnalyser.pkgScope)
+	if importAll {
+		self.pkgScope.links.Add(pkgAnalyser.pkgScope)
+	} else {
+		self.pkgScope.externs.Set(pkgName, pkgAnalyser.pkgScope)
+	}
+	return pkgMeans
+}
+
+// 导入buildin包
+func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[Global] {
+	dir := util.GetBuildInPackagePath()
+
+	// 如果有缓存则直接返回
+	if pkgScope := self.pkgs.Get(dir); pkgScope != nil {
+		self.pkgScope.links.Add(pkgScope)
+		return linkedlist.LinkedList[Global]{}
+	}
+
+	// 语义分析目标包
+	pkgAsts, err := parse.ParseDir(dir)
+	if err != nil {
+		// HACK: 报编译器异常而不是直接panic
+		panic(err)
+	}
+	pkgAnalyser := newSon(self, dir, pkgAsts)
+	pkgMeans := pkgAnalyser.Analyse()
+	// 放进缓存
+	self.pkgs.Set(dir, pkgAnalyser.pkgScope)
+	self.pkgScope.links.Add(pkgAnalyser.pkgScope)
 	return pkgMeans
 }
 
