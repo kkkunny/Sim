@@ -1,8 +1,5 @@
-func test(p: *u8)u8{
-    return *p
-}
+import std.buildin as b
 
 func main()u8{
-    let i: u8 = 1
-    return test(&i)
+    return b::get()
 }

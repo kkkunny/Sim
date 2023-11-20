@@ -68,9 +68,13 @@ func (*Variable) global() {}
 type Import struct {
 	Begin reader.Position
 	Paths dynarray.DynArray[token.Token]
+	Alias util.Option[token.Token]
 }
 
 func (self *Import) Position() reader.Position {
+	if alias, ok := self.Alias.Value(); ok {
+		return reader.MixPosition(self.Begin, alias.Position)
+	}
 	return reader.MixPosition(self.Begin, self.Paths.Back().Position)
 }
 
