@@ -5,6 +5,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedhashset"
 
 	. "github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/util"
 )
 
 // 作用域
@@ -30,6 +31,11 @@ func _NewPkgScope(path string) *_PkgScope {
 		values:  hashmap.NewHashMap[string, Ident](),
 		structs: hashmap.NewHashMap[string, *StructType](),
 	}
+}
+
+// IsBuildIn 是否是buildin包
+func (self *_PkgScope) IsBuildIn() bool {
+	return self.path == util.GetBuildInPackagePath()
 }
 
 func (self *_PkgScope) SetValue(name string, v Ident) bool {

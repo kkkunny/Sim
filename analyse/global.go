@@ -72,6 +72,30 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Glob
 	return pkgMeans
 }
 
+// 导入buildin包
+func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[Global] {
+	dir := util.GetBuildInPackagePath()
+
+	// 如果有缓存则直接返回
+	if pkgScope := self.pkgs.Get(dir); pkgScope != nil {
+		self.pkgScope.links.Add(pkgScope)
+		return linkedlist.LinkedList[Global]{}
+	}
+
+	// 语义分析目标包
+	pkgAsts, err := parse.ParseDir(dir)
+	if err != nil {
+		// HACK: 报编译器异常而不是直接panic
+		panic(err)
+	}
+	pkgAnalyser := newSon(self, dir, pkgAsts)
+	pkgMeans := pkgAnalyser.Analyse()
+	// 放进缓存
+	self.pkgs.Set(dir, pkgAnalyser.pkgScope)
+	self.pkgScope.links.Add(pkgAnalyser.pkgScope)
+	return pkgMeans
+}
+
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	st := &StructDef{
 		Public: node.Public,
