@@ -5,20 +5,6 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 )
 
-/*
-#include "stdio.h"
-
-typedef struct{
-	char* data;
-	long long len;
-}str;
-
-void debug(str s){
-	printf("%lld\n", s.len);
-}
-*/
-import "C"
-
 // RunJit jit
 func RunJit(module llvm.Module) (uint8, stlerror.Error) {
 	engine, err := stlerror.ErrorWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))

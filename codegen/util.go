@@ -71,8 +71,16 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r llvm.Value, not bool) ll
 		}
 		return res
 	case *mean.StringType:
-		// TODO: 字符串类型比较
-		panic("unreachable")
+		// FIXME: 字符串比较
+		name := "sim_runtime_string_equal"
+		ft := self.ctx.FunctionType(self.ctx.IntegerType(1), []llvm.Type{l.Type(), r.Type()}, false)
+		var f llvm.Function
+		if fptr := self.module.GetFunction(name); fptr != nil {
+			f = *fptr
+		} else {
+			f = self.module.NewFunction(name, ft)
+		}
+		return self.builder.CreateCall("", ft, f, l, r)
 	case *mean.UnionType:
 		// TODO: 联合类型比较
 		panic("unreachable")

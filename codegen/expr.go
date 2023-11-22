@@ -222,9 +222,9 @@ func (self *CodeGenerator) codegenBinary(node mean.Binary) llvm.Value {
 		default:
 			panic("unreachable")
 		}
-	case *mean.NumEqNum, *mean.BoolEqBool, *mean.FuncEqFunc, *mean.ArrayEqArray, *mean.StructEqStruct, *mean.TupleEqTuple:
+	case *mean.NumEqNum, *mean.BoolEqBool, *mean.FuncEqFunc, *mean.ArrayEqArray, *mean.StructEqStruct, *mean.TupleEqTuple, *mean.StringEqString, *mean.UnionEqUnion:
 		return self.buildEqual(node.GetLeft().GetType(), left, right, false)
-	case *mean.NumNeNum, *mean.BoolNeBool, *mean.FuncNeFunc, *mean.ArrayNeArray, *mean.StructNeStruct, *mean.TupleNeTuple:
+	case *mean.NumNeNum, *mean.BoolNeBool, *mean.FuncNeFunc, *mean.ArrayNeArray, *mean.StructNeStruct, *mean.TupleNeTuple, *mean.StringNeString, *mean.UnionNeUnion:
 		return self.buildEqual(node.GetLeft().GetType(), left, right, true)
 	default:
 		panic("unreachable")

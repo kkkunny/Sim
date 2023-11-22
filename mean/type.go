@@ -318,7 +318,7 @@ type StructType = StructDef
 type StringType struct{}
 
 func (_ StringType) String() string {
-	return "string"
+	return "str"
 }
 
 func (self *StringType) Equal(dst Type) bool {

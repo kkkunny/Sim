@@ -541,6 +541,52 @@ func (self *StructEqStruct) GetRight() Expr {
 	return self.Right
 }
 
+// StringEqString 字符串等于字符串
+type StringEqString struct {
+	Left, Right Expr
+}
+
+func (self *StringEqString) stmt() {}
+
+func (self *StringEqString) GetType() Type {
+	return Bool
+}
+
+func (self *StringEqString) Mutable() bool {
+	return false
+}
+
+func (self *StringEqString) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *StringEqString) GetRight() Expr {
+	return self.Right
+}
+
+// UnionEqUnion 联合等于联合
+type UnionEqUnion struct {
+	Left, Right Expr
+}
+
+func (self *UnionEqUnion) stmt() {}
+
+func (self *UnionEqUnion) GetType() Type {
+	return Bool
+}
+
+func (self *UnionEqUnion) Mutable() bool {
+	return false
+}
+
+func (self *UnionEqUnion) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *UnionEqUnion) GetRight() Expr {
+	return self.Right
+}
+
 // NumNeNum 数字不等数字
 type NumNeNum struct {
 	Left, Right Expr
@@ -676,6 +722,52 @@ func (self *StructNeStruct) GetLeft() Expr {
 }
 
 func (self *StructNeStruct) GetRight() Expr {
+	return self.Right
+}
+
+// StringNeString 字符串不等字符串
+type StringNeString struct {
+	Left, Right Expr
+}
+
+func (self *StringNeString) stmt() {}
+
+func (self *StringNeString) GetType() Type {
+	return Bool
+}
+
+func (self *StringNeString) Mutable() bool {
+	return false
+}
+
+func (self *StringNeString) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *StringNeString) GetRight() Expr {
+	return self.Right
+}
+
+// UnionNeUnion 联合不等于联合
+type UnionNeUnion struct {
+	Left, Right Expr
+}
+
+func (self *UnionNeUnion) stmt() {}
+
+func (self *UnionNeUnion) GetType() Type {
+	return Bool
+}
+
+func (self *UnionNeUnion) Mutable() bool {
+	return false
+}
+
+func (self *UnionNeUnion) GetLeft() Expr {
+	return self.Left
+}
+
+func (self *UnionNeUnion) GetRight() Expr {
 	return self.Right
 }
 

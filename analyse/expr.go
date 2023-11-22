@@ -240,6 +240,16 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 					Left:  left,
 					Right: right,
 				}
+			case TypeIs[*StringType](lt):
+				return &StringEqString{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*UnionType](lt):
+				return &UnionEqUnion{
+					Left:  left,
+					Right: right,
+				}
 			}
 		}
 	case token.NE:
@@ -272,6 +282,16 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 				}
 			case TypeIs[*StructType](lt):
 				return &StructNeStruct{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*StringType](lt):
+				return &StringNeString{
+					Left:  left,
+					Right: right,
+				}
+			case TypeIs[*UnionType](lt):
+				return &UnionNeUnion{
 					Left:  left,
 					Right: right,
 				}

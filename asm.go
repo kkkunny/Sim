@@ -1,8 +1,9 @@
-//go:build !lex && !parse && !analyse && !codegen && !asm
+//go:build asm
 
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -11,8 +12,6 @@ import (
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/codegen"
-	_ "github.com/kkkunny/Sim/config"
-	"github.com/kkkunny/Sim/output/jit"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/util"
 )
@@ -28,5 +27,7 @@ func main() {
 	generator := codegen.New(target, analyse.New(path, asts, target))
 	module := generator.Codegen()
 	stlerror.Must(module.Verify())
-	os.Exit(int(stlerror.MustWith(jit.RunJit(module))))
+
+	fmt.Println(module)
+	stlerror.Must(target.WriteASMToFile(module, "main.s", llvm.CodeOptLevelNone, llvm.RelocModePIC, llvm.CodeModelDefault))
 }
