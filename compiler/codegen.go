@@ -1,4 +1,4 @@
-//go:build analyse
+//go:build codegen
 
 package main
 
@@ -6,14 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 
-	"github.com/kkkunny/go-llvm"
-	"github.com/kkkunny/stl/container/iterator"
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/analyse"
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/codegen"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/util"
 )
@@ -25,9 +22,8 @@ func main() {
 
 	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
 	asts := stlerror.MustWith(parse.ParseFile(path))
-	analyser := analyse.New(path, asts, target)
-	iterator.Foreach(analyser.Analyse(), func(v mean.Global) bool {
-		fmt.Println(reflect.TypeOf(v).String())
-		return true
-	})
+	generator := codegen.New(target, analyse.New(path, asts, target))
+	module := generator.Codegen()
+	fmt.Println(module)
+	stlerror.Must(module.Verify())
 }

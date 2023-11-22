@@ -3,12 +3,13 @@ package parse
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
-	. "github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/ast"
+
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *Parser) parseStmt() Stmt {
+func (self *Parser) parseStmt() ast.Stmt {
 	switch self.nextTok.Kind {
 	case token.RETURN:
 		return self.parseReturn()
@@ -31,9 +32,9 @@ func (self *Parser) parseStmt() Stmt {
 	}
 }
 
-func (self *Parser) parseBlock() *Block {
+func (self *Parser) parseBlock() *ast.Block {
 	begin := self.expectNextIs(token.LBR).Position
-	stmts := linkedlist.NewLinkedList[Stmt]()
+	stmts := linkedlist.NewLinkedList[ast.Stmt]()
 	for {
 		self.skipSEM()
 		if self.nextIs(token.RBR) {
@@ -47,39 +48,39 @@ func (self *Parser) parseBlock() *Block {
 		}
 	}
 	end := self.expectNextIs(token.RBR).Position
-	return &Block{
+	return &ast.Block{
 		Begin: begin,
 		Stmts: stmts,
 		End:   end,
 	}
 }
 
-func (self *Parser) parseReturn() *Return {
+func (self *Parser) parseReturn() *ast.Return {
 	begin := self.expectNextIs(token.RETURN).Position
 	value := self.parseOptionExpr(true)
-	return &Return{
+	return &ast.Return{
 		Begin: begin,
 		Value: value,
 	}
 }
 
-func (self *Parser) parseIfElse() *IfElse {
+func (self *Parser) parseIfElse() *ast.IfElse {
 	begin := self.expectNextIs(token.IF).Position
 	cond := self.mustExpr(self.parseOptionExpr(false))
 	body := self.parseBlock()
-	var next util.Option[*IfElse]
+	var next util.Option[*ast.IfElse]
 	if self.skipNextIs(token.ELSE) {
 		nextBegin := self.curTok.Position
 		if self.nextIs(token.IF) {
 			next = util.Some(self.parseIfElse())
 		} else {
-			next = util.Some(&IfElse{
+			next = util.Some(&ast.IfElse{
 				Begin: nextBegin,
 				Body:  self.parseBlock(),
 			})
 		}
 	}
-	return &IfElse{
+	return &ast.IfElse{
 		Begin: begin,
 		Cond:  util.Some(cond),
 		Body:  body,
@@ -87,31 +88,31 @@ func (self *Parser) parseIfElse() *IfElse {
 	}
 }
 
-func (self *Parser) parseLoop() *Loop {
+func (self *Parser) parseLoop() *ast.Loop {
 	begin := self.expectNextIs(token.LOOP).Position
 	body := self.parseBlock()
-	return &Loop{
+	return &ast.Loop{
 		Begin: begin,
 		Body:  body,
 	}
 }
 
-func (self *Parser) parseBreak() *Break {
-	return &Break{Token: self.expectNextIs(token.BREAK)}
+func (self *Parser) parseBreak() *ast.Break {
+	return &ast.Break{Token: self.expectNextIs(token.BREAK)}
 }
 
-func (self *Parser) parseContinue() *Continue {
-	return &Continue{Token: self.expectNextIs(token.CONTINUE)}
+func (self *Parser) parseContinue() *ast.Continue {
+	return &ast.Continue{Token: self.expectNextIs(token.CONTINUE)}
 }
 
-func (self *Parser) parseFor() *For {
+func (self *Parser) parseFor() *ast.For {
 	begin := self.expectNextIs(token.FOR).Position
 	mut := self.skipNextIs(token.MUT)
 	cursor := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.IN)
 	iter := self.mustExpr(self.parseOptionExpr(false))
 	body := self.parseBlock()
-	return &For{
+	return &ast.For{
 		Begin:     begin,
 		CursorMut: mut,
 		Cursor:    cursor,

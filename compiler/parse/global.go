@@ -5,13 +5,14 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
 
-	. "github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/ast"
+
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *Parser) parseGlobal() Global {
+func (self *Parser) parseGlobal() ast.Global {
 	var pub *token.Token
 	if self.skipNextIs(token.PUBLIC) {
 		pub = &self.curTok
@@ -32,19 +33,19 @@ func (self *Parser) parseGlobal() Global {
 	}
 }
 
-func (self *Parser) parseFuncDef(pub *token.Token) *FuncDef {
+func (self *Parser) parseFuncDef(pub *token.Token) *ast.FuncDef {
 	begin := self.expectNextIs(token.FUNC).Position
 	if pub != nil {
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
-	args := loopParseWithUtil(self, token.COM, token.RPA, func() Param {
+	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
 		mut := self.skipNextIs(token.MUT)
 		pn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		pt := self.parseType()
-		return Param{
+		return ast.Param{
 			Mutable: mut,
 			Name:    pn,
 			Type:    pt,
@@ -52,12 +53,12 @@ func (self *Parser) parseFuncDef(pub *token.Token) *FuncDef {
 	})
 	self.expectNextIs(token.RPA)
 	ret := self.parseOptionType()
-	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*Block] {
+	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
-	}, func() util.Option[*Block] {
-		return util.None[*Block]()
+	}, func() util.Option[*ast.Block] {
+		return util.None[*ast.Block]()
 	})
-	return &FuncDef{
+	return &ast.FuncDef{
 		Begin:  begin,
 		Public: pub != nil,
 		Params: args,
@@ -67,21 +68,21 @@ func (self *Parser) parseFuncDef(pub *token.Token) *FuncDef {
 	}
 }
 
-func (self *Parser) parseStructDef(pub *token.Token) *StructDef {
+func (self *Parser) parseStructDef(pub *token.Token) *ast.StructDef {
 	begin := self.expectNextIs(token.STRUCT).Position
 	if pub != nil {
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, Type] {
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, ast.Type] {
 		fn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		ft := self.parseType()
 		return pair.NewPair(fn, ft)
 	})
 	end := self.expectNextIs(token.RBR).Position
-	return &StructDef{
+	return &ast.StructDef{
 		Begin:  begin,
 		Public: pub != nil,
 		Name:   name,
@@ -90,7 +91,7 @@ func (self *Parser) parseStructDef(pub *token.Token) *StructDef {
 	}
 }
 
-func (self *Parser) parseVariable(pub *token.Token) *Variable {
+func (self *Parser) parseVariable(pub *token.Token) *ast.Variable {
 	begin := self.expectNextIs(token.LET).Position
 	if pub != nil {
 		begin = pub.Position
@@ -101,7 +102,7 @@ func (self *Parser) parseVariable(pub *token.Token) *Variable {
 	typ := self.parseType()
 	self.expectNextIs(token.ASS)
 	value := self.mustExpr(self.parseOptionExpr(true))
-	return &Variable{
+	return &ast.Variable{
 		Public:  mut,
 		Begin:   begin,
 		Mutable: mut,
@@ -111,7 +112,7 @@ func (self *Parser) parseVariable(pub *token.Token) *Variable {
 	}
 }
 
-func (self *Parser) parseImport() *Import {
+func (self *Parser) parseImport() *ast.Import {
 	begin := self.expectNextIs(token.IMPORT).Position
 	var paths dynarray.DynArray[token.Token]
 	for {
@@ -128,7 +129,7 @@ func (self *Parser) parseImport() *Import {
 			alias = util.Some(self.expectNextIs(token.IDENT))
 		}
 	}
-	return &Import{
+	return &ast.Import{
 		Begin: begin,
 		Paths: paths,
 		Alias: alias,

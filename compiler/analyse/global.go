@@ -11,17 +11,18 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/samber/lo"
 
+	"github.com/kkkunny/Sim/mean"
+
 	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/config"
 	errors "github.com/kkkunny/Sim/error"
-	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Global] {
+func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[mean.Global] {
 	// 包名
 	var pkgName string
 	var importAll bool
@@ -52,7 +53,7 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Glob
 		} else {
 			self.pkgScope.externs.Set(pkgName, pkgScope)
 		}
-		return linkedlist.LinkedList[Global]{}
+		return linkedlist.LinkedList[mean.Global]{}
 	}
 
 	// 语义分析目标包
@@ -73,13 +74,13 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[Glob
 }
 
 // 导入buildin包
-func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[Global] {
+func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[mean.Global] {
 	dir := util.GetBuildInPackagePath()
 
 	// 如果有缓存则直接返回
 	if pkgScope := self.pkgs.Get(dir); pkgScope != nil {
 		self.pkgScope.links.Add(pkgScope)
-		return linkedlist.LinkedList[Global]{}
+		return linkedlist.LinkedList[mean.Global]{}
 	}
 
 	// 语义分析目标包
@@ -97,17 +98,17 @@ func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[Global] {
 }
 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
-	st := &StructDef{
+	st := &mean.StructDef{
 		Public: node.Public,
 		Name:   node.Name.Source(),
-		Fields: linkedhashmap.NewLinkedHashMap[string, Type](),
+		Fields: linkedhashmap.NewLinkedHashMap[string, mean.Type](),
 	}
 	if !self.pkgScope.SetStruct(st) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
 }
 
-func (self *Analyser) defTypeDef(node *ast.StructDef) *StructDef {
+func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	st, ok := self.pkgScope.GetStruct("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
@@ -135,33 +136,33 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 
 func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	paramNameSet := hashset.NewHashSet[string]()
-	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *Param {
+	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
 		pn := paramNode.Name.Source()
 		if !paramNameSet.Add(pn) {
 			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 		}
 		pt := self.analyseType(paramNode.Type)
-		return &Param{
+		return &mean.Param{
 			Mut:  paramNode.Mutable,
 			Type: pt,
 			Name: pn,
 		}
 	})
-	f := &FuncDef{
+	f := &mean.FuncDef{
 		Public: node.Public,
 		Name:   node.Name.Source(),
 		Params: params,
 		Ret:    self.analyseOptionType(node.Ret),
-		Body:   util.None[*Block](),
+		Body:   util.None[*mean.Block](),
 	}
-	if f.Name == "main" && !f.Ret.Equal(U8) {
+	if f.Name == "main" && !f.Ret.Equal(mean.U8) {
 		pos := stlbasic.TernaryAction(node.Ret.IsNone(), func() reader.Position {
 			return node.Name.Position
 		}, func() reader.Position {
 			ret, _ := node.Ret.Value()
 			return ret.Position()
 		})
-		errors.ThrowTypeMismatchError(pos, f.Ret, U8)
+		errors.ThrowTypeMismatchError(pos, f.Ret, mean.U8)
 	}
 	if !self.pkgScope.SetValue(f.Name, f) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
@@ -169,7 +170,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 }
 
 func (self *Analyser) declGlobalVariable(node *ast.Variable) {
-	v := &Variable{
+	v := &mean.Variable{
 		Public: node.Public,
 		Mut:    node.Mutable,
 		Type:   self.analyseType(node.Type),
@@ -180,7 +181,7 @@ func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 	}
 }
 
-func (self *Analyser) analyseGlobalDef(node ast.Global) Global {
+func (self *Analyser) analyseGlobalDef(node ast.Global) mean.Global {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
 		return self.defFuncDef(globalNode)
@@ -195,12 +196,12 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) Global {
 	}
 }
 
-func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
+func (self *Analyser) defFuncDef(node *ast.FuncDef) *mean.FuncDef {
 	value, ok := self.pkgScope.GetValue("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	f := value.(*FuncDef)
+	f := value.(*mean.FuncDef)
 
 	if node.Body.IsNone() {
 		return f
@@ -219,21 +220,21 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *FuncDef {
 
 	body, jump := self.analyseBlock(node.Body.MustValue(), nil)
 	f.Body = util.Some(body)
-	if jump != BlockEofReturn {
-		if !f.Ret.Equal(Empty) {
+	if jump != mean.BlockEofReturn {
+		if !f.Ret.Equal(mean.Empty) {
 			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
 		}
-		body.Stmts.PushBack(&Return{Value: util.None[Expr]()})
+		body.Stmts.PushBack(&mean.Return{Value: util.None[mean.Expr]()})
 	}
 	return f
 }
 
-func (self *Analyser) defGlobalVariable(node *ast.Variable) *Variable {
+func (self *Analyser) defGlobalVariable(node *ast.Variable) *mean.Variable {
 	value, ok := self.pkgScope.GetValue("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	v := value.(*Variable)
+	v := value.(*mean.Variable)
 
 	v.Value = self.expectExpr(v.Type, node.Value)
 	return v

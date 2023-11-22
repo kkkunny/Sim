@@ -6,8 +6,9 @@ import (
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
 
+	"github.com/kkkunny/Sim/mean"
+
 	"github.com/kkkunny/Sim/ast"
-	. "github.com/kkkunny/Sim/mean"
 )
 
 // Analyser 语义分析器
@@ -22,8 +23,8 @@ type Analyser struct {
 
 func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
 	if target != nil {
-		Isize.Bits = target.PointerSize()
-		Usize.Bits = target.PointerSize()
+		mean.Isize.Bits = target.PointerSize()
+		mean.Usize.Bits = target.PointerSize()
 	}
 	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
 	return &Analyser{
@@ -53,8 +54,8 @@ func (self *Analyser) checkLoopImport(path string) bool {
 }
 
 // Analyse 分析语义
-func (self *Analyser) Analyse() linkedlist.LinkedList[Global] {
-	meanNodes := linkedlist.NewLinkedList[Global]()
+func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
+	meanNodes := linkedlist.NewLinkedList[mean.Global]()
 
 	// 包
 	if !self.pkgScope.IsBuildIn() {

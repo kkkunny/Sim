@@ -1,5 +1,0 @@
-func main()u8{
-    let s: str = "123"
-    debug(s)
-    return 0
-}

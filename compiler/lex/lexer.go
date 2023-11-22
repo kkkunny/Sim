@@ -7,8 +7,9 @@ import (
 
 	stlerror "github.com/kkkunny/stl/error"
 
+	"github.com/kkkunny/Sim/token"
+
 	"github.com/kkkunny/Sim/reader"
-	. "github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
 
@@ -56,17 +57,17 @@ func (self *Lexer) skipWhite() {
 }
 
 // 扫描标识符
-func (self *Lexer) scanIdent(ch rune) Kind {
+func (self *Lexer) scanIdent(ch rune) token.Kind {
 	var buf strings.Builder
 	buf.WriteRune(ch)
 	for ch = self.peek(); ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9'); ch = self.peek() {
 		buf.WriteRune(self.next())
 	}
-	return Lookup(buf.String())
+	return token.Lookup(buf.String())
 }
 
 // 扫描数字
-func (self *Lexer) scanNumber(ch rune) Kind {
+func (self *Lexer) scanNumber(ch rune) token.Kind {
 	var point bool
 	for ch = self.peek(); ch == '.' || (ch >= '0' && ch <= '9'); ch = self.peek() {
 		if ch == '.' {
@@ -79,19 +80,19 @@ func (self *Lexer) scanNumber(ch rune) Kind {
 		self.next()
 	}
 	if point {
-		return FLOAT
+		return token.FLOAT
 	} else {
-		return INTEGER
+		return token.INTEGER
 	}
 }
 
 // 扫描字符
-func (self *Lexer) scanChar(ch rune) Kind {
+func (self *Lexer) scanChar(ch rune) token.Kind {
 	var buf strings.Builder
 	prevChar := ch
 	for ch = self.peek(); ch != '\'' || prevChar == '\\'; ch, prevChar = self.peek(), ch {
 		if ch == 0 {
-			return ILLEGAL
+			return token.ILLEGAL
 		}
 		self.next()
 		buf.WriteRune(ch)
@@ -100,31 +101,31 @@ func (self *Lexer) scanChar(ch rune) Kind {
 
 	s := util.ParseEscapeCharacter(buf.String(), `\'`, `'`)
 	if len(s) != 1 {
-		return ILLEGAL
+		return token.ILLEGAL
 	}
-	return CHAR
+	return token.CHAR
 }
 
 // 扫描字符串
-func (self *Lexer) scanString(ch rune) Kind {
+func (self *Lexer) scanString(ch rune) token.Kind {
 	prevChar := ch
 	for ch = self.peek(); ch != '"' || prevChar == '\\'; ch, prevChar = self.peek(), ch {
 		if ch == 0 {
-			return ILLEGAL
+			return token.ILLEGAL
 		}
 		self.next()
 	}
 	self.next()
-	return STRING
+	return token.STRING
 }
 
-func (self *Lexer) Scan() Token {
+func (self *Lexer) Scan() token.Token {
 	self.skipWhite()
 
 	begin := self.reader.Position()
 	ch := self.next()
 
-	var kind Kind
+	var kind token.Kind
 	switch {
 	case ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'):
 		kind = self.scanIdent(ch)
@@ -137,92 +138,92 @@ func (self *Lexer) Scan() Token {
 	default:
 		switch ch {
 		case 0:
-			kind = EOF
+			kind = token.EOF
 		case '=':
-			kind = ASS
+			kind = token.ASS
 			if nextCh := self.peek(); nextCh == '=' {
 				self.next()
-				kind = EQ
+				kind = token.EQ
 			}
 		case '&':
-			kind = AND
+			kind = token.AND
 			if nextCh := self.peek(); nextCh == '&' {
 				self.next()
-				kind = LAND
+				kind = token.LAND
 			}
 		case '|':
-			kind = OR
+			kind = token.OR
 			if nextCh := self.peek(); nextCh == '|' {
 				self.next()
-				kind = LOR
+				kind = token.LOR
 			}
 		case '^':
-			kind = XOR
+			kind = token.XOR
 		case '!':
-			kind = NOT
+			kind = token.NOT
 			if nextCh := self.peek(); nextCh == '=' {
 				self.next()
-				kind = NE
+				kind = token.NE
 			}
 		case '+':
-			kind = ADD
+			kind = token.ADD
 		case '-':
-			kind = SUB
+			kind = token.SUB
 		case '*':
-			kind = MUL
+			kind = token.MUL
 		case '/':
-			kind = DIV
+			kind = token.DIV
 		case '%':
-			kind = REM
+			kind = token.REM
 		case '<':
-			kind = LT
+			kind = token.LT
 			if nextCh := self.peek(); nextCh == '=' {
 				self.next()
-				kind = LE
+				kind = token.LE
 			} else if nextCh == '<' {
 				self.next()
-				kind = SHL
+				kind = token.SHL
 			}
 		case '>':
-			kind = GT
+			kind = token.GT
 			if nextCh := self.peek(); nextCh == '=' {
 				self.next()
-				kind = GE
+				kind = token.GE
 			} else if nextCh == '>' {
 				self.next()
-				kind = SHR
+				kind = token.SHR
 			}
 		case '(':
-			kind = LPA
+			kind = token.LPA
 		case ')':
-			kind = RPA
+			kind = token.RPA
 		case '[':
-			kind = LBA
+			kind = token.LBA
 		case ']':
-			kind = RBA
+			kind = token.RBA
 		case '{':
-			kind = LBR
+			kind = token.LBR
 		case '}':
-			kind = RBR
+			kind = token.RBR
 		case ';', '\n':
-			kind = SEM
+			kind = token.SEM
 		case ',':
-			kind = COM
+			kind = token.COM
 		case '.':
-			kind = DOT
+			kind = token.DOT
 		case ':':
-			kind = COL
+			kind = token.COL
 			if nextCh := self.peek(); nextCh == ':' {
 				self.next()
-				kind = SCOPE
+				kind = token.SCOPE
 			}
 		default:
-			kind = ILLEGAL
+			kind = token.ILLEGAL
 		}
 	}
 
 	end := self.reader.Position()
-	return Token{
+	return token.Token{
 		Position: reader.MixPosition(begin, end),
 		Kind:     kind,
 	}
