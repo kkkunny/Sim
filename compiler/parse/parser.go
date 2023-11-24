@@ -3,7 +3,8 @@ package parse
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
-	. "github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/ast"
+
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/token"
@@ -58,8 +59,8 @@ func (self *Parser) skipSEM() {
 }
 
 // Parse 语法分析
-func (self *Parser) Parse() linkedlist.LinkedList[Global] {
-	globals := linkedlist.NewLinkedList[Global]()
+func (self *Parser) Parse() linkedlist.LinkedList[ast.Global] {
+	globals := linkedlist.NewLinkedList[ast.Global]()
 	for {
 		self.skipSEM()
 		if self.nextIs(token.EOF) {

@@ -56,11 +56,12 @@ func (self *CodeGenerator) codegenBlock(node *mean.Block, afterBlockCreate func(
 }
 
 func (self *CodeGenerator) codegenReturn(node *mean.Return) {
+	ft := self.codegenFuncType(node.Func.GetType().(*mean.FuncType))
 	if v, ok := node.Value.Value(); ok {
 		v := self.codegenExpr(v, true)
-		self.builder.CreateRet(&v)
+		self.buildRet(ft, &v)
 	} else {
-		self.builder.CreateRet(nil)
+		self.buildRet(ft, nil)
 	}
 }
 

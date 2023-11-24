@@ -8,14 +8,15 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 	"github.com/samber/lo"
 
+	"github.com/kkkunny/Sim/mean"
+
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
-	. "github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
+func (self *Analyser) analyseExpr(expect mean.Type, node ast.Expr) mean.Expr {
 	switch exprNode := node.(type) {
 	case *ast.Integer:
 		return self.analyseInteger(expect, exprNode)
@@ -56,23 +57,23 @@ func (self *Analyser) analyseExpr(expect Type, node ast.Expr) Expr {
 	}
 }
 
-func (self *Analyser) analyseInteger(expect Type, node *ast.Integer) Expr {
-	if expect == nil || !TypeIs[NumberType](expect) {
-		expect = Isize
+func (self *Analyser) analyseInteger(expect mean.Type, node *ast.Integer) mean.Expr {
+	if expect == nil || !mean.TypeIs[mean.NumberType](expect) {
+		expect = mean.Isize
 	}
 	switch t := expect.(type) {
-	case IntType:
+	case mean.IntType:
 		value, ok := big.NewInt(0).SetString(node.Value.Source(), 10)
 		if !ok {
 			panic("unreachable")
 		}
-		return &Integer{
+		return &mean.Integer{
 			Type:  t,
 			Value: *value,
 		}
-	case *FloatType:
+	case *mean.FloatType:
 		value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
-		return &Float{
+		return &mean.Float{
 			Type:  t,
 			Value: *value,
 		}
@@ -81,22 +82,22 @@ func (self *Analyser) analyseInteger(expect Type, node *ast.Integer) Expr {
 	}
 }
 
-func (self *Analyser) analyseChar(expect Type, node *ast.Char) Expr {
-	if expect == nil || !TypeIs[NumberType](expect) {
-		expect = I32
+func (self *Analyser) analyseChar(expect mean.Type, node *ast.Char) mean.Expr {
+	if expect == nil || !mean.TypeIs[mean.NumberType](expect) {
+		expect = mean.I32
 	}
 	s := node.Value.Source()
 	char := util.ParseEscapeCharacter(s[1:len(s)-1], `\'`, `'`)[0]
 	switch t := expect.(type) {
-	case IntType:
+	case mean.IntType:
 		value := big.NewInt(int64(char))
-		return &Integer{
+		return &mean.Integer{
 			Type:  t,
 			Value: *value,
 		}
-	case *FloatType:
+	case *mean.FloatType:
 		value := big.NewFloat(float64(char))
-		return &Float{
+		return &mean.Float{
 			Type:  t,
 			Value: *value,
 		}
@@ -105,22 +106,22 @@ func (self *Analyser) analyseChar(expect Type, node *ast.Char) Expr {
 	}
 }
 
-func (self *Analyser) analyseFloat(expect Type, node *ast.Float) *Float {
-	if expect == nil || !TypeIs[*FloatType](expect) {
-		expect = F64
+func (self *Analyser) analyseFloat(expect mean.Type, node *ast.Float) *mean.Float {
+	if expect == nil || !mean.TypeIs[*mean.FloatType](expect) {
+		expect = mean.F64
 	}
 	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
-	return &Float{
-		Type:  expect.(*FloatType),
+	return &mean.Float{
+		Type:  expect.(*mean.FloatType),
 		Value: *value,
 	}
 }
 
-func (self *Analyser) analyseBool(node *ast.Boolean) *Boolean {
-	return &Boolean{Value: node.Value.Is(token.TRUE)}
+func (self *Analyser) analyseBool(node *ast.Boolean) *mean.Boolean {
+	return &mean.Boolean{Value: node.Value.Is(token.TRUE)}
 }
 
-func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
+func (self *Analyser) analyseBinary(expect mean.Type, node *ast.Binary) mean.Binary {
 	left := self.analyseExpr(expect, node.Left)
 	lt := left.GetType()
 	right := self.analyseExpr(lt, node.Right)
@@ -132,77 +133,77 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 			if !left.Mutable() {
 				errors.ThrowNotMutableError(node.Left.Position())
 			}
-			return &Assign{
+			return &mean.Assign{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.AND:
-		if lt.Equal(rt) && TypeIs[IntType](lt) {
-			return &IntAndInt{
+		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+			return &mean.IntAndInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.OR:
-		if lt.Equal(rt) && TypeIs[IntType](lt) {
-			return &IntOrInt{
+		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+			return &mean.IntOrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.XOR:
-		if lt.Equal(rt) && TypeIs[IntType](lt) {
-			return &IntXorInt{
+		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+			return &mean.IntXorInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHL:
-		if lt.Equal(rt) && TypeIs[IntType](lt) {
-			return &IntShlInt{
+		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+			return &mean.IntShlInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHR:
-		if lt.Equal(rt) && TypeIs[IntType](lt) {
-			return &IntShrInt{
+		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+			return &mean.IntShrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.ADD:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumAddNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumAddNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SUB:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumSubNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumSubNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.MUL:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumMulNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumMulNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.DIV:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumDivNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumDivNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.REM:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumRemNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumRemNum{
 				Left:  left,
 				Right: right,
 			}
@@ -210,43 +211,53 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 	case token.EQ:
 		if lt.Equal(rt) {
 			switch {
-			case TypeIs[NumberType](lt):
-				return &NumEqNum{
+			case mean.TypeIs[mean.NumberType](lt):
+				return &mean.NumEqNum{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*BoolType](lt):
-				return &BoolEqBool{
+			case mean.TypeIs[*mean.BoolType](lt):
+				return &mean.BoolEqBool{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*FuncType](lt):
-				return &FuncEqFunc{
+			case mean.TypeIs[*mean.FuncType](lt):
+				return &mean.FuncEqFunc{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*ArrayType](lt):
-				return &ArrayEqArray{
+			case mean.TypeIs[*mean.ArrayType](lt):
+				return &mean.ArrayEqArray{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*TupleType](lt):
-				return &TupleEqTuple{
+			case mean.TypeIs[*mean.TupleType](lt):
+				return &mean.TupleEqTuple{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*StructType](lt):
-				return &StructEqStruct{
+			case mean.TypeIs[*mean.StructType](lt):
+				return &mean.StructEqStruct{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*StringType](lt):
-				return &StringEqString{
+			case mean.TypeIs[*mean.StringType](lt):
+				return &mean.StringEqString{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*UnionType](lt):
-				return &UnionEqUnion{
+			case mean.TypeIs[*mean.UnionType](lt):
+				return &mean.UnionEqUnion{
+					Left:  left,
+					Right: right,
+				}
+			case mean.TypeIs[*mean.StringType](lt):
+				return &mean.StringEqString{
+					Left:  left,
+					Right: right,
+				}
+			case mean.TypeIs[*mean.UnionType](lt):
+				return &mean.UnionEqUnion{
 					Left:  left,
 					Right: right,
 				}
@@ -255,86 +266,96 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 	case token.NE:
 		if lt.Equal(rt) {
 			switch {
-			case TypeIs[NumberType](lt):
-				return &NumNeNum{
+			case mean.TypeIs[mean.NumberType](lt):
+				return &mean.NumNeNum{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*BoolType](lt):
-				return &BoolNeBool{
+			case mean.TypeIs[*mean.BoolType](lt):
+				return &mean.BoolNeBool{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*FuncType](lt):
-				return &FuncNeFunc{
+			case mean.TypeIs[*mean.FuncType](lt):
+				return &mean.FuncNeFunc{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*ArrayType](lt):
-				return &ArrayNeArray{
+			case mean.TypeIs[*mean.ArrayType](lt):
+				return &mean.ArrayNeArray{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*TupleType](lt):
-				return &TupleNeTuple{
+			case mean.TypeIs[*mean.TupleType](lt):
+				return &mean.TupleNeTuple{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*StructType](lt):
-				return &StructNeStruct{
+			case mean.TypeIs[*mean.StructType](lt):
+				return &mean.StructNeStruct{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*StringType](lt):
-				return &StringNeString{
+			case mean.TypeIs[*mean.StringType](lt):
+				return &mean.StringNeString{
 					Left:  left,
 					Right: right,
 				}
-			case TypeIs[*UnionType](lt):
-				return &UnionNeUnion{
+			case mean.TypeIs[*mean.UnionType](lt):
+				return &mean.UnionNeUnion{
+					Left:  left,
+					Right: right,
+				}
+			case mean.TypeIs[*mean.StringType](lt):
+				return &mean.StringNeString{
+					Left:  left,
+					Right: right,
+				}
+			case mean.TypeIs[*mean.UnionType](lt):
+				return &mean.UnionNeUnion{
 					Left:  left,
 					Right: right,
 				}
 			}
 		}
 	case token.LT:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumLtNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumLtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GT:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumGtNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumGtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LE:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumLeNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumLeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GE:
-		if lt.Equal(rt) && TypeIs[NumberType](lt) {
-			return &NumGeNum{
+		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+			return &mean.NumGeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LAND:
-		if lt.Equal(rt) && TypeIs[*BoolType](lt) {
-			return &BoolAndBool{
+		if lt.Equal(rt) && mean.TypeIs[*mean.BoolType](lt) {
+			return &mean.BoolAndBool{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LOR:
-		if lt.Equal(rt) && TypeIs[*BoolType](lt) {
-			return &BoolOrBool{
+		if lt.Equal(rt) && mean.TypeIs[*mean.BoolType](lt) {
+			return &mean.BoolOrBool{
 				Left:  left,
 				Right: right,
 			}
@@ -347,13 +368,13 @@ func (self *Analyser) analyseBinary(expect Type, node *ast.Binary) Binary {
 	return nil
 }
 
-func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
+func (self *Analyser) analyseUnary(expect mean.Type, node *ast.Unary) mean.Unary {
 	switch node.Opera.Kind {
 	case token.SUB:
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
-		if TypeIs[*SintType](vt) || TypeIs[*FloatType](vt) {
-			return &NumNegate{Value: value}
+		if mean.TypeIs[*mean.SintType](vt) || mean.TypeIs[*mean.FloatType](vt) {
+			return &mean.NumNegate{Value: value}
 		}
 		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 		return nil
@@ -361,34 +382,34 @@ func (self *Analyser) analyseUnary(expect Type, node *ast.Unary) Unary {
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
 		switch {
-		case TypeIs[IntType](vt):
-			return &IntBitNegate{Value: value}
-		case TypeIs[*BoolType](vt):
-			return &BoolNegate{Value: value}
+		case mean.TypeIs[mean.IntType](vt):
+			return &mean.IntBitNegate{Value: value}
+		case mean.TypeIs[*mean.BoolType](vt):
+			return &mean.BoolNegate{Value: value}
 		default:
 			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 			return nil
 		}
 	case token.AND:
-		if expect != nil && TypeIs[*PtrType](expect) {
-			expect = expect.(*PtrType).Elem
+		if expect != nil && mean.TypeIs[*mean.PtrType](expect) {
+			expect = expect.(*mean.PtrType).Elem
 		}
 		value := self.analyseExpr(expect, node.Value)
-		if !stlbasic.Is[Ident](value) {
+		if !stlbasic.Is[mean.Ident](value) {
 			errors.ThrowCanNotGetPointer(node.Value.Position())
 		}
-		return &GetPtr{Value: value}
+		return &mean.GetPtr{Value: value}
 	case token.MUL:
 		if expect != nil {
-			expect = &PtrType{Elem: expect}
+			expect = &mean.PtrType{Elem: expect}
 		}
-		return &GetValue{Value: self.analyseExpr(expect, node.Value)}
+		return &mean.GetValue{Value: self.analyseExpr(expect, node.Value)}
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
+func (self *Analyser) analyseIdent(node *ast.Ident) mean.Ident {
 	var pkgName string
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()
@@ -403,31 +424,31 @@ func (self *Analyser) analyseIdent(node *ast.Ident) Ident {
 	return value
 }
 
-func (self *Analyser) analyseCall(node *ast.Call) *Call {
+func (self *Analyser) analyseCall(node *ast.Call) *mean.Call {
 	f := self.analyseExpr(nil, node.Func)
-	ft, ok := f.GetType().(*FuncType)
+	ft, ok := f.GetType().(*mean.FuncType)
 	if !ok {
 		errors.ThrowNotFunctionError(node.Func.Position(), f.GetType())
 	} else if len(ft.Params) != len(node.Args) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ft.Params)), uint(len(node.Args)))
 	}
-	args := lo.Map(node.Args, func(item ast.Expr, index int) Expr {
+	args := lo.Map(node.Args, func(item ast.Expr, index int) mean.Expr {
 		return self.analyseExpr(ft.Params[index], item)
 	})
-	return &Call{
+	return &mean.Call{
 		Func: f,
 		Args: args,
 	}
 }
 
-func (self *Analyser) analyseTuple(expect Type, node *ast.Tuple) Expr {
-	if len(node.Elems) == 1 && (expect == nil || !TypeIs[*TupleType](expect)) {
+func (self *Analyser) analyseTuple(expect mean.Type, node *ast.Tuple) mean.Expr {
+	if len(node.Elems) == 1 && (expect == nil || !mean.TypeIs[*mean.TupleType](expect)) {
 		return self.analyseExpr(expect, node.Elems[0])
 	}
 
-	elemExpects := make([]Type, len(node.Elems))
+	elemExpects := make([]mean.Type, len(node.Elems))
 	if expect != nil {
-		if tt, ok := expect.(*TupleType); ok {
+		if tt, ok := expect.(*mean.TupleType); ok {
 			if len(tt.Elems) < len(node.Elems) {
 				copy(elemExpects, tt.Elems)
 			} else if len(tt.Elems) > len(node.Elems) {
@@ -437,13 +458,13 @@ func (self *Analyser) analyseTuple(expect Type, node *ast.Tuple) Expr {
 			}
 		}
 	}
-	elems := lo.Map(node.Elems, func(item ast.Expr, index int) Expr {
+	elems := lo.Map(node.Elems, func(item ast.Expr, index int) mean.Expr {
 		return self.analyseExpr(elemExpects[index], item)
 	})
-	return &Tuple{Elems: elems}
+	return &mean.Tuple{Elems: elems}
 }
 
-func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
+func (self *Analyser) analyseCovert(node *ast.Covert) mean.Expr {
 	tt := self.analyseType(node.Type)
 	from := self.analyseExpr(tt, node.Value)
 	ft := from.GetType()
@@ -452,18 +473,18 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 	}
 
 	switch {
-	case TypeIs[NumberType](ft) && TypeIs[NumberType](tt):
-		return &Num2Num{
+	case mean.TypeIs[mean.NumberType](ft) && mean.TypeIs[mean.NumberType](tt):
+		return &mean.Num2Num{
 			From: from,
-			To:   tt.(NumberType),
+			To:   tt.(mean.NumberType),
 		}
-	case TypeIs[*UnionType](tt) && tt.(*UnionType).GetElemIndex(ft) >= 0:
-		return &Union{
-			Type:  tt.(*UnionType),
+	case mean.TypeIs[*mean.UnionType](tt) && tt.(*mean.UnionType).GetElemIndex(ft) >= 0:
+		return &mean.Union{
+			Type:  tt.(*mean.UnionType),
 			Value: from,
 		}
-	case TypeIs[*UnionType](ft) && ft.(*UnionType).GetElemIndex(tt) >= 0:
-		return &UnUnion{
+	case mean.TypeIs[*mean.UnionType](ft) && ft.(*mean.UnionType).GetElemIndex(tt) >= 0:
+		return &mean.UnUnion{
 			Type:  tt,
 			Value: from,
 		}
@@ -473,7 +494,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) Expr {
 	}
 }
 
-func (self *Analyser) expectExpr(expect Type, node ast.Expr) Expr {
+func (self *Analyser) expectExpr(expect mean.Type, node ast.Expr) mean.Expr {
 	value := self.analyseExpr(expect, node)
 	if vt := value.GetType(); !vt.AssignableTo(expect) {
 		errors.ThrowTypeMismatchError(node.Position(), vt, expect)
@@ -482,16 +503,16 @@ func (self *Analyser) expectExpr(expect Type, node ast.Expr) Expr {
 }
 
 // 自动类型转换
-func (self *Analyser) autoTypeCovert(expect Type, v Expr) Expr {
+func (self *Analyser) autoTypeCovert(expect mean.Type, v mean.Expr) mean.Expr {
 	vt := v.GetType()
 	if vt.Equal(expect) {
 		return v
 	}
 
 	switch {
-	case TypeIs[*UnionType](expect):
-		return &Union{
-			Type:  expect.(*UnionType),
+	case mean.TypeIs[*mean.UnionType](expect):
+		return &mean.Union{
+			Type:  expect.(*mean.UnionType),
 			Value: v,
 		}
 	default:
@@ -499,31 +520,31 @@ func (self *Analyser) autoTypeCovert(expect Type, v Expr) Expr {
 	}
 }
 
-func (self *Analyser) analyseArray(node *ast.Array) *Array {
+func (self *Analyser) analyseArray(node *ast.Array) *mean.Array {
 	t := self.analyseArrayType(node.Type)
-	elems := make([]Expr, len(node.Elems))
+	elems := make([]mean.Expr, len(node.Elems))
 	for i, en := range node.Elems {
 		elems[i] = self.expectExpr(t.Elem, en)
 	}
-	return &Array{
+	return &mean.Array{
 		Type:  t,
 		Elems: elems,
 	}
 }
 
-func (self *Analyser) analyseIndex(node *ast.Index) *Index {
+func (self *Analyser) analyseIndex(node *ast.Index) *mean.Index {
 	from := self.analyseExpr(nil, node.From)
-	if !TypeIs[*ArrayType](from.GetType()) {
+	if !mean.TypeIs[*mean.ArrayType](from.GetType()) {
 		errors.ThrowNotArrayError(node.From.Position(), from.GetType())
 	}
-	index := self.expectExpr(Usize, node.Index)
-	return &Index{
+	index := self.expectExpr(mean.Usize, node.Index)
+	return &mean.Index{
 		From:  from,
 		Index: index,
 	}
 }
 
-func (self *Analyser) analyseExtract(expect Type, node *ast.Extract) *Extract {
+func (self *Analyser) analyseExtract(expect mean.Type, node *ast.Extract) *mean.Extract {
 	indexValue, ok := big.NewInt(0).SetString(node.Index.Source(), 10)
 	if !ok {
 		panic("unreachable")
@@ -533,11 +554,11 @@ func (self *Analyser) analyseExtract(expect Type, node *ast.Extract) *Extract {
 	}
 	index := uint(indexValue.Uint64())
 
-	expectFrom := &TupleType{Elems: make([]Type, index+1)}
+	expectFrom := &mean.TupleType{Elems: make([]mean.Type, index+1)}
 	expectFrom.Elems[index] = expect
 
 	from := self.analyseExpr(expectFrom, node.From)
-	tt, ok := from.GetType().(*TupleType)
+	tt, ok := from.GetType().(*mean.TupleType)
 	if !ok {
 		errors.ThrowNotTupleError(node.From.Position(), from.GetType())
 	}
@@ -545,20 +566,20 @@ func (self *Analyser) analyseExtract(expect Type, node *ast.Extract) *Extract {
 	if index >= uint(len(tt.Elems)) {
 		errors.ThrowInvalidIndexError(node.Index.Position, index)
 	}
-	return &Extract{
+	return &mean.Extract{
 		From:  from,
 		Index: index,
 	}
 }
 
-func (self *Analyser) analyseStruct(node *ast.Struct) *Struct {
-	st := self.analyseIdentType(node.Type).(*StructType)
+func (self *Analyser) analyseStruct(node *ast.Struct) *mean.Struct {
+	st := self.analyseIdentType(node.Type).(*mean.StructType)
 	fieldNames := hashset.NewHashSet[string]()
 	for iter := st.Fields.Keys().Iterator(); iter.Next(); {
 		fieldNames.Add(iter.Value())
 	}
 
-	existedFields := make(map[string]Expr)
+	existedFields := make(map[string]mean.Expr)
 	for _, nf := range node.Fields {
 		fn := nf.First.Source()
 		if !fieldNames.Contain(fn) {
@@ -567,27 +588,27 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *Struct {
 		existedFields[fn] = self.expectExpr(st.Fields.Get(fn), nf.Second)
 	}
 
-	fields := make([]Expr, st.Fields.Length())
+	fields := make([]mean.Expr, st.Fields.Length())
 	var i int
 	for iter := st.Fields.Iterator(); iter.Next(); i++ {
 		fn, ft := iter.Value().First, iter.Value().Second
 		if fv, ok := existedFields[fn]; ok {
 			fields[i] = fv
 		} else {
-			fields[i] = &Zero{Type: ft}
+			fields[i] = &mean.Zero{Type: ft}
 		}
 	}
 
-	return &Struct{
+	return &mean.Struct{
 		Type:   st,
 		Fields: fields,
 	}
 }
 
-func (self *Analyser) analyseField(node *ast.Field) *Field {
+func (self *Analyser) analyseField(node *ast.Field) *mean.Field {
 	from := self.analyseExpr(nil, node.From)
 	fieldName := node.Index.Source()
-	st, ok := from.GetType().(*StructType)
+	st, ok := from.GetType().(*mean.StructType)
 	if !ok {
 		errors.ThrowNotStructError(node.From.Position(), from.GetType())
 	} else if !st.Fields.ContainKey(fieldName) {
@@ -599,32 +620,32 @@ func (self *Analyser) analyseField(node *ast.Field) *Field {
 			break
 		}
 	}
-	return &Field{
+	return &mean.Field{
 		From:  from,
 		Index: uint(i),
 	}
 }
 
-func (self *Analyser) analyseString(node *ast.String) *String {
+func (self *Analyser) analyseString(node *ast.String) *mean.String {
 	s := node.Value.Source()
 	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
-	return &String{Value: s}
+	return &mean.String{Value: s}
 }
 
-func (self *Analyser) analyseJudgment(node *ast.Judgment) Expr {
+func (self *Analyser) analyseJudgment(node *ast.Judgment) mean.Expr {
 	target := self.analyseType(node.Type)
 	value := self.analyseExpr(target, node.Value)
 	vt := value.GetType()
 
 	switch {
 	case vt.Equal(target):
-		return &Boolean{Value: true}
-	case TypeIs[*UnionType](vt) && vt.(*UnionType).GetElemIndex(target) >= 0:
-		return &UnionTypeJudgment{
+		return &mean.Boolean{Value: true}
+	case mean.TypeIs[*mean.UnionType](vt) && vt.(*mean.UnionType).GetElemIndex(target) >= 0:
+		return &mean.UnionTypeJudgment{
 			Value: value,
 			Type:  target,
 		}
 	default:
-		return &Boolean{Value: false}
+		return &mean.Boolean{Value: false}
 	}
 }

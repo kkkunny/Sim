@@ -34,8 +34,7 @@ func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 
 func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
 	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
-	f := self.module.NewFunction("", ft)
-	self.values[node] = f
+	self.values[node] = self.newFunction("", ft)
 }
 
 func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
