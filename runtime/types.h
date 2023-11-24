@@ -1,5 +1,5 @@
-#ifndef SIM_HEADER
-#define SIM_HEADER
+#ifndef SIM_RUNTIME_TYPE
+#define SIM_RUNTIME_TYPE
 
 #include <stdint.h>
 
@@ -13,9 +13,7 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-typedef size_t u64;
-
-typedef uint64_t u64;
+typedef size_t usize;
 
 typedef uint8_t bool;
 #define true (bool)(1==1);
@@ -23,7 +21,7 @@ typedef uint8_t bool;
 
 typedef struct{
     u8* data;
-    u64 len;
+    usize len;
 }str;
 
 #endif

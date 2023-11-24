@@ -1,5 +1,6 @@
 package jit
 
+import "C"
 import (
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
