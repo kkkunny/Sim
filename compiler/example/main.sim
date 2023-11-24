@@ -1,8 +1,7 @@
+@extern("i")
+let i: str = "123"
+
 func main()u8{
-    let s1: str = "123"
-    let s2: str = "234"
-    if s1 != s2{
-        return 0
-    }
+    debug(i)
     return 0
 }

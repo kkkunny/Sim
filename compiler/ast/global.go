@@ -17,6 +17,7 @@ type Global interface {
 
 // FuncDef 函数定义
 type FuncDef struct {
+	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
 	Name     token.Token
@@ -55,6 +56,7 @@ func (*StructDef) global() {}
 
 // Variable 变量定义
 type Variable struct {
+	Attrs   []Attr
 	Begin   reader.Position
 	Public  bool
 	Mutable bool

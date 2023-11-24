@@ -22,5 +22,9 @@ func RunJit(module llvm.Module) (uint8, stlerror.Error) {
 	if strEqStrFn != nil {
 		engine.MapGlobal(strEqStrFn, runtime.StrEqStr)
 	}
+	debugFn := module.GetFunction("sim_runtime_debug")
+	if debugFn != nil {
+		engine.MapGlobal(debugFn, runtime.Debug)
+	}
 	return uint8(engine.RunFunction(*mainFn).Integer(false)), nil
 }

@@ -50,6 +50,7 @@ const (
 	DOT
 	COL
 	SCOPE
+	AT
 
 	_KeywordBegin
 	FUNC
@@ -112,6 +113,7 @@ var kindNames = [...]string{
 	DOT:      "dot",
 	COL:      "col",
 	SCOPE:    "scope",
+	AT:       "at",
 	FUNC:     "func",
 	RETURN:   "return",
 	TRUE:     "true",

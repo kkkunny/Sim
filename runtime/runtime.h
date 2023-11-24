@@ -4,5 +4,6 @@
 #include "types.h"
 
 bool sim_runtime_str_eq_str(str l, str r);
+void sim_runtime_debug(str s);
 
 #endif

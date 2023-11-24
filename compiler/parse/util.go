@@ -3,11 +3,14 @@ package parse
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlerror "github.com/kkkunny/stl/error"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
@@ -22,6 +25,23 @@ func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T) (re
 	}
 	self.skipSEM()
 	return res
+}
+
+func expectAttrIn(attrs []ast.Attr, expectAttr ...ast.Attr) {
+	expectAttrTypes := lo.Map(expectAttr, func(item ast.Attr, _ int) reflect.Type {
+		return reflect.ValueOf(item).Type()
+	})
+	for _, attr := range attrs {
+		if len(expectAttrTypes) == 0 {
+			errors.ThrowUnExpectAttr(attr.Position())
+		}
+		attrType := reflect.ValueOf(attr).Type()
+		for _, expectAttrType := range expectAttrTypes {
+			if !attrType.AssignableTo(expectAttrType) {
+				errors.ThrowUnExpectAttr(attr.Position())
+			}
+		}
+	}
 }
 
 // ParseFile 语法解析目标文件

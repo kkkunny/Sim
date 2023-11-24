@@ -34,12 +34,23 @@ func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 
 func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
 	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
-	self.values[node] = self.newFunction("", ft)
+	f := self.newFunction(node.ExternName, ft)
+	if node.ExternName == "" {
+		f.SetLinkage(llvm.InternalLinkage)
+	} else {
+		f.SetLinkage(llvm.ExternalLinkage)
+	}
+	self.values[node] = f
 }
 
 func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
 	t := self.codegenType(node.Type)
 	v := self.module.NewGlobal("", t)
+	if node.ExternName == "" {
+		v.SetLinkage(llvm.InternalLinkage)
+	} else {
+		v.SetLinkage(llvm.ExternalLinkage)
+	}
 	self.values[node] = v
 	v.SetInitializer(self.codegenZero(&mean.Zero{Type: node.GetType()}))
 }

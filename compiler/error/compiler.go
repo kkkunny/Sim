@@ -117,6 +117,16 @@ func ThrowIllegalGlobal(pos reader.Position) {
 	ThrowError(pos, "illegal global")
 }
 
+// ThrowIllegalAttr 非法的属性
+func ThrowIllegalAttr(pos reader.Position) {
+	ThrowError(pos, "illegal attribute")
+}
+
+// ThrowUnExpectAttr 不期待的属性
+func ThrowUnExpectAttr(pos reader.Position) {
+	ThrowError(pos, "unexpected attribute for this global")
+}
+
 // ThrowIllegalType 非法的类型
 func ThrowIllegalType(pos reader.Position) {
 	ThrowError(pos, "illegal type")

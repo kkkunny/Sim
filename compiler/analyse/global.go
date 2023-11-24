@@ -135,6 +135,17 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 }
 
 func (self *Analyser) declFuncDef(node *ast.FuncDef) {
+	var externName string
+	for _, attrObj := range node.Attrs {
+		switch attr := attrObj.(type) {
+		case *ast.Extern:
+			externName = attr.Name.Source()
+			externName = util.ParseEscapeCharacter(externName[1:len(externName)-1], `\"`, `"`)
+		default:
+			panic("unreachable")
+		}
+	}
+
 	paramNameSet := hashset.NewHashSet[string]()
 	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
 		pn := paramNode.Name.Source()
@@ -149,11 +160,12 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		}
 	})
 	f := &mean.FuncDef{
-		Public: node.Public,
-		Name:   node.Name.Source(),
-		Params: params,
-		Ret:    self.analyseOptionType(node.Ret),
-		Body:   util.None[*mean.Block](),
+		Public:     node.Public,
+		ExternName: externName,
+		Name:       node.Name.Source(),
+		Params:     params,
+		Ret:        self.analyseOptionType(node.Ret),
+		Body:       util.None[*mean.Block](),
 	}
 	if f.Name == "main" && !f.Ret.Equal(mean.U8) {
 		pos := stlbasic.TernaryAction(node.Ret.IsNone(), func() reader.Position {
@@ -170,11 +182,23 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 }
 
 func (self *Analyser) declGlobalVariable(node *ast.Variable) {
+	var externName string
+	for _, attrObj := range node.Attrs {
+		switch attr := attrObj.(type) {
+		case *ast.Extern:
+			externName = attr.Name.Source()
+			externName = util.ParseEscapeCharacter(externName[1:len(externName)-1], `\"`, `"`)
+		default:
+			panic("unreachable")
+		}
+	}
+
 	v := &mean.Variable{
-		Public: node.Public,
-		Mut:    node.Mutable,
-		Type:   self.analyseType(node.Type),
-		Name:   node.Name.Source(),
+		Public:     node.Public,
+		Mut:        node.Mutable,
+		Type:       self.analyseType(node.Type),
+		ExternName: externName,
+		Name:       node.Name.Source(),
 	}
 	if !self.pkgScope.SetValue(v.Name, v) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
