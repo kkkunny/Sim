@@ -127,7 +127,7 @@ type _LocalScope interface {
 	GetParent() _Scope
 	GetFuncScope() *_FuncScope
 	GetPkgScope() *_PkgScope
-	GetRetType() mean.Type
+	GetFunc() *mean.FuncDef
 	SetLoop(loop mean.Loop)
 	GetLoop() mean.Loop
 }
@@ -135,14 +135,14 @@ type _LocalScope interface {
 // 函数作用域
 type _FuncScope struct {
 	_BlockScope
-	parent  *_PkgScope
-	retType mean.Type
+	parent *_PkgScope
+	def    *mean.FuncDef
 }
 
-func _NewFuncScope(p *_PkgScope, ret mean.Type) *_FuncScope {
+func _NewFuncScope(p *_PkgScope, def *mean.FuncDef) *_FuncScope {
 	self := &_FuncScope{
-		parent:  p,
-		retType: ret,
+		parent: p,
+		def:    def,
 	}
 	self._BlockScope = *_NewBlockScope(self)
 	return self
@@ -174,8 +174,8 @@ func (self *_FuncScope) GetPkgScope() *_PkgScope {
 	return self.parent
 }
 
-func (self *_FuncScope) GetRetType() mean.Type {
-	return self.retType
+func (self *_FuncScope) GetFunc() *mean.FuncDef {
+	return self.def
 }
 
 // 代码块作用域
@@ -219,8 +219,8 @@ func (self *_BlockScope) GetPkgScope() *_PkgScope {
 	return self.parent.GetPkgScope()
 }
 
-func (self *_BlockScope) GetRetType() mean.Type {
-	return self.parent.GetRetType()
+func (self *_BlockScope) GetFunc() *mean.FuncDef {
+	return self.parent.GetFunc()
 }
 
 func (self *_BlockScope) SetLoop(loop mean.Loop) {

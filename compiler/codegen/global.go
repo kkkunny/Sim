@@ -34,8 +34,7 @@ func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 
 func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
 	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
-	f := self.module.NewFunction("", ft)
-	self.values[node] = f
+	self.values[node] = self.newFunction("", ft)
 }
 
 func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
@@ -64,19 +63,8 @@ func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
 
 func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 	f := self.values[node].(llvm.Function)
-
 	self.builder.MoveToAfter(f.NewBlock("entry"))
-	for i, p := range f.Params() {
-		np := node.Params[i]
-
-		pt := self.codegenType(np.GetType())
-		param := self.builder.CreateAlloca("", pt)
-
-		self.builder.CreateStore(p, param)
-
-		self.values[np] = param
-	}
-
+	self.enterFunction(self.codegenFuncType(node.GetType().(*mean.FuncType)), f, node.Params)
 	block, _ := self.codegenBlock(node.Body.MustValue(), nil)
 	self.builder.CreateBr(block)
 }

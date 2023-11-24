@@ -251,6 +251,16 @@ func (self *Analyser) analyseBinary(expect mean.Type, node *ast.Binary) mean.Bin
 					Left:  left,
 					Right: right,
 				}
+			case mean.TypeIs[*mean.StringType](lt):
+				return &mean.StringEqString{
+					Left:  left,
+					Right: right,
+				}
+			case mean.TypeIs[*mean.UnionType](lt):
+				return &mean.UnionEqUnion{
+					Left:  left,
+					Right: right,
+				}
 			}
 		}
 	case token.NE:
@@ -283,6 +293,16 @@ func (self *Analyser) analyseBinary(expect mean.Type, node *ast.Binary) mean.Bin
 				}
 			case mean.TypeIs[*mean.StructType](lt):
 				return &mean.StructNeStruct{
+					Left:  left,
+					Right: right,
+				}
+			case mean.TypeIs[*mean.StringType](lt):
+				return &mean.StringNeString{
+					Left:  left,
+					Right: right,
+				}
+			case mean.TypeIs[*mean.UnionType](lt):
+				return &mean.UnionNeUnion{
 					Left:  left,
 					Right: right,
 				}
