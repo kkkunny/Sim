@@ -31,6 +31,7 @@ func (*Block) stmt() {}
 
 // Return 函数返回
 type Return struct {
+	Func  *FuncDef
 	Value util.Option[Expr]
 }
 

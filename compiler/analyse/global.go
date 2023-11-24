@@ -207,7 +207,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *mean.FuncDef {
 		return f
 	}
 
-	self.localScope = _NewFuncScope(self.pkgScope, f.Ret)
+	self.localScope = _NewFuncScope(self.pkgScope, f)
 	defer func() {
 		self.localScope = nil
 	}()
@@ -224,7 +224,10 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *mean.FuncDef {
 		if !f.Ret.Equal(mean.Empty) {
 			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
 		}
-		body.Stmts.PushBack(&mean.Return{Value: util.None[mean.Expr]()})
+		body.Stmts.PushBack(&mean.Return{
+			Func:  f,
+			Value: util.None[mean.Expr](),
+		})
 	}
 	return f
 }

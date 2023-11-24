@@ -26,7 +26,7 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 	case mean.Ident:
 		return self.codegenIdent(exprNode, load)
 	case *mean.Call:
-		return self.codegenCall(exprNode)
+		return self.codegenCall(exprNode, load)
 	case mean.Covert:
 		return self.codegenCovert(exprNode)
 	case *mean.Array:
@@ -275,13 +275,12 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenCall(node *mean.Call) llvm.Value {
-	ft := self.codegenFuncType(node.Func.GetType().(*mean.FuncType))
+func (self *CodeGenerator) codegenCall(node *mean.Call, load bool) llvm.Value {
 	f := self.codegenExpr(node.Func, true)
 	args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.CreateCall("", ft, f, args...)
+	return self.buildCall(load, self.codegenFuncType(node.Func.GetType().(*mean.FuncType)), f, args...)
 }
 
 func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {

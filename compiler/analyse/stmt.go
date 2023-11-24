@@ -64,15 +64,21 @@ func (self *Analyser) analyseBlock(node *ast.Block, afterBlockCreate func(scope 
 }
 
 func (self *Analyser) analyseReturn(node *ast.Return) *mean.Return {
-	expectRetType := self.localScope.GetRetType()
+	f := self.localScope.GetFunc()
 	if v, ok := node.Value.Value(); ok {
-		value := self.expectExpr(expectRetType, v)
-		return &mean.Return{Value: util.Some[mean.Expr](value)}
-	} else {
-		if !expectRetType.Equal(mean.Empty) {
-			errors.ThrowTypeMismatchError(node.Position(), expectRetType, mean.Empty)
+		value := self.expectExpr(f.Ret, v)
+		return &mean.Return{
+			Func:  f,
+			Value: util.Some[mean.Expr](value),
 		}
-		return &mean.Return{Value: util.None[mean.Expr]()}
+	} else {
+		if !f.Ret.Equal(mean.Empty) {
+			errors.ThrowTypeMismatchError(node.Position(), f.Ret, mean.Empty)
+		}
+		return &mean.Return{
+			Func:  f,
+			Value: util.None[mean.Expr](),
+		}
 	}
 }
 

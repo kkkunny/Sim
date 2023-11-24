@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/analyse"

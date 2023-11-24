@@ -194,3 +194,61 @@ func (self *CodeGenerator) getMainFunction() llvm.Function {
 	}
 	return *mainFnPtr
 }
+
+// NOTE: 跟系统、架构相关
+func (self *CodeGenerator) buildCall(load bool, ft llvm.FunctionType, ptr llvm.Value, param ...llvm.Value) llvm.Value {
+	var retChangeToPtr bool
+	retType, paramTypes := ft.ReturnType(), ft.Params()
+	if stlbasic.Is[llvm.StructType](retType) || stlbasic.Is[llvm.Array](retType) {
+		ptr := self.builder.CreateAlloca("", retType)
+		param = append([]llvm.Value{ptr}, param...)
+		paramTypes = append([]llvm.Type{self.ctx.PointerType(retType)}, paramTypes...)
+		retType = self.ctx.VoidType()
+		retChangeToPtr = true
+	}
+	for i, p := range param {
+		if pt := p.Type(); stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.Array](pt) {
+			ptr := self.builder.CreateAlloca("", pt)
+			self.builder.CreateStore(p, ptr)
+			param[i] = ptr
+			paramTypes[i] = self.ctx.PointerType(pt)
+		}
+	}
+	var ret llvm.Value = self.builder.CreateCall("", self.ctx.FunctionType(retType, paramTypes, false), ptr, param...)
+	if retChangeToPtr {
+		ret = param[0]
+		if load {
+			ret = self.builder.CreateLoad("", ft.ReturnType(), ret)
+		}
+	}
+	return ret
+}
+
+// NOTE: 跟系统、架构相关
+func (self *CodeGenerator) buildRet(ft llvm.FunctionType, ret *llvm.Value) {
+	f := self.builder.CurrentBlock().Belong()
+
+	retChangeToPtr := stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.Array](ft.ReturnType())
+
+	if retChangeToPtr {
+		self.builder.CreateStore(*ret, f.GetParam(0))
+		self.builder.CreateRet(nil)
+	} else {
+		self.builder.CreateRet(ret)
+	}
+}
+
+// NOTE: 跟系统、架构相关
+func (self *CodeGenerator) newFunction(name string, t llvm.FunctionType) llvm.Function {
+	ret, param := t.ReturnType(), t.Params()
+	if stlbasic.Is[llvm.StructType](ret) || stlbasic.Is[llvm.Array](ret) {
+		param = append([]llvm.Type{self.ctx.PointerType(ret)}, param...)
+		ret = self.ctx.VoidType()
+	}
+	for i, p := range param {
+		if stlbasic.Is[llvm.StructType](p) || stlbasic.Is[llvm.Array](p) {
+			param[i] = self.ctx.PointerType(p)
+		}
+	}
+	return self.module.NewFunction(name, self.ctx.FunctionType(ret, param, false))
+}

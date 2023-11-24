@@ -1,3 +1,5 @@
 func main()u8{
-    return 1
+    let s: str = "123"
+    debug(s)
+    return 0
 }
