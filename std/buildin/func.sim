@@ -1,1 +1,2 @@
+@extern("sim_runtime_debug")
 pub func debug(s: str)

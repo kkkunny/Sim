@@ -13,6 +13,8 @@ import (
 )
 
 func (self *Parser) parseGlobal() ast.Global {
+	attrs := self.parseAttrList()
+
 	var pub *token.Token
 	if self.skipNextIs(token.PUBLIC) {
 		pub = &self.curTok
@@ -20,20 +22,22 @@ func (self *Parser) parseGlobal() ast.Global {
 
 	switch self.nextTok.Kind {
 	case token.FUNC:
-		return self.parseFuncDef(pub)
+		return self.parseFuncDef(attrs, pub)
 	case token.STRUCT:
-		return self.parseStructDef(pub)
+		return self.parseStructDef(attrs, pub)
 	case token.LET:
-		return self.parseVariable(pub)
+		return self.parseVariable(attrs, pub)
 	case token.IMPORT:
-		return self.parseImport()
+		return self.parseImport(attrs)
 	default:
 		errors.ThrowIllegalGlobal(self.nextTok.Position)
 		return nil
 	}
 }
 
-func (self *Parser) parseFuncDef(pub *token.Token) *ast.FuncDef {
+func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) *ast.FuncDef {
+	expectAttrIn(attrs, new(ast.Extern))
+
 	begin := self.expectNextIs(token.FUNC).Position
 	if pub != nil {
 		begin = pub.Position
@@ -59,6 +63,7 @@ func (self *Parser) parseFuncDef(pub *token.Token) *ast.FuncDef {
 		return util.None[*ast.Block]()
 	})
 	return &ast.FuncDef{
+		Attrs:  attrs,
 		Begin:  begin,
 		Public: pub != nil,
 		Params: args,
@@ -68,7 +73,9 @@ func (self *Parser) parseFuncDef(pub *token.Token) *ast.FuncDef {
 	}
 }
 
-func (self *Parser) parseStructDef(pub *token.Token) *ast.StructDef {
+func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.StructDef {
+	expectAttrIn(attrs)
+
 	begin := self.expectNextIs(token.STRUCT).Position
 	if pub != nil {
 		begin = pub.Position
@@ -91,7 +98,9 @@ func (self *Parser) parseStructDef(pub *token.Token) *ast.StructDef {
 	}
 }
 
-func (self *Parser) parseVariable(pub *token.Token) *ast.Variable {
+func (self *Parser) parseVariable(attrs []ast.Attr, pub *token.Token) *ast.Variable {
+	expectAttrIn(attrs)
+
 	begin := self.expectNextIs(token.LET).Position
 	if pub != nil {
 		begin = pub.Position
@@ -112,7 +121,9 @@ func (self *Parser) parseVariable(pub *token.Token) *ast.Variable {
 	}
 }
 
-func (self *Parser) parseImport() *ast.Import {
+func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
+	expectAttrIn(attrs)
+
 	begin := self.expectNextIs(token.IMPORT).Position
 	var paths dynarray.DynArray[token.Token]
 	for {

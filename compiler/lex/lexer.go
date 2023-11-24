@@ -217,6 +217,8 @@ func (self *Lexer) Scan() token.Token {
 				self.next()
 				kind = token.SCOPE
 			}
+		case '@':
+			kind = token.AT
 		default:
 			kind = token.ILLEGAL
 		}

@@ -17,6 +17,7 @@ type Global interface {
 
 // FuncDef 函数定义
 type FuncDef struct {
+	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
 	Name     token.Token

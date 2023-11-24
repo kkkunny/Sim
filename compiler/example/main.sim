@@ -1,8 +1,5 @@
 func main()u8{
-    let s1: str = "123"
-    let s2: str = "234"
-    if s1 != s2{
-        return 0
-    }
+    let s: str = "123"
+    debug(s)
     return 0
 }

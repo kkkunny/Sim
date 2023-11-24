@@ -14,11 +14,12 @@ type Global interface {
 
 // FuncDef 函数定义
 type FuncDef struct {
-	Public bool
-	Name   string
-	Params []*Param
-	Ret    Type
-	Body   util.Option[*Block]
+	Public     bool
+	ExternName string
+	Name       string
+	Params     []*Param
+	Ret        Type
+	Body       util.Option[*Block]
 }
 
 func (self FuncDef) GetPublic() bool {
