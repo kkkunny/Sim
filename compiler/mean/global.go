@@ -81,11 +81,12 @@ func (self *StructDef) AssignableTo(dst Type) bool {
 
 // Variable 变量定义
 type Variable struct {
-	Public bool
-	Mut    bool
-	Type   Type
-	Name   string
-	Value  Expr
+	Public     bool
+	Mut        bool
+	Type       Type
+	ExternName string
+	Name       string
+	Value      Expr
 }
 
 func (self Variable) GetPublic() bool {

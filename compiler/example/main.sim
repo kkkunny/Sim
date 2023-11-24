@@ -1,5 +1,7 @@
+@extern("i")
+let i: str = "123"
+
 func main()u8{
-    let s: str = "123"
-    debug(s)
+    debug(i)
     return 0
 }

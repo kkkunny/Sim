@@ -99,7 +99,7 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.Stru
 }
 
 func (self *Parser) parseVariable(attrs []ast.Attr, pub *token.Token) *ast.Variable {
-	expectAttrIn(attrs)
+	expectAttrIn(attrs, new(ast.Extern))
 
 	begin := self.expectNextIs(token.LET).Position
 	if pub != nil {
@@ -112,6 +112,7 @@ func (self *Parser) parseVariable(attrs []ast.Attr, pub *token.Token) *ast.Varia
 	self.expectNextIs(token.ASS)
 	value := self.mustExpr(self.parseOptionExpr(true))
 	return &ast.Variable{
+		Attrs:   attrs,
 		Public:  mut,
 		Begin:   begin,
 		Mutable: mut,

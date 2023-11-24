@@ -46,7 +46,11 @@ func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
 func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
 	t := self.codegenType(node.Type)
 	v := self.module.NewGlobal("", t)
-	v.SetLinkage(llvm.InternalLinkage)
+	if node.ExternName == "" {
+		v.SetLinkage(llvm.InternalLinkage)
+	} else {
+		v.SetLinkage(llvm.ExternalLinkage)
+	}
 	self.values[node] = v
 	v.SetInitializer(self.codegenZero(&mean.Zero{Type: node.GetType()}))
 }

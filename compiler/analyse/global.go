@@ -182,11 +182,23 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 }
 
 func (self *Analyser) declGlobalVariable(node *ast.Variable) {
+	var externName string
+	for _, attrObj := range node.Attrs {
+		switch attr := attrObj.(type) {
+		case *ast.Extern:
+			externName = attr.Name.Source()
+			externName = util.ParseEscapeCharacter(externName[1:len(externName)-1], `\"`, `"`)
+		default:
+			panic("unreachable")
+		}
+	}
+
 	v := &mean.Variable{
-		Public: node.Public,
-		Mut:    node.Mutable,
-		Type:   self.analyseType(node.Type),
-		Name:   node.Name.Source(),
+		Public:     node.Public,
+		Mut:        node.Mutable,
+		Type:       self.analyseType(node.Type),
+		ExternName: externName,
+		Name:       node.Name.Source(),
 	}
 	if !self.pkgScope.SetValue(v.Name, v) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)

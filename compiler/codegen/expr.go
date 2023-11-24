@@ -400,6 +400,12 @@ func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Constant {
 		return self.ctx.ConstAggregateZero(t.(llvm.ArrayType))
 	case *mean.StructType:
 		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+	case *mean.StringType:
+		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+	case *mean.UnionType:
+		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+	case *mean.PtrType:
+		return self.ctx.ConstNull(t)
 	default:
 		panic("unreachable")
 	}

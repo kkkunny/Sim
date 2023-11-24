@@ -56,6 +56,7 @@ func (*StructDef) global() {}
 
 // Variable 变量定义
 type Variable struct {
+	Attrs   []Attr
 	Begin   reader.Position
 	Public  bool
 	Mutable bool
