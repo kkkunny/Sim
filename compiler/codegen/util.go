@@ -71,16 +71,19 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r llvm.Value, not bool) ll
 		}
 		return res
 	case *mean.StringType:
-		// FIXME: 字符串比较
-		name := "sim_runtime_string_equal"
+		name := "sim_runtime_str_eq_str"
 		ft := self.ctx.FunctionType(self.ctx.IntegerType(1), []llvm.Type{l.Type(), r.Type()}, false)
 		var f llvm.Function
 		if fptr := self.module.GetFunction(name); fptr != nil {
 			f = *fptr
 		} else {
-			f = self.module.NewFunction(name, ft)
+			f = self.newFunction(name, ft)
 		}
-		return self.builder.CreateCall("", ft, f, l, r)
+		res := self.buildCall(true, ft, f, l, r)
+		if not {
+			res = self.builder.CreateNot("", res)
+		}
+		return res
 	case *mean.UnionType:
 		// TODO: 联合类型比较
 		panic("unreachable")
@@ -196,7 +199,7 @@ func (self *CodeGenerator) getMainFunction() llvm.Function {
 }
 
 // NOTE: 跟系统、架构相关
-func (self *CodeGenerator) buildCall(load bool, ft llvm.FunctionType, ptr llvm.Value, param ...llvm.Value) llvm.Value {
+func (self *CodeGenerator) buildCall(load bool, ft llvm.FunctionType, f llvm.Value, param ...llvm.Value) llvm.Value {
 	var retChangeToPtr bool
 	retType, paramTypes := ft.ReturnType(), ft.Params()
 	if stlbasic.Is[llvm.StructType](retType) || stlbasic.Is[llvm.Array](retType) {
@@ -214,7 +217,7 @@ func (self *CodeGenerator) buildCall(load bool, ft llvm.FunctionType, ptr llvm.V
 			paramTypes[i] = self.ctx.PointerType(pt)
 		}
 	}
-	var ret llvm.Value = self.builder.CreateCall("", self.ctx.FunctionType(retType, paramTypes, false), ptr, param...)
+	var ret llvm.Value = self.builder.CreateCall("", self.ctx.FunctionType(retType, paramTypes, false), f, param...)
 	if retChangeToPtr {
 		ret = param[0]
 		if load {
@@ -251,4 +254,26 @@ func (self *CodeGenerator) newFunction(name string, t llvm.FunctionType) llvm.Fu
 		}
 	}
 	return self.module.NewFunction(name, self.ctx.FunctionType(ret, param, false))
+}
+
+// NOTE: 跟系统、架构相关
+func (self *CodeGenerator) enterFunction(ft llvm.FunctionType, f llvm.Function, paramNodes []*mean.Param) {
+	var params []llvm.Param
+	if stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.Array](ft.ReturnType()) {
+		params = f.Params()[1:]
+	} else {
+		params = f.Params()
+	}
+	for i, p := range params {
+		paramNode := paramNodes[i]
+
+		pt := self.codegenType(paramNode.GetType())
+		if stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.Array](pt) {
+			self.values[paramNode] = p
+		} else {
+			param := self.builder.CreateAlloca("", pt)
+			self.builder.CreateStore(p, param)
+			self.values[paramNode] = param
+		}
+	}
 }
