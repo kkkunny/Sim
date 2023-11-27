@@ -9,6 +9,7 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/codegen"
+	"github.com/kkkunny/Sim/output/jit"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/util"
 
@@ -26,11 +27,5 @@ func TestDebug(t *testing.T) {
 	generator := codegen.New(target, analyse.New(path, asts, target))
 	module := generator.Codegen()
 	stlerror.Must(module.Verify())
-	engine := stlerror.MustWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
-	mainFn := engine.GetFunction("main")
-	if mainFn == nil {
-		panic("can not fond the main function")
-	}
-	ret := uint8(engine.RunFunction(*mainFn).Integer(false))
-	os.Exit(int(ret))
+	os.Exit(int(stlerror.MustWith(jit.RunJit(module))))
 }

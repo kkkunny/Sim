@@ -5,7 +5,7 @@ go 1.21.3
 require github.com/kkkunny/stl v0.0.0-20231114084730-4ad25211cae2
 
 require (
-	github.com/kkkunny/go-llvm v0.0.0-20231124060430-a654a0c42c58
+	github.com/kkkunny/go-llvm v0.0.0-20231127122439-069c027c3a34
 	github.com/samber/lo v1.38.1
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 )

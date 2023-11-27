@@ -58,6 +58,10 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 		self.codegenGlobalDef(v)
 		return true
 	})
+	// 初始化函数
+	// FIXME: jit无法运行llvm.global_ctors
+	self.builder.MoveToAfter(self.getInitFunction().EntryBlock())
+	self.builder.CreateRet(nil)
 	// 主函数
 	var hasMain bool
 	iterator.Foreach(nodes, func(v mean.Global) bool {
