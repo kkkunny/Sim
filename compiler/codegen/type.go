@@ -61,7 +61,7 @@ func (self *CodeGenerator) codegenFuncType(node *mean.FuncType) llvm.FunctionTyp
 	params := lo.Map(node.Params, func(item mean.Type, index int) llvm.Type {
 		return self.codegenType(item)
 	})
-	return self.ctx.FunctionType(ret, params, false)
+	return self.ctx.FunctionType(false, ret, params...)
 }
 
 func (self *CodeGenerator) codegenFuncTypePtr(node *mean.FuncType) llvm.PointerType {

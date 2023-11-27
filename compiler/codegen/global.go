@@ -85,7 +85,12 @@ func (self *CodeGenerator) defFuncDecl(node *mean.FuncDef) {
 }
 
 func (self *CodeGenerator) defGlobalVariable(node *mean.Variable) {
-	v := self.values[node].(llvm.GlobalValue)
-	self.builder.MoveToAfter(self.getMainFunction().EntryBlock())
-	self.builder.CreateStore(self.codegenExpr(node.Value, true), v)
+	gv := self.values[node].(llvm.GlobalValue)
+	self.builder.MoveToAfter(self.getInitFunction().EntryBlock())
+	value := self.codegenExpr(node.Value, true)
+	if constValue, ok := value.(llvm.Constant); ok {
+		gv.SetInitializer(constValue)
+	} else {
+		self.builder.CreateStore(value, gv)
+	}
 }

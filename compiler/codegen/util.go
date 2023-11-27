@@ -72,11 +72,10 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r llvm.Value, not bool) ll
 		return res
 	case *mean.StringType:
 		name := "sim_runtime_str_eq_str"
-		ft := self.ctx.FunctionType(self.ctx.IntegerType(1), []llvm.Type{l.Type(), r.Type()}, false)
+		ft := self.ctx.FunctionType(false, self.ctx.IntegerType(1), l.Type(), r.Type())
 		var f llvm.Function
-		if fptr := self.module.GetFunction(name); fptr != nil {
-			f = *fptr
-		} else {
+		var ok bool
+		if f, ok = self.module.GetFunction(name); !ok {
 			f = self.newFunction(name, ft)
 		}
 		res := self.buildCall(true, ft, f, l, r)
@@ -189,13 +188,22 @@ func (self *CodeGenerator) buildStructEqual(meanType mean.Type, l, r llvm.Value)
 }
 
 func (self *CodeGenerator) getMainFunction() llvm.Function {
-	mainFnPtr := self.module.GetFunction("main")
-	if mainFnPtr == nil {
-		mainFn := self.module.NewFunction("main", self.ctx.FunctionType(self.ctx.IntegerType(8), nil, false))
+	mainFn, ok := self.module.GetFunction("main")
+	if !ok {
+		mainFn = self.module.NewFunction("main", self.ctx.FunctionType(false, self.ctx.IntegerType(8)))
 		mainFn.NewBlock("entry")
-		mainFnPtr = &mainFn
 	}
-	return *mainFnPtr
+	return mainFn
+}
+
+func (self *CodeGenerator) getInitFunction() llvm.Function {
+	initFn, ok := self.module.GetFunction("sim_runtime_init")
+	if !ok {
+		initFn = self.module.NewFunction("sim_runtime_init", self.ctx.FunctionType(false, self.ctx.VoidType()))
+		self.module.AddConstructor(65535, initFn)
+		initFn.NewBlock("entry")
+	}
+	return initFn
 }
 
 // NOTE: 跟系统、架构相关
@@ -217,7 +225,7 @@ func (self *CodeGenerator) buildCall(load bool, ft llvm.FunctionType, f llvm.Val
 			paramTypes[i] = self.ctx.PointerType(pt)
 		}
 	}
-	var ret llvm.Value = self.builder.CreateCall("", self.ctx.FunctionType(retType, paramTypes, false), f, param...)
+	var ret llvm.Value = self.builder.CreateCall("", self.ctx.FunctionType(false, retType, paramTypes...), f, param...)
 	if retChangeToPtr {
 		ret = param[0]
 		if load {
@@ -253,7 +261,7 @@ func (self *CodeGenerator) newFunction(name string, t llvm.FunctionType) llvm.Fu
 			param[i] = self.ctx.PointerType(p)
 		}
 	}
-	return self.module.NewFunction(name, self.ctx.FunctionType(ret, param, false))
+	return self.module.NewFunction(name, self.ctx.FunctionType(false, ret, param...))
 }
 
 // NOTE: 跟系统、架构相关

@@ -1,7 +1,4 @@
-@extern("i")
-let i: str = "123"
-
+let mut i: u8 = 1
 func main()u8{
-    debug(i)
-    return 0
+    return i
 }
