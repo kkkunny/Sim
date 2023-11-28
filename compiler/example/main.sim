@@ -1,4 +1,6 @@
-let mut i: u8 = 1
+let mut s: str = "123"
 func main()u8{
-    return i
+    debug(s)
+    debug("123")
+    return 0
 }

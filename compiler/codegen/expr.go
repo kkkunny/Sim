@@ -447,15 +447,10 @@ func (self *CodeGenerator) codegenString(node *mean.String) llvm.Value {
 		dataPtr.SetLinkage(llvm.PrivateLinkage)
 		dataPtr.SetUnnamedAddress(llvm.GlobalUnnamedAddr)
 		dataPtr.SetInitializer(data)
-		global := self.module.NewGlobal("", st)
-		ptr = &global
-		ptr.SetGlobalConstant(true)
-		ptr.SetLinkage(llvm.PrivateLinkage)
-		ptr.SetUnnamedAddress(llvm.GlobalUnnamedAddr)
-		ptr.SetInitializer(self.ctx.ConstNamedStruct(st, dataPtr, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(len(node.Value)))))
-		self.strings.Set(node.Value, ptr)
+		self.strings.Set(node.Value, &dataPtr)
+		ptr = &dataPtr
 	}
-	return self.builder.CreateLoad("", st, ptr)
+	return self.ctx.ConstNamedStruct(st, *ptr, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(len(node.Value))))
 }
 
 func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) llvm.Value {
