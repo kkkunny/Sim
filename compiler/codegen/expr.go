@@ -404,7 +404,7 @@ func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Constant {
 		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
 	case *mean.UnionType:
 		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
-	case *mean.PtrType:
+	case *mean.RefType:
 		return self.ctx.ConstNull(t)
 	default:
 		panic("unreachable")
@@ -438,7 +438,7 @@ func (self *CodeGenerator) codegenField(node *mean.Field, load bool) llvm.Value 
 }
 
 func (self *CodeGenerator) codegenString(node *mean.String) llvm.Value {
-	st := self.codegenStringType(node.GetType().(*mean.StringType))
+	st := self.codegenStringType()
 	ptr := self.strings.Get(node.Value)
 	if ptr == nil {
 		data := self.ctx.ConstString(node.Value)

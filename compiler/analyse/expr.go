@@ -391,8 +391,8 @@ func (self *Analyser) analyseUnary(expect mean.Type, node *ast.Unary) mean.Unary
 			return nil
 		}
 	case token.AND:
-		if expect != nil && mean.TypeIs[*mean.PtrType](expect) {
-			expect = expect.(*mean.PtrType).Elem
+		if expect != nil && mean.TypeIs[*mean.RefType](expect) {
+			expect = expect.(*mean.RefType).Elem
 		}
 		value := self.analyseExpr(expect, node.Value)
 		if !stlbasic.Is[mean.Ident](value) {
@@ -401,7 +401,7 @@ func (self *Analyser) analyseUnary(expect mean.Type, node *ast.Unary) mean.Unary
 		return &mean.GetPtr{Value: value}
 	case token.MUL:
 		if expect != nil {
-			expect = &mean.PtrType{Elem: expect}
+			expect = &mean.RefType{Elem: expect}
 		}
 		return &mean.GetValue{Value: self.analyseExpr(expect, node.Value)}
 	default:

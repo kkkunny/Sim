@@ -146,6 +146,10 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		}
 	}
 
+	if node.Body.IsNone() && externName == "" {
+		errors.ThrowExpectAttribute(node.Name.Position, new(ast.Extern))
+	}
+
 	paramNameSet := hashset.NewHashSet[string]()
 	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
 		pn := paramNode.Name.Source()

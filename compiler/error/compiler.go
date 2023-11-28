@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/iterator"
 
+	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
@@ -20,6 +21,11 @@ func ThrowError(pos reader.Position, format string, args ...any) {
 		panic(err)
 	}
 	panic("compiler error")
+}
+
+// ThrowExpectAttribute 期待属性
+func ThrowExpectAttribute(pos reader.Position, attr ast.Attr) {
+	ThrowError(pos, "expect attribute `%s`", attr.AttrName())
 }
 
 // ThrowTypeMismatchError 类型不匹配

@@ -1145,7 +1145,7 @@ type GetPtr struct {
 func (self *GetPtr) stmt() {}
 
 func (self *GetPtr) GetType() Type {
-	return &PtrType{Elem: self.Value.GetType()}
+	return &RefType{Elem: self.Value.GetType()}
 }
 
 func (self *GetPtr) Mutable() bool {
@@ -1164,7 +1164,7 @@ type GetValue struct {
 func (self *GetValue) stmt() {}
 
 func (self *GetValue) GetType() Type {
-	return self.Value.GetType().(*PtrType).Elem
+	return self.Value.GetType().(*RefType).Elem
 }
 
 func (self *GetValue) Mutable() bool {

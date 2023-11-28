@@ -29,6 +29,8 @@ func (self *Analyser) analyseType(node ast.Type) mean.Type {
 		return self.analyseUnionType(typeNode)
 	case *ast.PtrType:
 		return self.analysePtrType(typeNode)
+	case *ast.RefType:
+		return self.analyseRefType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -135,4 +137,8 @@ func (self *Analyser) analyseUnionType(node *ast.UnionType) *mean.UnionType {
 
 func (self *Analyser) analysePtrType(node *ast.PtrType) *mean.PtrType {
 	return &mean.PtrType{Elem: self.analyseType(node.Elem)}
+}
+
+func (self *Analyser) analyseRefType(node *ast.RefType) *mean.RefType {
+	return &mean.RefType{Elem: self.analyseType(node.Elem)}
 }
