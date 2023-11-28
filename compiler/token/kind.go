@@ -51,6 +51,7 @@ const (
 	COL
 	SCOPE
 	AT
+	QUE
 
 	_KeywordBegin
 	FUNC
@@ -71,6 +72,7 @@ const (
 	IMPORT
 	IS
 	PUBLIC
+	NULL
 	_KeywordEnd
 )
 
@@ -114,6 +116,7 @@ var kindNames = [...]string{
 	COL:      "col",
 	SCOPE:    "scope",
 	AT:       "at",
+	QUE:      "que",
 	FUNC:     "func",
 	RETURN:   "return",
 	TRUE:     "true",
@@ -132,6 +135,7 @@ var kindNames = [...]string{
 	IMPORT:   "import",
 	IS:       "is",
 	PUBLIC:   "pub",
+	NULL:     "null",
 }
 
 // Lookup 区分标识符和关键字

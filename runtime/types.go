@@ -191,3 +191,5 @@ func (self Str) Value() string {
 func (self Str) String() string {
 	return self.Value()
 }
+
+type Ptr = *I8

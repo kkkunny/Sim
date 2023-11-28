@@ -393,7 +393,7 @@ type PtrType struct {
 }
 
 func (self PtrType) String() string {
-	return "*" + self.Elem.String()
+	return "*" + self.Elem.String() + "?"
 }
 
 func (self *PtrType) Equal(dst Type) bool {
@@ -414,4 +414,40 @@ func (self *PtrType) AssignableTo(dst Type) bool {
 		}
 	}
 	return false
+}
+
+// RefType 引用类型
+type RefType struct {
+	Elem Type
+}
+
+func (self RefType) String() string {
+	return "*" + self.Elem.String()
+}
+
+func (self *RefType) Equal(dst Type) bool {
+	pt, ok := dst.(*RefType)
+	if !ok {
+		return false
+	}
+	return self.Elem.Equal(pt.Elem)
+}
+
+func (self *RefType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if self.ToPtrType().Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
+func (self *RefType) ToPtrType() *PtrType {
+	return &PtrType{Elem: self.Elem}
 }

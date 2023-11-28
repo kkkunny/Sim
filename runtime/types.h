@@ -24,4 +24,6 @@ typedef struct{
     usize len;
 }str;
 
+#define ptr i8*
+
 #endif

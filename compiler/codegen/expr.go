@@ -51,6 +51,10 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 		return self.codegenUnionTypeJudgment(exprNode)
 	case *mean.UnUnion:
 		return self.codegenUnUnion(exprNode)
+	case *mean.WrapWithNull:
+		return self.codegenWrapWithNull(exprNode, load)
+	case *mean.CheckNull:
+		return self.codegenCheckNull(exprNode, load)
 	default:
 		panic("unreachable")
 	}
@@ -406,6 +410,8 @@ func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Constant {
 		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
 	case *mean.PtrType:
 		return self.ctx.ConstNull(t)
+	case *mean.RefType:
+		return self.ctx.ConstNull(t)
 	default:
 		panic("unreachable")
 	}
@@ -438,7 +444,7 @@ func (self *CodeGenerator) codegenField(node *mean.Field, load bool) llvm.Value 
 }
 
 func (self *CodeGenerator) codegenString(node *mean.String) llvm.Value {
-	st := self.codegenStringType(node.GetType().(*mean.StringType))
+	st := self.codegenStringType()
 	ptr := self.strings.Get(node.Value)
 	if ptr == nil {
 		data := self.ctx.ConstString(node.Value)
@@ -482,4 +488,21 @@ func (self *CodeGenerator) codegenUnUnion(node *mean.UnUnion) llvm.Value {
 	ptr := self.builder.CreateAlloca("", elem.Type())
 	self.builder.CreateStore(elem, ptr)
 	return self.builder.CreateLoad("", t, ptr)
+}
+
+func (self *CodeGenerator) codegenWrapWithNull(node *mean.WrapWithNull, load bool) llvm.Value {
+	return self.codegenExpr(node.Value, load)
+}
+
+func (self *CodeGenerator) codegenCheckNull(node *mean.CheckNull, load bool) llvm.Value {
+	name := "sim_runtime_check_null"
+	ptrType := self.ctx.PointerType(self.ctx.IntegerType(8))
+	ft := self.ctx.FunctionType(false, ptrType, ptrType)
+	f, ok := self.module.GetFunction(name)
+	if !ok {
+		f = self.newFunction(name, ft)
+	}
+
+	ptr := self.codegenExpr(node.Value, true)
+	return self.buildCall(load, ft, f, ptr)
 }

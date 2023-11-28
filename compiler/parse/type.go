@@ -23,7 +23,7 @@ func (self *Parser) parseOptionType() util.Option[ast.Type] {
 	case token.LT:
 		return util.Some[ast.Type](self.parseUnionType())
 	case token.MUL:
-		return util.Some[ast.Type](self.parsePtrType())
+		return util.Some[ast.Type](self.parsePtrOrRefType())
 	default:
 		return util.None[ast.Type]()
 	}
@@ -110,11 +110,19 @@ func (self *Parser) parseUnionType() *ast.UnionType {
 	}
 }
 
-func (self *Parser) parsePtrType() *ast.PtrType {
+func (self *Parser) parsePtrOrRefType() ast.Type {
 	begin := self.expectNextIs(token.MUL).Position
 	elem := self.parseType()
-	return &ast.PtrType{
-		Begin: begin,
-		Elem:  elem,
+	if self.skipNextIs(token.QUE) {
+		return &ast.PtrType{
+			Begin: begin,
+			Elem:  elem,
+			End:   self.curTok.Position,
+		}
+	} else {
+		return &ast.RefType{
+			Begin: begin,
+			Elem:  elem,
+		}
 	}
 }

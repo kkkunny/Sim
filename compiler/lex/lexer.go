@@ -219,6 +219,8 @@ func (self *Lexer) Scan() token.Token {
 			}
 		case '@':
 			kind = token.AT
+		case '?':
+			kind = token.QUE
 		default:
 			kind = token.ILLEGAL
 		}

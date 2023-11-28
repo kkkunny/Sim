@@ -86,10 +86,23 @@ func (self *UnionType) typ() {}
 type PtrType struct {
 	Begin reader.Position
 	Elem  Type
+	End   reader.Position
 }
 
 func (self *PtrType) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Elem.Position())
+	return reader.MixPosition(self.Begin, self.End)
 }
 
 func (self *PtrType) typ() {}
+
+// RefType 引用类型
+type RefType struct {
+	Begin reader.Position
+	Elem  Type
+}
+
+func (self *RefType) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Elem.Position())
+}
+
+func (self *RefType) typ() {}

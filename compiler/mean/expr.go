@@ -1145,7 +1145,7 @@ type GetPtr struct {
 func (self *GetPtr) stmt() {}
 
 func (self *GetPtr) GetType() Type {
-	return &PtrType{Elem: self.Value.GetType()}
+	return &RefType{Elem: self.Value.GetType()}
 }
 
 func (self *GetPtr) Mutable() bool {
@@ -1164,7 +1164,7 @@ type GetValue struct {
 func (self *GetValue) stmt() {}
 
 func (self *GetValue) GetType() Type {
-	return self.Value.GetType().(*PtrType).Elem
+	return self.Value.GetType().(*RefType).Elem
 }
 
 func (self *GetValue) Mutable() bool {
@@ -1173,4 +1173,34 @@ func (self *GetValue) Mutable() bool {
 
 func (self *GetValue) GetValue() Expr {
 	return self.Value
+}
+
+// WrapWithNull 空包装
+type WrapWithNull struct {
+	Value Expr
+}
+
+func (self *WrapWithNull) stmt() {}
+
+func (self *WrapWithNull) GetType() Type {
+	return self.Value.GetType().(*RefType).ToPtrType()
+}
+
+func (self *WrapWithNull) Mutable() bool {
+	return self.Value.Mutable()
+}
+
+// CheckNull 空指针检查
+type CheckNull struct {
+	Value Expr
+}
+
+func (self *CheckNull) stmt() {}
+
+func (self *CheckNull) GetType() Type {
+	return &RefType{Elem: self.Value.GetType().(*PtrType).Elem}
+}
+
+func (self *CheckNull) Mutable() bool {
+	return self.Value.Mutable()
 }

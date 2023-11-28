@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/iterator"
 
+	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/mean"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
@@ -20,6 +21,11 @@ func ThrowError(pos reader.Position, format string, args ...any) {
 		panic(err)
 	}
 	panic("compiler error")
+}
+
+// ThrowExpectAttribute 期待属性
+func ThrowExpectAttribute(pos reader.Position, attr ast.Attr) {
+	ThrowError(pos, "expect attribute `%s`", attr.AttrName())
 }
 
 // ThrowTypeMismatchError 类型不匹配
@@ -70,6 +76,21 @@ func ThrowIllegalCovertError(pos reader.Position, from, to mean.Type) {
 // ThrowNotArrayError 必须是数组
 func ThrowNotArrayError(pos reader.Position, t mean.Type) {
 	ThrowError(pos, "expect array type but there is `%s`", t)
+}
+
+// ThrowExpectPointerTypeError 期待指针类型
+func ThrowExpectPointerTypeError(pos reader.Position) {
+	ThrowError(pos, "expect a pointer type")
+}
+
+// ThrowExpectPointerError 期待指针
+func ThrowExpectPointerError(pos reader.Position, t mean.Type) {
+	ThrowError(pos, "expect pointer type but there is `%s`", t)
+}
+
+// ThrowExpectReferenceError 期待引用
+func ThrowExpectReferenceError(pos reader.Position, t mean.Type) {
+	ThrowError(pos, "expect reference type but there is `%s`", t)
 }
 
 // ThrowNotTupleError 必须是元组

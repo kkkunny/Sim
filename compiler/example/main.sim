@@ -1,6 +1,10 @@
-let mut s: str = "123"
+func get(v: *u8?)*u8?{
+    return v
+}
+
 func main()u8{
-    debug(s)
-    debug("123")
-    return 0
+    let v: u8 = 1
+    let vr: *u8 = &v
+    let vp: *u8? = vr
+    return *vp! - 1
 }

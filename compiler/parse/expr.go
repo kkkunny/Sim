@@ -47,6 +47,8 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseArray())
 	case token.STRING:
 		return util.Some[ast.Expr](self.parseString())
+	case token.NULL:
+		return util.Some[ast.Expr](self.parseNull())
 	default:
 		return util.None[ast.Expr]()
 	}
@@ -66,6 +68,10 @@ func (self *Parser) parseString() *ast.String {
 
 func (self *Parser) parseFloat() *ast.Float {
 	return &ast.Float{Value: self.expectNextIs(token.FLOAT)}
+}
+
+func (self *Parser) parseNull() *ast.Null {
+	return &ast.Null{Token: self.expectNextIs(token.NULL)}
 }
 
 func (self *Parser) parseBool() *ast.Boolean {
@@ -94,7 +100,7 @@ func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[ast.Expr]
 	case token.SUB, token.NOT, token.AND, token.MUL:
 		self.next()
 		opera := self.curTok
-		value := self.mustExpr(self.parseOptionPrefixUnary(canStruct))
+		value := self.mustExpr(self.parseOptionUnary(canStruct))
 		return util.Some[ast.Expr](&ast.Unary{
 			Opera: opera,
 			Value: value,
@@ -143,6 +149,12 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 				Index: index,
 			})
 		}
+	case token.NOT:
+		end := self.expectNextIs(token.NOT).Position
+		front = util.Some[ast.Expr](&ast.CheckNull{
+			Value: fv,
+			End:   end,
+		})
 	default:
 		return front
 	}
@@ -179,11 +191,15 @@ func (self *Parser) parseOptionTailUnary(front util.Option[ast.Expr]) util.Optio
 }
 
 func (self *Parser) parseOptionUnary(canStruct bool) util.Option[ast.Expr] {
-	return self.parseOptionTailUnary(self.parseOptionSuffixUnary(self.parseOptionPrefixUnary(canStruct), canStruct))
+	return self.parseOptionSuffixUnary(self.parseOptionPrefixUnary(canStruct), canStruct)
+}
+
+func (self *Parser) parseOptionUnaryWithTail(canStruct bool) util.Option[ast.Expr] {
+	return self.parseOptionTailUnary(self.parseOptionUnary(canStruct))
 }
 
 func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) util.Option[ast.Expr] {
-	left, ok := self.parseOptionUnary(canStruct).Value()
+	left, ok := self.parseOptionUnaryWithTail(canStruct).Value()
 	if !ok {
 		return util.None[ast.Expr]()
 	}
