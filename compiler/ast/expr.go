@@ -254,3 +254,16 @@ func (self *Judgment) Position() reader.Position {
 func (self *Judgment) stmt() {}
 
 func (self *Judgment) expr() {}
+
+// Null 空指针
+type Null struct {
+	Token token.Token
+}
+
+func (self *Null) Position() reader.Position {
+	return self.Token.Position
+}
+
+func (self *Null) stmt() {}
+
+func (self *Null) expr() {}

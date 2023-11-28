@@ -49,7 +49,7 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r llvm.Value, not bool) ll
 	switch meanType := t.(type) {
 	case *mean.EmptyType:
 		return self.ctx.ConstInteger(self.ctx.IntegerType(1), stlbasic.Ternary[int64](!not, 1, 0))
-	case mean.IntType, *mean.BoolType, *mean.FuncType, *mean.RefType:
+	case mean.IntType, *mean.BoolType, *mean.FuncType, *mean.PtrType, *mean.RefType:
 		return self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
 	case *mean.FloatType:
 		return self.builder.CreateFloatCmp("", stlbasic.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)

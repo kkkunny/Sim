@@ -47,6 +47,8 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseArray())
 	case token.STRING:
 		return util.Some[ast.Expr](self.parseString())
+	case token.NULL:
+		return util.Some[ast.Expr](self.parseNull())
 	default:
 		return util.None[ast.Expr]()
 	}
@@ -66,6 +68,10 @@ func (self *Parser) parseString() *ast.String {
 
 func (self *Parser) parseFloat() *ast.Float {
 	return &ast.Float{Value: self.expectNextIs(token.FLOAT)}
+}
+
+func (self *Parser) parseNull() *ast.Null {
+	return &ast.Null{Token: self.expectNextIs(token.NULL)}
 }
 
 func (self *Parser) parseBool() *ast.Boolean {

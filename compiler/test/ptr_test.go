@@ -11,7 +11,7 @@ func get(v: u8)*u8{
 }
 
 func main()u8{
-    return *get(1)
+    return *get(1) - 1
 }
 `)
 }

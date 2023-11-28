@@ -1,4 +1,6 @@
-func get(v: u8)*u8?
+func get(v: u8)*u8?{
+    return null
+}
 
 func main()u8{
     return 0

@@ -78,6 +78,11 @@ func ThrowNotArrayError(pos reader.Position, t mean.Type) {
 	ThrowError(pos, "expect array type but there is `%s`", t)
 }
 
+// ThrowExpectPointerTypeError 期待指针类型
+func ThrowExpectPointerTypeError(pos reader.Position) {
+	ThrowError(pos, "expect a pointer type")
+}
+
 // ThrowNotTupleError 必须是元组
 func ThrowNotTupleError(pos reader.Position, t mean.Type) {
 	ThrowError(pos, "expect tuple type but there is `%s`", t)

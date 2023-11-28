@@ -404,6 +404,8 @@ func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Constant {
 		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
 	case *mean.UnionType:
 		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+	case *mean.PtrType:
+		return self.ctx.ConstNull(t)
 	case *mean.RefType:
 		return self.ctx.ConstNull(t)
 	default:

@@ -52,6 +52,8 @@ func (self *Analyser) analyseExpr(expect mean.Type, node ast.Expr) mean.Expr {
 		return self.analyseString(exprNode)
 	case *ast.Judgment:
 		return self.analyseJudgment(exprNode)
+	case *ast.Null:
+		return self.analyseNull(expect, exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -648,4 +650,17 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) mean.Expr {
 	default:
 		return &mean.Boolean{Value: false}
 	}
+}
+
+func (self *Analyser) analyseNull(expect mean.Type, node *ast.Null) *mean.Zero {
+	if expect == nil || !(stlbasic.Is[*mean.PtrType](expect) || stlbasic.Is[*mean.RefType](expect)) {
+		errors.ThrowExpectPointerTypeError(node.Position())
+	}
+	var t *mean.PtrType
+	if stlbasic.Is[*mean.PtrType](expect) {
+		t = expect.(*mean.PtrType)
+	} else {
+		t = expect.(*mean.RefType).ToPtrType()
+	}
+	return &mean.Zero{Type: t}
 }

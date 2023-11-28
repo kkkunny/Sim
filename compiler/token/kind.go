@@ -72,6 +72,7 @@ const (
 	IMPORT
 	IS
 	PUBLIC
+	NULL
 	_KeywordEnd
 )
 
@@ -134,6 +135,7 @@ var kindNames = [...]string{
 	IMPORT:   "import",
 	IS:       "is",
 	PUBLIC:   "pub",
+	NULL:     "null",
 }
 
 // Lookup 区分标识符和关键字
