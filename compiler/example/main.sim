@@ -4,6 +4,7 @@ func get(v: *u8?)*u8?{
 
 func main()u8{
     let v: u8 = 1
-    let vp: *u8 = &v
-    return *vp
+    let vr: *u8 = &v
+    let vp: *u8? = vr
+    return *vp! - 1
 }

@@ -267,3 +267,17 @@ func (self *Null) Position() reader.Position {
 func (self *Null) stmt() {}
 
 func (self *Null) expr() {}
+
+// CheckNull 空指针检查
+type CheckNull struct {
+	Value Expr
+	End   reader.Position
+}
+
+func (self *CheckNull) Position() reader.Position {
+	return reader.MixPosition(self.Value.Position(), self.End)
+}
+
+func (self *CheckNull) stmt() {}
+
+func (self *CheckNull) expr() {}

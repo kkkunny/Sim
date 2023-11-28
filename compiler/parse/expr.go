@@ -149,6 +149,12 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 				Index: index,
 			})
 		}
+	case token.NOT:
+		end := self.expectNextIs(token.NOT).Position
+		front = util.Some[ast.Expr](&ast.CheckNull{
+			Value: fv,
+			End:   end,
+		})
 	default:
 		return front
 	}

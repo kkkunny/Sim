@@ -83,7 +83,12 @@ func ThrowExpectPointerTypeError(pos reader.Position) {
 	ThrowError(pos, "expect a pointer type")
 }
 
-// ThrowExpectReferenceError 期待引用类型
+// ThrowExpectPointerError 期待指针
+func ThrowExpectPointerError(pos reader.Position, t mean.Type) {
+	ThrowError(pos, "expect pointer type but there is `%s`", t)
+}
+
+// ThrowExpectReferenceError 期待引用
 func ThrowExpectReferenceError(pos reader.Position, t mean.Type) {
 	ThrowError(pos, "expect reference type but there is `%s`", t)
 }

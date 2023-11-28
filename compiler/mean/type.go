@@ -437,12 +437,15 @@ func (self *RefType) AssignableTo(dst Type) bool {
 	if self.Equal(dst) {
 		return true
 	}
+	if self.ToPtrType().Equal(dst) {
+		return true
+	}
 	if ut, ok := dst.(*UnionType); ok {
 		if ut.Elems.ContainKey(self.String()) {
 			return true
 		}
 	}
-	return self.ToPtrType().AssignableTo(dst)
+	return false
 }
 
 func (self *RefType) ToPtrType() *PtrType {

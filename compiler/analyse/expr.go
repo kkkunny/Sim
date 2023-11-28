@@ -54,6 +54,8 @@ func (self *Analyser) analyseExpr(expect mean.Type, node ast.Expr) mean.Expr {
 		return self.analyseJudgment(exprNode)
 	case *ast.Null:
 		return self.analyseNull(expect, exprNode)
+	case *ast.CheckNull:
+		return self.analyseCheckNull(expect, exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -476,7 +478,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) mean.Expr {
 	from := self.analyseExpr(tt, node.Value)
 	ft := from.GetType()
 	if ft.AssignableTo(tt) {
-		return from
+		return self.autoTypeCovert(tt, from)
 	}
 
 	switch {
@@ -517,11 +519,13 @@ func (self *Analyser) autoTypeCovert(expect mean.Type, v mean.Expr) mean.Expr {
 	}
 
 	switch {
-	case mean.TypeIs[*mean.UnionType](expect):
+	case mean.TypeIs[*mean.UnionType](expect) && expect.(*mean.UnionType).Elems.ContainKey(vt.String()):
 		return &mean.Union{
 			Type:  expect.(*mean.UnionType),
 			Value: v,
 		}
+	case mean.TypeIs[*mean.RefType](vt) && vt.(*mean.RefType).ToPtrType().Equal(expect):
+		return &mean.WrapWithNull{Value: v}
 	default:
 		panic("unreachable")
 	}
@@ -668,4 +672,20 @@ func (self *Analyser) analyseNull(expect mean.Type, node *ast.Null) *mean.Zero {
 		t = expect.(*mean.RefType).ToPtrType()
 	}
 	return &mean.Zero{Type: t}
+}
+
+func (self *Analyser) analyseCheckNull(expect mean.Type, node *ast.CheckNull) *mean.CheckNull {
+	if expect != nil {
+		if pt, ok := expect.(*mean.PtrType); ok {
+			expect = pt
+		} else if rt, ok := expect.(*mean.RefType); ok {
+			expect = rt.ToPtrType()
+		}
+	}
+	value := self.analyseExpr(expect, node.Value)
+	vt := value.GetType()
+	if !stlbasic.Is[*mean.PtrType](vt) {
+		errors.ThrowExpectPointerError(node.Value.Position(), vt)
+	}
+	return &mean.CheckNull{Value: value}
 }

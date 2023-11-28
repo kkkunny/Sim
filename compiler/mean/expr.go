@@ -1174,3 +1174,33 @@ func (self *GetValue) Mutable() bool {
 func (self *GetValue) GetValue() Expr {
 	return self.Value
 }
+
+// WrapWithNull 空包装
+type WrapWithNull struct {
+	Value Expr
+}
+
+func (self *WrapWithNull) stmt() {}
+
+func (self *WrapWithNull) GetType() Type {
+	return self.Value.GetType().(*RefType).ToPtrType()
+}
+
+func (self *WrapWithNull) Mutable() bool {
+	return self.Value.Mutable()
+}
+
+// CheckNull 空指针检查
+type CheckNull struct {
+	Value Expr
+}
+
+func (self *CheckNull) stmt() {}
+
+func (self *CheckNull) GetType() Type {
+	return &RefType{Elem: self.Value.GetType().(*PtrType).Elem}
+}
+
+func (self *CheckNull) Mutable() bool {
+	return self.Value.Mutable()
+}

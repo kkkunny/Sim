@@ -19,3 +19,14 @@ var Debug = C.sim_runtime_debug
 func sim_runtime_debug(s Str) {
 	fmt.Println(s)
 }
+
+// CheckNull 检查空指针
+var CheckNull = C.sim_runtime_check_null
+
+//export sim_runtime_check_null
+func sim_runtime_check_null(p Ptr) Ptr {
+	if p == nil {
+		panic("空指针")
+	}
+	return p
+}
