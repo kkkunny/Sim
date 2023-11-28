@@ -94,7 +94,7 @@ func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[ast.Expr]
 	case token.SUB, token.NOT, token.AND, token.MUL:
 		self.next()
 		opera := self.curTok
-		value := self.mustExpr(self.parseOptionPrefixUnary(canStruct))
+		value := self.mustExpr(self.parseOptionUnary(canStruct))
 		return util.Some[ast.Expr](&ast.Unary{
 			Opera: opera,
 			Value: value,
@@ -179,11 +179,15 @@ func (self *Parser) parseOptionTailUnary(front util.Option[ast.Expr]) util.Optio
 }
 
 func (self *Parser) parseOptionUnary(canStruct bool) util.Option[ast.Expr] {
-	return self.parseOptionTailUnary(self.parseOptionSuffixUnary(self.parseOptionPrefixUnary(canStruct), canStruct))
+	return self.parseOptionSuffixUnary(self.parseOptionPrefixUnary(canStruct), canStruct)
+}
+
+func (self *Parser) parseOptionUnaryWithTail(canStruct bool) util.Option[ast.Expr] {
+	return self.parseOptionTailUnary(self.parseOptionUnary(canStruct))
 }
 
 func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) util.Option[ast.Expr] {
-	left, ok := self.parseOptionUnary(canStruct).Value()
+	left, ok := self.parseOptionUnaryWithTail(canStruct).Value()
 	if !ok {
 		return util.None[ast.Expr]()
 	}
