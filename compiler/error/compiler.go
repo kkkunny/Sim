@@ -83,6 +83,11 @@ func ThrowExpectPointerTypeError(pos reader.Position) {
 	ThrowError(pos, "expect a pointer type")
 }
 
+// ThrowExpectReferenceError 期待引用类型
+func ThrowExpectReferenceError(pos reader.Position, t mean.Type) {
+	ThrowError(pos, "expect reference type but there is `%s`", t)
+}
+
 // ThrowNotTupleError 必须是元组
 func ThrowNotTupleError(pos reader.Position, t mean.Type) {
 	ThrowError(pos, "expect tuple type but there is `%s`", t)

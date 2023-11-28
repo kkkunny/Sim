@@ -405,7 +405,12 @@ func (self *Analyser) analyseUnary(expect mean.Type, node *ast.Unary) mean.Unary
 		if expect != nil {
 			expect = &mean.RefType{Elem: expect}
 		}
-		return &mean.GetValue{Value: self.analyseExpr(expect, node.Value)}
+		v := self.analyseExpr(expect, node.Value)
+		vt := v.GetType()
+		if !stlbasic.Is[*mean.RefType](vt) {
+			errors.ThrowExpectReferenceError(node.Value.Position(), vt)
+		}
+		return &mean.GetValue{Value: v}
 	default:
 		panic("unreachable")
 	}
