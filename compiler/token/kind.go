@@ -73,6 +73,7 @@ const (
 	IS
 	PUBLIC
 	NULL
+	TYPE
 	_KeywordEnd
 )
 
@@ -136,6 +137,7 @@ var kindNames = [...]string{
 	IS:       "is",
 	PUBLIC:   "pub",
 	NULL:     "null",
+	TYPE:     "type",
 }
 
 // Lookup 区分标识符和关键字

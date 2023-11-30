@@ -108,6 +108,9 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	}
 }
 
+func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
+}
+
 func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	st, ok := self.pkgScope.GetStruct("", node.Name.Source())
 	if !ok {
@@ -120,6 +123,9 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 		st.Fields.Set(fn, ft)
 	}
 	return st
+}
+
+func (self *Analyser) defTypeAlias(node *ast.TypeAlias) {
 }
 
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {

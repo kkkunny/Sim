@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/mean"
@@ -153,7 +154,7 @@ func (self *Analyser) analyseContinue(node *ast.Continue) *mean.Continue {
 func (self *Analyser) analyseFor(node *ast.For) (*mean.For, mean.BlockEof) {
 	iterator := self.analyseExpr(nil, node.Iterator)
 	iterType := iterator.GetType()
-	if !mean.TypeIs[*mean.ArrayType](iterType) {
+	if !stlbasic.Is[*mean.ArrayType](iterType) {
 		errors.ThrowNotArrayError(node.Iterator.Position(), iterType)
 	}
 

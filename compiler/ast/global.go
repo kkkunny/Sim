@@ -88,3 +88,17 @@ func (self *Import) Position() reader.Position {
 }
 
 func (*Import) global() {}
+
+// TypeAlias 类型别名
+type TypeAlias struct {
+	Begin  reader.Position
+	Public bool
+	Name   token.Token
+	Type   Type
+}
+
+func (self *TypeAlias) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Type.Position())
+}
+
+func (*TypeAlias) global() {}

@@ -295,7 +295,7 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 	switch covertNode := node.(type) {
 	case *mean.Num2Num:
 		switch {
-		case mean.TypeIs[*mean.SintType](ft) && mean.TypeIs[mean.IntType](covertNode.To):
+		case stlbasic.Is[*mean.SintType](ft) && stlbasic.Is[mean.IntType](covertNode.To):
 			ift, itt := ft.(*mean.SintType), covertNode.To.(mean.IntType)
 			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
 				return self.builder.CreateSExt("", from, to.(llvm.IntegerType))
@@ -304,7 +304,7 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 			} else {
 				return from
 			}
-		case mean.TypeIs[*mean.UintType](ft) && mean.TypeIs[mean.IntType](covertNode.To):
+		case stlbasic.Is[*mean.UintType](ft) && stlbasic.Is[mean.IntType](covertNode.To):
 			ift, itt := ft.(*mean.UintType), covertNode.To.(mean.IntType)
 			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
 				return self.builder.CreateZExt("", from, to.(llvm.IntegerType))
@@ -313,7 +313,7 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 			} else {
 				return from
 			}
-		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
+		case stlbasic.Is[*mean.FloatType](ft) && stlbasic.Is[*mean.FloatType](covertNode.To):
 			ift, itt := ft.(*mean.FloatType), covertNode.To.(*mean.FloatType)
 			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
 				return self.builder.CreateFPExt("", from, to.(llvm.FloatType))
@@ -322,13 +322,13 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 			} else {
 				return from
 			}
-		case mean.TypeIs[*mean.SintType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
+		case stlbasic.Is[*mean.SintType](ft) && stlbasic.Is[*mean.FloatType](covertNode.To):
 			return self.builder.CreateSIToFP("", from, to.(llvm.FloatType))
-		case mean.TypeIs[*mean.UintType](ft) && mean.TypeIs[*mean.FloatType](covertNode.To):
+		case stlbasic.Is[*mean.UintType](ft) && stlbasic.Is[*mean.FloatType](covertNode.To):
 			return self.builder.CreateUIToFP("", from, to.(llvm.FloatType))
-		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.SintType](covertNode.To):
+		case stlbasic.Is[*mean.FloatType](ft) && stlbasic.Is[*mean.SintType](covertNode.To):
 			return self.builder.CreateFPToSI("", from, to.(llvm.IntegerType))
-		case mean.TypeIs[*mean.FloatType](ft) && mean.TypeIs[*mean.UintType](covertNode.To):
+		case stlbasic.Is[*mean.FloatType](ft) && stlbasic.Is[*mean.UintType](covertNode.To):
 			return self.builder.CreateFPToUI("", from, to.(llvm.IntegerType))
 		default:
 			panic("unreachable")

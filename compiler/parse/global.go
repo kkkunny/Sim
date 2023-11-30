@@ -29,6 +29,8 @@ func (self *Parser) parseGlobal() ast.Global {
 		return self.parseVariable(attrs, pub)
 	case token.IMPORT:
 		return self.parseImport(attrs)
+	case token.TYPE:
+		return self.parseTypeAlias(attrs, pub)
 	default:
 		errors.ThrowIllegalGlobal(self.nextTok.Position)
 		return nil
@@ -145,5 +147,20 @@ func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
 		Begin: begin,
 		Paths: paths,
 		Alias: alias,
+	}
+}
+
+func (self *Parser) parseTypeAlias(attrs []ast.Attr, pub *token.Token) *ast.TypeAlias {
+	expectAttrIn(attrs)
+
+	begin := self.expectNextIs(token.TYPE).Position
+	name := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.ASS)
+	typ := self.parseType()
+	return &ast.TypeAlias{
+		Begin:  begin,
+		Public: pub != nil,
+		Name:   name,
+		Type:   typ,
 	}
 }

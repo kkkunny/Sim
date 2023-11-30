@@ -17,20 +17,22 @@ type _Scope interface {
 
 // 包作用域
 type _PkgScope struct {
-	path    string
-	externs hashmap.HashMap[string, *_PkgScope]
-	links   linkedhashset.LinkedHashSet[*_PkgScope]
-	values  hashmap.HashMap[string, mean.Ident]
-	structs hashmap.HashMap[string, *mean.StructType]
+	path      string
+	externs   hashmap.HashMap[string, *_PkgScope]
+	links     linkedhashset.LinkedHashSet[*_PkgScope]
+	values    hashmap.HashMap[string, mean.Ident]
+	structs   hashmap.HashMap[string, *mean.StructType]
+	typeAlias hashmap.HashMap[string, mean.Type]
 }
 
 func _NewPkgScope(path string) *_PkgScope {
 	return &_PkgScope{
-		path:    path,
-		externs: hashmap.NewHashMap[string, *_PkgScope](),
-		links:   linkedhashset.NewLinkedHashSet[*_PkgScope](),
-		values:  hashmap.NewHashMap[string, mean.Ident](),
-		structs: hashmap.NewHashMap[string, *mean.StructType](),
+		path:      path,
+		externs:   hashmap.NewHashMap[string, *_PkgScope](),
+		links:     linkedhashset.NewLinkedHashSet[*_PkgScope](),
+		values:    hashmap.NewHashMap[string, mean.Ident](),
+		structs:   hashmap.NewHashMap[string, *mean.StructType](),
+		typeAlias: hashmap.NewHashMap[string, mean.Type](),
 	}
 }
 
