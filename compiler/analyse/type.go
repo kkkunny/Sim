@@ -145,7 +145,7 @@ func (self *Analyser) analyseRefType(node *ast.RefType) *mean.RefType {
 	return &mean.RefType{Elem: self.analyseType(node.Elem)}
 }
 
-func (self *Analyser) analyseSelfType(node *ast.SelfType)*mean.StructType{
+func (self *Analyser) analyseSelfType(node *ast.SelfType)mean.Type{
 	if self.selfType == nil{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}

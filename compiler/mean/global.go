@@ -49,6 +49,16 @@ func (self *StructDef) AssignableTo(dst Type) bool {
 	return false
 }
 
+func (self *StructDef) HasImplement(trait Trait)bool{
+	for iter:=trait.Methods.Iterator(); iter.Next(); {
+		name, target := iter.Value().First, iter.Value().Second
+		if method := self.Methods.Get(name); method == nil || !method.GetMethodType().Equal(target){
+			return false
+		}
+	}
+	return true
+}
+
 // Variable 变量定义
 type Variable struct {
 	Public     bool
@@ -150,4 +160,14 @@ func (self *MethodDef) GetType() Type {
 
 func (self *MethodDef) Mutable() bool {
 	return false
+}
+
+func (self *MethodDef) GetMethodType() *FuncType {
+	params := lo.Map(self.Params, func(item *Param, index int) Type {
+		return item.GetType()
+	})
+	return &FuncType{
+		Ret:    self.Ret,
+		Params: params,
+	}
 }

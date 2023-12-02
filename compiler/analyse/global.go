@@ -129,6 +129,34 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	return st
 }
 
+func (self *Analyser) declTrait(node *ast.Trait) {
+	methodNameSet := hashset.NewHashSet[string]()
+	for _, pair := range node.Methods{
+		name := pair.First.Source()
+		if methodNameSet.Contain(name){
+			errors.ThrowIdentifierDuplicationError(pair.First.Position, pair.First)
+		}
+		methodNameSet.Add(name)
+	}
+	if !self.pkgScope.SetTrait(node) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+}
+
+func (self *Analyser) defTrait(t mean.Type, node *ast.Trait) *mean.Trait {
+	prevSelfType := self.selfType
+	self.selfType = t
+	defer func() {
+		self.selfType = prevSelfType
+	}()
+
+	methods := hashmap.NewHashMap[string, *mean.FuncType]()
+	for _, pair := range node.Methods{
+		methods.Set(pair.First.Source(), self.analyseFuncType(pair.Second))
+	}
+	return &mean.Trait{Methods: methods}
+}
+
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
@@ -137,7 +165,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declMethodDef(globalNode)
 	case *ast.Variable:
 		self.declGlobalVariable(globalNode)
-	case *ast.StructDef, *ast.Import:
+	case *ast.StructDef, *ast.Import, *ast.Trait:
 	default:
 		panic("unreachable")
 	}
@@ -277,7 +305,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) mean.Global {
 		return self.defTypeDef(globalNode)
 	case *ast.Variable:
 		return self.defGlobalVariable(globalNode)
-	case *ast.Import:
+	case *ast.Import, *ast.Trait:
 		return nil
 	default:
 		panic("unreachable")

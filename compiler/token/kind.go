@@ -75,6 +75,7 @@ const (
 	NULL
 	SELFVALUE
 	SELFTYPE
+	TRAIT
 	_KeywordEnd
 )
 
@@ -137,9 +138,10 @@ var kindNames = [...]string{
 	IMPORT:    "import",
 	IS:        "is",
 	PUBLIC:    "pub",
+	NULL:      "null",
 	SELFVALUE: "self",
 	SELFTYPE:  "Self",
-	NULL:      "null",
+	TRAIT: "trait",
 }
 
 // Lookup 区分标识符和关键字

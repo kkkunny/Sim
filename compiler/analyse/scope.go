@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashset"
 
+	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/mean"
 
 	"github.com/kkkunny/Sim/util"
@@ -22,6 +23,7 @@ type _PkgScope struct {
 	links   linkedhashset.LinkedHashSet[*_PkgScope]
 	values  hashmap.HashMap[string, mean.Ident]
 	structs hashmap.HashMap[string, *mean.StructType]
+	traits hashmap.HashMap[string, *ast.Trait]
 }
 
 func _NewPkgScope(path string) *_PkgScope {
@@ -31,6 +33,7 @@ func _NewPkgScope(path string) *_PkgScope {
 		links:   linkedhashset.NewLinkedHashSet[*_PkgScope](),
 		values:  hashmap.NewHashMap[string, mean.Ident](),
 		structs: hashmap.NewHashMap[string, *mean.StructType](),
+		traits: hashmap.NewHashMap[string, *ast.Trait](),
 	}
 }
 
@@ -119,6 +122,48 @@ func (self *_PkgScope) GetStruct(pkg, name string) (*mean.StructType, bool) {
 		return nil, false
 	}
 	return t, true
+}
+
+func (self *_PkgScope) SetTrait(node *ast.Trait) bool {
+	name := node.Name.Source()
+	if self.traits.ContainKey(name) {
+		return false
+	}
+	self.traits.Set(name, node)
+	return true
+}
+
+func (self *_PkgScope) getLocalTrait(name string) (*ast.Trait, bool) {
+	return self.traits.Get(name), self.traits.ContainKey(name)
+}
+
+func (self *_PkgScope) getTrait(name string) (*ast.Trait, bool) {
+	trait, ok := self.getLocalTrait(name)
+	if ok {
+		return trait, true
+	}
+	for iter := self.links.Iterator(); iter.Next(); {
+		trait, ok := iter.Value().getLocalTrait(name)
+		if ok && trait.Public {
+			return trait, true
+		}
+	}
+	return nil, false
+}
+
+func (self *_PkgScope) GetTrait(pkg, name string) (*ast.Trait, bool) {
+	if pkg == "" {
+		return self.getTrait(name)
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		return nil, false
+	}
+	trait, ok := pkgScope.GetTrait("", name)
+	if !ok || !trait.Public {
+		return nil, false
+	}
+	return trait, true
 }
 
 // 本地作用域

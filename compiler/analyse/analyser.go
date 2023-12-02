@@ -21,7 +21,7 @@ type Analyser struct {
 	localScope _LocalScope
 
 	selfValue *mean.Param
-	selfType *mean.StructDef
+	selfType mean.Type
 }
 
 func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
@@ -71,12 +71,23 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
 		return true
 	})
 
+	// trait
+	iterator.Foreach(self.asts, func(v ast.Global) bool {
+		if trait, ok := v.(*ast.Trait); ok {
+			self.declTrait(trait)
+		}
+		return true
+	})
+
+	// 类型声明
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
 		if st, ok := v.(*ast.StructDef); ok {
 			self.declTypeDef(st)
 		}
 		return true
 	})
+
+	// 定义
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
 		self.analyseGlobalDecl(v)
 		return true

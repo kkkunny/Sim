@@ -30,6 +30,8 @@ func (self *Parser) parseGlobal() ast.Global {
 		return self.parseVariable(attrs, pub)
 	case token.IMPORT:
 		return self.parseImport(attrs)
+	case token.TRAIT:
+		return self.parseTrait(attrs, pub)
 	default:
 		errors.ThrowIllegalGlobal(self.nextTok.Position)
 		return nil
@@ -193,5 +195,30 @@ func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
 		Begin: begin,
 		Paths: paths,
 		Alias: alias,
+	}
+}
+
+func (self *Parser) parseTrait(attrs []ast.Attr, pub *token.Token) *ast.Trait {
+	expectAttrIn(attrs)
+
+	begin := self.expectNextIs(token.TRAIT).Position
+	if pub != nil {
+		begin = pub.Position
+	}
+	name := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.LBR)
+	methods := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, *ast.FuncType] {
+		fn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		ft := self.parseFuncType()
+		return pair.NewPair(fn, ft)
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.Trait{
+		Begin:  begin,
+		Public: pub != nil,
+		Name:   name,
+		Methods: methods,
+		End:    end,
 	}
 }

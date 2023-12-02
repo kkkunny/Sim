@@ -1218,11 +1218,7 @@ func (self *Method) GetScope()*StructDef{
 }
 
 func (self *Method) GetType() Type {
-	ft := self.Method.GetFuncType()
-	return &FuncType{
-		Ret: ft.Ret,
-		Params: ft.Params[1:],
-	}
+	return self.Method.GetMethodType()
 }
 
 func (self *Method) Mutable() bool {

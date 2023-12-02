@@ -108,3 +108,18 @@ func (self *MethodDef) Position() reader.Position {
 }
 
 func (*MethodDef) global() {}
+
+// Trait 特性
+type Trait struct {
+	Begin  reader.Position
+	Public bool
+	Name   token.Token
+	Methods []pair.Pair[token.Token, *FuncType]
+	End    reader.Position
+}
+
+func (self *Trait) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (*Trait) global() {}
