@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/reader"
 
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/token"
@@ -22,7 +23,7 @@ func (self *Parser) parseGlobal() ast.Global {
 
 	switch self.nextTok.Kind {
 	case token.FUNC:
-		return self.parseFuncDef(attrs, pub)
+		return self.parseFuncOrMethodDef(attrs, pub)
 	case token.STRUCT:
 		return self.parseStructDef(attrs, pub)
 	case token.LET:
@@ -35,10 +36,18 @@ func (self *Parser) parseGlobal() ast.Global {
 	}
 }
 
-func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) *ast.FuncDef {
+func (self *Parser) parseFuncOrMethodDef(attrs []ast.Attr, pub *token.Token) ast.Global {
+	begin := self.expectNextIs(token.FUNC).Position
+	if self.nextIs(token.LPA){
+		return self.parseMethodDef(attrs, pub, begin)
+	}else{
+		return self.parseFuncDef(attrs, pub, begin)
+	}
+}
+
+func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) *ast.FuncDef {
 	expectAttrIn(attrs, new(ast.Extern))
 
-	begin := self.expectNextIs(token.FUNC).Position
 	if pub != nil {
 		begin = pub.Position
 	}
@@ -66,8 +75,45 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) *ast.FuncDe
 		Attrs:  attrs,
 		Begin:  begin,
 		Public: pub != nil,
-		Params: args,
 		Name:   name,
+		Params: args,
+		Ret:    ret,
+		Body:   body,
+	}
+}
+
+func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) *ast.MethodDef {
+	expectAttrIn(attrs)
+
+	if pub != nil {
+		begin = pub.Position
+	}
+	self.expectNextIs(token.LPA)
+	scope := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.RPA)
+	name := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.LPA)
+	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
+		mut := self.skipNextIs(token.MUT)
+		pn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		pt := self.parseType()
+		return ast.Param{
+			Mutable: mut,
+			Name:    pn,
+			Type:    pt,
+		}
+	})
+	self.expectNextIs(token.RPA)
+	ret := self.parseOptionType()
+	body := self.parseBlock()
+	return &ast.MethodDef{
+		Attrs:  attrs,
+		Begin:  begin,
+		Public: pub != nil,
+		Scope: scope,
+		Name:   name,
+		Params: args,
 		Ret:    ret,
 		Body:   body,
 	}
