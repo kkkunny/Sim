@@ -116,6 +116,11 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 		panic("unreachable")
 	}
 
+	self.selfType = st
+	defer func() {
+		self.selfType = nil
+	}()
+
 	for _, f := range node.Fields {
 		fn := f.First.Source()
 		ft := self.analyseType(f.Second)
@@ -202,12 +207,12 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		errors.ThrowUnknownIdentifierError(node.Scope.Position, node.Scope)
 	}
 
-	scopeParam := &mean.Param{
-		Mut:  node.ScopeMutable,
-		Type: st,
-		Name: "self",
-	}
-	paramNameSet := hashset.NewHashSetWith[string](scopeParam.Name)
+	self.selfType = st
+	defer func() {
+		self.selfType = nil
+	}()
+
+	paramNameSet := hashset.NewHashSetWith[string]()
 	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
 		pn := paramNode.Name.Source()
 		if !paramNameSet.Add(pn) {
@@ -221,12 +226,16 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		}
 	})
 	f := &mean.MethodDef{
-		Public:     node.Public,
-		Scope: st,
-		Name:       node.Name.Source(),
-		SelfParam: scopeParam,
-		Params:     params,
-		Ret:        self.analyseOptionType(node.Ret),
+		Public:    node.Public,
+		Scope:     st,
+		Name:      node.Name.Source(),
+		SelfParam: &mean.Param{
+			Mut:  node.ScopeMutable,
+			Type: st,
+			Name: token.SELFVALUE.String(),
+		},
+		Params:    params,
+		Ret:       self.analyseOptionType(node.Ret),
 	}
 	if st.Fields.ContainKey(f.Name) || st.Methods.ContainKey(f.Name) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
@@ -318,14 +327,11 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *mean.MethodDef {
 	}
 	f := st.Methods.Get(node.Name.Source())
 
-	self.localScope = _NewFuncScope(self.pkgScope, f)
+	self.localScope, self.selfValue, self.selfType = _NewFuncScope(self.pkgScope, f), f.SelfParam, st
 	defer func() {
-		self.localScope = nil
+		self.localScope, self.selfValue, self.selfType = nil, nil, nil
 	}()
 
-	if !self.localScope.SetValue(f.SelfParam.Name, f.SelfParam) {
-		panic("unreachable")
-	}
 	for _, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {
 			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)

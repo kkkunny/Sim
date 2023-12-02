@@ -21,6 +21,7 @@ type CodeGenerator struct {
 	values  map[mean.Expr]llvm.Value
 	loops   hashmap.HashMap[mean.Loop, loop]
 	strings hashmap.HashMap[string, *llvm.GlobalValue]
+	structs hashmap.HashMap[*mean.StructDef, llvm.StructType]
 }
 
 func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {
@@ -34,6 +35,7 @@ func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {
 		module:   module,
 		builder:  ctx.NewBuilder(),
 		values:   make(map[mean.Expr]llvm.Value),
+		structs: hashmap.NewHashMap[*mean.StructDef, llvm.StructType](),
 	}
 }
 

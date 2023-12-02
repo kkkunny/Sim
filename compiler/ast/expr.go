@@ -283,11 +283,11 @@ func (self *CheckNull) stmt() {}
 func (self *CheckNull) expr() {}
 
 type SelfValue struct {
-	Pos reader.Position
+	Token token.Token
 }
 
 func (self *SelfValue) Position() reader.Position {
-	return self.Pos
+	return self.Token.Position
 }
 
 func (self *SelfValue) stmt() {}

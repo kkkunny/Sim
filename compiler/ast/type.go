@@ -108,11 +108,11 @@ func (self *RefType) Position() reader.Position {
 func (self *RefType) typ() {}
 
 type SelfType struct {
-	Pos reader.Position
+	Token token.Token
 }
 
 func (self *SelfType) Position() reader.Position {
-	return self.Pos
+	return self.Token.Position
 }
 
 func (self *SelfType) typ() {}

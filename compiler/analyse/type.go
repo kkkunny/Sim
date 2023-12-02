@@ -31,6 +31,8 @@ func (self *Analyser) analyseType(node ast.Type) mean.Type {
 		return self.analysePtrType(typeNode)
 	case *ast.RefType:
 		return self.analyseRefType(typeNode)
+	case *ast.SelfType:
+		return self.analyseSelfType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -141,4 +143,11 @@ func (self *Analyser) analysePtrType(node *ast.PtrType) *mean.PtrType {
 
 func (self *Analyser) analyseRefType(node *ast.RefType) *mean.RefType {
 	return &mean.RefType{Elem: self.analyseType(node.Elem)}
+}
+
+func (self *Analyser) analyseSelfType(node *ast.SelfType)*mean.StructType{
+	if self.selfType == nil{
+		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
+	}
+	return self.selfType
 }

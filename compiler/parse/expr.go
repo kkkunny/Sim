@@ -49,7 +49,7 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseString())
 	case token.NULL:
 		return util.Some[ast.Expr](self.parseNull())
-	case token.SELF:
+	case token.SELFVALUE:
 		return util.Some[ast.Expr](self.parseSelfValue())
 	default:
 		return util.None[ast.Expr]()
@@ -273,5 +273,5 @@ func (self *Parser) parseStruct(st *ast.IdentType) *ast.Struct {
 }
 
 func (self *Parser) parseSelfValue()*ast.SelfValue{
-	return &ast.SelfValue{Pos: self.expectNextIs(token.SELF).Position}
+	return &ast.SelfValue{Token: self.expectNextIs(token.SELFVALUE)}
 }

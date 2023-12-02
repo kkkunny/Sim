@@ -130,5 +130,5 @@ func (self *Parser) parsePtrOrRefType() ast.Type {
 }
 
 func (self *Parser) parseSelfType()*ast.SelfType{
-	return &ast.SelfType{Pos: self.expectNextIs(token.SELFTYPE).Position}
+	return &ast.SelfType{Token: self.expectNextIs(token.SELFTYPE)}
 }

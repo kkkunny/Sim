@@ -73,7 +73,7 @@ const (
 	IS
 	PUBLIC
 	NULL
-	SELF
+	SELFVALUE
 	SELFTYPE
 	_KeywordEnd
 )
@@ -127,19 +127,19 @@ var kindNames = [...]string{
 	STRUCT:   "struct",
 	LET:      "let",
 	ELSE:     "else",
-	IF:       "if",
-	MUT:      "mut",
-	BREAK:    "break",
-	CONTINUE: "continue",
-	LOOP:     "loop",
-	FOR:      "for",
-	IN:       "in",
-	IMPORT:   "import",
-	IS:       "is",
-	PUBLIC:   "pub",
-	SELF: "self",
-	SELFTYPE: "Self",
-	NULL:     "null",
+	IF:        "if",
+	MUT:       "mut",
+	BREAK:     "break",
+	CONTINUE:  "continue",
+	LOOP:      "loop",
+	FOR:       "for",
+	IN:        "in",
+	IMPORT:    "import",
+	IS:        "is",
+	PUBLIC:    "pub",
+	SELFVALUE: "self",
+	SELFTYPE:  "Self",
+	NULL:      "null",
 }
 
 // Lookup 区分标识符和关键字
