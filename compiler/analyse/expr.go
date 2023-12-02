@@ -56,6 +56,8 @@ func (self *Analyser) analyseExpr(expect mean.Type, node ast.Expr) mean.Expr {
 		return self.analyseNull(expect, exprNode)
 	case *ast.CheckNull:
 		return self.analyseCheckNull(expect, exprNode)
+	case *ast.SelfValue:
+		return self.analyseSelfValue(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -699,4 +701,11 @@ func (self *Analyser) analyseCheckNull(expect mean.Type, node *ast.CheckNull) *m
 		errors.ThrowExpectPointerError(node.Value.Position(), vt)
 	}
 	return &mean.CheckNull{Value: value}
+}
+
+func (self *Analyser) analyseSelfValue(node *ast.SelfValue)*mean.Param{
+	if self.selfValue == nil{
+		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
+	}
+	return self.selfValue
 }

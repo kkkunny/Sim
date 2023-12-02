@@ -87,12 +87,18 @@ func (self *CodeGenerator) codegenTupleType(node *mean.TupleType) llvm.StructTyp
 }
 
 func (self *CodeGenerator) codegenStructType(node *mean.StructType) llvm.StructType {
+	if self.structs.ContainKey(node){
+		return self.structs.Get(node)
+	}
+	st := self.ctx.NamedStructType("", false)
+	self.structs.Set(node, st)
 	fields := make([]llvm.Type, node.Fields.Length())
 	var i int
 	for iter := node.Fields.Iterator(); iter.Next(); i++ {
 		fields[i] = self.codegenType(iter.Value().Second)
 	}
-	return self.ctx.StructType(false, fields...)
+	st.SetElems(false, fields...)
+	return st
 }
 
 func (self *CodeGenerator) codegenStringType() llvm.StructType {
