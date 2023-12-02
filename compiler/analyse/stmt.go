@@ -65,15 +65,16 @@ func (self *Analyser) analyseBlock(node *ast.Block, afterBlockCreate func(scope 
 
 func (self *Analyser) analyseReturn(node *ast.Return) *mean.Return {
 	f := self.localScope.GetFunc()
+	ft := f.GetFuncType()
 	if v, ok := node.Value.Value(); ok {
-		value := self.expectExpr(f.Ret, v)
+		value := self.expectExpr(ft.Ret, v)
 		return &mean.Return{
 			Func:  f,
 			Value: util.Some[mean.Expr](value),
 		}
 	} else {
-		if !f.Ret.Equal(mean.Empty) {
-			errors.ThrowTypeMismatchError(node.Position(), f.Ret, mean.Empty)
+		if !ft.Ret.Equal(mean.Empty) {
+			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, mean.Empty)
 		}
 		return &mean.Return{
 			Func:  f,

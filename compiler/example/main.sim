@@ -1,10 +1,12 @@
-func get(v: *u8?)*u8?{
-    return v
+struct T{
+    data: u8
+}
+
+func (mut T) get_data()u8{
+    return self.data
 }
 
 func main()u8{
-    let v: u8 = 1
-    let vr: *u8 = &v
-    let vp: *u8? = vr
-    return *vp! - 1
+    let v: T = T{data: 1}
+    return v.get_data()
 }

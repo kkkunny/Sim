@@ -616,13 +616,24 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *mean.Struct {
 	}
 }
 
-func (self *Analyser) analyseField(node *ast.Field) *mean.Field {
+func (self *Analyser) analyseField(node *ast.Field) mean.Expr {
 	from := self.analyseExpr(nil, node.From)
 	fieldName := node.Index.Source()
 	st, ok := from.GetType().(*mean.StructType)
 	if !ok {
 		errors.ThrowNotStructError(node.From.Position(), from.GetType())
-	} else if !st.Fields.ContainKey(fieldName) {
+	}
+
+	// 方法
+	if method := st.Methods.Get(fieldName); method != nil{
+		return &mean.Method{
+			Self: from,
+			Method: method,
+		}
+	}
+
+	// 字段
+	if !st.Fields.ContainKey(fieldName) {
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
 	var i int
