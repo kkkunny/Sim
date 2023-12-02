@@ -2,7 +2,7 @@ struct T{
     data: u8
 }
 
-func (T) get_data()u8{
+func (mut T) get_data()u8{
     return self.data
 }
 

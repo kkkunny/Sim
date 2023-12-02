@@ -19,12 +19,6 @@ type Ident interface {
 	ident()
 }
 
-// Callable 可调用的
-type Callable interface {
-	Ident
-	call()
-}
-
 // Integer 整数
 type Integer struct {
 	Type  IntType
@@ -1210,3 +1204,25 @@ func (self *CheckNull) GetType() Type {
 func (self *CheckNull) Mutable() bool {
 	return self.Value.Mutable()
 }
+
+// Method 方法
+type Method struct {
+	Scope *StructDef
+	Method *MethodDef
+}
+
+func (self *Method) stmt() {}
+
+func (self *Method) GetType() Type {
+	ft := self.Method.GetFuncType()
+	return &FuncType{
+		Ret: ft.Ret,
+		Params: ft.Params[1:],
+	}
+}
+
+func (self *Method) Mutable() bool {
+	return false
+}
+
+func (*Method) ident() {}

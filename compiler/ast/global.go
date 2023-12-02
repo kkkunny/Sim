@@ -94,6 +94,7 @@ type MethodDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
+	ScopeMutable bool
 	Scope token.Token
 	Name     token.Token
 	Params   []Param

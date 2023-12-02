@@ -1,6 +1,7 @@
 package mean
 
 import (
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/samber/lo"
 
@@ -17,6 +18,7 @@ type StructDef struct {
 	Public bool
 	Name   string
 	Fields linkedhashmap.LinkedHashMap[string, Type]
+	Methods hashmap.HashMap[string, *MethodDef]
 }
 
 func (self StructDef) GetPublic() bool {
@@ -75,7 +77,7 @@ func (*Variable) ident() {}
 
 // Function 函数
 type Function interface {
-	Callable
+	Global
 	GetFuncType()*FuncType
 }
 
@@ -115,8 +117,6 @@ func (self *FuncDef) Mutable() bool {
 
 func (*FuncDef) ident() {}
 
-func (*FuncDef) call() {}
-
 // MethodDef 方法定义
 type MethodDef struct {
 	Public     bool
@@ -139,7 +139,7 @@ func (self *MethodDef) GetFuncType() *FuncType {
 	})
 	return &FuncType{
 		Ret:    self.Ret,
-		Params: params,
+		Params: append([]Type{self.Scope}, params...),
 	}
 }
 
@@ -147,18 +147,6 @@ func (self *MethodDef) GetType() Type {
 	return self.GetFuncType()
 }
 
-func (self *MethodDef) GetActualFuncType() Type {
-	ft := self.GetFuncType()
-	return &FuncType{
-		Ret: ft.Ret,
-		Params: append([]Type{self.Scope}, ft.Params...),
-	}
-}
-
 func (self *MethodDef) Mutable() bool {
 	return false
 }
-
-func (*MethodDef) ident() {}
-
-func (*MethodDef) call() {}

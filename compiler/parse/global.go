@@ -89,6 +89,7 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 		begin = pub.Position
 	}
 	self.expectNextIs(token.LPA)
+	mut := self.skipNextIs(token.MUT)
 	scope := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.RPA)
 	name := self.expectNextIs(token.IDENT)
@@ -111,6 +112,7 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 		Attrs:  attrs,
 		Begin:  begin,
 		Public: pub != nil,
+		ScopeMutable: mut,
 		Scope: scope,
 		Name:   name,
 		Params: args,
