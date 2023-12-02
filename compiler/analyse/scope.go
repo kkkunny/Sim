@@ -127,7 +127,7 @@ type _LocalScope interface {
 	GetParent() _Scope
 	GetFuncScope() *_FuncScope
 	GetPkgScope() *_PkgScope
-	GetFunc() *mean.FuncDef
+	GetFunc() mean.Function
 	SetLoop(loop mean.Loop)
 	GetLoop() mean.Loop
 }
@@ -136,10 +136,10 @@ type _LocalScope interface {
 type _FuncScope struct {
 	_BlockScope
 	parent *_PkgScope
-	def    *mean.FuncDef
+	def    mean.Function
 }
 
-func _NewFuncScope(p *_PkgScope, def *mean.FuncDef) *_FuncScope {
+func _NewFuncScope(p *_PkgScope, def mean.Function) *_FuncScope {
 	self := &_FuncScope{
 		parent: p,
 		def:    def,
@@ -174,7 +174,7 @@ func (self *_FuncScope) GetPkgScope() *_PkgScope {
 	return self.parent
 }
 
-func (self *_FuncScope) GetFunc() *mean.FuncDef {
+func (self *_FuncScope) GetFunc() mean.Function {
 	return self.def
 }
 
@@ -219,7 +219,7 @@ func (self *_BlockScope) GetPkgScope() *_PkgScope {
 	return self.parent.GetPkgScope()
 }
 
-func (self *_BlockScope) GetFunc() *mean.FuncDef {
+func (self *_BlockScope) GetFunc() mean.Function {
 	return self.parent.GetFunc()
 }
 

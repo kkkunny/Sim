@@ -19,6 +19,12 @@ type Ident interface {
 	ident()
 }
 
+// Callable 可调用的
+type Callable interface {
+	Ident
+	call()
+}
+
 // Integer 整数
 type Integer struct {
 	Type  IntType

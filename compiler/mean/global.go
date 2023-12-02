@@ -12,38 +12,6 @@ type Global interface {
 	GetPublic() bool
 }
 
-// FuncDef 函数定义
-type FuncDef struct {
-	Public     bool
-	ExternName string
-	Name       string
-	Params     []*Param
-	Ret        Type
-	Body       util.Option[*Block]
-}
-
-func (self FuncDef) GetPublic() bool {
-	return self.Public
-}
-
-func (*FuncDef) stmt() {}
-
-func (self *FuncDef) GetType() Type {
-	params := lo.Map(self.Params, func(item *Param, index int) Type {
-		return item.GetType()
-	})
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: params,
-	}
-}
-
-func (self *FuncDef) Mutable() bool {
-	return false
-}
-
-func (*FuncDef) ident() {}
-
 // StructDef 结构体定义
 type StructDef struct {
 	Public bool
@@ -104,3 +72,93 @@ func (self *Variable) Mutable() bool {
 }
 
 func (*Variable) ident() {}
+
+// Function 函数
+type Function interface {
+	Callable
+	GetFuncType()*FuncType
+}
+
+// FuncDef 函数定义
+type FuncDef struct {
+	Public     bool
+	ExternName string
+	Name       string
+	Params     []*Param
+	Ret        Type
+	Body       util.Option[*Block]
+}
+
+func (self FuncDef) GetPublic() bool {
+	return self.Public
+}
+
+func (*FuncDef) stmt() {}
+
+func (self *FuncDef) GetFuncType() *FuncType {
+	params := lo.Map(self.Params, func(item *Param, index int) Type {
+		return item.GetType()
+	})
+	return &FuncType{
+		Ret:    self.Ret,
+		Params: params,
+	}
+}
+
+func (self *FuncDef) GetType() Type {
+	return self.GetFuncType()
+}
+
+func (self *FuncDef) Mutable() bool {
+	return false
+}
+
+func (*FuncDef) ident() {}
+
+func (*FuncDef) call() {}
+
+// MethodDef 方法定义
+type MethodDef struct {
+	Public     bool
+	Scope *StructDef
+	Name       string
+	Params     []*Param
+	Ret        Type
+	Body       *Block
+}
+
+func (self MethodDef) GetPublic() bool {
+	return self.Public
+}
+
+func (*MethodDef) stmt() {}
+
+func (self *MethodDef) GetFuncType() *FuncType {
+	params := lo.Map(self.Params, func(item *Param, index int) Type {
+		return item.GetType()
+	})
+	return &FuncType{
+		Ret:    self.Ret,
+		Params: params,
+	}
+}
+
+func (self *MethodDef) GetType() Type {
+	return self.GetFuncType()
+}
+
+func (self *MethodDef) GetActualFuncType() Type {
+	ft := self.GetFuncType()
+	return &FuncType{
+		Ret: ft.Ret,
+		Params: append([]Type{self.Scope}, ft.Params...),
+	}
+}
+
+func (self *MethodDef) Mutable() bool {
+	return false
+}
+
+func (*MethodDef) ident() {}
+
+func (*MethodDef) call() {}
