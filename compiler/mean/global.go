@@ -77,7 +77,7 @@ func (*Variable) ident() {}
 
 // Function 函数
 type Function interface {
-	Global
+	Expr
 	GetFuncType()*FuncType
 }
 
@@ -122,6 +122,7 @@ type MethodDef struct {
 	Public     bool
 	Scope *StructDef
 	Name       string
+	SelfParam *Param
 	Params     []*Param
 	Ret        Type
 	Body       *Block

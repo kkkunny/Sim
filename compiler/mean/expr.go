@@ -1207,11 +1207,15 @@ func (self *CheckNull) Mutable() bool {
 
 // Method 方法
 type Method struct {
-	Scope *StructDef
+	Self Expr
 	Method *MethodDef
 }
 
 func (self *Method) stmt() {}
+
+func (self *Method) GetScope()*StructDef{
+	return self.Self.GetType().(*StructType)
+}
 
 func (self *Method) GetType() Type {
 	ft := self.Method.GetFuncType()

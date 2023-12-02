@@ -55,6 +55,9 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 		return self.codegenWrapWithNull(exprNode, load)
 	case *mean.CheckNull:
 		return self.codegenCheckNull(exprNode, load)
+	case *mean.MethodDef:
+		// TODO: 闭包
+		panic("unreachable")
 	default:
 		panic("unreachable")
 	}
@@ -280,11 +283,22 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenCall(node *mean.Call, load bool) llvm.Value {
-	f := self.codegenExpr(node.Func, true)
-	args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
-		return self.codegenExpr(item, true)
-	})
-	return self.buildCall(load, self.codegenFuncType(node.Func.GetType().(*mean.FuncType)), f, args...)
+	if method, ok := node.Func.(*mean.Method); ok{
+		ft := self.codegenFuncType(method.Method.GetFuncType())
+		f := self.values[method.Method]
+		selfParam := self.codegenExpr(method.Self, true)
+		args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
+			return self.codegenExpr(item, true)
+		})
+		return self.buildCall(load, ft, f, append([]llvm.Value{selfParam}, args...)...)
+	} else{
+		ft := self.codegenFuncType(node.Func.GetType().(*mean.FuncType))
+		f := self.codegenExpr(node.Func, true)
+		args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
+			return self.codegenExpr(item, true)
+		})
+		return self.buildCall(load, ft, f, args...)
+	}
 }
 
 func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {

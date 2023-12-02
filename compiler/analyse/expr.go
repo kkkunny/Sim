@@ -627,7 +627,7 @@ func (self *Analyser) analyseField(node *ast.Field) mean.Expr {
 	// 方法
 	if method := st.Methods.Get(fieldName); method != nil{
 		return &mean.Method{
-			Scope: st,
+			Self: from,
 			Method: method,
 		}
 	}

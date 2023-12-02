@@ -202,7 +202,12 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		errors.ThrowUnknownIdentifierError(node.Scope.Position, node.Scope)
 	}
 
-	paramNameSet := hashset.NewHashSetWith[string]("self")
+	scopeParam := &mean.Param{
+		Mut:  node.ScopeMutable,
+		Type: st,
+		Name: "self",
+	}
+	paramNameSet := hashset.NewHashSetWith[string](scopeParam.Name)
 	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
 		pn := paramNode.Name.Source()
 		if !paramNameSet.Add(pn) {
@@ -219,6 +224,7 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		Public:     node.Public,
 		Scope: st,
 		Name:       node.Name.Source(),
+		SelfParam: scopeParam,
 		Params:     params,
 		Ret:        self.analyseOptionType(node.Ret),
 	}
@@ -317,12 +323,7 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *mean.MethodDef {
 		self.localScope = nil
 	}()
 
-	scopeParam := &mean.Param{
-		Mut: node.ScopeMutable,
-		Type: f.Scope,
-		Name: "self",
-	}
-	if !self.localScope.SetValue("self", scopeParam) {
+	if !self.localScope.SetValue(f.SelfParam.Name, f.SelfParam) {
 		panic("unreachable")
 	}
 	for _, p := range f.Params {
