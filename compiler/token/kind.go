@@ -73,6 +73,8 @@ const (
 	IS
 	PUBLIC
 	NULL
+	SELF
+	SELFTYPE
 	_KeywordEnd
 )
 
@@ -135,6 +137,8 @@ var kindNames = [...]string{
 	IMPORT:   "import",
 	IS:       "is",
 	PUBLIC:   "pub",
+	SELF: "self",
+	SELFTYPE: "Self",
 	NULL:     "null",
 }
 

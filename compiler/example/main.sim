@@ -1,9 +1,11 @@
 struct T{
-    data: u8
+    data: u8,
+    ptr: *Self
 }
 
 func (mut T) get_data()u8{
-    return self.data
+    let self2: Self = self
+    return self2.data
 }
 
 func main()u8{

@@ -106,3 +106,13 @@ func (self *RefType) Position() reader.Position {
 }
 
 func (self *RefType) typ() {}
+
+type SelfType struct {
+	Pos reader.Position
+}
+
+func (self *SelfType) Position() reader.Position {
+	return self.Pos
+}
+
+func (self *SelfType) typ() {}

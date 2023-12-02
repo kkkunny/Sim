@@ -281,3 +281,15 @@ func (self *CheckNull) Position() reader.Position {
 func (self *CheckNull) stmt() {}
 
 func (self *CheckNull) expr() {}
+
+type SelfValue struct {
+	Pos reader.Position
+}
+
+func (self *SelfValue) Position() reader.Position {
+	return self.Pos
+}
+
+func (self *SelfValue) stmt() {}
+
+func (self *SelfValue) expr() {}
