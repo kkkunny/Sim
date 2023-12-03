@@ -1,6 +1,7 @@
-type byte = u8
+type byte1 = byte2
+type byte2 = byte1
 
 func main()u8{
-    let v: byte = 1
+    let v: byte1 = 1
     return v
 }

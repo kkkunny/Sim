@@ -3,6 +3,7 @@ package analyse
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
 
@@ -22,6 +23,8 @@ type Analyser struct {
 
 	selfValue *mean.Param
 	selfType *mean.StructDef
+
+	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
 }
 
 func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
@@ -34,6 +37,7 @@ func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Targe
 		asts:     asts,
 		pkgs:     &pkgs,
 		pkgScope: _NewPkgScope(path),
+		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
 	}
 }
 
@@ -43,6 +47,7 @@ func newSon(parent *Analyser, path string, asts linkedlist.LinkedList[ast.Global
 		asts:     asts,
 		pkgs:     parent.pkgs,
 		pkgScope: _NewPkgScope(path),
+		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
 	}
 }
 

@@ -45,7 +45,7 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[mean
 
 	// 检查循环导入
 	if self.checkLoopImport(pkgPath) {
-		errors.ThrowCircularImport(node.Paths.Back().Position, node.Paths.Back())
+		errors.ThrowCircularReference(node.Paths.Back().Position, node.Paths.Back())
 	}
 	// 如果有缓存则直接返回
 	if pkgScope := self.pkgs.Get(pkgPath); pkgScope != nil {
@@ -143,10 +143,19 @@ func (self *Analyser) defTypeAlias(name string) mean.Type {
 	if t, ok := res.Right(); ok{
 		return t
 	}
+
 	node, ok := res.Left()
 	if !ok{
 		panic("unreachable")
 	}
+
+	if self.typeAliasTrace.Contain(node){
+		errors.ThrowCircularReference(node.Name.Position, node.Name)
+	}
+	self.typeAliasTrace.Add(node)
+	defer func() {
+		self.typeAliasTrace.Remove(node)
+	}()
 
 	target := self.analyseType(node.Type)
 	self.pkgScope.DefTypeAlias(name, target)
