@@ -45,7 +45,7 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[mean
 
 	// 检查循环导入
 	if self.checkLoopImport(pkgPath) {
-		errors.ThrowCircularImport(node.Paths.Back().Position, node.Paths.Back())
+		errors.ThrowCircularReference(node.Paths.Back().Position, node.Paths.Back())
 	}
 	// 如果有缓存则直接返回
 	if pkgScope := self.pkgs.Get(pkgPath); pkgScope != nil {
@@ -110,6 +110,12 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	}
 }
 
+func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
+	if !self.pkgScope.DeclTypeAlias(node.Name.Source(), node){
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+}
+
 func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	st, ok := self.pkgScope.GetStruct("", node.Name.Source())
 	if !ok {
@@ -129,6 +135,33 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	return st
 }
 
+func (self *Analyser) defTypeAlias(name string) mean.Type {
+	res, ok := self.pkgScope.GetTypeAlias("", name)
+	if !ok{
+		panic("unreachable")
+	}
+	if t, ok := res.Right(); ok{
+		return t
+	}
+
+	node, ok := res.Left()
+	if !ok{
+		panic("unreachable")
+	}
+
+	if self.typeAliasTrace.Contain(node){
+		errors.ThrowCircularReference(node.Name.Position, node.Name)
+	}
+	self.typeAliasTrace.Add(node)
+	defer func() {
+		self.typeAliasTrace.Remove(node)
+	}()
+
+	target := self.analyseType(node.Type)
+	self.pkgScope.DefTypeAlias(name, target)
+	return target
+}
+
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
@@ -137,7 +170,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declMethodDef(globalNode)
 	case *ast.Variable:
 		self.declGlobalVariable(globalNode)
-	case *ast.StructDef, *ast.Import:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 	default:
 		panic("unreachable")
 	}
@@ -273,11 +306,9 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) mean.Global {
 		return self.defFuncDef(globalNode)
 	case *ast.MethodDef:
 		return self.defMethodDef(globalNode)
-	case *ast.StructDef:
-		return self.defTypeDef(globalNode)
 	case *ast.Variable:
 		return self.defGlobalVariable(globalNode)
-	case *ast.Import:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 		return nil
 	default:
 		panic("unreachable")

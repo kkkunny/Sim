@@ -90,9 +90,14 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) mean.Type {
 		}
 		if st, ok := self.pkgScope.GetStruct(pkgName, name); ok {
 			return st
-		} else {
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		}
+		if typeAlias, ok := self.pkgScope.GetTypeAlias(pkgName, name); ok {
+			if target, ok := typeAlias.Right(); ok{
+				return target
+			}
+			return self.defTypeAlias(name)
+		}
+		errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		return nil
 	}
 }

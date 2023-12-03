@@ -161,12 +161,12 @@ func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Toke
 	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs.ToSlice(), "."))
 }
 
-// ThrowCircularImport 循环导入
-func ThrowCircularImport(pos reader.Position, path token.Token) {
-	ThrowError(pos, "circular import `%s`", path.Source())
-}
-
 // ThrowCanNotGetPointer 不能取指针
 func ThrowCanNotGetPointer(pos reader.Position) {
 	ThrowError(pos, "can not get the pointer of this expression")
+}
+
+// ThrowCircularReference 循环引用
+func ThrowCircularReference(pos reader.Position, path token.Token) {
+	ThrowError(pos, "circular reference `%s`", path.Source())
 }

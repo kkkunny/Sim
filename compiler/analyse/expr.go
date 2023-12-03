@@ -64,7 +64,7 @@ func (self *Analyser) analyseExpr(expect mean.Type, node ast.Expr) mean.Expr {
 }
 
 func (self *Analyser) analyseInteger(expect mean.Type, node *ast.Integer) mean.Expr {
-	if expect == nil || !mean.TypeIs[mean.NumberType](expect) {
+	if expect == nil || !stlbasic.Is[mean.NumberType](expect) {
 		expect = mean.Isize
 	}
 	switch t := expect.(type) {
@@ -89,7 +89,7 @@ func (self *Analyser) analyseInteger(expect mean.Type, node *ast.Integer) mean.E
 }
 
 func (self *Analyser) analyseChar(expect mean.Type, node *ast.Char) mean.Expr {
-	if expect == nil || !mean.TypeIs[mean.NumberType](expect) {
+	if expect == nil || !stlbasic.Is[mean.NumberType](expect) {
 		expect = mean.I32
 	}
 	s := node.Value.Source()
@@ -113,7 +113,7 @@ func (self *Analyser) analyseChar(expect mean.Type, node *ast.Char) mean.Expr {
 }
 
 func (self *Analyser) analyseFloat(expect mean.Type, node *ast.Float) *mean.Float {
-	if expect == nil || !mean.TypeIs[*mean.FloatType](expect) {
+	if expect == nil || !stlbasic.Is[*mean.FloatType](expect) {
 		expect = mean.F64
 	}
 	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
@@ -145,70 +145,70 @@ func (self *Analyser) analyseBinary(expect mean.Type, node *ast.Binary) mean.Bin
 			}
 		}
 	case token.AND:
-		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.IntType](lt) {
 			return &mean.IntAndInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.OR:
-		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.IntType](lt) {
 			return &mean.IntOrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.XOR:
-		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.IntType](lt) {
 			return &mean.IntXorInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHL:
-		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.IntType](lt) {
 			return &mean.IntShlInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHR:
-		if lt.Equal(rt) && mean.TypeIs[mean.IntType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.IntType](lt) {
 			return &mean.IntShrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.ADD:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumAddNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SUB:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumSubNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.MUL:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumMulNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.DIV:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumDivNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.REM:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumRemNum{
 				Left:  left,
 				Right: right,
@@ -217,52 +217,52 @@ func (self *Analyser) analyseBinary(expect mean.Type, node *ast.Binary) mean.Bin
 	case token.EQ:
 		if lt.Equal(rt) {
 			switch {
-			case mean.TypeIs[mean.NumberType](lt):
+			case stlbasic.Is[mean.NumberType](lt):
 				return &mean.NumEqNum{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.BoolType](lt):
+			case stlbasic.Is[*mean.BoolType](lt):
 				return &mean.BoolEqBool{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.FuncType](lt):
+			case stlbasic.Is[*mean.FuncType](lt):
 				return &mean.FuncEqFunc{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.ArrayType](lt):
+			case stlbasic.Is[*mean.ArrayType](lt):
 				return &mean.ArrayEqArray{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.TupleType](lt):
+			case stlbasic.Is[*mean.TupleType](lt):
 				return &mean.TupleEqTuple{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.StructType](lt):
+			case stlbasic.Is[*mean.StructType](lt):
 				return &mean.StructEqStruct{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.StringType](lt):
+			case stlbasic.Is[*mean.StringType](lt):
 				return &mean.StringEqString{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.UnionType](lt):
+			case stlbasic.Is[*mean.UnionType](lt):
 				return &mean.UnionEqUnion{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.StringType](lt):
+			case stlbasic.Is[*mean.StringType](lt):
 				return &mean.StringEqString{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.UnionType](lt):
+			case stlbasic.Is[*mean.UnionType](lt):
 				return &mean.UnionEqUnion{
 					Left:  left,
 					Right: right,
@@ -272,52 +272,52 @@ func (self *Analyser) analyseBinary(expect mean.Type, node *ast.Binary) mean.Bin
 	case token.NE:
 		if lt.Equal(rt) {
 			switch {
-			case mean.TypeIs[mean.NumberType](lt):
+			case stlbasic.Is[mean.NumberType](lt):
 				return &mean.NumNeNum{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.BoolType](lt):
+			case stlbasic.Is[*mean.BoolType](lt):
 				return &mean.BoolNeBool{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.FuncType](lt):
+			case stlbasic.Is[*mean.FuncType](lt):
 				return &mean.FuncNeFunc{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.ArrayType](lt):
+			case stlbasic.Is[*mean.ArrayType](lt):
 				return &mean.ArrayNeArray{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.TupleType](lt):
+			case stlbasic.Is[*mean.TupleType](lt):
 				return &mean.TupleNeTuple{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.StructType](lt):
+			case stlbasic.Is[*mean.StructType](lt):
 				return &mean.StructNeStruct{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.StringType](lt):
+			case stlbasic.Is[*mean.StringType](lt):
 				return &mean.StringNeString{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.UnionType](lt):
+			case stlbasic.Is[*mean.UnionType](lt):
 				return &mean.UnionNeUnion{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.StringType](lt):
+			case stlbasic.Is[*mean.StringType](lt):
 				return &mean.StringNeString{
 					Left:  left,
 					Right: right,
 				}
-			case mean.TypeIs[*mean.UnionType](lt):
+			case stlbasic.Is[*mean.UnionType](lt):
 				return &mean.UnionNeUnion{
 					Left:  left,
 					Right: right,
@@ -325,42 +325,42 @@ func (self *Analyser) analyseBinary(expect mean.Type, node *ast.Binary) mean.Bin
 			}
 		}
 	case token.LT:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumLtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GT:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumGtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LE:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumLeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GE:
-		if lt.Equal(rt) && mean.TypeIs[mean.NumberType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[mean.NumberType](lt) {
 			return &mean.NumGeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LAND:
-		if lt.Equal(rt) && mean.TypeIs[*mean.BoolType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[*mean.BoolType](lt) {
 			return &mean.BoolAndBool{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LOR:
-		if lt.Equal(rt) && mean.TypeIs[*mean.BoolType](lt) {
+		if lt.Equal(rt) && stlbasic.Is[*mean.BoolType](lt) {
 			return &mean.BoolOrBool{
 				Left:  left,
 				Right: right,
@@ -379,7 +379,7 @@ func (self *Analyser) analyseUnary(expect mean.Type, node *ast.Unary) mean.Unary
 	case token.SUB:
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
-		if mean.TypeIs[*mean.SintType](vt) || mean.TypeIs[*mean.FloatType](vt) {
+		if stlbasic.Is[*mean.SintType](vt) || stlbasic.Is[*mean.FloatType](vt) {
 			return &mean.NumNegate{Value: value}
 		}
 		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
@@ -388,16 +388,16 @@ func (self *Analyser) analyseUnary(expect mean.Type, node *ast.Unary) mean.Unary
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
 		switch {
-		case mean.TypeIs[mean.IntType](vt):
+		case stlbasic.Is[mean.IntType](vt):
 			return &mean.IntBitNegate{Value: value}
-		case mean.TypeIs[*mean.BoolType](vt):
+		case stlbasic.Is[*mean.BoolType](vt):
 			return &mean.BoolNegate{Value: value}
 		default:
 			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 			return nil
 		}
 	case token.AND:
-		if expect != nil && mean.TypeIs[*mean.RefType](expect) {
+		if expect != nil && stlbasic.Is[*mean.RefType](expect) {
 			expect = expect.(*mean.RefType).Elem
 		}
 		value := self.analyseExpr(expect, node.Value)
@@ -453,7 +453,7 @@ func (self *Analyser) analyseCall(node *ast.Call) *mean.Call {
 }
 
 func (self *Analyser) analyseTuple(expect mean.Type, node *ast.Tuple) mean.Expr {
-	if len(node.Elems) == 1 && (expect == nil || !mean.TypeIs[*mean.TupleType](expect)) {
+	if len(node.Elems) == 1 && (expect == nil || !stlbasic.Is[*mean.TupleType](expect)) {
 		return self.analyseExpr(expect, node.Elems[0])
 	}
 
@@ -484,17 +484,17 @@ func (self *Analyser) analyseCovert(node *ast.Covert) mean.Expr {
 	}
 
 	switch {
-	case mean.TypeIs[mean.NumberType](ft) && mean.TypeIs[mean.NumberType](tt):
+	case stlbasic.Is[mean.NumberType](ft) && stlbasic.Is[mean.NumberType](tt):
 		return &mean.Num2Num{
 			From: from,
 			To:   tt.(mean.NumberType),
 		}
-	case mean.TypeIs[*mean.UnionType](tt) && tt.(*mean.UnionType).GetElemIndex(ft) >= 0:
+	case stlbasic.Is[*mean.UnionType](tt) && tt.(*mean.UnionType).GetElemIndex(ft) >= 0:
 		return &mean.Union{
 			Type:  tt.(*mean.UnionType),
 			Value: from,
 		}
-	case mean.TypeIs[*mean.UnionType](ft) && ft.(*mean.UnionType).GetElemIndex(tt) >= 0:
+	case stlbasic.Is[*mean.UnionType](ft) && ft.(*mean.UnionType).GetElemIndex(tt) >= 0:
 		return &mean.UnUnion{
 			Type:  tt,
 			Value: from,
@@ -521,12 +521,12 @@ func (self *Analyser) autoTypeCovert(expect mean.Type, v mean.Expr) mean.Expr {
 	}
 
 	switch {
-	case mean.TypeIs[*mean.UnionType](expect) && expect.(*mean.UnionType).Elems.ContainKey(vt.String()):
+	case stlbasic.Is[*mean.UnionType](expect) && expect.(*mean.UnionType).Elems.ContainKey(vt.String()):
 		return &mean.Union{
 			Type:  expect.(*mean.UnionType),
 			Value: v,
 		}
-	case mean.TypeIs[*mean.RefType](vt) && vt.(*mean.RefType).ToPtrType().Equal(expect):
+	case stlbasic.Is[*mean.RefType](vt) && vt.(*mean.RefType).ToPtrType().Equal(expect):
 		return &mean.WrapWithNull{Value: v}
 	default:
 		panic("unreachable")
@@ -547,7 +547,7 @@ func (self *Analyser) analyseArray(node *ast.Array) *mean.Array {
 
 func (self *Analyser) analyseIndex(node *ast.Index) *mean.Index {
 	from := self.analyseExpr(nil, node.From)
-	if !mean.TypeIs[*mean.ArrayType](from.GetType()) {
+	if !stlbasic.Is[*mean.ArrayType](from.GetType()) {
 		errors.ThrowNotArrayError(node.From.Position(), from.GetType())
 	}
 	index := self.expectExpr(mean.Usize, node.Index)
@@ -664,7 +664,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) mean.Expr {
 	switch {
 	case vt.Equal(target):
 		return &mean.Boolean{Value: true}
-	case mean.TypeIs[*mean.UnionType](vt) && vt.(*mean.UnionType).GetElemIndex(target) >= 0:
+	case stlbasic.Is[*mean.UnionType](vt) && vt.(*mean.UnionType).GetElemIndex(target) >= 0:
 		return &mean.UnionTypeJudgment{
 			Value: value,
 			Type:  target,
