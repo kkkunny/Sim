@@ -1067,7 +1067,7 @@ type Field struct {
 func (self *Field) stmt() {}
 
 func (self *Field) GetType() Type {
-	return self.From.GetType().(*StructType).Fields.Values().Get(self.Index)
+	return self.From.GetType().(*StructType).Fields.Values().Get(self.Index).Second
 }
 
 func (self *Field) Mutable() bool {

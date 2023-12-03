@@ -599,13 +599,13 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *mean.Struct {
 		if !fieldNames.Contain(fn) {
 			errors.ThrowIdentifierDuplicationError(nf.First.Position, nf.First)
 		}
-		existedFields[fn] = self.expectExpr(st.Fields.Get(fn), nf.Second)
+		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Second, nf.Second)
 	}
 
 	fields := make([]mean.Expr, st.Fields.Length())
 	var i int
 	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		fn, ft := iter.Value().First, iter.Value().Second
+		fn, ft := iter.Value().First, iter.Value().Second.Second
 		if fv, ok := existedFields[fn]; ok {
 			fields[i] = fv
 		} else {
@@ -628,7 +628,7 @@ func (self *Analyser) analyseField(node *ast.Field) mean.Expr {
 	}
 
 	// 方法
-	if method := st.Methods.Get(fieldName); method != nil{
+	if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.path){
 		return &mean.Method{
 			Self: from,
 			Method: method,
@@ -636,19 +636,19 @@ func (self *Analyser) analyseField(node *ast.Field) mean.Expr {
 	}
 
 	// 字段
-	if !st.Fields.ContainKey(fieldName) {
-		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-	}
 	var i int
-	for iter := st.Fields.Keys().Iterator(); iter.Next(); i++ {
-		if iter.Value() == fieldName {
-			break
+	for iter := st.Fields.Iterator(); iter.Next(); i++ {
+		field := iter.Value()
+		if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.path) {
+			return &mean.Field{
+				From:  from,
+				Index: uint(i),
+			}
 		}
 	}
-	return &mean.Field{
-		From:  from,
-		Index: uint(i),
-	}
+
+	errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+	return nil
 }
 
 func (self *Analyser) analyseString(node *ast.String) *mean.String {

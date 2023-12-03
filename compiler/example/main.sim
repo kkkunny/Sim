@@ -1,6 +1,7 @@
-import std.c
+struct A{
+    pub data: u8
+}
 
 func main()u8{
-	let v: byte
-    return v
+    return 0
 }

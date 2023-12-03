@@ -3,7 +3,7 @@ package parse
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/pair"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/reader"
@@ -132,11 +132,16 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.Stru
 	}
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, ast.Type] {
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
+		pub := self.skipNextIs(token.PUBLIC)
 		fn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		ft := self.parseType()
-		return pair.NewPair(fn, ft)
+		return lo.Tuple3[bool, token.Token, ast.Type]{
+			A: pub,
+			B: fn,
+			C: ft,
+		}
 	})
 	end := self.expectNextIs(token.RBR).Position
 	return &ast.StructDef{

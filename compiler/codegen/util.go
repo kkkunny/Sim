@@ -147,7 +147,14 @@ func (self *CodeGenerator) buildStructEqual(meanType mean.Type, l, r llvm.Value)
 	fields := stlbasic.TernaryAction(isTuple, func() dynarray.DynArray[mean.Type] {
 		return dynarray.NewDynArrayWith(meanType.(*mean.TupleType).Elems...)
 	}, func() dynarray.DynArray[mean.Type] {
-		return meanType.(*mean.StructType).Fields.Values()
+		values := meanType.(*mean.StructType).Fields.Values()
+		res := dynarray.NewDynArrayWithLength[mean.Type](values.Length())
+		var i uint
+		for iter:=values.Iterator(); iter.Next(); {
+			res.Set(i, iter.Value().Second)
+			i++
+		}
+		return res
 	})
 
 	if t.CountElems() == 0 {
