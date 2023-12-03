@@ -2,6 +2,10 @@ trait Add{
     add: func(Self, Self)Self
 }
 
+func get<T>(v: T)T{
+    return v
+}
+
 func main()u8{
     return 0
 }
