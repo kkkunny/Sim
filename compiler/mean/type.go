@@ -41,12 +41,6 @@ type Type interface {
 	AssignableTo(dst Type) bool
 }
 
-// TypeIs 类型是否是
-func TypeIs[T Type](v Type) bool {
-	_, ok := v.(T)
-	return ok
-}
-
 // EmptyType 空类型
 type EmptyType struct{}
 

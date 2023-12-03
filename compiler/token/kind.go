@@ -73,6 +73,7 @@ const (
 	IS
 	PUBLIC
 	NULL
+	TYPE
 	SELFVALUE
 	SELFTYPE
 	TRAIT
@@ -139,6 +140,7 @@ var kindNames = [...]string{
 	IS:        "is",
 	PUBLIC:    "pub",
 	NULL:      "null",
+	TYPE:     "type",
 	SELFVALUE: "self",
 	SELFTYPE:  "Self",
 	TRAIT: "trait",

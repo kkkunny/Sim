@@ -7,11 +7,11 @@ import (
 )
 
 func (self *CodeGenerator) declStructDef(node *mean.StructDef) {
-	self.ctx.NamedStructType(node.Name, false)
+	self.structs.Set(node, self.ctx.NamedStructType("", false))
 }
 
 func (self *CodeGenerator) defStructDef(node *mean.StructDef) {
-	st := self.ctx.GetTypeByName(node.Name)
+	st := self.structs.Get(node)
 	fields := make([]llvm.Type, node.Fields.Length())
 	var i int
 	for iter := node.Fields.Values().Iterator(); iter.Next(); i++ {
