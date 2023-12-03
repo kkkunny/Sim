@@ -1,7 +1,14 @@
-type byte1 = byte2
-type byte2 = byte1
+struct T{
+    data: u8,
+    ptr: *Self
+}
+
+func (mut T) get_data()u8{
+    let self2: Self = self
+    return self2.data
+}
 
 func main()u8{
-    let v: byte1 = 1
-    return v
+    let v: T = T{data: 1}
+    return v.get_data() - 1
 }

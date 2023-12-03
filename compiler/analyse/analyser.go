@@ -7,7 +7,9 @@ import (
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
 
+	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/token"
 
 	"github.com/kkkunny/Sim/ast"
 )
@@ -95,6 +97,25 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
 		}
 		return true
 	})
+	// 类型循环检测
+	iterator.Foreach(self.asts, func(v ast.Global) bool {
+		trace := hashset.NewHashSet[mean.Type]()
+		var circle bool
+		var name token.Token
+		switch node := v.(type) {
+		case *ast.StructDef:
+			st, _ := self.pkgScope.GetStruct("", node.Name.Source())
+			circle, name = self.checkTypeCircle(&trace, st), node.Name
+		case *ast.TypeAlias:
+			data, _ := self.pkgScope.GetTypeAlias("", node.Name.Source())
+			alias, _ := data.Right()
+			circle, name = self.checkTypeCircle(&trace, alias), node.Name
+		}
+		if circle{
+			errors.ThrowCircularReference(name.Position, name)
+		}
+		return true
+	})
 
 	// 值
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
@@ -108,4 +129,41 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
 		return true
 	})
 	return meanNodes
+}
+
+func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[mean.Type], t mean.Type)bool{
+	if trace.Contain(t){
+		return true
+	}
+	trace.Add(t)
+	defer func() {
+		trace.Remove(t)
+	}()
+
+	switch typ := t.(type) {
+	case *mean.EmptyType, mean.NumberType, *mean.FuncType, *mean.BoolType, *mean.StringType, *mean.PtrType, *mean.RefType:
+	case *mean.ArrayType:
+		return self.checkTypeCircle(trace, typ.Elem)
+	case *mean.TupleType:
+		for _, e := range typ.Elems{
+			if self.checkTypeCircle(trace, e){
+				return true
+			}
+		}
+	case *mean.StructType:
+		for iter:=typ.Fields.Iterator(); iter.Next(); {
+			if self.checkTypeCircle(trace, iter.Value().Second){
+				return true
+			}
+		}
+	case *mean.UnionType:
+		for iter:=typ.Elems.Iterator(); iter.Next(); {
+			if self.checkTypeCircle(trace, iter.Value().Second){
+				return true
+			}
+		}
+	default:
+		panic("unreachable")
+	}
+	return false
 }
