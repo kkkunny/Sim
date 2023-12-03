@@ -1,4 +1,4 @@
 func main()u8{
-	let v: byte = 1
-    return v - 1
+	let v: byte
+    return v
 }

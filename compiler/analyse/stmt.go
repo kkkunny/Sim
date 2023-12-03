@@ -93,8 +93,17 @@ func (self *Analyser) analyseLocalVariable(node *ast.Variable) *mean.Variable {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
 
-	v.Type = self.analyseType(node.Type)
-	v.Value = self.expectExpr(v.Type, node.Value)
+	if typeNode, ok := node.Type.Value(); ok{
+		v.Type = self.analyseType(typeNode)
+		if valueNode, ok := node.Value.Value(); ok{
+			v.Value = self.expectExpr(v.Type, valueNode)
+		}else{
+			v.Value = self.getTypeDefaultValue(typeNode.Position(), v.Type)
+		}
+	}else{
+		v.Value = self.analyseExpr(nil, node.Value.MustValue())
+		v.Type = v.Value.GetType()
+	}
 	return v
 }
 

@@ -61,12 +61,16 @@ type Variable struct {
 	Public  bool
 	Mutable bool
 	Name    token.Token
-	Type    Type
-	Value   Expr
+	Type    util.Option[Type]
+	Value   util.Option[Expr]
 }
 
 func (self *Variable) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Value.Position())
+	if v, ok := self.Value.Value(); ok{
+		return reader.MixPosition(self.Begin, v.Position())
+	}else{
+		return reader.MixPosition(self.Begin, self.Type.MustValue().Position())
+	}
 }
 
 func (*Variable) stmt() {}
