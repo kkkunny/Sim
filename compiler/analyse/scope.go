@@ -1,9 +1,12 @@
 package analyse
 
 import (
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashset"
+	"github.com/kkkunny/stl/container/pair"
 
+	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/mean"
 
 	"github.com/kkkunny/Sim/util"
@@ -22,7 +25,7 @@ type _PkgScope struct {
 	links     linkedhashset.LinkedHashSet[*_PkgScope]
 	values    hashmap.HashMap[string, mean.Ident]
 	structs   hashmap.HashMap[string, *mean.StructType]
-	typeAlias hashmap.HashMap[string, mean.Type]
+	typeAlias hashmap.HashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]]
 }
 
 func _NewPkgScope(path string) *_PkgScope {
@@ -32,7 +35,7 @@ func _NewPkgScope(path string) *_PkgScope {
 		links:     linkedhashset.NewLinkedHashSet[*_PkgScope](),
 		values:    hashmap.NewHashMap[string, mean.Ident](),
 		structs:   hashmap.NewHashMap[string, *mean.StructType](),
-		typeAlias: hashmap.NewHashMap[string, mean.Type](),
+		typeAlias: hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]](),
 	}
 }
 
@@ -86,6 +89,9 @@ func (self *_PkgScope) SetStruct(st *mean.StructType) bool {
 	if self.structs.ContainKey(st.Name) {
 		return false
 	}
+	if self.typeAlias.ContainKey(st.Name) {
+		return false
+	}
 	self.structs.Set(st.Name, st)
 	return true
 }
@@ -121,6 +127,57 @@ func (self *_PkgScope) GetStruct(pkg, name string) (*mean.StructType, bool) {
 		return nil, false
 	}
 	return t, true
+}
+
+func (self *_PkgScope) DeclTypeAlias(name string, node *ast.TypeAlias) bool {
+	if self.structs.ContainKey(name) {
+		return false
+	}
+	if self.typeAlias.ContainKey(name) {
+		return false
+	}
+	self.typeAlias.Set(name, pair.NewPair(node.Public, either.Left[*ast.TypeAlias, mean.Type](node)))
+	return true
+}
+
+func (self *_PkgScope) DefTypeAlias(name string, t mean.Type) {
+	if !self.typeAlias.ContainKey(name){
+		panic("unreachable")
+	}
+	self.typeAlias.Set(name, pair.NewPair(self.typeAlias.Get(name).First, either.Right[*ast.TypeAlias, mean.Type](t)))
+}
+
+func (self *_PkgScope) getLocalTypeAlias(name string) (pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]], bool) {
+	return self.typeAlias.Get(name), self.typeAlias.ContainKey(name)
+}
+
+func (self *_PkgScope) getTypeAlias(name string) (pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]], bool) {
+	st, ok := self.getLocalTypeAlias(name)
+	if ok {
+		return st, true
+	}
+	for iter := self.links.Iterator(); iter.Next(); {
+		data, ok := iter.Value().getLocalTypeAlias(name)
+		if ok && data.First {
+			return st, true
+		}
+	}
+	var tmp pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]
+	return tmp, false
+}
+
+func (self *_PkgScope) GetTypeAlias(pkg, name string) (either.Either[*ast.TypeAlias, mean.Type], bool) {
+	if pkg == "" {
+		data, ok := self.getTypeAlias(name)
+		return data.Second, ok
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		var tmp either.Either[*ast.TypeAlias, mean.Type]
+		return tmp, false
+	}
+	data, ok := pkgScope.getTypeAlias(name)
+	return data.Second, ok && data.First
 }
 
 // 本地作用域

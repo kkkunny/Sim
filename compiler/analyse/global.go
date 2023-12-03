@@ -111,6 +111,9 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 }
 
 func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
+	if !self.pkgScope.DeclTypeAlias(node.Name.Source(), node){
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
 }
 
 func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
@@ -132,7 +135,22 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	return st
 }
 
-func (self *Analyser) defTypeAlias(node *ast.TypeAlias) {
+func (self *Analyser) defTypeAlias(name string) mean.Type {
+	res, ok := self.pkgScope.GetTypeAlias("", name)
+	if !ok{
+		panic("unreachable")
+	}
+	if t, ok := res.Right(); ok{
+		return t
+	}
+	node, ok := res.Left()
+	if !ok{
+		panic("unreachable")
+	}
+
+	target := self.analyseType(node.Type)
+	self.pkgScope.DefTypeAlias(name, target)
+	return target
 }
 
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {
@@ -143,7 +161,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declMethodDef(globalNode)
 	case *ast.Variable:
 		self.declGlobalVariable(globalNode)
-	case *ast.StructDef, *ast.Import:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 	default:
 		panic("unreachable")
 	}
@@ -279,11 +297,9 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) mean.Global {
 		return self.defFuncDef(globalNode)
 	case *ast.MethodDef:
 		return self.defMethodDef(globalNode)
-	case *ast.StructDef:
-		return self.defTypeDef(globalNode)
 	case *ast.Variable:
 		return self.defGlobalVariable(globalNode)
-	case *ast.Import:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 		return nil
 	default:
 		panic("unreachable")

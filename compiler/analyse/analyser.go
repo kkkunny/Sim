@@ -73,20 +73,20 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
 
 	// 类型
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
-		if st, ok := v.(*ast.StructDef); ok {
-			self.declTypeDef(st)
+		switch node := v.(type) {
+		case *ast.StructDef:
+			self.declTypeDef(node)
+		case *ast.TypeAlias:
+			self.declTypeAlias(node)
 		}
 		return true
 	})
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
-		if st, ok := v.(*ast.TypeAlias); ok {
-			self.declTypeAlias(st)
-		}
-		return true
-	})
-	iterator.Foreach(self.asts, func(v ast.Global) bool {
-		if st, ok := v.(*ast.TypeAlias); ok {
-			self.defTypeAlias(st)
+		switch node := v.(type) {
+		case *ast.StructDef:
+			meanNodes.PushBack(self.defTypeDef(node))
+		case *ast.TypeAlias:
+			self.defTypeAlias(node.Name.Source())
 		}
 		return true
 	})
