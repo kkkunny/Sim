@@ -15,7 +15,7 @@ func (self *CodeGenerator) defStructDef(node *mean.StructDef) {
 	fields := make([]llvm.Type, node.Fields.Length())
 	var i int
 	for iter := node.Fields.Values().Iterator(); iter.Next(); i++ {
-		fields[i] = self.codegenType(iter.Value())
+		fields[i] = self.codegenType(iter.Value().Second)
 	}
 	st.SetElems(false, fields...)
 }

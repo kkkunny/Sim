@@ -10,6 +10,7 @@ import (
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
@@ -103,7 +104,7 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 		Public: node.Public,
 		Pkg: self.pkgScope.path,
 		Name:   node.Name.Source(),
-		Fields: linkedhashmap.NewLinkedHashMap[string, mean.Type](),
+		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, mean.Type]](),
 		Methods: hashmap.NewHashMap[string, *mean.MethodDef](),
 	}
 	if !self.pkgScope.SetStruct(st) {
@@ -129,8 +130,8 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	}()
 
 	for _, f := range node.Fields {
-		fn := f.First.Source()
-		ft := self.analyseType(f.Second)
+		fn := f.B.Source()
+		ft := pair.NewPair(f.A, self.analyseType(f.C))
 		st.Fields.Set(fn, ft)
 	}
 	return st

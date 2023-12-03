@@ -2,7 +2,7 @@ package ast
 
 import (
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/pair"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
@@ -44,7 +44,7 @@ type StructDef struct {
 	Begin  reader.Position
 	Public bool
 	Name   token.Token
-	Fields []pair.Pair[token.Token, Type]
+	Fields []lo.Tuple3[bool, token.Token, Type]
 	End    reader.Position
 }
 

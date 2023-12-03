@@ -3,6 +3,7 @@ package mean
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/util"
@@ -18,7 +19,7 @@ type StructDef struct {
 	Public bool
 	Pkg string
 	Name   string
-	Fields linkedhashmap.LinkedHashMap[string, Type]
+	Fields linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]
 	Methods hashmap.HashMap[string, *MethodDef]
 }
 

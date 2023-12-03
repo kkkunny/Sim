@@ -380,7 +380,7 @@ func (self *StructType) AssignableTo(dst Type) bool {
 
 func (self *StructType) HasDefault()bool{
 	for iter := self.Fields.Values().Iterator(); iter.Next(); {
-		if !iter.Value().HasDefault(){
+		if !iter.Value().Second.HasDefault(){
 			return false
 		}
 	}
