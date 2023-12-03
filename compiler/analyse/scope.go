@@ -45,7 +45,7 @@ func (self *_PkgScope) IsBuildIn() bool {
 }
 
 func (self *_PkgScope) SetValue(name string, v mean.Ident) bool {
-	if self.values.ContainKey(name) {
+	if _, ok := self.getValue(name); ok {
 		return false
 	}
 	self.values.Set(name, v)
@@ -86,10 +86,10 @@ func (self *_PkgScope) GetValue(pkg, name string) (mean.Ident, bool) {
 }
 
 func (self *_PkgScope) SetStruct(st *mean.StructType) bool {
-	if self.structs.ContainKey(st.Name) {
+	if _, ok := self.getStruct(st.Name); ok {
 		return false
 	}
-	if self.typeAlias.ContainKey(st.Name) {
+	if _, ok := self.getTypeAlias(st.Name); ok {
 		return false
 	}
 	self.structs.Set(st.Name, st)
@@ -130,10 +130,10 @@ func (self *_PkgScope) GetStruct(pkg, name string) (*mean.StructType, bool) {
 }
 
 func (self *_PkgScope) DeclTypeAlias(name string, node *ast.TypeAlias) bool {
-	if self.structs.ContainKey(name) {
+	if _, ok := self.getStruct(name); ok {
 		return false
 	}
-	if self.typeAlias.ContainKey(name) {
+	if _, ok := self.getTypeAlias(name); ok {
 		return false
 	}
 	self.typeAlias.Set(name, pair.NewPair(node.Public, either.Left[*ast.TypeAlias, mean.Type](node)))
@@ -152,14 +152,14 @@ func (self *_PkgScope) getLocalTypeAlias(name string) (pair.Pair[bool, either.Ei
 }
 
 func (self *_PkgScope) getTypeAlias(name string) (pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]], bool) {
-	st, ok := self.getLocalTypeAlias(name)
+	data, ok := self.getLocalTypeAlias(name)
 	if ok {
-		return st, true
+		return data, true
 	}
 	for iter := self.links.Iterator(); iter.Next(); {
-		data, ok := iter.Value().getLocalTypeAlias(name)
+		data, ok = iter.Value().getLocalTypeAlias(name)
 		if ok && data.First {
-			return st, true
+			return data, true
 		}
 	}
 	var tmp pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]
