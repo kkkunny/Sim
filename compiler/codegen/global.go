@@ -24,6 +24,8 @@ func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 	switch globalNode := node.(type) {
 	case *mean.FuncDef:
 		self.declFuncDef(globalNode)
+	case *mean.MethodDef:
+		self.declMethodDef(globalNode)
 	case *mean.Variable:
 		self.declGlobalVariable(globalNode)
 	case *mean.StructDef:
@@ -40,6 +42,13 @@ func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
 	} else {
 		f.SetLinkage(llvm.ExternalLinkage)
 	}
+	self.values[node] = f
+}
+
+func (self *CodeGenerator) declMethodDef(node *mean.MethodDef) {
+	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
+	f := self.newFunction("", ft)
+	f.SetLinkage(llvm.InternalLinkage)
 	self.values[node] = f
 }
 
@@ -63,6 +72,8 @@ func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
 		} else {
 			self.defFuncDef(globalNode)
 		}
+	case *mean.MethodDef:
+		self.defMethodDef(globalNode)
 	case *mean.StructDef:
 		self.defStructDef(globalNode)
 	case *mean.Variable:
@@ -77,6 +88,14 @@ func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 	self.builder.MoveToAfter(f.NewBlock("entry"))
 	self.enterFunction(self.codegenFuncType(node.GetType().(*mean.FuncType)), f, node.Params)
 	block, _ := self.codegenBlock(node.Body.MustValue(), nil)
+	self.builder.CreateBr(block)
+}
+
+func (self *CodeGenerator) defMethodDef(node *mean.MethodDef) {
+	f := self.values[node].(llvm.Function)
+	self.builder.MoveToAfter(f.NewBlock("entry"))
+	self.enterFunction(self.codegenFuncType(node.GetType().(*mean.FuncType)), f, append([]*mean.Param{node.SelfParam}, node.Params...))
+	block, _ := self.codegenBlock(node.Body, nil)
 	self.builder.CreateBr(block)
 }
 

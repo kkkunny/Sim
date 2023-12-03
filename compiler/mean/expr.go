@@ -1204,3 +1204,29 @@ func (self *CheckNull) GetType() Type {
 func (self *CheckNull) Mutable() bool {
 	return self.Value.Mutable()
 }
+
+// Method 方法
+type Method struct {
+	Self Expr
+	Method *MethodDef
+}
+
+func (self *Method) stmt() {}
+
+func (self *Method) GetScope()*StructDef{
+	return self.Self.GetType().(*StructType)
+}
+
+func (self *Method) GetType() Type {
+	ft := self.Method.GetFuncType()
+	return &FuncType{
+		Ret: ft.Ret,
+		Params: ft.Params[1:],
+	}
+}
+
+func (self *Method) Mutable() bool {
+	return false
+}
+
+func (*Method) ident() {}

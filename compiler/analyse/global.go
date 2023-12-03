@@ -5,6 +5,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedhashmap"
@@ -102,6 +103,7 @@ func (self *Analyser) declTypeDef(node *ast.StructDef) {
 		Public: node.Public,
 		Name:   node.Name.Source(),
 		Fields: linkedhashmap.NewLinkedHashMap[string, mean.Type](),
+		Methods: hashmap.NewHashMap[string, *mean.MethodDef](),
 	}
 	if !self.pkgScope.SetStruct(st) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
@@ -116,6 +118,11 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	if !ok {
 		panic("unreachable")
 	}
+
+	self.selfType = st
+	defer func() {
+		self.selfType = nil
+	}()
 
 	for _, f := range node.Fields {
 		fn := f.First.Source()
@@ -132,6 +139,8 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
 		self.declFuncDef(globalNode)
+	case *ast.MethodDef:
+		self.declMethodDef(globalNode)
 	case *ast.Variable:
 		self.declGlobalVariable(globalNode)
 	case *ast.StructDef, *ast.Import:
@@ -191,6 +200,55 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	}
 }
 
+func (self *Analyser) declMethodDef(node *ast.MethodDef) {
+	for _, attrObj := range node.Attrs {
+		switch attrObj.(type) {
+		default:
+			panic("unreachable")
+		}
+	}
+
+	st, ok := self.pkgScope.GetStruct("", node.Scope.Source())
+	if !ok{
+		errors.ThrowUnknownIdentifierError(node.Scope.Position, node.Scope)
+	}
+
+	self.selfType = st
+	defer func() {
+		self.selfType = nil
+	}()
+
+	paramNameSet := hashset.NewHashSetWith[string]()
+	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
+		pn := paramNode.Name.Source()
+		if !paramNameSet.Add(pn) {
+			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+		}
+		pt := self.analyseType(paramNode.Type)
+		return &mean.Param{
+			Mut:  paramNode.Mutable,
+			Type: pt,
+			Name: pn,
+		}
+	})
+	f := &mean.MethodDef{
+		Public:    node.Public,
+		Scope:     st,
+		Name:      node.Name.Source(),
+		SelfParam: &mean.Param{
+			Mut:  node.ScopeMutable,
+			Type: st,
+			Name: token.SELFVALUE.String(),
+		},
+		Params:    params,
+		Ret:       self.analyseOptionType(node.Ret),
+	}
+	if st.Fields.ContainKey(f.Name) || st.Methods.ContainKey(f.Name) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+	st.Methods.Set(f.Name, f)
+}
+
 func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 	var externName string
 	for _, attrObj := range node.Attrs {
@@ -219,6 +277,8 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) mean.Global {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
 		return self.defFuncDef(globalNode)
+	case *ast.MethodDef:
+		return self.defMethodDef(globalNode)
 	case *ast.StructDef:
 		return self.defTypeDef(globalNode)
 	case *ast.Variable:
@@ -259,6 +319,38 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *mean.FuncDef {
 			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
 		}
 		body.Stmts.PushBack(&mean.Return{
+			Func:  f,
+			Value: util.None[mean.Expr](),
+		})
+	}
+	return f
+}
+
+func (self *Analyser) defMethodDef(node *ast.MethodDef) *mean.MethodDef {
+	st, ok := self.pkgScope.GetStruct("", node.Scope.Source())
+	if !ok{
+		errors.ThrowUnknownIdentifierError(node.Scope.Position, node.Scope)
+	}
+	f := st.Methods.Get(node.Name.Source())
+
+	self.localScope, self.selfValue, self.selfType = _NewFuncScope(self.pkgScope, f), f.SelfParam, st
+	defer func() {
+		self.localScope, self.selfValue, self.selfType = nil, nil, nil
+	}()
+
+	for _, p := range f.Params {
+		if !self.localScope.SetValue(p.Name, p) {
+			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+		}
+	}
+
+	var jump mean.BlockEof
+	f.Body, jump = self.analyseBlock(node.Body, nil)
+	if jump != mean.BlockEofReturn {
+		if !f.Ret.Equal(mean.Empty) {
+			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
+		}
+		f.Body.Stmts.PushBack(&mean.Return{
 			Func:  f,
 			Value: util.None[mean.Expr](),
 		})

@@ -102,3 +102,23 @@ func (self *TypeAlias) Position() reader.Position {
 }
 
 func (*TypeAlias) global() {}
+
+// MethodDef 方法定义
+type MethodDef struct {
+	Attrs    []Attr
+	Begin    reader.Position
+	Public   bool
+	ScopeMutable bool
+	Scope token.Token
+	Name     token.Token
+	Params   []Param
+	ParamEnd reader.Position
+	Ret      util.Option[Type]
+	Body     *Block
+}
+
+func (self *MethodDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*MethodDef) global() {}

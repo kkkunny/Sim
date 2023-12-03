@@ -56,6 +56,8 @@ func (self *Analyser) analyseExpr(expect mean.Type, node ast.Expr) mean.Expr {
 		return self.analyseNull(expect, exprNode)
 	case *ast.CheckNull:
 		return self.analyseCheckNull(expect, exprNode)
+	case *ast.SelfValue:
+		return self.analyseSelfValue(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -616,13 +618,24 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *mean.Struct {
 	}
 }
 
-func (self *Analyser) analyseField(node *ast.Field) *mean.Field {
+func (self *Analyser) analyseField(node *ast.Field) mean.Expr {
 	from := self.analyseExpr(nil, node.From)
 	fieldName := node.Index.Source()
 	st, ok := from.GetType().(*mean.StructType)
 	if !ok {
 		errors.ThrowNotStructError(node.From.Position(), from.GetType())
-	} else if !st.Fields.ContainKey(fieldName) {
+	}
+
+	// 方法
+	if method := st.Methods.Get(fieldName); method != nil{
+		return &mean.Method{
+			Self: from,
+			Method: method,
+		}
+	}
+
+	// 字段
+	if !st.Fields.ContainKey(fieldName) {
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
 	var i int
@@ -688,4 +701,11 @@ func (self *Analyser) analyseCheckNull(expect mean.Type, node *ast.CheckNull) *m
 		errors.ThrowExpectPointerError(node.Value.Position(), vt)
 	}
 	return &mean.CheckNull{Value: value}
+}
+
+func (self *Analyser) analyseSelfValue(node *ast.SelfValue)*mean.Param{
+	if self.selfValue == nil{
+		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
+	}
+	return self.selfValue
 }

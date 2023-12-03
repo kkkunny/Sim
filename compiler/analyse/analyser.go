@@ -19,6 +19,9 @@ type Analyser struct {
 	pkgs       *hashmap.HashMap[string, *_PkgScope]
 	pkgScope   *_PkgScope
 	localScope _LocalScope
+
+	selfValue *mean.Param
+	selfType *mean.StructDef
 }
 
 func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {

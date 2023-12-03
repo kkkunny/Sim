@@ -31,3 +31,39 @@ func main()u8{
 }
 `)
 }
+
+func TestMethod(t *testing.T) {
+	assertRetEqZero(t, `
+struct T{
+    data: u8
+}
+
+func (mut T) get_data()u8{
+    return self.data
+}
+
+func main()u8{
+    let v: T = T{data: 1}
+    return v.get_data() - 1
+}
+`)
+}
+
+func TestSelf(t *testing.T) {
+	assertRetEqZero(t, `
+struct T{
+    data: u8,
+    ptr: *Self
+}
+
+func (mut T) get_data()u8{
+    let self2: Self = self
+    return self2.data
+}
+
+func main()u8{
+    let v: T = T{data: 1}
+    return v.get_data() - 1
+}
+`)
+}
