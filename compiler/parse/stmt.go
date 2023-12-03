@@ -14,7 +14,7 @@ func (self *Parser) parseStmt() ast.Stmt {
 	case token.RETURN:
 		return self.parseReturn()
 	case token.LET:
-		return self.parseVariable(nil, nil)
+		return self.parseVariable(false, nil, nil)
 	case token.LBR:
 		return self.parseBlock()
 	case token.IF:

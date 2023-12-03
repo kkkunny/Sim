@@ -9,6 +9,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/reader"
 
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
@@ -608,7 +609,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *mean.Struct {
 		if fv, ok := existedFields[fn]; ok {
 			fields[i] = fv
 		} else {
-			fields[i] = &mean.Zero{Type: ft}
+			fields[i] = self.getTypeDefaultValue(node.Type.Position(), ft)
 		}
 	}
 
@@ -708,4 +709,8 @@ func (self *Analyser) analyseSelfValue(node *ast.SelfValue)*mean.Param{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
 	return self.selfValue
+}
+
+func (self *Analyser) getTypeDefaultValue(pos reader.Position, t mean.Type)mean.Expr{
+	return &mean.Zero{Type: t}
 }

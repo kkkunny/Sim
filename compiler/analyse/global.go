@@ -291,7 +291,7 @@ func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 	v := &mean.Variable{
 		Public:     node.Public,
 		Mut:        node.Mutable,
-		Type:       self.analyseType(node.Type),
+		Type:       self.analyseType(node.Type.MustValue()),
 		ExternName: externName,
 		Name:       node.Name.Source(),
 	}
@@ -390,6 +390,10 @@ func (self *Analyser) defGlobalVariable(node *ast.Variable) *mean.Variable {
 	}
 	v := value.(*mean.Variable)
 
-	v.Value = self.expectExpr(v.Type, node.Value)
+	if valueNode, ok := node.Value.Value(); ok{
+		v.Value = self.expectExpr(v.Type, valueNode)
+	}else{
+		v.Value = self.getTypeDefaultValue(node.Type.MustValue().Position(), v.Type)
+	}
 	return v
 }
