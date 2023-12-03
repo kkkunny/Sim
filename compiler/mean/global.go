@@ -16,6 +16,7 @@ type Global interface {
 // StructDef 结构体定义
 type StructDef struct {
 	Public bool
+	Pkg string
 	Name   string
 	Fields linkedhashmap.LinkedHashMap[string, Type]
 	Methods hashmap.HashMap[string, *MethodDef]
@@ -23,30 +24,6 @@ type StructDef struct {
 
 func (self StructDef) GetPublic() bool {
 	return self.Public
-}
-
-func (self StructDef) String() string {
-	return self.Name
-}
-
-func (self *StructDef) Equal(dst Type) bool {
-	t, ok := dst.(*StructDef)
-	if !ok {
-		return false
-	}
-	return self == t
-}
-
-func (self *StructDef) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
-			return true
-		}
-	}
-	return false
 }
 
 // Variable 变量定义

@@ -101,6 +101,7 @@ func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[mean.Global] 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	st := &mean.StructDef{
 		Public: node.Public,
+		Pkg: self.pkgScope.path,
 		Name:   node.Name.Source(),
 		Fields: linkedhashmap.NewLinkedHashMap[string, mean.Type](),
 		Methods: hashmap.NewHashMap[string, *mean.MethodDef](),

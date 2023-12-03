@@ -712,5 +712,8 @@ func (self *Analyser) analyseSelfValue(node *ast.SelfValue)*mean.Param{
 }
 
 func (self *Analyser) getTypeDefaultValue(pos reader.Position, t mean.Type)mean.Expr{
+	if !t.HasDefault(){
+		errors.ThrowCanNotGetDefault(pos, t)
+	}
 	return &mean.Zero{Type: t}
 }

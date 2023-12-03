@@ -2,11 +2,14 @@ package mean
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/samber/lo"
+
+	"github.com/kkkunny/Sim/config"
 )
 
 var (
@@ -39,12 +42,13 @@ type Type interface {
 	fmt.Stringer
 	Equal(dst Type) bool
 	AssignableTo(dst Type) bool
+	HasDefault()bool
 }
 
 // EmptyType 空类型
 type EmptyType struct{}
 
-func (_ EmptyType) String() string {
+func (*EmptyType) String() string {
 	return "void"
 }
 
@@ -54,6 +58,10 @@ func (self *EmptyType) Equal(dst Type) bool {
 }
 
 func (self *EmptyType) AssignableTo(dst Type) bool {
+	return false
+}
+
+func (*EmptyType) HasDefault()bool{
 	return false
 }
 
@@ -74,7 +82,7 @@ type SintType struct {
 	Bits uint
 }
 
-func (self SintType) String() string {
+func (self *SintType) String() string {
 	return fmt.Sprintf("i%d", self.Bits)
 }
 
@@ -106,12 +114,16 @@ func (self *SintType) GetBits() uint {
 	return self.Bits
 }
 
+func (*SintType) HasDefault()bool{
+	return true
+}
+
 // UintType 无符号整型
 type UintType struct {
 	Bits uint
 }
 
-func (self UintType) String() string {
+func (self *UintType) String() string {
 	return fmt.Sprintf("u%d", self.Bits)
 }
 
@@ -143,12 +155,16 @@ func (self *UintType) GetBits() uint {
 	return self.Bits
 }
 
+func (*UintType) HasDefault()bool{
+	return true
+}
+
 // FloatType 浮点型
 type FloatType struct {
 	Bits uint
 }
 
-func (self FloatType) String() string {
+func (self *FloatType) String() string {
 	return fmt.Sprintf("f%d", self.Bits)
 }
 
@@ -176,13 +192,17 @@ func (self *FloatType) GetBits() uint {
 	return self.Bits
 }
 
+func (*FloatType) HasDefault()bool{
+	return true
+}
+
 // FuncType 函数类型
 type FuncType struct {
 	Ret    Type
 	Params []Type
 }
 
-func (self FuncType) String() string {
+func (self *FuncType) String() string {
 	params := lo.Map(self.Params, func(item Type, _ int) string {
 		return item.String()
 	})
@@ -215,10 +235,14 @@ func (self *FuncType) AssignableTo(dst Type) bool {
 	return false
 }
 
+func (*FuncType) HasDefault()bool{
+	return true
+}
+
 // BoolType 布尔型
 type BoolType struct{}
 
-func (_ BoolType) String() string {
+func (*BoolType) String() string {
 	return "bool"
 }
 
@@ -239,13 +263,17 @@ func (self *BoolType) AssignableTo(dst Type) bool {
 	return false
 }
 
+func (*BoolType) HasDefault()bool{
+	return true
+}
+
 // ArrayType 数组型
 type ArrayType struct {
 	Size uint
 	Elem Type
 }
 
-func (self ArrayType) String() string {
+func (self *ArrayType) String() string {
 	return fmt.Sprintf("[%d]%s", self.Size, self.Elem)
 }
 
@@ -269,12 +297,16 @@ func (self *ArrayType) AssignableTo(dst Type) bool {
 	return false
 }
 
+func (self *ArrayType) HasDefault()bool{
+	return self.Elem.HasDefault()
+}
+
 // TupleType 元组型
 type TupleType struct {
 	Elems []Type
 }
 
-func (self TupleType) String() string {
+func (self *TupleType) String() string {
 	elems := lo.Map(self.Elems, func(item Type, _ int) string {
 		return item.String()
 	})
@@ -306,12 +338,59 @@ func (self *TupleType) AssignableTo(dst Type) bool {
 	return false
 }
 
+func (self *TupleType) HasDefault()bool{
+	for _, e := range self.Elems{
+		if !e.HasDefault(){
+			return false
+		}
+	}
+	return true
+}
+
 type StructType = StructDef
+
+func (self *StructType) String() string {
+	rel, err := filepath.Rel(self.Pkg, config.ROOT)
+	if err != nil{
+		panic(err)
+	}
+	splits := strings.Split(rel, string([]rune{filepath.Separator}))
+	return strings.Join(append(splits, self.Name), ".")
+}
+
+func (self *StructType) Equal(dst Type) bool {
+	t, ok := dst.(*StructDef)
+	if !ok {
+		return false
+	}
+	return self == t
+}
+
+func (self *StructType) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Elems.ContainKey(self.String()) {
+			return true
+		}
+	}
+	return false
+}
+
+func (self *StructType) HasDefault()bool{
+	for iter := self.Fields.Values().Iterator(); iter.Next(); {
+		if !iter.Value().HasDefault(){
+			return false
+		}
+	}
+	return true
+}
 
 // StringType 字符串型
 type StringType struct{}
 
-func (_ StringType) String() string {
+func (*StringType) String() string {
 	return "str"
 }
 
@@ -332,12 +411,16 @@ func (self *StringType) AssignableTo(dst Type) bool {
 	return false
 }
 
+func (self *StringType) HasDefault()bool{
+	return true
+}
+
 // UnionType 联合类型
 type UnionType struct {
 	Elems linkedhashmap.LinkedHashMap[string, Type]
 }
 
-func (self UnionType) String() string {
+func (self *UnionType) String() string {
 	return fmt.Sprintf("<%s>", strings.Join(self.Elems.Keys().ToSlice(), ", "))
 }
 
@@ -367,7 +450,7 @@ func (self *UnionType) AssignableTo(dst Type) bool {
 }
 
 // GetElemIndex 获取子类型下标
-func (self UnionType) GetElemIndex(elem Type) int {
+func (self *UnionType) GetElemIndex(elem Type) int {
 	if !self.Elems.ContainKey(elem.String()) {
 		return -1
 	}
@@ -381,12 +464,21 @@ func (self UnionType) GetElemIndex(elem Type) int {
 	return index
 }
 
+func (self *UnionType) HasDefault()bool{
+	for iter := self.Elems.Values().Iterator(); iter.Next(); {
+		if !iter.Value().HasDefault(){
+			return false
+		}
+	}
+	return true
+}
+
 // PtrType 指针类型
 type PtrType struct {
 	Elem Type
 }
 
-func (self PtrType) String() string {
+func (self *PtrType) String() string {
 	return "*" + self.Elem.String() + "?"
 }
 
@@ -410,12 +502,16 @@ func (self *PtrType) AssignableTo(dst Type) bool {
 	return false
 }
 
+func (self *PtrType) HasDefault()bool{
+	return true
+}
+
 // RefType 引用类型
 type RefType struct {
 	Elem Type
 }
 
-func (self RefType) String() string {
+func (self *RefType) String() string {
 	return "*" + self.Elem.String()
 }
 
@@ -444,4 +540,8 @@ func (self *RefType) AssignableTo(dst Type) bool {
 
 func (self *RefType) ToPtrType() *PtrType {
 	return &PtrType{Elem: self.Elem}
+}
+
+func (self *RefType) HasDefault()bool{
+	return true
 }
