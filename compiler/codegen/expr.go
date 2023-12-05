@@ -268,7 +268,7 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary, load bool) llvm.Value {
 
 func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) llvm.Value {
 	switch identNode := node.(type) {
-	case *mean.FuncDef:
+	case *mean.FuncDef,*mean.GenericFuncInstance:
 		return self.values[identNode].(llvm.Function)
 	case *mean.Param, *mean.Variable:
 		p := self.values[identNode]
@@ -284,8 +284,8 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) llvm.Value {
 
 func (self *CodeGenerator) codegenCall(node *mean.Call, load bool) llvm.Value {
 	if method, ok := node.Func.(*mean.Method); ok{
-		ft := self.codegenFuncType(method.Method.GetFuncType())
-		f := self.values[method.Method]
+		ft := self.codegenFuncType(method.Define.GetFuncType())
+		f := self.values[method.Define]
 		selfParam := self.codegenExpr(method.Self, true)
 		args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
 			return self.codegenExpr(item, true)

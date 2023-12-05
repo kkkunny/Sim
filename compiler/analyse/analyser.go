@@ -27,12 +27,13 @@ type Analyser struct {
 	selfType mean.Type
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
+	genericFuncScope hashmap.HashMap[*mean.GenericFuncDef, *_FuncScope]
 }
 
 func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
 	if target != nil {
-		mean.Isize.Bits = target.PointerSize()
-		mean.Usize.Bits = target.PointerSize()
+		mean.Isize.Bits = target.PointerSize() * 8
+		mean.Usize.Bits = target.PointerSize() * 8
 	}
 	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
 	return &Analyser{
@@ -40,6 +41,7 @@ func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Targe
 		pkgs:     &pkgs,
 		pkgScope: _NewPkgScope(path),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
+		genericFuncScope: hashmap.NewHashMap[*mean.GenericFuncDef, *_FuncScope](),
 	}
 }
 
@@ -50,6 +52,7 @@ func newSon(parent *Analyser, path string, asts linkedlist.LinkedList[ast.Global
 		pkgs:     parent.pkgs,
 		pkgScope: _NewPkgScope(path),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
+		genericFuncScope: hashmap.NewHashMap[*mean.GenericFuncDef, *_FuncScope](),
 	}
 }
 
@@ -165,8 +168,8 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[mean.Type], t mean.
 			}
 		}
 	case *mean.UnionType:
-		for iter:=typ.Elems.Iterator(); iter.Next(); {
-			if self.checkTypeCircle(trace, iter.Value().Second){
+		for _, e := range typ.Elems {
+			if self.checkTypeCircle(trace, e){
 				return true
 			}
 		}

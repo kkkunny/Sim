@@ -7,6 +7,7 @@ func get<T>(v: T)T{
 }
 
 func main()u8{
-    let v: T = T{data: 1}
-    return v.get_data() - 1
+    let i: u8 = get::<u8>(0)
+    let j: usize = get::<usize>(0)
+    return 0
 }

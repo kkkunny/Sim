@@ -23,10 +23,13 @@ type _PkgScope struct {
 	path      string
 	externs   hashmap.HashMap[string, *_PkgScope]
 	links     linkedhashset.LinkedHashSet[*_PkgScope]
+
 	values    hashmap.HashMap[string, mean.Ident]
 	structs   hashmap.HashMap[string, *mean.StructType]
 	typeAlias hashmap.HashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]]
 	traits hashmap.HashMap[string, *ast.Trait]
+
+	genericFunctions hashmap.HashMap[string, *mean.GenericFuncDef]
 }
 
 func _NewPkgScope(path string) *_PkgScope {
@@ -38,6 +41,7 @@ func _NewPkgScope(path string) *_PkgScope {
 		structs:   hashmap.NewHashMap[string, *mean.StructType](),
 		typeAlias: hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]](),
 		traits: hashmap.NewHashMap[string, *ast.Trait](),
+		genericFunctions: hashmap.NewHashMap[string, *mean.GenericFuncDef](),
 	}
 }
 
@@ -48,6 +52,9 @@ func (self *_PkgScope) IsBuildIn() bool {
 
 func (self *_PkgScope) SetValue(name string, v mean.Ident) bool {
 	if _, ok := self.getValue(name); ok {
+		return false
+	}
+	if _, ok := self.getGenericFunction(name); ok {
 		return false
 	}
 	self.values.Set(name, v)
@@ -80,7 +87,7 @@ func (self *_PkgScope) GetValue(pkg, name string) (mean.Ident, bool) {
 	if pkgScope == nil {
 		return nil, false
 	}
-	v, ok := pkgScope.GetValue("", name)
+	v, ok := pkgScope.getLocalValue(name)
 	if !ok || !v.(mean.Global).GetPublic() {
 		return nil, false
 	}
@@ -124,7 +131,7 @@ func (self *_PkgScope) GetStruct(pkg, name string) (*mean.StructType, bool) {
 	if pkgScope == nil {
 		return nil, false
 	}
-	t, ok := pkgScope.GetStruct("", name)
+	t, ok := pkgScope.getLocalStruct(name)
 	if !ok || !t.GetPublic() {
 		return nil, false
 	}
@@ -166,7 +173,7 @@ func (self *_PkgScope) GetTrait(pkg, name string) (*ast.Trait, bool) {
 	if pkgScope == nil {
 		return nil, false
 	}
-	trait, ok := pkgScope.GetTrait("", name)
+	trait, ok := pkgScope.getLocalTrait(name)
 	if !ok || !trait.Public {
 		return nil, false
 	}
@@ -220,8 +227,52 @@ func (self *_PkgScope) GetTypeAlias(pkg, name string) (either.Either[*ast.TypeAl
 		var tmp either.Either[*ast.TypeAlias, mean.Type]
 		return tmp, false
 	}
-	data, ok := pkgScope.getTypeAlias(name)
+	data, ok := pkgScope.getLocalTypeAlias(name)
 	return data.Second, ok && data.First
+}
+
+func (self *_PkgScope) SetGenericFunction(name string, f *mean.GenericFuncDef) bool {
+	if _, ok := self.getValue(name); ok {
+		return false
+	}
+	if _, ok := self.getGenericFunction(name); ok {
+		return false
+	}
+	self.genericFunctions.Set(name, f)
+	return true
+}
+
+func (self *_PkgScope) getLocalGenericFunction(name string) (*mean.GenericFuncDef, bool) {
+	return self.genericFunctions.Get(name), self.genericFunctions.ContainKey(name)
+}
+
+func (self *_PkgScope) getGenericFunction(name string) (*mean.GenericFuncDef, bool) {
+	f, ok := self.getLocalGenericFunction(name)
+	if ok {
+		return f, true
+	}
+	for iter := self.links.Iterator(); iter.Next(); {
+		f, ok := iter.Value().getLocalGenericFunction(name)
+		if ok && f.GetPublic() {
+			return f, true
+		}
+	}
+	return nil, false
+}
+
+func (self *_PkgScope) GetGenericFunction(pkg, name string) (*mean.GenericFuncDef, bool) {
+	if pkg == "" {
+		return self.getGenericFunction(name)
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		return nil, false
+	}
+	f, ok := pkgScope.getLocalGenericFunction(name)
+	if !ok || !f.GetPublic() {
+		return nil, false
+	}
+	return f, true
 }
 
 // 本地作用域
@@ -230,7 +281,7 @@ type _LocalScope interface {
 	GetParent() _Scope
 	GetFuncScope() *_FuncScope
 	GetPkgScope() *_PkgScope
-	GetFunc() mean.Function
+	GetFunc() mean.GlobalFunc
 	SetLoop(loop mean.Loop)
 	GetLoop() mean.Loop
 }
@@ -239,10 +290,10 @@ type _LocalScope interface {
 type _FuncScope struct {
 	_BlockScope
 	parent *_PkgScope
-	def    mean.Function
+	def    mean.GlobalFunc
 }
 
-func _NewFuncScope(p *_PkgScope, def mean.Function) *_FuncScope {
+func _NewFuncScope(p *_PkgScope, def mean.GlobalFunc) *_FuncScope {
 	self := &_FuncScope{
 		parent: p,
 		def:    def,
@@ -277,7 +328,7 @@ func (self *_FuncScope) GetPkgScope() *_PkgScope {
 	return self.parent
 }
 
-func (self *_FuncScope) GetFunc() mean.Function {
+func (self *_FuncScope) GetFunc() mean.GlobalFunc {
 	return self.def
 }
 
@@ -322,7 +373,7 @@ func (self *_BlockScope) GetPkgScope() *_PkgScope {
 	return self.parent.GetPkgScope()
 }
 
-func (self *_BlockScope) GetFunc() mean.Function {
+func (self *_BlockScope) GetFunc() mean.GlobalFunc {
 	return self.parent.GetFunc()
 }
 
