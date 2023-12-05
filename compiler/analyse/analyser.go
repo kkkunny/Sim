@@ -160,7 +160,7 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[mean.Type], t mean.
 		}
 	case *mean.StructType:
 		for iter:=typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeCircle(trace, iter.Value().Second){
+			if self.checkTypeCircle(trace, iter.Value().Second.Second){
 				return true
 			}
 		}

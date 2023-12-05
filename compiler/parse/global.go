@@ -4,6 +4,7 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/reader"
@@ -27,7 +28,7 @@ func (self *Parser) parseGlobal() ast.Global {
 	case token.STRUCT:
 		return self.parseStructDef(attrs, pub)
 	case token.LET:
-		return self.parseVariable(attrs, pub)
+		return self.parseVariable(true, attrs, pub)
 	case token.IMPORT:
 		return self.parseImport(attrs)
 	case token.TRAIT:
@@ -134,11 +135,16 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.Stru
 	}
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, ast.Type] {
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
+		pub := self.skipNextIs(token.PUBLIC)
 		fn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		ft := self.parseType()
-		return pair.NewPair(fn, ft)
+		return lo.Tuple3[bool, token.Token, ast.Type]{
+			A: pub,
+			B: fn,
+			C: ft,
+		}
 	})
 	end := self.expectNextIs(token.RBR).Position
 	return &ast.StructDef{
@@ -150,7 +156,7 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.Stru
 	}
 }
 
-func (self *Parser) parseVariable(attrs []ast.Attr, pub *token.Token) *ast.Variable {
+func (self *Parser) parseVariable(global bool, attrs []ast.Attr, pub *token.Token) *ast.Variable {
 	expectAttrIn(attrs, new(ast.Extern))
 
 	begin := self.expectNextIs(token.LET).Position
@@ -159,10 +165,16 @@ func (self *Parser) parseVariable(attrs []ast.Attr, pub *token.Token) *ast.Varia
 	}
 	mut := self.skipNextIs(token.MUT)
 	name := self.expectNextIs(token.IDENT)
-	self.expectNextIs(token.COL)
-	typ := self.parseType()
-	self.expectNextIs(token.ASS)
-	value := self.mustExpr(self.parseOptionExpr(true))
+	typ := util.None[ast.Type]()
+	if self.nextIs(token.COL) || global{
+		self.expectNextIs(token.COL)
+		typ = util.Some(self.parseType())
+	}
+	value := util.None[ast.Expr]()
+	if self.nextIs(token.ASS) || typ.IsNone(){
+		self.expectNextIs(token.ASS)
+		value = util.Some(self.mustExpr(self.parseOptionExpr(true)))
+	}
 	return &ast.Variable{
 		Attrs:   attrs,
 		Public:  mut,

@@ -10,6 +10,7 @@ import (
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
@@ -101,8 +102,9 @@ func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[mean.Global] 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	st := &mean.StructDef{
 		Public: node.Public,
+		Pkg: self.pkgScope.path,
 		Name:   node.Name.Source(),
-		Fields: linkedhashmap.NewLinkedHashMap[string, mean.Type](),
+		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, mean.Type]](),
 		Methods: hashmap.NewHashMap[string, *mean.MethodDef](),
 	}
 	if !self.pkgScope.SetStruct(st) {
@@ -128,8 +130,8 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	}()
 
 	for _, f := range node.Fields {
-		fn := f.First.Source()
-		ft := self.analyseType(f.Second)
+		fn := f.B.Source()
+		ft := pair.NewPair(f.A, self.analyseType(f.C))
 		st.Fields.Set(fn, ft)
 	}
 	return st
@@ -319,7 +321,7 @@ func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 	v := &mean.Variable{
 		Public:     node.Public,
 		Mut:        node.Mutable,
-		Type:       self.analyseType(node.Type),
+		Type:       self.analyseType(node.Type.MustValue()),
 		ExternName: externName,
 		Name:       node.Name.Source(),
 	}
@@ -418,6 +420,10 @@ func (self *Analyser) defGlobalVariable(node *ast.Variable) *mean.Variable {
 	}
 	v := value.(*mean.Variable)
 
-	v.Value = self.expectExpr(v.Type, node.Value)
+	if valueNode, ok := node.Value.Value(); ok{
+		v.Value = self.expectExpr(v.Type, valueNode)
+	}else{
+		v.Value = self.getTypeDefaultValue(node.Type.MustValue().Position(), v.Type)
+	}
 	return v
 }

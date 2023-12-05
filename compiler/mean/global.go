@@ -3,6 +3,7 @@ package mean
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/util"
@@ -16,47 +17,14 @@ type Global interface {
 // StructDef 结构体定义
 type StructDef struct {
 	Public bool
+	Pkg string
 	Name   string
-	Fields linkedhashmap.LinkedHashMap[string, Type]
+	Fields linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]
 	Methods hashmap.HashMap[string, *MethodDef]
 }
 
 func (self StructDef) GetPublic() bool {
 	return self.Public
-}
-
-func (self StructDef) String() string {
-	return self.Name
-}
-
-func (self *StructDef) Equal(dst Type) bool {
-	t, ok := dst.(*StructDef)
-	if !ok {
-		return false
-	}
-	return self == t
-}
-
-func (self *StructDef) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *StructDef) HasImplement(trait Trait)bool{
-	for iter:=trait.Methods.Iterator(); iter.Next(); {
-		name, target := iter.Value().First, iter.Value().Second
-		if method := self.Methods.Get(name); method == nil || !method.GetMethodType().Equal(target){
-			return false
-		}
-	}
-	return true
 }
 
 // Variable 变量定义

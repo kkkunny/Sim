@@ -23,6 +23,11 @@ func ThrowError(pos reader.Position, format string, args ...any) {
 	panic("compiler error")
 }
 
+// ThrowCanNotGetDefault 不能获得默认值
+func ThrowCanNotGetDefault(pos reader.Position, t mean.Type) {
+	ThrowError(pos, "can not get the default value for type `%s`", t)
+}
+
 // ThrowExpectAttribute 期待属性
 func ThrowExpectAttribute(pos reader.Position, attr ast.Attr) {
 	ThrowError(pos, "expect attribute `%s`", attr.AttrName())

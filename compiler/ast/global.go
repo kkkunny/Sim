@@ -3,6 +3,7 @@ package ast
 import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
@@ -44,7 +45,7 @@ type StructDef struct {
 	Begin  reader.Position
 	Public bool
 	Name   token.Token
-	Fields []pair.Pair[token.Token, Type]
+	Fields []lo.Tuple3[bool, token.Token, Type]
 	End    reader.Position
 }
 
@@ -61,12 +62,16 @@ type Variable struct {
 	Public  bool
 	Mutable bool
 	Name    token.Token
-	Type    Type
-	Value   Expr
+	Type    util.Option[Type]
+	Value   util.Option[Expr]
 }
 
 func (self *Variable) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Value.Position())
+	if v, ok := self.Value.Value(); ok{
+		return reader.MixPosition(self.Begin, v.Position())
+	}else{
+		return reader.MixPosition(self.Begin, self.Type.MustValue().Position())
+	}
 }
 
 func (*Variable) stmt() {}
