@@ -646,7 +646,8 @@ func (self *Analyser) analyseField(node *ast.Field) mean.Expr {
 	// 方法
 	if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.path){
 		return &mean.Method{
-			Self:   from,
+			Scope: st,
+			Self:   util.Some(from),
 			Define: method,
 		}
 	}

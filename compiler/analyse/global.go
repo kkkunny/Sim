@@ -146,14 +146,21 @@ func (self *Analyser) declTrait(node *ast.Trait) {
 		}
 		methodNameSet.Add(name)
 	}
-	if !self.pkgScope.SetTrait(node) {
+	if !self.pkgScope.SetTrait(node.Public, node) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+
+	if self.pkgScope.IsBuildIn() {
+		switch node.Name.Source(){
+		case "Default":
+			self.getConfig().DefaultTrait = node
+		}
 	}
 }
 
-func (self *Analyser) defTrait(t mean.Type, node *ast.Trait) *mean.Trait {
+func (self *Analyser) defTrait(selfType mean.Type, node *ast.Trait) *mean.Trait {
 	prevSelfType := self.selfType
-	self.selfType = t
+	self.selfType = selfType
 	defer func() {
 		self.selfType = prevSelfType
 	}()
@@ -342,11 +349,30 @@ func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
 
 	genericParams := linkedhashmap.NewLinkedHashMap[string, *mean.GenericParam]()
 	for _, param := range node.GenericParams{
-		pn := param.Source()
+		pn := param.First.Source()
 		if genericParams.ContainKey(pn){
-			errors.ThrowIdentifierDuplicationError(param.Position, param)
+			errors.ThrowIdentifierDuplicationError(param.First.Position, param.First)
 		}
-		genericParams.Set(pn, &mean.GenericParam{Name: pn})
+
+		paramConstraint := util.None[*ast.Trait]()
+		if constraintNode, ok := param.Second.Value(); ok{
+			var pkgName string
+			if pkgToken, ok := constraintNode.Pkg.Value(); ok {
+				pkgName = pkgToken.Source()
+				if !self.pkgScope.externs.ContainKey(pkgName) {
+					errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+				}
+			}
+			traitNode, ok := self.pkgScope.GetTrait(pkgName, constraintNode.Name.Source())
+			if !ok{
+				errors.ThrowUnknownIdentifierError(constraintNode.Name.Position, constraintNode.Name)
+			}
+			paramConstraint = util.Some(traitNode)
+		}
+		genericParams.Set(pn, &mean.GenericParam{
+			Name: pn,
+			Constraint: paramConstraint,
+		})
 	}
 
 	f := &mean.GenericFuncDef{

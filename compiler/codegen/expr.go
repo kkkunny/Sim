@@ -6,6 +6,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
@@ -38,7 +39,7 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 	case *mean.Extract:
 		return self.codegenExtract(exprNode, load)
 	case *mean.Zero:
-		return self.codegenZero(exprNode)
+		return self.codegenZero(exprNode.GetType())
 	case *mean.Struct:
 		return self.codegenStruct(exprNode, load)
 	case *mean.Field:
@@ -286,7 +287,12 @@ func (self *CodeGenerator) codegenCall(node *mean.Call, load bool) llvm.Value {
 	if method, ok := node.Func.(*mean.Method); ok{
 		ft := self.codegenFuncType(method.Define.GetFuncType())
 		f := self.values[method.Define]
-		selfParam := self.codegenExpr(method.Self, true)
+		var selfParam llvm.Value
+		if selfNode, ok := method.Self.Value(); ok{
+			selfParam = self.codegenExpr(selfNode, true)
+		}else{
+			selfParam = self.ctx.ConstAggregateZero(self.codegenStructType(method.Scope))
+		}
 		args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
 			return self.codegenExpr(item, true)
 		})
@@ -310,19 +316,19 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 	case *mean.Num2Num:
 		switch {
 		case stlbasic.Is[*mean.SintType](ft) && stlbasic.Is[mean.IntType](covertNode.To):
-			ift, itt := ft.(*mean.SintType), covertNode.To.(mean.IntType)
-			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
+			fs, ts := from.Type().(llvm.IntegerType).Bits(), to.(llvm.IntegerType).Bits()
+			if fs < ts {
 				return self.builder.CreateSExt("", from, to.(llvm.IntegerType))
-			} else if ifb > itb {
+			} else if fs > ts {
 				return self.builder.CreateTrunc("", from, to.(llvm.IntegerType))
 			} else {
 				return from
 			}
 		case stlbasic.Is[*mean.UintType](ft) && stlbasic.Is[mean.IntType](covertNode.To):
-			ift, itt := ft.(*mean.UintType), covertNode.To.(mean.IntType)
-			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
+			fs, ts := from.Type().(llvm.IntegerType).Bits(), to.(llvm.IntegerType).Bits()
+			if fs < ts {
 				return self.builder.CreateZExt("", from, to.(llvm.IntegerType))
-			} else if ifb > itb {
+			} else if fs > ts {
 				return self.builder.CreateTrunc("", from, to.(llvm.IntegerType))
 			} else {
 				return from
@@ -405,27 +411,36 @@ func (self *CodeGenerator) codegenExtract(node *mean.Extract, load bool) llvm.Va
 	return self.buildStructIndex(t, from, node.Index, load)
 }
 
-func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Constant {
-	t := self.codegenType(node.GetType())
-	switch node.GetType().(type) {
+// TODO: 复杂类型default值
+func (self *CodeGenerator) codegenZero(tNode mean.Type) llvm.Value {
+	switch ttNode := tNode.(type) {
 	case mean.IntType:
-		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
+		return self.ctx.ConstInteger(self.codegenIntType(ttNode), 0)
 	case *mean.FloatType:
-		return self.ctx.ConstFloat(t.(llvm.FloatType), 0)
+		return self.ctx.ConstFloat(self.codegenFloatType(ttNode), 0)
 	case *mean.BoolType:
-		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
+		return self.ctx.ConstInteger(self.codegenBoolType(), 0)
 	case *mean.ArrayType:
-		return self.ctx.ConstAggregateZero(t.(llvm.ArrayType))
+		return self.ctx.ConstAggregateZero(self.codegenArrayType(ttNode))
 	case *mean.StructType:
-		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+		if method:=ttNode.GetImplMethod("default", mean.DefaultTrait(tNode).Methods.Get("default")); method != nil{
+			return self.codegenCall(&mean.Call{Func: &mean.Method{
+				Scope: ttNode,
+				Self: util.None[mean.Expr](),
+				Define: method,
+			}}, true)
+		}
+		return self.ctx.ConstAggregateZero(self.codegenStructType(ttNode))
 	case *mean.StringType:
-		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+		return self.ctx.ConstAggregateZero(self.codegenStringType())
 	case *mean.UnionType:
-		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+		return self.ctx.ConstAggregateZero(self.codegenUnionType(ttNode))
 	case *mean.PtrType:
-		return self.ctx.ConstNull(t)
+		return self.ctx.ConstNull(self.codegenPtrType(ttNode))
 	case *mean.RefType:
-		return self.ctx.ConstNull(t)
+		return self.ctx.ConstNull(self.codegenRefType(ttNode))
+	case *mean.GenericParam:
+		return self.codegenZero(self.genericParams.Get(ttNode))
 	default:
 		panic("unreachable")
 	}

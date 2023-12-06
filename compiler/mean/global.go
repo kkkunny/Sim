@@ -25,8 +25,28 @@ type StructDef struct {
 	Methods hashmap.HashMap[string, *MethodDef]
 }
 
-func (self StructDef) GetPublic() bool {
+func (self *StructDef) GetPublic() bool {
 	return self.Public
+}
+
+func (self *StructDef) Impl(t *Trait)bool{
+	for targetIter:=t.Methods.Iterator(); targetIter.Next(); {
+		target := targetIter.Value()
+		if self.GetImplMethod(target.First, target.Second) == nil{
+			return false
+		}
+	}
+	return true
+}
+
+func (self *StructDef) GetImplMethod(name string, ft *FuncType)*MethodDef{
+	for iter:=self.Methods.Values().Iterator(); iter.Next(); {
+		fun := iter.Value()
+		if fun.Name == name && fun.GetMethodType().Equal(ft){
+			return fun
+		}
+	}
+	return nil
 }
 
 // Variable 变量定义
@@ -39,7 +59,7 @@ type Variable struct {
 	Value      Expr
 }
 
-func (self Variable) GetPublic() bool {
+func (self *Variable) GetPublic() bool {
 	return self.Public
 }
 
@@ -70,7 +90,7 @@ type FuncDef struct {
 	Body       util.Option[*Block]
 }
 
-func (self FuncDef) GetPublic() bool {
+func (self *FuncDef) GetPublic() bool {
 	return self.Public
 }
 
@@ -107,7 +127,7 @@ type MethodDef struct {
 	Body       *Block
 }
 
-func (self MethodDef) GetPublic() bool {
+func (self *MethodDef) GetPublic() bool {
 	return self.Public
 }
 
@@ -153,7 +173,7 @@ type GenericFuncDef struct {
 	Instances hashmap.HashMap[string, *GenericFuncInstance]
 }
 
-func (self GenericFuncDef) GetPublic() bool {
+func (self *GenericFuncDef) GetPublic() bool {
 	return self.Public
 }
 

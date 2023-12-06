@@ -27,7 +27,7 @@ type _PkgScope struct {
 	values    hashmap.HashMap[string, mean.Ident]
 	structs   hashmap.HashMap[string, *mean.StructType]
 	typeAlias hashmap.HashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]]
-	traits hashmap.HashMap[string, *ast.Trait]
+	traits hashmap.HashMap[string, pair.Pair[bool, *ast.Trait]]
 
 	genericFunctions hashmap.HashMap[string, *mean.GenericFuncDef]
 }
@@ -40,7 +40,7 @@ func _NewPkgScope(path string) *_PkgScope {
 		values:    hashmap.NewHashMap[string, mean.Ident](),
 		structs:   hashmap.NewHashMap[string, *mean.StructType](),
 		typeAlias: hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]](),
-		traits: hashmap.NewHashMap[string, *ast.Trait](),
+		traits: hashmap.NewHashMap[string, pair.Pair[bool, *ast.Trait]](),
 		genericFunctions: hashmap.NewHashMap[string, *mean.GenericFuncDef](),
 	}
 }
@@ -138,28 +138,27 @@ func (self *_PkgScope) GetStruct(pkg, name string) (*mean.StructType, bool) {
 	return t, true
 }
 
-func (self *_PkgScope) SetTrait(node *ast.Trait) bool {
-	name := node.Name.Source()
-	if self.traits.ContainKey(name) {
+func (self *_PkgScope) SetTrait(pub bool, node *ast.Trait) bool {
+	if self.traits.ContainKey(node.Name.Source()) {
 		return false
 	}
-	self.traits.Set(name, node)
+	self.traits.Set(node.Name.Source(), pair.NewPair(pub, node))
 	return true
 }
 
-func (self *_PkgScope) getLocalTrait(name string) (*ast.Trait, bool) {
+func (self *_PkgScope) getLocalTrait(name string) (pair.Pair[bool, *ast.Trait], bool) {
 	return self.traits.Get(name), self.traits.ContainKey(name)
 }
 
 func (self *_PkgScope) getTrait(name string) (*ast.Trait, bool) {
-	trait, ok := self.getLocalTrait(name)
+	info, ok := self.getLocalTrait(name)
 	if ok {
-		return trait, true
+		return info.Second, true
 	}
 	for iter := self.links.Iterator(); iter.Next(); {
-		trait, ok := iter.Value().getLocalTrait(name)
-		if ok && trait.Public {
-			return trait, true
+		info, ok := iter.Value().getLocalTrait(name)
+		if ok && info.First {
+			return info.Second, true
 		}
 	}
 	return nil, false
@@ -173,11 +172,11 @@ func (self *_PkgScope) GetTrait(pkg, name string) (*ast.Trait, bool) {
 	if pkgScope == nil {
 		return nil, false
 	}
-	trait, ok := pkgScope.getLocalTrait(name)
-	if !ok || !trait.Public {
+	info, ok := pkgScope.getLocalTrait(name)
+	if !ok || !info.First {
 		return nil, false
 	}
-	return trait, true
+	return info.Second, true
 }
 
 func (self *_PkgScope) DeclTypeAlias(name string, node *ast.TypeAlias) bool {
@@ -202,25 +201,24 @@ func (self *_PkgScope) getLocalTypeAlias(name string) (pair.Pair[bool, either.Ei
 	return self.typeAlias.Get(name), self.typeAlias.ContainKey(name)
 }
 
-func (self *_PkgScope) getTypeAlias(name string) (pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]], bool) {
-	data, ok := self.getLocalTypeAlias(name)
+func (self *_PkgScope) getTypeAlias(name string) (either.Either[*ast.TypeAlias, mean.Type], bool) {
+	info, ok := self.getLocalTypeAlias(name)
 	if ok {
-		return data, true
+		return info.Second, true
 	}
 	for iter := self.links.Iterator(); iter.Next(); {
-		data, ok = iter.Value().getLocalTypeAlias(name)
-		if ok && data.First {
-			return data, true
+		info, ok = iter.Value().getLocalTypeAlias(name)
+		if ok && info.First {
+			return info.Second, true
 		}
 	}
-	var tmp pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]
+	var tmp either.Either[*ast.TypeAlias, mean.Type]
 	return tmp, false
 }
 
 func (self *_PkgScope) GetTypeAlias(pkg, name string) (either.Either[*ast.TypeAlias, mean.Type], bool) {
 	if pkg == "" {
-		data, ok := self.getTypeAlias(name)
-		return data.Second, ok
+		return self.getTypeAlias(name)
 	}
 	pkgScope := self.externs.Get(pkg)
 	if pkgScope == nil {

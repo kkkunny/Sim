@@ -163,3 +163,18 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType)mean.Type{
 	}
 	return self.selfType
 }
+
+func (self *Analyser) analyseTraitType(selfType mean.Type, node *ast.IdentType) *mean.Trait {
+	var pkgName string
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		pkgName = pkgToken.Source()
+		if !self.pkgScope.externs.ContainKey(pkgName) {
+			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+		}
+	}
+	if traitNode, ok := self.pkgScope.GetTrait(pkgName, node.Name.Source()); ok {
+		return self.defTrait(selfType, traitNode)
+	}
+	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+	return nil
+}

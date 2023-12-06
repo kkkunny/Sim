@@ -45,7 +45,11 @@ func (self *CodeGenerator) codegenEmptyType(_ *mean.EmptyType) llvm.VoidType {
 }
 
 func (self *CodeGenerator) codegenIntType(node mean.IntType) llvm.IntegerType {
-	return self.ctx.IntegerType(uint32(node.GetBits()))
+	bits := node.GetBits()
+	if bits == 0{
+		return self.ctx.IntPtrType(self.target)
+	}
+	return self.ctx.IntegerType(uint32(bits))
 }
 
 func (self *CodeGenerator) codegenFloatType(node *mean.FloatType) llvm.FloatType {

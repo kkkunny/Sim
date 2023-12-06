@@ -259,8 +259,13 @@ func (self *Parser) parseGenericFuncDef(attrs []ast.Attr, pub *token.Token, begi
 	expectAttrIn(attrs)
 
 	self.expectNextIs(token.LT)
-	genericParams := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
-		return self.expectNextIs(token.IDENT)
+	genericParams := loopParseWithUtil(self, token.COM, token.GT, func() pair.Pair[token.Token, util.Option[*ast.IdentType]] {
+		name := self.expectNextIs(token.IDENT)
+		constraint := util.None[*ast.IdentType]()
+		if self.skipNextIs(token.COL){
+			constraint = util.Some[*ast.IdentType](self.parseIdentType())
+		}
+		return pair.NewPair(name, constraint)
 	})
 	self.expectNextIs(token.GT)
 	self.expectNextIs(token.LPA)

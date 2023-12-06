@@ -16,6 +16,7 @@ import (
 
 // Analyser 语义分析器
 type Analyser struct {
+	config *analyseConfig
 	parent *Analyser
 	asts   linkedlist.LinkedList[ast.Global]
 
@@ -31,12 +32,9 @@ type Analyser struct {
 }
 
 func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
-	if target != nil {
-		mean.Isize.Bits = target.PointerSize() * 8
-		mean.Usize.Bits = target.PointerSize() * 8
-	}
 	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
 	return &Analyser{
+		config: &analyseConfig{PtrBits: target.PointerSize() * 8},
 		asts:     asts,
 		pkgs:     &pkgs,
 		pkgScope: _NewPkgScope(path),

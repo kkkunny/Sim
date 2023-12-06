@@ -9,7 +9,9 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
 
+	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/config"
+	"github.com/kkkunny/Sim/util"
 )
 
 var (
@@ -86,6 +88,9 @@ type SintType struct {
 }
 
 func (self *SintType) String() string {
+	if self.Bits == 0{
+		return "isize"
+	}
 	return fmt.Sprintf("i%d", self.Bits)
 }
 
@@ -130,6 +135,9 @@ type UintType struct {
 }
 
 func (self *UintType) String() string {
+	if self.Bits == 0{
+		return "usize"
+	}
 	return fmt.Sprintf("u%d", self.Bits)
 }
 
@@ -595,6 +603,7 @@ func (self *RefType) HasDefault()bool{
 // GenericParam 泛型参数
 type GenericParam struct {
 	Name string
+	Constraint util.Option[*ast.Trait]
 }
 
 // ReplaceGenericParam 替换类型中包含的泛型参数
@@ -658,5 +667,9 @@ func (self *GenericParam) AssignableTo(dst Type) bool {
 }
 
 func (self *GenericParam) HasDefault()bool{
+	if constraint, ok := self.Constraint.Value(); ok{
+		pkgPath := filepath.Dir(constraint.Position().Reader.Path())
+		return pkgPath == util.GetBuildInPackagePath() && constraint.Name.Source() == "Default"
+	}
 	return false
 }

@@ -149,7 +149,7 @@ type GenericFuncDef struct {
 	Begin    reader.Position
 	Public   bool
 	Name     token.Token
-	GenericParams []token.Token
+	GenericParams []pair.Pair[token.Token, util.Option[*IdentType]]
 	Params   []Param
 	ParamEnd reader.Position
 	Ret      util.Option[Type]

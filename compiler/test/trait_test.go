@@ -1,3 +1,9 @@
+package test
+
+import "testing"
+
+func TestDefaultTrait(t *testing.T) {
+	assertRetEqZero(t, `
 struct A{
     data: u8
 }
@@ -14,4 +20,6 @@ func default<T: Default>()T{
 func main()u8{
     let i: A = default::<A>()
     return i.data - 1
+}
+`)
 }

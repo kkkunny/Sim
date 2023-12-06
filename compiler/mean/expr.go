@@ -3,6 +3,7 @@ package mean
 import (
 	"math/big"
 
+	"github.com/kkkunny/Sim/util"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
 )
@@ -1208,14 +1209,15 @@ func (self *CheckNull) Mutable() bool {
 
 // Method 方法
 type Method struct {
-	Self   Expr
+	Scope *StructDef
+	Self   util.Option[Expr]
 	Define *MethodDef
 }
 
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*StructDef{
-	return self.Self.GetType().(*StructType)
+	return self.Scope
 }
 
 func (self *Method) GetType() Type {
