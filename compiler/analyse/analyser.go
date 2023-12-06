@@ -1,6 +1,8 @@
 package analyse
 
 import (
+	"path/filepath"
+
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
@@ -31,24 +33,26 @@ type Analyser struct {
 	genericFuncScope hashmap.HashMap[*mean.GenericFuncDef, *_FuncScope]
 }
 
-func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
+func New(asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
+	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
 	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
 	return &Analyser{
 		config: &analyseConfig{PtrBits: target.PointerSize() * 8},
 		asts:     asts,
 		pkgs:     &pkgs,
-		pkgScope: _NewPkgScope(path),
+		pkgScope: _NewPkgScope(pkgPath),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
 		genericFuncScope: hashmap.NewHashMap[*mean.GenericFuncDef, *_FuncScope](),
 	}
 }
 
-func newSon(parent *Analyser, path string, asts linkedlist.LinkedList[ast.Global]) *Analyser {
+func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser {
+	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
 	return &Analyser{
 		parent:   parent,
 		asts:     asts,
 		pkgs:     parent.pkgs,
-		pkgScope: _NewPkgScope(path),
+		pkgScope: _NewPkgScope(pkgPath),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
 		genericFuncScope: hashmap.NewHashMap[*mean.GenericFuncDef, *_FuncScope](),
 	}

@@ -6,7 +6,6 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
-	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
@@ -287,16 +286,13 @@ func (self *CodeGenerator) codegenCall(node *mean.Call, load bool) llvm.Value {
 	if method, ok := node.Func.(*mean.Method); ok{
 		ft := self.codegenFuncType(method.Define.GetFuncType())
 		f := self.values[method.Define]
-		var selfParam llvm.Value
-		if selfNode, ok := method.Self.Value(); ok{
-			selfParam = self.codegenExpr(selfNode, true)
-		}else{
-			selfParam = self.ctx.ConstAggregateZero(self.codegenStructType(method.Scope))
-		}
+		selfParam := self.codegenExpr(method.Self, true)
 		args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
 			return self.codegenExpr(item, true)
 		})
 		return self.buildCall(load, ft, f, append([]llvm.Value{selfParam}, args...)...)
+	}else if method, ok := node.Func.(*mean.TraitMethod); ok{
+		return self.codegenTraitMethodCall(method, node.Args)
 	} else{
 		ft := self.codegenFuncType(node.Func.GetType().(*mean.FuncType))
 		f := self.codegenExpr(node.Func, true)
@@ -423,13 +419,6 @@ func (self *CodeGenerator) codegenZero(tNode mean.Type) llvm.Value {
 	case *mean.ArrayType:
 		return self.ctx.ConstAggregateZero(self.codegenArrayType(ttNode))
 	case *mean.StructType:
-		if method:=ttNode.GetImplMethod("default", mean.DefaultTrait(tNode).Methods.Get("default")); method != nil{
-			return self.codegenCall(&mean.Call{Func: &mean.Method{
-				Scope: ttNode,
-				Self: util.None[mean.Expr](),
-				Define: method,
-			}}, true)
-		}
 		return self.ctx.ConstAggregateZero(self.codegenStructType(ttNode))
 	case *mean.StringType:
 		return self.ctx.ConstAggregateZero(self.codegenStringType())
@@ -440,7 +429,10 @@ func (self *CodeGenerator) codegenZero(tNode mean.Type) llvm.Value {
 	case *mean.RefType:
 		return self.ctx.ConstNull(self.codegenRefType(ttNode))
 	case *mean.GenericParam:
-		return self.codegenZero(self.genericParams.Get(ttNode))
+		return self.codegenCall(&mean.Call{Func: &mean.TraitMethod{
+			Type: ttNode,
+			Name: "default",
+		}}, true)
 	default:
 		panic("unreachable")
 	}
@@ -534,4 +526,96 @@ func (self *CodeGenerator) codegenCheckNull(node *mean.CheckNull, load bool) llv
 
 	ptr := self.codegenExpr(node.Value, true)
 	return self.buildCall(load, ft, f, ptr)
+}
+
+func (self *CodeGenerator) codegenTraitMethodCall(node *mean.TraitMethod, args []mean.Expr)llvm.Value{
+	autTypeNodeObj := self.genericParams.Get(node.Type)
+	switch autTypeNode:=autTypeNodeObj.(type) {
+	case *mean.StructType:
+		method := autTypeNode.GetImplMethod(node.Name, node.GetType().(*mean.FuncType))
+		ft := self.codegenFuncType(method.GetFuncType())
+		f := self.values[method]
+		var selfParam llvm.Value
+		if selfNode, ok := node.Value.Value(); ok{
+			selfParam = self.codegenExpr(selfNode, true)
+		}else{
+			selfParam = self.ctx.ConstAggregateZero(self.codegenStructType(method.Scope))
+		}
+		args := lo.Map(args, func(item mean.Expr, index int) llvm.Value {
+			return self.codegenExpr(item, true)
+		})
+		return self.buildCall(true, ft, f, append([]llvm.Value{selfParam}, args...)...)
+	case *mean.SintType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.UintType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.FloatType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.ArrayType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.TupleType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.PtrType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.RefType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.UnionType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.BoolType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.StringType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	default:
+		panic("unreachable")
+	}
 }

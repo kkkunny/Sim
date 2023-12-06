@@ -3,9 +3,10 @@ package mean
 import (
 	"math/big"
 
-	"github.com/kkkunny/Sim/util"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
+
+	"github.com/kkkunny/Sim/util"
 )
 
 // Expr 表达式
@@ -1209,15 +1210,14 @@ func (self *CheckNull) Mutable() bool {
 
 // Method 方法
 type Method struct {
-	Scope *StructDef
-	Self   util.Option[Expr]
+	Self   Expr
 	Define *MethodDef
 }
 
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*StructDef{
-	return self.Scope
+	return self.Self.GetType().(*StructDef)
 }
 
 func (self *Method) GetType() Type {
@@ -1256,3 +1256,29 @@ func (self *GenericFuncInstance) Mutable() bool {
 }
 
 func (*GenericFuncInstance) ident() {}
+
+// TraitMethod 特性方法
+type TraitMethod struct {
+	Type *GenericParam
+	Value util.Option[Expr]
+	Name string
+}
+
+func (self *TraitMethod) stmt() {}
+
+func (self *TraitMethod) GetType() Type {
+	constraint := self.Type.Constraint.MustValue()
+	for iter:=constraint.Methods.Iterator(); iter.Next(); {
+		data := iter.Value()
+		if data.First == self.Name{
+			return data.Second
+		}
+	}
+	panic("unreachable")
+}
+
+func (self *TraitMethod) Mutable() bool {
+	return false
+}
+
+func (*TraitMethod) ident() {}

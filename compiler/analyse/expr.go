@@ -638,34 +638,45 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *mean.Struct {
 func (self *Analyser) analyseField(node *ast.Field) mean.Expr {
 	from := self.analyseExpr(nil, node.From)
 	fieldName := node.Index.Source()
-	st, ok := from.GetType().(*mean.StructType)
-	if !ok {
-		errors.ThrowNotStructError(node.From.Position(), from.GetType())
-	}
-
-	// 方法
-	if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.path){
-		return &mean.Method{
-			Scope: st,
-			Self:   util.Some(from),
-			Define: method,
-		}
-	}
-
-	// 字段
-	var i int
-	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		field := iter.Value()
-		if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.path) {
-			return &mean.Field{
-				From:  from,
-				Index: uint(i),
+	if st, ok := from.GetType().(*mean.StructType); ok{
+		// 方法
+		if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.path){
+			return &mean.Method{
+				Self:   from,
+				Define: method,
 			}
 		}
-	}
 
-	errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-	return nil
+		// 字段
+		var i int
+		for iter := st.Fields.Iterator(); iter.Next(); i++ {
+			field := iter.Value()
+			if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.path) {
+				return &mean.Field{
+					From:  from,
+					Index: uint(i),
+				}
+			}
+		}
+
+		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+		return nil
+	}else if gt, ok := from.GetType().(*mean.GenericParam); ok{
+		if constraint, ok := gt.Constraint.Value(); ok{
+			if method := constraint.Methods.Get(fieldName); method != nil{
+				return &mean.TraitMethod{
+					Type: gt,
+					Value: util.Some(from),
+					Name: fieldName,
+				}
+			}
+		}
+		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+		return nil
+	}else{
+		errors.ThrowNotStructError(node.From.Position(), from.GetType())
+		return nil
+	}
 }
 
 func (self *Analyser) analyseString(node *ast.String) *mean.String {

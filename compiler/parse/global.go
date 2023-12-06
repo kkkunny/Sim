@@ -61,7 +61,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 		return self.parseGenericFuncDef(attrs, pub, begin, name)
 	}
 	self.expectNextIs(token.LPA)
-	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
+	params := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
 		mut := self.skipNextIs(token.MUT)
 		pn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
@@ -72,7 +72,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 			Type:    pt,
 		}
 	})
-	self.expectNextIs(token.RPA)
+	paramEnd := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
 	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
@@ -84,7 +84,8 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 		Begin:  begin,
 		Public: pub != nil,
 		Name:   name,
-		Params: args,
+		Params: params,
+		ParamEnd: paramEnd,
 		Ret:    ret,
 		Body:   body,
 	}

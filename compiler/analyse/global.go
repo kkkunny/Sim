@@ -60,10 +60,10 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[mean
 
 	// 语义分析目标包
 	pkgAsts, err := parse.ParseDir(pkgPath)
-	if err != nil {
+	if err != nil || pkgAsts.Empty() {
 		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
 	}
-	pkgAnalyser := newSon(self, pkgPath, pkgAsts)
+	pkgAnalyser := newSon(self, pkgAsts)
 	pkgMeans := pkgAnalyser.Analyse()
 	// 放进缓存
 	self.pkgs.Set(pkgPath, pkgAnalyser.pkgScope)
@@ -87,11 +87,11 @@ func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[mean.Global] 
 
 	// 语义分析目标包
 	pkgAsts, err := parse.ParseDir(dir)
-	if err != nil {
+	if err != nil || pkgAsts.Empty() {
 		// HACK: 报编译器异常而不是直接panic
 		panic(err)
 	}
-	pkgAnalyser := newSon(self, dir, pkgAsts)
+	pkgAnalyser := newSon(self, pkgAsts)
 	pkgMeans := pkgAnalyser.Analyse()
 	// 放进缓存
 	self.pkgs.Set(dir, pkgAnalyser.pkgScope)
@@ -169,7 +169,11 @@ func (self *Analyser) defTrait(selfType mean.Type, node *ast.Trait) *mean.Trait 
 	for _, pair := range node.Methods{
 		methods.Set(pair.First.Source(), self.analyseFuncType(pair.Second))
 	}
-	return &mean.Trait{Methods: methods}
+	return &mean.Trait{
+		Pkg: filepath.Dir(node.Position().Reader.Path()),
+		Name: node.Name.Source(),
+		Methods: methods,
+	}
 }
 
 func (self *Analyser) defTypeAlias(name string) mean.Type {
@@ -353,8 +357,8 @@ func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
 		if genericParams.ContainKey(pn){
 			errors.ThrowIdentifierDuplicationError(param.First.Position, param.First)
 		}
+		genericParam := &mean.GenericParam{Name: pn}
 
-		paramConstraint := util.None[*ast.Trait]()
 		if constraintNode, ok := param.Second.Value(); ok{
 			var pkgName string
 			if pkgToken, ok := constraintNode.Pkg.Value(); ok {
@@ -367,12 +371,9 @@ func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
 			if !ok{
 				errors.ThrowUnknownIdentifierError(constraintNode.Name.Position, constraintNode.Name)
 			}
-			paramConstraint = util.Some(traitNode)
+			genericParam.Constraint = util.Some(self.defTrait(genericParam, traitNode))
 		}
-		genericParams.Set(pn, &mean.GenericParam{
-			Name: pn,
-			Constraint: paramConstraint,
-		})
+		genericParams.Set(pn, genericParam)
 	}
 
 	f := &mean.GenericFuncDef{

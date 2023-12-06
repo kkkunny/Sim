@@ -6,6 +6,8 @@ import (
 
 // Trait 特性
 type Trait struct {
+	Pkg string
+	Name string
 	Methods hashmap.HashMap[string, *FuncType]
 }
 
