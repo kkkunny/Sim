@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	github.com/kkkunny/go-llvm v0.0.0-20231127122439-069c027c3a34
+	github.com/kkkunny/go-llvm v0.0.0-20231206063638-5a0b53f41dfd
 	github.com/samber/lo v1.38.1
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 )

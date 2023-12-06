@@ -2,6 +2,9 @@
 #define SIM_RUNTIME_TYPE
 
 #include <stdint.h>
+#ifdef __linux__
+#include <sys/types.h>
+#endif
 
 typedef int8_t i8;
 typedef int16_t i16;
