@@ -60,10 +60,10 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[mean
 
 	// 语义分析目标包
 	pkgAsts, err := parse.ParseDir(pkgPath)
-	if err != nil {
+	if err != nil || pkgAsts.Empty() {
 		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
 	}
-	pkgAnalyser := newSon(self, pkgPath, pkgAsts)
+	pkgAnalyser := newSon(self, pkgAsts)
 	pkgMeans := pkgAnalyser.Analyse()
 	// 放进缓存
 	self.pkgs.Set(pkgPath, pkgAnalyser.pkgScope)
@@ -87,11 +87,11 @@ func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[mean.Global] 
 
 	// 语义分析目标包
 	pkgAsts, err := parse.ParseDir(dir)
-	if err != nil {
+	if err != nil || pkgAsts.Empty() {
 		// HACK: 报编译器异常而不是直接panic
 		panic(err)
 	}
-	pkgAnalyser := newSon(self, dir, pkgAsts)
+	pkgAnalyser := newSon(self, pkgAsts)
 	pkgMeans := pkgAnalyser.Analyse()
 	// 放进缓存
 	self.pkgs.Set(dir, pkgAnalyser.pkgScope)
@@ -137,6 +137,45 @@ func (self *Analyser) defTypeDef(node *ast.StructDef) *mean.StructDef {
 	return st
 }
 
+func (self *Analyser) declTrait(node *ast.Trait) {
+	methodNameSet := hashset.NewHashSet[string]()
+	for _, pair := range node.Methods{
+		name := pair.First.Source()
+		if methodNameSet.Contain(name){
+			errors.ThrowIdentifierDuplicationError(pair.First.Position, pair.First)
+		}
+		methodNameSet.Add(name)
+	}
+	if !self.pkgScope.SetTrait(node.Public, node) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+
+	if self.pkgScope.IsBuildIn() {
+		switch node.Name.Source(){
+		case "Default":
+			self.getConfig().DefaultTrait = node
+		}
+	}
+}
+
+func (self *Analyser) defTrait(selfType mean.Type, node *ast.Trait) *mean.Trait {
+	prevSelfType := self.selfType
+	self.selfType = selfType
+	defer func() {
+		self.selfType = prevSelfType
+	}()
+
+	methods := hashmap.NewHashMap[string, *mean.FuncType]()
+	for _, pair := range node.Methods{
+		methods.Set(pair.First.Source(), self.analyseFuncType(pair.Second))
+	}
+	return &mean.Trait{
+		Pkg: filepath.Dir(node.Position().Reader.Path()),
+		Name: node.Name.Source(),
+		Methods: methods,
+	}
+}
+
 func (self *Analyser) defTypeAlias(name string) mean.Type {
 	res, ok := self.pkgScope.GetTypeAlias("", name)
 	if !ok{
@@ -172,7 +211,9 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declMethodDef(globalNode)
 	case *ast.Variable:
 		self.declGlobalVariable(globalNode)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
+	case *ast.GenericFuncDef:
+		self.declGenericFuncDef(globalNode)
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.Trait:
 	default:
 		panic("unreachable")
 	}
@@ -198,7 +239,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
 		pn := paramNode.Name.Source()
 		if !paramNameSet.Add(pn) {
-			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
 		}
 		pt := self.analyseType(paramNode.Type)
 		return &mean.Param{
@@ -251,7 +292,7 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
 		pn := paramNode.Name.Source()
 		if !paramNameSet.Add(pn) {
-			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
 		}
 		pt := self.analyseType(paramNode.Type)
 		return &mean.Param{
@@ -302,6 +343,71 @@ func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 	}
 }
 
+func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
+	for _, attrObj := range node.Attrs {
+		switch attrObj.(type) {
+		default:
+			panic("unreachable")
+		}
+	}
+
+	genericParams := linkedhashmap.NewLinkedHashMap[string, *mean.GenericParam]()
+	for _, param := range node.GenericParams{
+		pn := param.First.Source()
+		if genericParams.ContainKey(pn){
+			errors.ThrowIdentifierDuplicationError(param.First.Position, param.First)
+		}
+		genericParam := &mean.GenericParam{Name: pn}
+
+		if constraintNode, ok := param.Second.Value(); ok{
+			var pkgName string
+			if pkgToken, ok := constraintNode.Pkg.Value(); ok {
+				pkgName = pkgToken.Source()
+				if !self.pkgScope.externs.ContainKey(pkgName) {
+					errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+				}
+			}
+			traitNode, ok := self.pkgScope.GetTrait(pkgName, constraintNode.Name.Source())
+			if !ok{
+				errors.ThrowUnknownIdentifierError(constraintNode.Name.Position, constraintNode.Name)
+			}
+			genericParam.Constraint = util.Some(self.defTrait(genericParam, traitNode))
+		}
+		genericParams.Set(pn, genericParam)
+	}
+
+	f := &mean.GenericFuncDef{
+		Public:     node.Public,
+		Name:       node.Name.Source(),
+		GenericParams: genericParams,
+	}
+	scope := _NewFuncScope(self.pkgScope, f)
+	self.localScope = scope
+	self.genericFuncScope.Set(f, scope)
+	defer func() {
+		self.localScope = nil
+	}()
+
+	paramNameSet := hashset.NewHashSet[string]()
+	f.Params = lo.Map(node.Params, func(paramNode ast.Param, index int) *mean.Param {
+		pn := paramNode.Name.Source()
+		if !paramNameSet.Add(pn) {
+			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
+		}
+		pt := self.analyseType(paramNode.Type)
+		return &mean.Param{
+			Mut:  paramNode.Mutable,
+			Type: pt,
+			Name: pn,
+		}
+	})
+	f.Ret = self.analyseOptionType(node.Ret)
+
+	if !self.pkgScope.SetGenericFunction(f.Name, f) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+}
+
 func (self *Analyser) analyseGlobalDef(node ast.Global) mean.Global {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
@@ -310,7 +416,9 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) mean.Global {
 		return self.defMethodDef(globalNode)
 	case *ast.Variable:
 		return self.defGlobalVariable(globalNode)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
+	case *ast.GenericFuncDef:
+		return self.defGenericFuncDef(globalNode)
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.Trait:
 		return nil
 	default:
 		panic("unreachable")
@@ -333,9 +441,9 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *mean.FuncDef {
 		self.localScope = nil
 	}()
 
-	for _, p := range f.Params {
+	for i, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {
-			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
 		}
 	}
 
@@ -365,9 +473,9 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *mean.MethodDef {
 		self.localScope, self.selfValue, self.selfType = nil, nil, nil
 	}()
 
-	for _, p := range f.Params {
+	for i, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {
-			errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
 		}
 	}
 
@@ -398,4 +506,35 @@ func (self *Analyser) defGlobalVariable(node *ast.Variable) *mean.Variable {
 		v.Value = self.getTypeDefaultValue(node.Type.MustValue().Position(), v.Type)
 	}
 	return v
+}
+
+func (self *Analyser) defGenericFuncDef(node *ast.GenericFuncDef) *mean.GenericFuncDef {
+	f, ok := self.pkgScope.GetGenericFunction("", node.Name.Source())
+	if !ok {
+		panic("unreachable")
+	}
+
+	self.localScope = self.genericFuncScope.Get(f)
+	defer func() {
+		self.localScope = nil
+	}()
+
+	for i, p := range f.Params {
+		if !self.localScope.SetValue(p.Name, p) {
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
+		}
+	}
+
+	var jump mean.BlockEof
+	f.Body, jump = self.analyseBlock(node.Body, nil)
+	if jump != mean.BlockEofReturn {
+		if !f.Ret.Equal(mean.Empty) {
+			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
+		}
+		f.Body.Stmts.PushBack(&mean.Return{
+			Func:  f,
+			Value: util.None[mean.Expr](),
+		})
+	}
+	return f
 }

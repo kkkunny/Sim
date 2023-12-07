@@ -1,6 +1,8 @@
 package analyse
 
 import (
+	"path/filepath"
+
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
@@ -16,6 +18,7 @@ import (
 
 // Analyser 语义分析器
 type Analyser struct {
+	config *analyseConfig
 	parent *Analyser
 	asts   linkedlist.LinkedList[ast.Global]
 
@@ -24,32 +27,34 @@ type Analyser struct {
 	localScope _LocalScope
 
 	selfValue *mean.Param
-	selfType *mean.StructDef
+	selfType mean.Type
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
+	genericFuncScope hashmap.HashMap[*mean.GenericFuncDef, *_FuncScope]
 }
 
-func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
-	if target != nil {
-		mean.Isize.Bits = target.PointerSize()
-		mean.Usize.Bits = target.PointerSize()
-	}
+func New(asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
+	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
 	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
 	return &Analyser{
+		config: &analyseConfig{PtrBits: target.PointerSize() * 8},
 		asts:     asts,
 		pkgs:     &pkgs,
-		pkgScope: _NewPkgScope(path),
+		pkgScope: _NewPkgScope(pkgPath),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
+		genericFuncScope: hashmap.NewHashMap[*mean.GenericFuncDef, *_FuncScope](),
 	}
 }
 
-func newSon(parent *Analyser, path string, asts linkedlist.LinkedList[ast.Global]) *Analyser {
+func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser {
+	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
 	return &Analyser{
 		parent:   parent,
 		asts:     asts,
 		pkgs:     parent.pkgs,
-		pkgScope: _NewPkgScope(path),
+		pkgScope: _NewPkgScope(pkgPath),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
+		genericFuncScope: hashmap.NewHashMap[*mean.GenericFuncDef, *_FuncScope](),
 	}
 }
 
@@ -74,6 +79,14 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
 		if im, ok := v.(*ast.Import); ok {
 			meanNodes.Append(self.analyseImport(im))
+		}
+		return true
+	})
+
+	// trait
+	iterator.Foreach(self.asts, func(v ast.Global) bool {
+		if trait, ok := v.(*ast.Trait); ok {
+			self.declTrait(trait)
 		}
 		return true
 	})
@@ -157,8 +170,8 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[mean.Type], t mean.
 			}
 		}
 	case *mean.UnionType:
-		for iter:=typ.Elems.Iterator(); iter.Next(); {
-			if self.checkTypeCircle(trace, iter.Value().Second){
+		for _, e := range typ.Elems {
+			if self.checkTypeCircle(trace, e){
 				return true
 			}
 		}

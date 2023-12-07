@@ -215,80 +215,115 @@ func (self *CodeGenerator) getInitFunction() llvm.Function {
 
 // NOTE: 跟系统、架构相关
 func (self *CodeGenerator) buildCall(load bool, ft llvm.FunctionType, f llvm.Value, param ...llvm.Value) llvm.Value {
-	var retChangeToPtr bool
-	retType, paramTypes := ft.ReturnType(), ft.Params()
-	if stlbasic.Is[llvm.StructType](retType) || stlbasic.Is[llvm.Array](retType) {
-		ptr := self.builder.CreateAlloca("", retType)
-		param = append([]llvm.Value{ptr}, param...)
-		paramTypes = append([]llvm.Type{self.ctx.PointerType(retType)}, paramTypes...)
-		retType = self.ctx.VoidType()
-		retChangeToPtr = true
-	}
-	for i, p := range param {
-		if pt := p.Type(); stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.Array](pt) {
-			ptr := self.builder.CreateAlloca("", pt)
-			self.builder.CreateStore(p, ptr)
-			param[i] = ptr
-			paramTypes[i] = self.ctx.PointerType(pt)
+	switch {
+	case self.target.IsWindows():
+		var retChangeToPtr bool
+		retType, paramTypes := ft.ReturnType(), ft.Params()
+		if stlbasic.Is[llvm.StructType](retType) || stlbasic.Is[llvm.Array](retType) {
+			ptr := self.builder.CreateAlloca("", retType)
+			param = append([]llvm.Value{ptr}, param...)
+			paramTypes = append([]llvm.Type{self.ctx.PointerType(retType)}, paramTypes...)
+			retType = self.ctx.VoidType()
+			retChangeToPtr = true
 		}
-	}
-	var ret llvm.Value = self.builder.CreateCall("", self.ctx.FunctionType(false, retType, paramTypes...), f, param...)
-	if retChangeToPtr {
-		ret = param[0]
-		if load {
-			ret = self.builder.CreateLoad("", ft.ReturnType(), ret)
+		for i, p := range param {
+			if pt := p.Type(); stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.Array](pt) {
+				ptr := self.builder.CreateAlloca("", pt)
+				self.builder.CreateStore(p, ptr)
+				param[i] = ptr
+				paramTypes[i] = self.ctx.PointerType(pt)
+			}
 		}
+		var ret llvm.Value = self.builder.CreateCall("", self.ctx.FunctionType(false, retType, paramTypes...), f, param...)
+		if retChangeToPtr {
+			ret = param[0]
+			if load {
+				ret = self.builder.CreateLoad("", ft.ReturnType(), ret)
+			}
+		}
+		return ret
+	case self.target.IsLinux():
+		return self.builder.CreateCall("", self.ctx.FunctionType(false, ft.ReturnType(), ft.Params()...), f, param...)
+	default:
+		panic("unreachable")
 	}
-	return ret
 }
 
 // NOTE: 跟系统、架构相关
 func (self *CodeGenerator) buildRet(ft llvm.FunctionType, ret *llvm.Value) {
-	f := self.builder.CurrentBlock().Belong()
+	switch {
+	case self.target.IsWindows():
+		f := self.builder.CurrentBlock().Belong()
 
-	retChangeToPtr := stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.Array](ft.ReturnType())
-
-	if retChangeToPtr {
-		self.builder.CreateStore(*ret, f.GetParam(0))
-		self.builder.CreateRet(nil)
-	} else {
+		retChangeToPtr := stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.Array](ft.ReturnType())
+	
+		if retChangeToPtr {
+			self.builder.CreateStore(*ret, f.GetParam(0))
+			self.builder.CreateRet(nil)
+		} else {
+			self.builder.CreateRet(ret)
+		}
+	case self.target.IsLinux():
 		self.builder.CreateRet(ret)
+	default:
+		panic("unreachable")
 	}
 }
 
 // NOTE: 跟系统、架构相关
 func (self *CodeGenerator) newFunction(name string, t llvm.FunctionType) llvm.Function {
-	ret, param := t.ReturnType(), t.Params()
-	if stlbasic.Is[llvm.StructType](ret) || stlbasic.Is[llvm.Array](ret) {
-		param = append([]llvm.Type{self.ctx.PointerType(ret)}, param...)
-		ret = self.ctx.VoidType()
-	}
-	for i, p := range param {
-		if stlbasic.Is[llvm.StructType](p) || stlbasic.Is[llvm.Array](p) {
-			param[i] = self.ctx.PointerType(p)
+	switch {
+	case self.target.IsWindows():
+		ret, param := t.ReturnType(), t.Params()
+		if stlbasic.Is[llvm.StructType](ret) || stlbasic.Is[llvm.Array](ret) {
+			param = append([]llvm.Type{self.ctx.PointerType(ret)}, param...)
+			ret = self.ctx.VoidType()
 		}
+		for i, p := range param {
+			if stlbasic.Is[llvm.StructType](p) || stlbasic.Is[llvm.Array](p) {
+				param[i] = self.ctx.PointerType(p)
+			}
+		}
+		return self.module.NewFunction(name, self.ctx.FunctionType(false, ret, param...))
+	case self.target.IsLinux():
+		return self.module.NewFunction(name, self.ctx.FunctionType(false, t.ReturnType(), t.Params()...))
+	default:
+		panic("unreachable")
 	}
-	return self.module.NewFunction(name, self.ctx.FunctionType(false, ret, param...))
 }
 
 // NOTE: 跟系统、架构相关
 func (self *CodeGenerator) enterFunction(ft llvm.FunctionType, f llvm.Function, paramNodes []*mean.Param) {
-	var params []llvm.Param
-	if stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.Array](ft.ReturnType()) {
-		params = f.Params()[1:]
-	} else {
-		params = f.Params()
-	}
-	for i, p := range params {
-		paramNode := paramNodes[i]
-
-		pt := self.codegenType(paramNode.GetType())
-		if stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.Array](pt) {
-			self.values[paramNode] = p
+	switch {
+	case self.target.IsWindows():
+		var params []llvm.Param
+		if stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.Array](ft.ReturnType()) {
+			params = f.Params()[1:]
 		} else {
+			params = f.Params()
+		}
+		for i, p := range params {
+			paramNode := paramNodes[i]
+
+			pt := self.codegenType(paramNode.GetType())
+			if stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.Array](pt) {
+				self.values[paramNode] = p
+			} else {
+				param := self.builder.CreateAlloca("", pt)
+				self.builder.CreateStore(p, param)
+				self.values[paramNode] = param
+			}
+		}
+	case self.target.IsLinux():
+		for i, p := range f.Params() {
+			paramNode := paramNodes[i]
+	
+			pt := self.codegenType(paramNode.GetType())
 			param := self.builder.CreateAlloca("", pt)
 			self.builder.CreateStore(p, param)
 			self.values[paramNode] = param
 		}
+	default:
+		panic("unreachable")
 	}
 }

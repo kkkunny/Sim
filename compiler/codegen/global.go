@@ -28,6 +28,8 @@ func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 		self.declMethodDef(globalNode)
 	case *mean.Variable:
 		self.declGlobalVariable(globalNode)
+	case *mean.GenericFuncDef:
+		self.declGenericFuncDef(globalNode)
 	case *mean.StructDef:
 	default:
 		panic("unreachable")
@@ -61,7 +63,17 @@ func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
 		v.SetLinkage(llvm.ExternalLinkage)
 	}
 	self.values[node] = v
-	v.SetInitializer(self.codegenZero(&mean.Zero{Type: node.GetType()}))
+	v.SetInitializer(self.ctx.ConstNull(self.codegenType(node.GetType())))
+}
+
+func (self *CodeGenerator) declGenericFuncDef(node *mean.GenericFuncDef) {
+	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
+		inst := iter.Value()
+		ft := self.codegenFuncType(inst.GetType().(*mean.FuncType))
+		f := self.newFunction("", ft)
+		f.SetLinkage(llvm.InternalLinkage)
+		self.values[inst] = f
+	}
 }
 
 func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
@@ -78,6 +90,8 @@ func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
 		self.defStructDef(globalNode)
 	case *mean.Variable:
 		self.defGlobalVariable(globalNode)
+	case *mean.GenericFuncDef:
+		self.defGenericFuncDef(globalNode)
 	default:
 		panic("unreachable")
 	}
@@ -111,5 +125,25 @@ func (self *CodeGenerator) defGlobalVariable(node *mean.Variable) {
 		gv.SetInitializer(constValue)
 	} else {
 		self.builder.CreateStore(value, gv)
+	}
+}
+
+func (self *CodeGenerator) defGenericFuncDef(node *mean.GenericFuncDef) {
+	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
+		inst := iter.Value()
+		f := self.values[inst].(llvm.Function)
+		self.builder.MoveToAfter(f.NewBlock("entry"))
+
+		var i int
+		for iter:=node.GenericParams.Values().Iterator(); iter.Next(); {
+			self.genericParams.Set(iter.Value(), inst.Params[i])
+			i++
+		}
+
+		self.enterFunction(self.codegenFuncType(inst.GetType().(*mean.FuncType)), f, node.Params)
+		block, _ := self.codegenBlock(node.Body, nil)
+		self.builder.CreateBr(block)
+
+		self.genericParams.Clear()
 	}
 }

@@ -24,7 +24,7 @@ func TestDebug(t *testing.T) {
 
 	path := stlerror.MustWith(filepath.Abs("example/main.sim"))
 	asts := stlerror.MustWith(parse.ParseFile(path))
-	generator := codegen.New(target, analyse.New(path, asts, target))
+	generator := codegen.New(target, analyse.New(asts, target))
 	module := generator.Codegen()
 	stlerror.Must(module.Verify())
 	os.Exit(int(stlerror.MustWith(jit.RunJit(module))))

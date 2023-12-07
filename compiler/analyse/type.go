@@ -3,9 +3,6 @@ package analyse
 import (
 	"math/big"
 
-	"github.com/kkkunny/stl/container/iterator"
-	"github.com/kkkunny/stl/container/linkedhashmap"
-	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
@@ -87,10 +84,22 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) mean.Type {
 			if !self.pkgScope.externs.ContainKey(pkgName) {
 				errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 			}
+		}else{
+			// 泛型参数
+			if self.localScope != nil{
+				switch funDecl := self.localScope.GetFunc().(type){
+				case *mean.GenericFuncDef:
+					if gp := funDecl.GenericParams.Get(node.Name.Source()); gp != nil{
+						return gp
+					}
+				}
+			}
 		}
+		// 结构体
 		if st, ok := self.pkgScope.GetStruct(pkgName, name); ok {
 			return st
 		}
+		// 类型别名
 		if typeAlias, ok := self.pkgScope.GetTypeAlias(pkgName, name); ok {
 			if target, ok := typeAlias.Right(); ok{
 				return target
@@ -135,11 +144,9 @@ func (self *Analyser) analyseTupleType(node *ast.TupleType) *mean.TupleType {
 }
 
 func (self *Analyser) analyseUnionType(node *ast.UnionType) *mean.UnionType {
-	elems := iterator.Map[ast.Type, pair.Pair[string, mean.Type], linkedhashmap.LinkedHashMap[string, mean.Type]](node.Elems, func(v ast.Type) pair.Pair[string, mean.Type] {
-		et := self.analyseType(v)
-		return pair.NewPair(et.String(), et)
-	})
-	return &mean.UnionType{Elems: elems}
+	return &mean.UnionType{Elems: lo.Map(node.Elems.ToSlice(), func(item ast.Type, _ int) mean.Type {
+		return self.analyseType(item)
+	})}
 }
 
 func (self *Analyser) analysePtrType(node *ast.PtrType) *mean.PtrType {
@@ -150,9 +157,24 @@ func (self *Analyser) analyseRefType(node *ast.RefType) *mean.RefType {
 	return &mean.RefType{Elem: self.analyseType(node.Elem)}
 }
 
-func (self *Analyser) analyseSelfType(node *ast.SelfType)*mean.StructType{
+func (self *Analyser) analyseSelfType(node *ast.SelfType)mean.Type{
 	if self.selfType == nil{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
 	return self.selfType
+}
+
+func (self *Analyser) analyseTraitType(selfType mean.Type, node *ast.IdentType) *mean.Trait {
+	var pkgName string
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		pkgName = pkgToken.Source()
+		if !self.pkgScope.externs.ContainKey(pkgName) {
+			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+		}
+	}
+	if traitNode, ok := self.pkgScope.GetTrait(pkgName, node.Name.Source()); ok {
+		return self.defTrait(selfType, traitNode)
+	}
+	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+	return nil
 }

@@ -421,7 +421,7 @@ func (self *Analyser) analyseUnary(expect mean.Type, node *ast.Unary) mean.Unary
 	}
 }
 
-func (self *Analyser) analyseIdent(node *ast.Ident) mean.Ident {
+func (self *Analyser) analyseIdent(node *ast.Ident) mean.Expr {
 	var pkgName string
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()
@@ -429,11 +429,27 @@ func (self *Analyser) analyseIdent(node *ast.Ident) mean.Ident {
 			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		}
 	}
-	value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
-	if !ok {
-		errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+	if len(node.GenericArgs) == 0{
+		// 普通标识符
+		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
+		if !ok {
+			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+		}
+		return value
+	}else{
+		// 泛型函数
+		gf, ok := self.pkgScope.GetGenericFunction(pkgName, node.Name.Source())
+		if !ok {
+			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+		}
+		if gf.GenericParams.Length() != uint(len(node.GenericArgs)){
+			errors.ThrowParameterNumberNotMatchError(node.Name.Position, gf.GenericParams.Length(), uint(len(node.GenericArgs)))
+		}
+		params := lo.Map(node.GenericArgs, func(item ast.Type, _ int) mean.Type {
+			return self.analyseType(item)
+		})
+		return gf.AddInstance(params...)
 	}
-	return value
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) *mean.Call {
@@ -522,7 +538,7 @@ func (self *Analyser) autoTypeCovert(expect mean.Type, v mean.Expr) mean.Expr {
 	}
 
 	switch {
-	case stlbasic.Is[*mean.UnionType](expect) && expect.(*mean.UnionType).Elems.ContainKey(vt.String()):
+	case stlbasic.Is[*mean.UnionType](expect) && expect.(*mean.UnionType).Contain(vt):
 		return &mean.Union{
 			Type:  expect.(*mean.UnionType),
 			Value: v,
@@ -622,33 +638,45 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *mean.Struct {
 func (self *Analyser) analyseField(node *ast.Field) mean.Expr {
 	from := self.analyseExpr(nil, node.From)
 	fieldName := node.Index.Source()
-	st, ok := from.GetType().(*mean.StructType)
-	if !ok {
-		errors.ThrowNotStructError(node.From.Position(), from.GetType())
-	}
-
-	// 方法
-	if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.path){
-		return &mean.Method{
-			Self: from,
-			Method: method,
-		}
-	}
-
-	// 字段
-	var i int
-	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		field := iter.Value()
-		if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.path) {
-			return &mean.Field{
-				From:  from,
-				Index: uint(i),
+	if st, ok := from.GetType().(*mean.StructType); ok{
+		// 方法
+		if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.path){
+			return &mean.Method{
+				Self:   from,
+				Define: method,
 			}
 		}
-	}
 
-	errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-	return nil
+		// 字段
+		var i int
+		for iter := st.Fields.Iterator(); iter.Next(); i++ {
+			field := iter.Value()
+			if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.path) {
+				return &mean.Field{
+					From:  from,
+					Index: uint(i),
+				}
+			}
+		}
+
+		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+		return nil
+	}else if gt, ok := from.GetType().(*mean.GenericParam); ok{
+		if constraint, ok := gt.Constraint.Value(); ok{
+			if method := constraint.Methods.Get(fieldName); method != nil{
+				return &mean.TraitMethod{
+					Type: gt,
+					Value: util.Some(from),
+					Name: fieldName,
+				}
+			}
+		}
+		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+		return nil
+	}else{
+		errors.ThrowNotStructError(node.From.Position(), from.GetType())
+		return nil
+	}
 }
 
 func (self *Analyser) analyseString(node *ast.String) *mean.String {

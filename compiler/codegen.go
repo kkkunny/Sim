@@ -23,7 +23,7 @@ func main() {
 
 	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
 	asts := stlerror.MustWith(parse.ParseFile(path))
-	generator := codegen.New(target, analyse.New(path, asts, target))
+	generator := codegen.New(target, analyse.New(asts, target))
 	module := generator.Codegen()
 	fmt.Println(module)
 	stlerror.Must(module.Verify())

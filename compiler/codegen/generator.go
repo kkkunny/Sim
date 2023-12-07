@@ -22,6 +22,8 @@ type CodeGenerator struct {
 	loops   hashmap.HashMap[mean.Loop, loop]
 	strings hashmap.HashMap[string, *llvm.GlobalValue]
 	structs hashmap.HashMap[*mean.StructDef, llvm.StructType]
+
+	genericParams hashmap.HashMap[*mean.GenericParam, mean.Type]
 }
 
 func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {

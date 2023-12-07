@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"github.com/kkkunny/go-llvm"
-	"github.com/kkkunny/stl/container/iterator"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
@@ -34,6 +33,8 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 		return self.codegenPtrType(typeNode)
 	case *mean.RefType:
 		return self.codegenRefType(typeNode)
+	case *mean.GenericParam:
+		return self.codegenGenericParam(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -44,7 +45,11 @@ func (self *CodeGenerator) codegenEmptyType(_ *mean.EmptyType) llvm.VoidType {
 }
 
 func (self *CodeGenerator) codegenIntType(node mean.IntType) llvm.IntegerType {
-	return self.ctx.IntegerType(uint32(node.GetBits()))
+	bits := node.GetBits()
+	if bits == 0{
+		return self.ctx.IntPtrType(self.target)
+	}
+	return self.ctx.IntegerType(uint32(bits))
 }
 
 func (self *CodeGenerator) codegenFloatType(node *mean.FloatType) llvm.FloatType {
@@ -101,13 +106,12 @@ func (self *CodeGenerator) codegenStringType() llvm.StructType {
 func (self *CodeGenerator) codegenUnionType(node *mean.UnionType) llvm.StructType {
 	var maxSizeType llvm.Type
 	var maxSize uint
-	iterator.Foreach(node.Elems.Values(), func(v mean.Type) bool {
-		et := self.codegenType(v)
+	for _, e := range node.Elems{
+		et := self.codegenType(e)
 		if esize := self.target.GetSizeOfType(et); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}
-		return true
-	})
+	}
 	return self.ctx.StructType(true, maxSizeType, self.ctx.IntegerType(8))
 }
 
@@ -117,4 +121,8 @@ func (self *CodeGenerator) codegenPtrType(node *mean.PtrType) llvm.PointerType {
 
 func (self *CodeGenerator) codegenRefType(node *mean.RefType) llvm.PointerType {
 	return self.ctx.PointerType(self.codegenType(node.Elem))
+}
+
+func (self *CodeGenerator) codegenGenericParam(node *mean.GenericParam)llvm.Type{
+	return self.codegenType(self.genericParams.Get(node))
 }

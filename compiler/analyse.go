@@ -25,7 +25,7 @@ func main() {
 
 	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
 	asts := stlerror.MustWith(parse.ParseFile(path))
-	analyser := analyse.New(path, asts, target)
+	analyser := analyse.New(asts, target)
 	iterator.Foreach(analyser.Analyse(), func(v mean.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())
 		return true

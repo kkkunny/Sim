@@ -38,7 +38,7 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
 	case *mean.Extract:
 		return self.codegenExtract(exprNode, load)
 	case *mean.Zero:
-		return self.codegenZero(exprNode)
+		return self.codegenZero(exprNode.GetType())
 	case *mean.Struct:
 		return self.codegenStruct(exprNode, load)
 	case *mean.Field:
@@ -268,7 +268,7 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary, load bool) llvm.Value {
 
 func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) llvm.Value {
 	switch identNode := node.(type) {
-	case *mean.FuncDef:
+	case *mean.FuncDef,*mean.GenericFuncInstance:
 		return self.values[identNode].(llvm.Function)
 	case *mean.Param, *mean.Variable:
 		p := self.values[identNode]
@@ -284,13 +284,15 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) llvm.Value {
 
 func (self *CodeGenerator) codegenCall(node *mean.Call, load bool) llvm.Value {
 	if method, ok := node.Func.(*mean.Method); ok{
-		ft := self.codegenFuncType(method.Method.GetFuncType())
-		f := self.values[method.Method]
+		ft := self.codegenFuncType(method.Define.GetFuncType())
+		f := self.values[method.Define]
 		selfParam := self.codegenExpr(method.Self, true)
 		args := lo.Map(node.Args, func(item mean.Expr, index int) llvm.Value {
 			return self.codegenExpr(item, true)
 		})
 		return self.buildCall(load, ft, f, append([]llvm.Value{selfParam}, args...)...)
+	}else if method, ok := node.Func.(*mean.TraitMethod); ok{
+		return self.codegenTraitMethodCall(method, node.Args)
 	} else{
 		ft := self.codegenFuncType(node.Func.GetType().(*mean.FuncType))
 		f := self.codegenExpr(node.Func, true)
@@ -310,19 +312,19 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) llvm.Value {
 	case *mean.Num2Num:
 		switch {
 		case stlbasic.Is[*mean.SintType](ft) && stlbasic.Is[mean.IntType](covertNode.To):
-			ift, itt := ft.(*mean.SintType), covertNode.To.(mean.IntType)
-			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
+			fs, ts := from.Type().(llvm.IntegerType).Bits(), to.(llvm.IntegerType).Bits()
+			if fs < ts {
 				return self.builder.CreateSExt("", from, to.(llvm.IntegerType))
-			} else if ifb > itb {
+			} else if fs > ts {
 				return self.builder.CreateTrunc("", from, to.(llvm.IntegerType))
 			} else {
 				return from
 			}
 		case stlbasic.Is[*mean.UintType](ft) && stlbasic.Is[mean.IntType](covertNode.To):
-			ift, itt := ft.(*mean.UintType), covertNode.To.(mean.IntType)
-			if ifb, itb := ift.GetBits(), itt.GetBits(); ifb < itb {
+			fs, ts := from.Type().(llvm.IntegerType).Bits(), to.(llvm.IntegerType).Bits()
+			if fs < ts {
 				return self.builder.CreateZExt("", from, to.(llvm.IntegerType))
-			} else if ifb > itb {
+			} else if fs > ts {
 				return self.builder.CreateTrunc("", from, to.(llvm.IntegerType))
 			} else {
 				return from
@@ -405,27 +407,32 @@ func (self *CodeGenerator) codegenExtract(node *mean.Extract, load bool) llvm.Va
 	return self.buildStructIndex(t, from, node.Index, load)
 }
 
-func (self *CodeGenerator) codegenZero(node *mean.Zero) llvm.Constant {
-	t := self.codegenType(node.GetType())
-	switch node.GetType().(type) {
+// TODO: 复杂类型default值
+func (self *CodeGenerator) codegenZero(tNode mean.Type) llvm.Value {
+	switch ttNode := tNode.(type) {
 	case mean.IntType:
-		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
+		return self.ctx.ConstInteger(self.codegenIntType(ttNode), 0)
 	case *mean.FloatType:
-		return self.ctx.ConstFloat(t.(llvm.FloatType), 0)
+		return self.ctx.ConstFloat(self.codegenFloatType(ttNode), 0)
 	case *mean.BoolType:
-		return self.ctx.ConstInteger(t.(llvm.IntegerType), 0)
+		return self.ctx.ConstInteger(self.codegenBoolType(), 0)
 	case *mean.ArrayType:
-		return self.ctx.ConstAggregateZero(t.(llvm.ArrayType))
+		return self.ctx.ConstAggregateZero(self.codegenArrayType(ttNode))
 	case *mean.StructType:
-		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+		return self.ctx.ConstAggregateZero(self.codegenStructType(ttNode))
 	case *mean.StringType:
-		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+		return self.ctx.ConstAggregateZero(self.codegenStringType())
 	case *mean.UnionType:
-		return self.ctx.ConstAggregateZero(t.(llvm.StructType))
+		return self.ctx.ConstAggregateZero(self.codegenUnionType(ttNode))
 	case *mean.PtrType:
-		return self.ctx.ConstNull(t)
+		return self.ctx.ConstNull(self.codegenPtrType(ttNode))
 	case *mean.RefType:
-		return self.ctx.ConstNull(t)
+		return self.ctx.ConstNull(self.codegenRefType(ttNode))
+	case *mean.GenericParam:
+		return self.codegenCall(&mean.Call{Func: &mean.TraitMethod{
+			Type: ttNode,
+			Name: "default",
+		}}, true)
 	default:
 		panic("unreachable")
 	}
@@ -519,4 +526,96 @@ func (self *CodeGenerator) codegenCheckNull(node *mean.CheckNull, load bool) llv
 
 	ptr := self.codegenExpr(node.Value, true)
 	return self.buildCall(load, ft, f, ptr)
+}
+
+func (self *CodeGenerator) codegenTraitMethodCall(node *mean.TraitMethod, args []mean.Expr)llvm.Value{
+	autTypeNodeObj := self.genericParams.Get(node.Type)
+	switch autTypeNode:=autTypeNodeObj.(type) {
+	case *mean.StructType:
+		method := autTypeNode.GetImplMethod(node.Name, node.GetType().(*mean.FuncType))
+		ft := self.codegenFuncType(method.GetFuncType())
+		f := self.values[method]
+		var selfParam llvm.Value
+		if selfNode, ok := node.Value.Value(); ok{
+			selfParam = self.codegenExpr(selfNode, true)
+		}else{
+			selfParam = self.ctx.ConstAggregateZero(self.codegenStructType(method.Scope))
+		}
+		args := lo.Map(args, func(item mean.Expr, index int) llvm.Value {
+			return self.codegenExpr(item, true)
+		})
+		return self.buildCall(true, ft, f, append([]llvm.Value{selfParam}, args...)...)
+	case *mean.SintType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.UintType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.FloatType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.ArrayType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.TupleType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.PtrType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.RefType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.UnionType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.BoolType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	case *mean.StringType:
+		switch node.Name {
+		case "default":
+			return self.codegenZero(autTypeNode)
+		default:
+			panic("unreachable")
+		}
+	default:
+		panic("unreachable")
+	}
 }
