@@ -10,8 +10,16 @@ github.com/kkkunny/go-llvm v0.0.0-20231206043412-babeb691f011 h1:cQJcaI2qGuSMd4L
 github.com/kkkunny/go-llvm v0.0.0-20231206043412-babeb691f011/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
 github.com/kkkunny/go-llvm v0.0.0-20231206063638-5a0b53f41dfd h1:uUXKp4vABLBuL0wVIG6R451lga76M1XdMFQWflxqxrw=
 github.com/kkkunny/go-llvm v0.0.0-20231206063638-5a0b53f41dfd/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231207132430-6b8518edadd6 h1:FwrywbGWhb8xKYDBcRvdwFy6IQfplkjFxFPjRDBAGQw=
+github.com/kkkunny/go-llvm v0.0.0-20231207132430-6b8518edadd6/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231207145905-f93627271fcf h1:MjLRI0LhBIQE782UIodnwtoy28XgaMO3Wa6nz4TTiXU=
+github.com/kkkunny/go-llvm v0.0.0-20231207145905-f93627271fcf/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231207150123-78a8eba85d86 h1:8mKQ1AGticuSVlPcjXcOmY6rd/xSHc/SpyvZ+s8k1v4=
+github.com/kkkunny/go-llvm v0.0.0-20231207150123-78a8eba85d86/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
 github.com/kkkunny/stl v0.0.0-20231114084730-4ad25211cae2 h1:kSnxC1FziNErpwUhUERLoQWkGkEMslsC7bnePu/fR1k=
 github.com/kkkunny/stl v0.0.0-20231114084730-4ad25211cae2/go.mod h1:Ien6sco+xI1itcWSIMajp08+KTwOPvLSrLqSQLWDZwQ=
+github.com/kkkunny/stl v0.0.0-20231207143523-805a6341faf4 h1:txZFYc2CvTxBYdaYWOV3qEO9tAiqoQPmcKaEJDQE5e8=
+github.com/kkkunny/stl v0.0.0-20231207143523-805a6341faf4/go.mod h1:uh56Ofdtnlnunduj1ZausEz4FHL90Y+BxWF8TnLP3KQ=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/samber/lo v1.38.1 h1:j2XEAqXKb09Am4ebOg31SpvzUTTs6EN3VfgeLUhPdXM=

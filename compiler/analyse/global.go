@@ -18,7 +18,6 @@ import (
 	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/config"
 	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
@@ -59,18 +58,16 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[mean
 	}
 
 	// 语义分析目标包
-	pkgAsts, err := parse.ParseDir(pkgPath)
-	if err != nil || pkgAsts.Empty() {
+	pkgMeans, pkgScope, err := analyseSonPackage(self, pkgPath)
+	if err != nil || pkgMeans.Empty() {
 		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
 	}
-	pkgAnalyser := newSon(self, pkgAsts)
-	pkgMeans := pkgAnalyser.Analyse()
 	// 放进缓存
-	self.pkgs.Set(pkgPath, pkgAnalyser.pkgScope)
+	self.pkgs.Set(pkgPath, pkgScope)
 	if importAll {
-		self.pkgScope.links.Add(pkgAnalyser.pkgScope)
+		self.pkgScope.links.Add(pkgScope)
 	} else {
-		self.pkgScope.externs.Set(pkgName, pkgAnalyser.pkgScope)
+		self.pkgScope.externs.Set(pkgName, pkgScope)
 	}
 	return pkgMeans
 }
@@ -86,16 +83,14 @@ func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[mean.Global] 
 	}
 
 	// 语义分析目标包
-	pkgAsts, err := parse.ParseDir(dir)
-	if err != nil || pkgAsts.Empty() {
+	pkgMeans, pkgScope, err := analyseSonPackage(self, dir)
+	if err != nil || pkgMeans.Empty() {
 		// HACK: 报编译器异常而不是直接panic
 		panic(err)
 	}
-	pkgAnalyser := newSon(self, pkgAsts)
-	pkgMeans := pkgAnalyser.Analyse()
 	// 放进缓存
-	self.pkgs.Set(dir, pkgAnalyser.pkgScope)
-	self.pkgScope.links.Add(pkgAnalyser.pkgScope)
+	self.pkgs.Set(dir, pkgScope)
+	self.pkgScope.links.Add(pkgScope)
 	return pkgMeans
 }
 
@@ -148,13 +143,6 @@ func (self *Analyser) declTrait(node *ast.Trait) {
 	}
 	if !self.pkgScope.SetTrait(node.Public, node) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
-	}
-
-	if self.pkgScope.IsBuildIn() {
-		switch node.Name.Source(){
-		case "Default":
-			self.getConfig().DefaultTrait = node
-		}
 	}
 }
 

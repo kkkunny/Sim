@@ -1,17 +1,17 @@
-package codegen
+package codegen_ir
 
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/iterator"
+	"github.com/kkkunny/stl/container/linkedlist"
 
-	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/mean"
 )
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	analyser *analyse.Analyser // 语法分析器
+	means linkedlist.LinkedList[mean.Global]
 
 	target  *llvm.Target
 	ctx     llvm.Context
@@ -26,12 +26,12 @@ type CodeGenerator struct {
 	genericParams hashmap.HashMap[*mean.GenericParam, mean.Type]
 }
 
-func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {
+func New(target *llvm.Target, means linkedlist.LinkedList[mean.Global]) *CodeGenerator {
 	ctx := llvm.NewContext()
 	module := ctx.NewModule("main")
 	module.SetTarget(target)
 	return &CodeGenerator{
-		analyser: analyser,
+		means: means,
 		target:   target,
 		ctx:      ctx,
 		module:   module,
@@ -43,9 +43,8 @@ func New(target *llvm.Target, analyser *analyse.Analyser) *CodeGenerator {
 
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() llvm.Module {
-	nodes := self.analyser.Analyse()
 	// 类型声明
-	iterator.Foreach(nodes, func(v mean.Global) bool {
+	iterator.Foreach(self.means, func(v mean.Global) bool {
 		st, ok := v.(*mean.StructDef)
 		if ok {
 			self.declStructDef(st)
@@ -53,12 +52,12 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 		return true
 	})
 	// 值声明
-	iterator.Foreach(nodes, func(v mean.Global) bool {
+	iterator.Foreach(self.means, func(v mean.Global) bool {
 		self.codegenGlobalDecl(v)
 		return true
 	})
 	// 值定义
-	iterator.Foreach(nodes, func(v mean.Global) bool {
+	iterator.Foreach(self.means, func(v mean.Global) bool {
 		self.codegenGlobalDef(v)
 		return true
 	})
@@ -68,7 +67,7 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 	self.builder.CreateRet(nil)
 	// 主函数
 	var hasMain bool
-	iterator.Foreach(nodes, func(v mean.Global) bool {
+	iterator.Foreach(self.means, func(v mean.Global) bool {
 		if funcNode, ok := v.(*mean.FuncDef); ok && funcNode.Name == "main" {
 			hasMain = true
 			f := self.values[funcNode].(llvm.Function)

@@ -6,11 +6,11 @@ replace github.com/kkkunny/Sim/runtime v0.0.0-20231203140042-fdf7df5c03c7 => ../
 
 require (
 	github.com/kkkunny/Sim/runtime v0.0.0-20231203140042-fdf7df5c03c7
-	github.com/kkkunny/stl v0.0.0-20231114084730-4ad25211cae2
+	github.com/kkkunny/stl v0.0.0-20231207143523-805a6341faf4
 )
 
 require (
-	github.com/kkkunny/go-llvm v0.0.0-20231206063638-5a0b53f41dfd
+	github.com/kkkunny/go-llvm v0.0.0-20231207150123-78a8eba85d86
 	github.com/samber/lo v1.38.1
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 )

@@ -44,8 +44,8 @@ func expectAttrIn(attrs []ast.Attr, expectAttr ...ast.Attr) {
 	}
 }
 
-// ParseFile 语法解析目标文件
-func ParseFile(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
+// 语法解析目标文件
+func parseFile(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 	_, r, err := reader.NewReaderFromFile(path)
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
@@ -53,8 +53,8 @@ func ParseFile(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) 
 	return New(lex.New(r)).Parse(), nil
 }
 
-// ParseDir 语法解析目标目录
-func ParseDir(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
+// 语法解析目标目录
+func parseDir(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 	entries, err := stlerror.ErrorWith(os.ReadDir(path))
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
@@ -64,11 +64,24 @@ func ParseDir(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sim" {
 			continue
 		}
-		fileAst, err := ParseFile(filepath.Join(path, entry.Name()))
+		fileAst, err := parseFile(filepath.Join(path, entry.Name()))
 		if err != nil {
 			return linkedlist.LinkedList[ast.Global]{}, err
 		}
 		asts.Append(fileAst)
 	}
 	return asts, nil
+}
+
+// Parse 语法解析
+func Parse(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
+	fs, err := stlerror.ErrorWith(os.Stat(path))
+	if err != nil{
+		return linkedlist.LinkedList[ast.Global]{}, err
+	}
+	if fs.IsDir(){
+		return parseDir(path)
+	}else{
+		return parseFile(path)
+	}
 }

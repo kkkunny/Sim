@@ -3,7 +3,6 @@ package analyse
 import (
 	"path/filepath"
 
-	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/iterator"
@@ -18,7 +17,6 @@ import (
 
 // Analyser 语义分析器
 type Analyser struct {
-	config *analyseConfig
 	parent *Analyser
 	asts   linkedlist.LinkedList[ast.Global]
 
@@ -33,11 +31,10 @@ type Analyser struct {
 	genericFuncScope hashmap.HashMap[*mean.GenericFuncDef, *_FuncScope]
 }
 
-func New(asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
+func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
 	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
 	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
 	return &Analyser{
-		config: &analyseConfig{PtrBits: target.PointerSize() * 8},
 		asts:     asts,
 		pkgs:     &pkgs,
 		pkgScope: _NewPkgScope(pkgPath),

@@ -1,4 +1,4 @@
-package codegen
+package codegen_ir
 
 import (
 	"github.com/kkkunny/go-llvm"

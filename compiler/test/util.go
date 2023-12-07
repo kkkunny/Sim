@@ -9,7 +9,7 @@ import (
 	stltest "github.com/kkkunny/stl/test"
 
 	"github.com/kkkunny/Sim/analyse"
-	"github.com/kkkunny/Sim/codegen"
+	"github.com/kkkunny/Sim/codegen_ir"
 	"github.com/kkkunny/Sim/config"
 	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/lex"
@@ -33,7 +33,7 @@ func assertRetEq(t *testing.T, code string, expect uint8, skips ...uint) {
 	path := stlerror.MustWith(filepath.Abs(stlerror.MustWith(util.GetFileName(skip+1))))
 	target := stlerror.MustWith(llvm.NativeTarget())
 	r := stlerror.MustWith(reader.NewReaderFromString(path, code))
-	module := codegen.New(target, analyse.New(parse.New(lex.New(r)).Parse(), target)).Codegen()
+	module := codegen_ir.New(target, analyse.New(parse.New(lex.New(r)).Parse()).Analyse()).Codegen()
 	stlerror.Must(module.Verify())
 	stltest.AssertEq(t, stlerror.MustWith(jit.RunJit(module)), expect)
 }

@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	asts := stlerror.MustWith(parse.ParseFile(os.Args[1]))
+	asts := stlerror.MustWith(parse.Parse(os.Args[1]))
 	iterator.Foreach(asts, func(v ast.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())
 		return true

@@ -1,12 +1,15 @@
-package codegen
+package codegen_ir
 
 import (
 	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
+	stlerror "github.com/kkkunny/stl/error"
 
+	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) buildArrayIndex(t llvm.ArrayType, from, index llvm.Value, load bool) llvm.Value {
@@ -326,4 +329,25 @@ func (self *CodeGenerator) enterFunction(ft llvm.FunctionType, f llvm.Function, 
 	default:
 		panic("unreachable")
 	}
+}
+
+// CodegenIr 中间代码生成
+func CodegenIr(path string) (llvm.Module, stlerror.Error) {
+	means, err := analyse.Analyse(path)
+	if err != nil{
+		return llvm.Module{}, err
+	}
+	_ = util.Logger.Infof(0, "LLVM VERSION: %s", llvm.Version)
+	if err = stlerror.ErrorWrap(llvm.InitializeNativeTarget()); err != nil{
+		return llvm.Module{}, err
+	}
+	target, err := stlerror.ErrorWith(llvm.NativeTarget())
+	if err != nil{
+		return llvm.Module{}, err
+	}
+	module := New(target, means).Codegen()
+	if err = stlerror.ErrorWrap(module.Verify()); err != nil{
+		return llvm.Module{}, err
+	}
+	return module, nil
 }
