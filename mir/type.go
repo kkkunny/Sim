@@ -18,345 +18,414 @@ type Type interface {
 }
 
 // VoidType 空类型
-type VoidType struct {
+type VoidType interface {
+	Type
+	void()
+}
+
+type voidType struct {
 	ctx Context
 }
 
-func (self Context) Void()*VoidType{
-	return &VoidType{ctx: self}
+func (self Context) Void()VoidType{
+	return &voidType{ctx: self}
 }
 
-func (self *VoidType) String()string{
+func (self *voidType) String()string{
 	return "void"
 }
 
-func (self *VoidType) Context()Context{
+func (self *voidType) Context()Context{
 	return self.ctx
 }
 
-func (self *VoidType) Equal(t Type)bool{
-	_, ok := t.(*VoidType)
+func (self *voidType) Equal(t Type)bool{
+	_, ok := t.(*voidType)
 	return ok
 }
 
-func (self *VoidType) Align()stlos.Size{
+func (self *voidType) Align()stlos.Size{
 	return 0
 }
 
-func (self *VoidType) Size()stlos.Size{
+func (self *voidType) Size()stlos.Size{
 	return 0
+}
+
+func (self *voidType) void(){}
+
+// NumberType 数字类型
+type NumberType interface {
+	Type
+	number()
+}
+
+// IntType 整型
+type IntType interface {
+	NumberType
+	integer()
 }
 
 // SintType 有符号整型
-type SintType struct {
+type SintType interface {
+	IntType
+	sint()
+}
+
+type sintType struct {
 	ctx Context
 	size stlos.Size
 }
 
-func (self Context) NewSintType(size stlos.Size)*SintType {
-	return &SintType{
+func (self Context) NewSintType(size stlos.Size)SintType {
+	return &sintType{
 		ctx: self,
 		size: size,
 	}
 }
 
-func (self Context) I8()*SintType {
+func (self Context) I8()SintType {
 	return self.NewSintType(1*stlos.Byte)
 }
 
-func (self Context) I16()*SintType {
+func (self Context) I16()SintType {
 	return self.NewSintType(2*stlos.Byte)
 }
 
-func (self Context) I32()*SintType {
+func (self Context) I32()SintType {
 	return self.NewSintType(4*stlos.Byte)
 }
 
-func (self Context) I64()*SintType {
+func (self Context) I64()SintType {
 	return self.NewSintType(8*stlos.Byte)
 }
 
-func (self Context) I128()*SintType {
+func (self Context) I128()SintType {
 	return self.NewSintType(16*stlos.Byte)
 }
 
-func (self Context) Isize()*SintType {
+func (self Context) Isize()SintType {
 	// TODO: size
 	return self.I64()
 }
 
-func (self *SintType) String()string{
+func (self *sintType) String()string{
 	return fmt.Sprintf("i%d", self.size)
 }
 
-func (self *SintType) Context()Context{
+func (self *sintType) Context()Context{
 	return self.ctx
 }
 
-func (self *SintType) Equal(t Type)bool{
+func (self *sintType) Equal(t Type)bool{
 	if !self.ctx.Target().Equal(t.Context().Target()){
 		return false
 	}
-	dst, ok := t.(*SintType)
+	dst, ok := t.(*sintType)
 	if !ok{
 		return false
 	}
 	return self.size.Equal(dst.size)
 }
 
-func (self *SintType) Align()stlos.Size{
+func (self *sintType) Align()stlos.Size{
 	// TODO: get align
 	return 1
 }
 
-func (self *SintType) Size()stlos.Size{
+func (self *sintType) Size()stlos.Size{
 	// TODO: get size
 	return self.size
 }
 
+func (*sintType) number(){}
+func (*sintType) integer() {}
+func (*sintType) sint() {}
+
 // UintType 无符号整型
-type UintType struct {
+type UintType interface {
+	IntType
+	uint()
+}
+
+// uintType 无符号整型
+type uintType struct {
 	ctx Context
 	size stlos.Size
 }
 
-func (self Context) NewUintType(size stlos.Size)*UintType {
-	return &UintType{
+func (self Context) NewUintType(size stlos.Size)UintType {
+	return &uintType{
 		ctx: self,
 		size: size,
 	}
 }
 
-func (self Context) U8()*UintType {
+func (self Context) U8()UintType {
 	return self.NewUintType(1*stlos.Byte)
 }
 
-func (self Context) U16()*UintType {
+func (self Context) U16()UintType {
 	return self.NewUintType(2*stlos.Byte)
 }
 
-func (self Context) U32()*UintType {
+func (self Context) U32()UintType {
 	return self.NewUintType(4*stlos.Byte)
 }
 
-func (self Context) U64()*UintType {
+func (self Context) U64()UintType {
 	return self.NewUintType(8*stlos.Byte)
 }
 
-func (self Context) U128()*UintType {
+func (self Context) U128()UintType {
 	return self.NewUintType(16*stlos.Byte)
 }
 
-func (self Context) Usize()*UintType {
+func (self Context) Usize()UintType {
 	// TODO: size
 	return self.U64()
 }
 
-func (self *UintType) String()string{
+func (self *uintType) String()string{
 	return fmt.Sprintf("u%d", self.size)
 }
 
-func (self *UintType) Context()Context{
+func (self *uintType) Context()Context{
 	return self.ctx
 }
 
-func (self *UintType) Equal(t Type)bool{
+func (self *uintType) Equal(t Type)bool{
 	if !self.ctx.Target().Equal(t.Context().Target()){
 		return false
 	}
-	dst, ok := t.(*UintType)
+	dst, ok := t.(*uintType)
 	if !ok{
 		return false
 	}
 	return self.size.Equal(dst.size)
 }
 
-func (self *UintType) Align()stlos.Size{
+func (self *uintType) Align()stlos.Size{
 	// TODO: get align
 	return 1
 }
 
-func (self *UintType) Size()stlos.Size{
+func (self *uintType) Size()stlos.Size{
 	// TODO: get size
 	return self.size
 }
 
+func (*uintType) number(){}
+func (*uintType) integer() {}
+func (*uintType) uint(){}
+
 // FloatType 浮点型
-type FloatType struct {
+type FloatType interface {
+	NumberType
+	float()
+}
+
+type floatType struct {
 	ctx Context
 	size stlos.Size
 }
 
-func (self Context) newFloatType(size stlos.Size)*FloatType{
-	return &FloatType{
+func (self Context) newFloatType(size stlos.Size)FloatType {
+	return &floatType{
 		ctx: self,
 		size: size,
 	}
 }
 
-func (self Context) F32()*FloatType {
+func (self Context) F32()FloatType {
 	return self.newFloatType(4*stlos.Byte)
 }
 
-func (self Context) F64()*FloatType {
+func (self Context) F64()FloatType {
 	return self.newFloatType(8*stlos.Byte)
 }
 
-func (self *FloatType) String()string{
+func (self *floatType) String()string{
 	return fmt.Sprintf("f%d", self.size)
 }
 
-func (self *FloatType) Context()Context{
+func (self *floatType) Context()Context{
 	return self.ctx
 }
 
-func (self *FloatType) Equal(t Type)bool{
+func (self *floatType) Equal(t Type)bool{
 	if !self.ctx.Target().Equal(t.Context().Target()){
 		return false
 	}
-	dst, ok := t.(*FloatType)
+	dst, ok := t.(*floatType)
 	if !ok{
 		return false
 	}
 	return self.size.Equal(dst.size)
 }
 
-func (self *FloatType) Align()stlos.Size{
+func (self *floatType) Align()stlos.Size{
 	// TODO: get align
 	return 1
 }
 
-func (self *FloatType) Size()stlos.Size{
+func (self *floatType) Size()stlos.Size{
 	// TODO: get size
 	return self.size
 }
 
+func (*floatType) number() {}
+func (*floatType) float() {}
+
 // PtrType 指针类型
-type PtrType struct {
+type PtrType interface {
+	Type
+	Elem()Type
+	ptr()
+}
+
+type ptrType struct {
 	elem Type
 }
 
-func (self Context) NewPtrType(elem Type)*PtrType{
+func (self Context) NewPtrType(elem Type)PtrType {
 	if !elem.Context().Target().Equal(self.Target()){
 		panic("unreachable")
 	}
-	return &PtrType{elem: elem}
+	return &ptrType{elem: elem}
 }
 
-func (self *PtrType) String()string{
+func (self *ptrType) String()string{
 	return fmt.Sprintf("*%s", self.elem)
 }
 
-func (self *PtrType) Context()Context{
+func (self *ptrType) Context()Context{
 	return self.elem.Context()
 }
 
-func (self *PtrType) Equal(t Type)bool{
-	dst, ok := t.(*PtrType)
+func (self *ptrType) Equal(t Type)bool{
+	dst, ok := t.(*ptrType)
 	if !ok{
 		return false
 	}
 	return self.elem.Equal(dst.elem)
 }
 
-func (self *PtrType) Align()stlos.Size{
+func (self *ptrType) Align()stlos.Size{
 	// TODO: get align
 	return 1
 }
 
-func (self *PtrType) Size()stlos.Size{
+func (self *ptrType) Size()stlos.Size{
 	// TODO: get size
 	return 8 * stlos.Byte
 }
 
-func (self *PtrType) Elem()Type{
+func (self *ptrType) Elem()Type{
 	return self.elem
 }
 
+func (self *ptrType) ptr(){}
+
 // ArrayType 数组类型
-type ArrayType struct {
+type ArrayType interface {
+	Type
+	Length()uint
+	Elem()Type
+	array()
+}
+
+type arrayType struct {
 	len uint
 	elem Type
 }
 
-func (self Context) NewArrayType(len uint, elem Type)*ArrayType{
+func (self Context) NewArrayType(len uint, elem Type)ArrayType {
 	if !elem.Context().Target().Equal(self.Target()){
 		panic("unreachable")
 	}
-	return &ArrayType{
+	return &arrayType{
 		len: len,
 		elem: elem,
 	}
 }
 
-func (self *ArrayType) String()string{
+func (self *arrayType) String()string{
 	return fmt.Sprintf("[%d]%s", self.len, self.elem)
 }
 
-func (self *ArrayType) Context()Context{
+func (self *arrayType) Context()Context{
 	return self.elem.Context()
 }
 
-func (self *ArrayType) Equal(t Type)bool{
-	dst, ok := t.(*ArrayType)
+func (self *arrayType) Equal(t Type)bool{
+	dst, ok := t.(*arrayType)
 	if !ok{
 		return false
 	}
 	return self.len == dst.len && self.elem.Equal(dst.elem)
 }
 
-func (self *ArrayType) Align()stlos.Size{
+func (self *arrayType) Align()stlos.Size{
 	// TODO: get align
 	return self.elem.Align()
 }
 
-func (self *ArrayType) Size()stlos.Size{
+func (self *arrayType) Size()stlos.Size{
 	// TODO: get size
 	return self.elem.Size() * stlos.Size(self.len)
 }
 
-func (self *ArrayType) Length()uint{
+func (self *arrayType) Length()uint{
 	return self.len
 }
 
-func (self *ArrayType) Elem()Type{
+func (self *arrayType) Elem()Type{
 	return self.elem
 }
 
+func (self *arrayType) array(){}
+
 // StructType 结构体类型
-type StructType struct {
+type StructType interface {
+	Type
+	Elems()[]Type
+}
+
+// 无名字结构体类型
+type unnamedStructType struct {
 	ctx Context
 	elems []Type
 }
 
-func (self Context) NewStructType(elem ...Type)*StructType{
+func (self Context) NewStructType(elem ...Type) StructType {
 	for _, e := range elem{
 		if !e.Context().Target().Equal(self.Target()){
 			panic("unreachable")
 		}
 	}
-	return &StructType{
+	return &unnamedStructType{
 		ctx: self,
 		elems: elem,
 	}
 }
 
-func (self *StructType) String()string{
+func (self *unnamedStructType) String()string{
 	elems := lo.Map(self.elems, func(item Type, _ int) string {
 		return item.String()
 	})
 	return fmt.Sprintf("{%s}", strings.Join(elems, ","))
 }
 
-func (self *StructType) Context()Context{
+func (self *unnamedStructType) Context()Context{
 	return self.ctx
 }
 
-func (self *StructType) Equal(t Type)bool{
+func (self *unnamedStructType) Equal(t Type)bool{
 	if !self.ctx.Target().Equal(t.Context().Target()){
 		return false
 	}
-	dst, ok := t.(*StructType)
+	dst, ok := t.(*unnamedStructType)
 	if !ok || len(self.elems) != len(dst.elems){
 		return false
 	}
@@ -368,27 +437,33 @@ func (self *StructType) Equal(t Type)bool{
 	return true
 }
 
-func (self *StructType) Align()stlos.Size{
+func (self *unnamedStructType) Align()stlos.Size{
 	// TODO: get align
 	return 1
 }
 
-func (self *StructType) Size()stlos.Size{
+func (self *unnamedStructType) Size()stlos.Size{
 	// TODO: get size
 	return 0
 }
 
-func (self *StructType) Elems()[]Type{
+func (self *unnamedStructType) Elems()[]Type{
 	return self.elems
 }
 
 // FuncType 函数类型
-type FuncType struct {
+type FuncType interface {
+	Type
+	Ret()Type
+	Params()[]Type
+}
+
+type funcType struct {
 	ret Type
 	params []Type
 }
 
-func (self Context) NewFuncType(ret Type, param ...Type)*FuncType{
+func (self Context) NewFuncType(ret Type, param ...Type)FuncType {
 	if !ret.Context().Target().Equal(self.Target()){
 		panic("unreachable")
 	}
@@ -397,25 +472,25 @@ func (self Context) NewFuncType(ret Type, param ...Type)*FuncType{
 			panic("unreachable")
 		}
 	}
-	return &FuncType{
+	return &funcType{
 		ret: ret,
 		params: param,
 	}
 }
 
-func (self *FuncType) String()string{
+func (self *funcType) String()string{
 	params := lo.Map(self.params, func(item Type, _ int) string {
 		return item.String()
 	})
 	return fmt.Sprintf("%s(%s)", self.ret, strings.Join(params, ","))
 }
 
-func (self *FuncType) Context()Context{
+func (self *funcType) Context()Context{
 	return self.ret.Context()
 }
 
-func (self *FuncType) Equal(t Type)bool{
-	dst, ok := t.(*FuncType)
+func (self *funcType) Equal(t Type)bool{
+	dst, ok := t.(*funcType)
 	if !ok || !self.ret.Equal(dst.ret) || len(self.params) != len(dst.params){
 		return false
 	}
@@ -427,20 +502,20 @@ func (self *FuncType) Equal(t Type)bool{
 	return true
 }
 
-func (self *FuncType) Align()stlos.Size{
+func (self *funcType) Align()stlos.Size{
 	// TODO: get align
 	return 1
 }
 
-func (self *FuncType) Size()stlos.Size{
+func (self *funcType) Size()stlos.Size{
 	// TODO: get size
 	return 8 * stlos.Byte
 }
 
-func (self *FuncType) Ret()Type{
+func (self *funcType) Ret()Type{
 	return self.ret
 }
 
-func (self *FuncType) Params()[]Type{
+func (self *funcType) Params()[]Type{
 	return self.params
 }

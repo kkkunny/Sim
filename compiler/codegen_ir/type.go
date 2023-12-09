@@ -1,22 +1,25 @@
 package codegen_ir
 
 import (
-	"github.com/kkkunny/go-llvm"
+	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
+func (self *CodeGenerator) codegenType(node mean.Type) mir.Type {
 	switch typeNode := node.(type) {
 	case *mean.EmptyType:
 		return self.codegenEmptyType(typeNode)
-	case mean.IntType:
-		return self.codegenIntType(typeNode)
+	case *mean.SintType:
+		return self.codegenSintType(typeNode)
+	case *mean.UintType:
+		return self.codegenUintType(typeNode)
 	case *mean.FloatType:
 		return self.codegenFloatType(typeNode)
 	case *mean.FuncType:
-		return self.codegenFuncTypePtr(typeNode)
+		return self.codegenFuncType(typeNode)
 	case *mean.BoolType:
 		return self.codegenBoolType()
 	case *mean.ArrayType:
@@ -40,89 +43,92 @@ func (self *CodeGenerator) codegenType(node mean.Type) llvm.Type {
 	}
 }
 
-func (self *CodeGenerator) codegenEmptyType(_ *mean.EmptyType) llvm.VoidType {
-	return self.ctx.VoidType()
+func (self *CodeGenerator) codegenEmptyType(_ *mean.EmptyType) mir.VoidType {
+	return self.ctx.Void()
 }
 
-func (self *CodeGenerator) codegenIntType(node mean.IntType) llvm.IntegerType {
+func (self *CodeGenerator) codegenSintType(node mean.IntType) mir.SintType {
 	bits := node.GetBits()
 	if bits == 0{
-		return self.ctx.IntPtrType(self.target)
+		return self.ctx.Isize()
 	}
-	return self.ctx.IntegerType(uint32(bits))
+	return self.ctx.NewSintType(stlos.Size(bits))
 }
 
-func (self *CodeGenerator) codegenFloatType(node *mean.FloatType) llvm.FloatType {
+func (self *CodeGenerator) codegenUintType(node mean.IntType) mir.UintType {
+	bits := node.GetBits()
+	if bits == 0{
+		return self.ctx.Usize()
+	}
+	return self.ctx.NewUintType(stlos.Size(bits))
+}
+
+func (self *CodeGenerator) codegenFloatType(node *mean.FloatType) mir.FloatType {
 	switch node.Bits {
 	case 32:
-		return self.ctx.FloatType(llvm.FloatTypeKindFloat)
+		return self.ctx.F32()
 	case 64:
-		return self.ctx.FloatType(llvm.FloatTypeKindDouble)
+		return self.ctx.F64()
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenFuncType(node *mean.FuncType) llvm.FunctionType {
+func (self *CodeGenerator) codegenFuncType(node *mean.FuncType) mir.FuncType {
 	ret := self.codegenType(node.Ret)
-	params := lo.Map(node.Params, func(item mean.Type, index int) llvm.Type {
+	params := lo.Map(node.Params, func(item mean.Type, index int) mir.Type {
 		return self.codegenType(item)
 	})
-	return self.ctx.FunctionType(false, ret, params...)
+	return self.ctx.NewFuncType(ret, params...)
 }
 
-func (self *CodeGenerator) codegenFuncTypePtr(node *mean.FuncType) llvm.PointerType {
-	return self.ctx.PointerType(self.codegenFuncType(node))
+func (self *CodeGenerator) codegenBoolType() mir.UintType {
+	return self.ctx.U8()
 }
 
-func (self *CodeGenerator) codegenBoolType() llvm.IntegerType {
-	return self.ctx.IntegerType(1)
+func (self *CodeGenerator) codegenArrayType(node *mean.ArrayType) mir.ArrayType {
+	return self.ctx.NewArrayType(node.Size, self.codegenType(node.Elem))
 }
 
-func (self *CodeGenerator) codegenArrayType(node *mean.ArrayType) llvm.ArrayType {
-	elem := self.codegenType(node.Elem)
-	return self.ctx.ArrayType(elem, uint32(node.Size))
-}
-
-func (self *CodeGenerator) codegenTupleType(node *mean.TupleType) llvm.StructType {
-	elems := lo.Map(node.Elems, func(item mean.Type, index int) llvm.Type {
+func (self *CodeGenerator) codegenTupleType(node *mean.TupleType) mir.StructType {
+	elems := lo.Map(node.Elems, func(item mean.Type, index int) mir.Type {
 		return self.codegenType(item)
 	})
-	return self.ctx.StructType(false, elems...)
+	return self.ctx.NewStructType(elems...)
 }
 
-func (self *CodeGenerator) codegenStructType(node *mean.StructType) llvm.StructType {
+func (self *CodeGenerator) codegenStructType(node *mean.StructType) mir.StructType {
 	return self.structs.Get(node)
 }
 
-func (self *CodeGenerator) codegenStringType() llvm.StructType {
-	st := self.ctx.GetTypeByName("str")
-	if st != nil {
-		return *st
+func (self *CodeGenerator) codegenStringType() mir.StructType {
+	st, ok := self.module.NamedStructType("str")
+	if ok {
+		return st
 	}
-	return self.ctx.NamedStructType("str", false, self.ctx.PointerType(self.ctx.IntegerType(8)), self.ctx.IntPtrType(self.target))
+	return self.module.NewNamedStructType("str", self.ctx.NewPtrType(self.ctx.U8()), self.ctx.Usize())
 }
 
-func (self *CodeGenerator) codegenUnionType(node *mean.UnionType) llvm.StructType {
-	var maxSizeType llvm.Type
-	var maxSize uint
+func (self *CodeGenerator) codegenUnionType(node *mean.UnionType) mir.StructType {
+	var maxSizeType mir.Type
+	var maxSize stlos.Size
 	for _, e := range node.Elems{
 		et := self.codegenType(e)
-		if esize := self.target.GetSizeOfType(et); esize > maxSize {
+		if esize := et.Size(); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}
 	}
-	return self.ctx.StructType(true, maxSizeType, self.ctx.IntegerType(8))
+	return self.ctx.NewStructType(maxSizeType, self.ctx.U8())
 }
 
-func (self *CodeGenerator) codegenPtrType(node *mean.PtrType) llvm.PointerType {
-	return self.ctx.PointerType(self.codegenType(node.Elem))
+func (self *CodeGenerator) codegenPtrType(node *mean.PtrType) mir.PtrType {
+	return self.ctx.NewPtrType(self.codegenType(node.Elem))
 }
 
-func (self *CodeGenerator) codegenRefType(node *mean.RefType) llvm.PointerType {
-	return self.ctx.PointerType(self.codegenType(node.Elem))
+func (self *CodeGenerator) codegenRefType(node *mean.RefType) mir.PtrType {
+	return self.ctx.NewPtrType(self.codegenType(node.Elem))
 }
 
-func (self *CodeGenerator) codegenGenericParam(node *mean.GenericParam)llvm.Type{
+func (self *CodeGenerator) codegenGenericParam(node *mean.GenericParam)mir.Type{
 	return self.codegenType(self.genericParams.Get(node))
 }

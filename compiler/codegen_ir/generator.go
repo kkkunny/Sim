@@ -7,6 +7,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/mir"
 )
 
 // CodeGenerator 代码生成器
@@ -14,14 +15,14 @@ type CodeGenerator struct {
 	means linkedlist.LinkedList[mean.Global]
 
 	target  *llvm.Target
-	ctx     llvm.Context
-	module  llvm.Module
+	ctx     *mir.Context
+	module  *mir.Module
 	builder llvm.Builder
 
 	values  map[mean.Expr]llvm.Value
 	loops   hashmap.HashMap[mean.Loop, loop]
 	strings hashmap.HashMap[string, *llvm.GlobalValue]
-	structs hashmap.HashMap[*mean.StructDef, llvm.StructType]
+	structs hashmap.HashMap[*mean.StructDef, mir.StructType]
 
 	genericParams hashmap.HashMap[*mean.GenericParam, mean.Type]
 }
