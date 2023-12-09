@@ -6,6 +6,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/mir"
 )
 
 func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) llvm.Value {
@@ -407,27 +408,13 @@ func (self *CodeGenerator) codegenExtract(node *mean.Extract, load bool) llvm.Va
 	return self.buildStructIndex(t, from, node.Index, load)
 }
 
-// TODO: 复杂类型default值
-func (self *CodeGenerator) codegenZero(tNode mean.Type) llvm.Value {
+func (self *CodeGenerator) codegenZero(tNode mean.Type) mir.Value {
 	switch ttNode := tNode.(type) {
-	case mean.IntType:
-		return self.ctx.ConstInteger(self.codegenIntType(ttNode), 0)
-	case *mean.FloatType:
-		return self.ctx.ConstFloat(self.codegenFloatType(ttNode), 0)
-	case *mean.BoolType:
-		return self.ctx.ConstInteger(self.codegenBoolType(), 0)
-	case *mean.ArrayType:
-		return self.ctx.ConstAggregateZero(self.codegenArrayType(ttNode))
-	case *mean.StructType:
-		return self.ctx.ConstAggregateZero(self.codegenStructType(ttNode))
-	case *mean.StringType:
-		return self.ctx.ConstAggregateZero(self.codegenStringType())
-	case *mean.UnionType:
-		return self.ctx.ConstAggregateZero(self.codegenUnionType(ttNode))
-	case *mean.PtrType:
-		return self.ctx.ConstNull(self.codegenPtrType(ttNode))
-	case *mean.RefType:
-		return self.ctx.ConstNull(self.codegenRefType(ttNode))
+	case mean.NumberType, *mean.BoolType, *mean.StringType, *mean.PtrType, *mean.RefType:
+		return mir.NewZero(self.codegenType(ttNode))
+	case *mean.ArrayType, *mean.StructType, *mean.UnionType:
+		// TODO: 复杂类型default值
+		return mir.NewZero(self.codegenType(ttNode))
 	case *mean.GenericParam:
 		return self.codegenCall(&mean.Call{Func: &mean.TraitMethod{
 			Type: ttNode,

@@ -1,10 +1,17 @@
 package mir
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+	"strings"
+
+	"github.com/samber/lo"
+)
 
 // Const 常量
 type Const interface {
 	Value
+	IsZero()bool
 	constant()
 }
 
@@ -27,6 +34,10 @@ func (self *Sint) String()string{
 
 func (self *Sint) Type()Type{
 	return self.t
+}
+
+func (self *Sint) IsZero()bool{
+	return self.value.Cmp(big.NewInt(0)) == 0
 }
 
 func (*Sint)constant(){}
@@ -52,6 +63,10 @@ func (self *Uint) Type()Type{
 	return self.t
 }
 
+func (self *Uint) IsZero()bool{
+	return self.value.Cmp(big.NewInt(0)) == 0
+}
+
 func (*Uint)constant(){}
 
 // Float 浮点数
@@ -75,6 +90,10 @@ func (self *Float) Type()Type{
 	return self.t
 }
 
+func (self *Float) IsZero()bool{
+	return self.value.Cmp(big.NewFloat(0)) == 0
+}
+
 func (*Float)constant(){}
 
 // EmptyArray 空数组
@@ -92,6 +111,10 @@ func (self *EmptyArray) String()string{
 
 func (self *EmptyArray) Type()Type{
 	return self.t
+}
+
+func (self *EmptyArray) IsZero()bool{
+	return true
 }
 
 func (*EmptyArray)constant(){}
@@ -113,6 +136,10 @@ func (self *EmptyStruct) Type()Type{
 	return self.t
 }
 
+func (self *EmptyStruct) IsZero()bool{
+	return true
+}
+
 func (*EmptyStruct)constant(){}
 
 // EmptyFunc 空函数
@@ -132,6 +159,10 @@ func (self *EmptyFunc) Type()Type{
 	return self.t
 }
 
+func (self *EmptyFunc) IsZero()bool{
+	return true
+}
+
 func (*EmptyFunc)constant(){}
 
 // EmptyPtr 空指针
@@ -149,6 +180,10 @@ func (self *EmptyPtr) String()string{
 
 func (self *EmptyPtr) Type()Type{
 	return self.t
+}
+
+func (self *EmptyPtr) IsZero()bool{
+	return true
 }
 
 func (*EmptyPtr)constant(){}
@@ -174,3 +209,103 @@ func NewZero(t Type)Const{
 		panic("unreachable")
 	}
 }
+
+// Array 数组
+type Array struct {
+	t ArrayType
+	elems []Const
+}
+
+func NewArray(t ArrayType, elem ...Const)Const{
+	if t.Length() != uint(len(elem)){
+		panic("unreachable")
+	}
+	for _, e := range elem{
+		if !e.Type().Equal(t.Elem()){
+			panic("unreachable")
+		}
+	}
+
+	zero := true
+	for _, e := range elem{
+		if !e.IsZero(){
+			zero = false
+			break
+		}
+	}
+	if zero{
+		return NewEmptyArray(t)
+	}
+
+	return &Array{
+		t: t,
+		elems: elem,
+	}
+}
+
+func (self *Array) String()string{
+	elems := lo.Map(self.elems, func(item Const, _ int) string {
+		return item.String()
+	})
+	return fmt.Sprintf("[%s]", strings.Join(elems, ","))
+}
+
+func (self *Array) Type()Type{
+	return self.t
+}
+
+func (self *Array) IsZero()bool{
+	return false
+}
+
+func (*Array)constant(){}
+
+// Struct 结构体
+type Struct struct {
+	t StructType
+	elems []Const
+}
+
+func NewStruct(t StructType, elem ...Const)Const{
+	if len(t.Elems()) != len(elem){
+		panic("unreachable")
+	}
+	for i, e := range t.Elems(){
+		if !e.Equal(elem[i].Type()){
+			panic("unreachable")
+		}
+	}
+
+	zero := true
+	for _, e := range elem{
+		if !e.IsZero(){
+			zero = false
+			break
+		}
+	}
+	if zero{
+		return NewEmptyStruct(t)
+	}
+
+	return &Struct{
+		t: t,
+		elems: elem,
+	}
+}
+
+func (self *Struct) String()string{
+	elems := lo.Map(self.elems, func(item Const, _ int) string {
+		return item.String()
+	})
+	return fmt.Sprintf("{%s}", strings.Join(elems, ","))
+}
+
+func (self *Struct) Type()Type{
+	return self.t
+}
+
+func (self *Struct) IsZero()bool{
+	return false
+}
+
+func (*Struct)constant(){}

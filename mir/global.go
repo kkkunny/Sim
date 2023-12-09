@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
@@ -101,7 +100,6 @@ type GlobalVariable struct {
 	name string
 
 	t Type
-	mut bool
 	value Const
 }
 
@@ -134,11 +132,10 @@ func (self *GlobalVariable) Context()*Context{
 }
 
 func (self *GlobalVariable) Define()string{
-	prefix := stlbasic.Ternary(self.mut, "var", "const")
 	if self.value != nil{
-		return fmt.Sprintf("%s %s %s = %s", prefix, self.t, self.Name(), self.value)
+		return fmt.Sprintf("var %s %s = %s", self.t, self.Name(), self.value)
 	}else{
-		return fmt.Sprintf("%s %s %s", prefix, self.t, self.Name())
+		return fmt.Sprintf("var %s %s", self.t, self.Name())
 	}
 }
 
@@ -216,3 +213,64 @@ func (self *Function) Context()*Context{
 func (self *Function) String()string{
 	return self.Name()
 }
+
+// Constant 常量
+type Constant struct {
+	ctx *Context
+	index uint
+	name string
+
+	value Const
+}
+
+func (self *Module) NewConstant(name string, value Const)*Constant{
+	if _, ok := self.valueMap[name]; ok{
+		panic("unreachable")
+	}
+	if value == nil{
+		panic("unreachable")
+	}
+	v := &Constant{
+		ctx: self.ctx,
+		name: name,
+		value: value,
+	}
+	if name != ""{
+		self.valueMap[name] = v
+	}
+	self.globals.PushBack(v)
+	return v
+}
+
+func (self *Constant) Name()string{
+	if self.name != ""{
+		return "c_" + self.name
+	}
+	return fmt.Sprintf("c_%d", self.index)
+}
+
+func (self *Constant) Context()*Context{
+	return self.ctx
+}
+
+func (self *Constant) Define()string{
+	return fmt.Sprintf("const %s %s = %s", self.Type(), self.Name(), self.value)
+}
+
+func (self *Constant) Value()Const{
+	return self.value
+}
+
+func (self *Constant) Type()Type{
+	return self.value.Type()
+}
+
+func (self *Constant) String()string{
+	return self.Name()
+}
+
+func (self *Constant) IsZero()bool{
+	return self.value.IsZero()
+}
+
+func (*Constant) constant(){}

@@ -28,6 +28,7 @@ func (self Module) String()string{
 	var buf strings.Builder
 
 	var ts linkedlist.LinkedList[*namedStruct]
+	var cs linkedlist.LinkedList[*Constant]
 	var vs linkedlist.LinkedList[*GlobalVariable]
 	var fs linkedlist.LinkedList[*Function]
 	for iter:=self.globals.Iterator(); iter.Next(); {
@@ -49,6 +50,14 @@ func (self Module) String()string{
 	}
 
 	if !ts.Empty(){
+		buf.WriteByte('\n')
+	}
+	for iter:=cs.Iterator(); iter.Next(); {
+		buf.WriteString(iter.Value().Define())
+		buf.WriteByte('\n')
+	}
+
+	if !cs.Empty(){
 		buf.WriteByte('\n')
 	}
 	for iter:=vs.Iterator(); iter.Next(); {
