@@ -25,7 +25,7 @@ type Ident interface {
 // Integer 整数
 type Integer struct {
 	Type  IntType
-	Value big.Int
+	Value *big.Int
 }
 
 func (self *Integer) stmt() {}
@@ -41,7 +41,7 @@ func (self *Integer) Mutable() bool {
 // Float 浮点数
 type Float struct {
 	Type  *FloatType
-	Value big.Float
+	Value *big.Float
 }
 
 func (self *Float) stmt() {}

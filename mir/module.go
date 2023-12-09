@@ -44,33 +44,45 @@ func (self Module) String()string{
 		}
 	}
 
+	var i uint
 	for iter:=ts.Iterator(); iter.Next(); {
+		iter.Value().setIndex(i)
 		buf.WriteString(iter.Value().Define())
 		buf.WriteByte('\n')
+		i++
 	}
 
 	if !ts.Empty(){
 		buf.WriteByte('\n')
 	}
+	i = 0
 	for iter:=cs.Iterator(); iter.Next(); {
+		iter.Value().setIndex(i)
 		buf.WriteString(iter.Value().Define())
 		buf.WriteByte('\n')
+		i++
 	}
 
 	if !cs.Empty(){
 		buf.WriteByte('\n')
 	}
-	for iter:=vs.Iterator(); iter.Next(); {
+	i = 0
+for iter:=vs.Iterator(); iter.Next(); {
+		iter.Value().setIndex(i)
 		buf.WriteString(iter.Value().Define())
 		buf.WriteByte('\n')
+		i++
 	}
 
 	if !vs.Empty(){
 		buf.WriteByte('\n')
 	}
+	i = 0
 	for iter:=fs.Iterator(); iter.Next(); {
+		iter.Value().setIndex(i)
 		buf.WriteString(iter.Value().Define())
 		buf.WriteByte('\n')
+		i++
 	}
 
 	return buf.String()

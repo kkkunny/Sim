@@ -14,31 +14,27 @@ import (
 type CodeGenerator struct {
 	means linkedlist.LinkedList[mean.Global]
 
-	target  *llvm.Target
+	target  mir.Target
 	ctx     *mir.Context
 	module  *mir.Module
-	builder llvm.Builder
+	builder *mir.Builder
 
-	values  map[mean.Expr]llvm.Value
+	values  hashmap.HashMap[mean.Expr, mir.Value]
 	loops   hashmap.HashMap[mean.Loop, loop]
-	strings hashmap.HashMap[string, *llvm.GlobalValue]
+	strings hashmap.HashMap[string, *mir.Constant]
 	structs hashmap.HashMap[*mean.StructDef, mir.StructType]
 
 	genericParams hashmap.HashMap[*mean.GenericParam, mean.Type]
 }
 
-func New(target *llvm.Target, means linkedlist.LinkedList[mean.Global]) *CodeGenerator {
-	ctx := llvm.NewContext()
-	module := ctx.NewModule("main")
-	module.SetTarget(target)
+func New(target mir.Target, means linkedlist.LinkedList[mean.Global]) *CodeGenerator {
+	ctx := mir.NewContext(target)
 	return &CodeGenerator{
 		means: means,
 		target:   target,
 		ctx:      ctx,
-		module:   module,
+		module:   ctx.NewModule(),
 		builder:  ctx.NewBuilder(),
-		values:   make(map[mean.Expr]llvm.Value),
-		structs: hashmap.NewHashMap[*mean.StructDef, llvm.StructType](),
 	}
 }
 

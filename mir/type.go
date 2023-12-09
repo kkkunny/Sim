@@ -161,6 +161,10 @@ func (self *Context) NewUintType(size stlos.Size)UintType {
 	}
 }
 
+func (self *Context) Bool()UintType {
+	return self.NewUintType(1*stlos.Bit)
+}
+
 func (self *Context) U8()UintType {
 	return self.NewUintType(1*stlos.Byte)
 }
@@ -277,11 +281,15 @@ func (self *floatType) Size()stlos.Size{
 func (*floatType) number() {}
 func (*floatType) float() {}
 
+type GenericPtrType interface {
+	Type
+	ptr()
+}
+
 // PtrType 指针类型
 type PtrType interface {
-	Type
+	GenericPtrType
 	Elem()Type
-	ptr()
 }
 
 type ptrType struct {
@@ -519,3 +527,5 @@ func (self *funcType) Ret()Type{
 func (self *funcType) Params()[]Type{
 	return self.params
 }
+
+func (self *funcType) ptr(){}

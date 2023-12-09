@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
@@ -13,6 +14,7 @@ type Global interface {
 	Context()*Context
 	Name()string
 	Define()string
+	setIndex(i uint)
 }
 
 // 带名字结构体
@@ -49,11 +51,15 @@ func (self *Module) NamedStructType(name string)(StructType, bool){
 	return res, ok
 }
 
+func (self *namedStruct) setIndex(i uint){
+	self.index = i
+}
+
 func (self *namedStruct) Name()string{
 	if self.name != ""{
 		return "t_" + self.name
 	}
-	return fmt.Sprintf("t_%d", self.index)
+	return fmt.Sprintf("t%d", self.index)
 }
 
 func (self *namedStruct) String()string{
@@ -120,11 +126,23 @@ func (self *Module) NewGlobalVariable(name string, t Type, value Const)*GlobalVa
 	return v
 }
 
+func (self *Module) NamedGlobalVariable(name string)(*GlobalVariable, bool){
+	v, ok := self.valueMap[name]
+	if !ok || !stlbasic.Is[*GlobalVariable](v){
+		return nil, false
+	}
+	return v.(*GlobalVariable), true
+}
+
+func (self *GlobalVariable) setIndex(i uint){
+	self.index = i
+}
+
 func (self *GlobalVariable) Name()string{
 	if self.name != ""{
 		return "v_" + self.name
 	}
-	return fmt.Sprintf("v_%d", self.index)
+	return fmt.Sprintf("v%d", self.index)
 }
 
 func (self *GlobalVariable) Context()*Context{
@@ -144,11 +162,11 @@ func (self *GlobalVariable) Value()(Const, bool){
 }
 
 func (self *GlobalVariable) Type()Type{
-	return self.t
+	return self.ctx.NewPtrType(self.t)
 }
 
-func (self *GlobalVariable) String()string{
-	return self.Name()
+func (self *GlobalVariable) ValueType()Type{
+	return self.t
 }
 
 // Function 函数
@@ -158,7 +176,8 @@ type Function struct {
 	name string
 
 	t FuncType
-	blocks linkedlist.LinkedList[Block]
+	params []*Param
+	blocks linkedlist.LinkedList[*Block]
 }
 
 func (self *Module) NewFunction(name string, t FuncType)*Function{
@@ -169,6 +188,9 @@ func (self *Module) NewFunction(name string, t FuncType)*Function{
 		ctx: self.ctx,
 		name: name,
 		t: t,
+		params: lo.Map(t.Params(), func(item Type, index int) *Param {
+			return newParam(uint(index), item)
+		}),
 	}
 	if name != ""{
 		self.valueMap[name] = v
@@ -177,11 +199,23 @@ func (self *Module) NewFunction(name string, t FuncType)*Function{
 	return v
 }
 
+func (self *Module) NamedFunction(name string)(*Function, bool){
+	v, ok := self.valueMap[name]
+	if !ok || !stlbasic.Is[*Function](v){
+		return nil, false
+	}
+	return v.(*Function), true
+}
+
+func (self *Function) setIndex(i uint){
+	self.index = i
+}
+
 func (self *Function) Name()string{
 	if self.name != ""{
 		return "f_" + self.name
 	}
-	return fmt.Sprintf("f_%d", self.index)
+	return fmt.Sprintf("f%d", self.index)
 }
 
 func (self *Function) Define()string{
@@ -197,8 +231,22 @@ func (self *Function) Define()string{
 	buf.WriteByte(' ')
 	buf.WriteString(self.Name())
 	buf.WriteByte('(')
-	// TODO: params
-	buf.WriteByte(')')
+	for i, p := range self.params{
+		buf.WriteString(p.Define())
+		if i < len(self.params) - 1{
+			buf.WriteByte(',')
+		}
+	}
+	buf.WriteString(")\n")
+	var i uint
+	for iter:=self.blocks.Iterator(); iter.Next(); {
+		iter.Value().index = i
+		buf.WriteString(iter.Value().String())
+		if iter.HasNext(){
+			buf.WriteByte('\n')
+		}
+		i++
+	}
 	return buf.String()
 }
 
@@ -210,8 +258,8 @@ func (self *Function) Context()*Context{
 	return self.ctx
 }
 
-func (self *Function) String()string{
-	return self.Name()
+func (self *Function) Params()[]*Param{
+	return self.params
 }
 
 // Constant 常量
@@ -242,11 +290,23 @@ func (self *Module) NewConstant(name string, value Const)*Constant{
 	return v
 }
 
+func (self *Module) NamedConstant(name string)(*Constant, bool){
+	v, ok := self.valueMap[name]
+	if !ok || !stlbasic.Is[*Constant](v){
+		return nil, false
+	}
+	return v.(*Constant), true
+}
+
+func (self *Constant) setIndex(i uint){
+	self.index = i
+}
+
 func (self *Constant) Name()string{
 	if self.name != ""{
 		return "c_" + self.name
 	}
-	return fmt.Sprintf("c_%d", self.index)
+	return fmt.Sprintf("c%d", self.index)
 }
 
 func (self *Constant) Context()*Context{
@@ -262,11 +322,7 @@ func (self *Constant) Value()Const{
 }
 
 func (self *Constant) Type()Type{
-	return self.value.Type()
-}
-
-func (self *Constant) String()string{
-	return self.Name()
+	return self.ctx.NewPtrType(self.ValueType())
 }
 
 func (self *Constant) IsZero()bool{
@@ -274,3 +330,7 @@ func (self *Constant) IsZero()bool{
 }
 
 func (*Constant) constant(){}
+
+func (self *Constant) ValueType()Type{
+	return self.value.Type()
+}

@@ -76,13 +76,13 @@ func (self *Analyser) analyseInteger(expect mean.Type, node *ast.Integer) mean.E
 		}
 		return &mean.Integer{
 			Type:  t,
-			Value: *value,
+			Value: value,
 		}
 	case *mean.FloatType:
 		value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
 		return &mean.Float{
 			Type:  t,
-			Value: *value,
+			Value: value,
 		}
 	default:
 		panic("unreachable")
@@ -100,13 +100,13 @@ func (self *Analyser) analyseChar(expect mean.Type, node *ast.Char) mean.Expr {
 		value := big.NewInt(int64(char))
 		return &mean.Integer{
 			Type:  t,
-			Value: *value,
+			Value: value,
 		}
 	case *mean.FloatType:
 		value := big.NewFloat(float64(char))
 		return &mean.Float{
 			Type:  t,
-			Value: *value,
+			Value: value,
 		}
 	default:
 		panic("unreachable")
@@ -120,7 +120,7 @@ func (self *Analyser) analyseFloat(expect mean.Type, node *ast.Float) *mean.Floa
 	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
 	return &mean.Float{
 		Type:  expect.(*mean.FloatType),
-		Value: *value,
+		Value: value,
 	}
 }
 
