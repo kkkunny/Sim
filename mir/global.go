@@ -11,13 +11,14 @@ import (
 )
 
 type Global interface {
+	Context()*Context
 	Name()string
 	Define()string
 }
 
 // 带名字结构体
 type namedStruct struct {
-	ctx Context
+	ctx *Context
 	index uint
 	name string
 	elems []Type
@@ -60,7 +61,7 @@ func (self *namedStruct) String()string{
 	return self.Name()
 }
 
-func (self *namedStruct) Context()Context{
+func (self *namedStruct) Context()*Context{
 	return self.ctx
 }
 
@@ -95,7 +96,7 @@ func (self *namedStruct) Define()string{
 
 // GlobalVariable 全局变量
 type GlobalVariable struct {
-	ctx Context
+	ctx *Context
 	index uint
 	name string
 
@@ -128,6 +129,10 @@ func (self *GlobalVariable) Name()string{
 	return fmt.Sprintf("v_%d", self.index)
 }
 
+func (self *GlobalVariable) Context()*Context{
+	return self.ctx
+}
+
 func (self *GlobalVariable) Define()string{
 	prefix := stlbasic.Ternary(self.mut, "var", "const")
 	if self.value != nil{
@@ -151,7 +156,7 @@ func (self *GlobalVariable) String()string{
 
 // Function 函数
 type Function struct {
-	ctx Context
+	ctx *Context
 	index uint
 	name string
 
@@ -202,6 +207,10 @@ func (self *Function) Define()string{
 
 func (self *Function) Type()Type{
 	return self.t
+}
+
+func (self *Function) Context()*Context{
+	return self.ctx
 }
 
 func (self *Function) String()string{

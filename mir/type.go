@@ -11,7 +11,7 @@ import (
 // Type 类型
 type Type interface {
 	fmt.Stringer
-	Context()Context
+	Context()*Context
 	Equal(t Type)bool
 	Align()stlos.Size
 	Size()stlos.Size
@@ -24,10 +24,10 @@ type VoidType interface {
 }
 
 type voidType struct {
-	ctx Context
+	ctx *Context
 }
 
-func (self Context) Void()VoidType{
+func (self *Context) Void()VoidType{
 	return &voidType{ctx: self}
 }
 
@@ -35,7 +35,7 @@ func (self *voidType) String()string{
 	return "void"
 }
 
-func (self *voidType) Context()Context{
+func (self *voidType) Context()*Context{
 	return self.ctx
 }
 
@@ -73,38 +73,38 @@ type SintType interface {
 }
 
 type sintType struct {
-	ctx Context
+	ctx *Context
 	size stlos.Size
 }
 
-func (self Context) NewSintType(size stlos.Size)SintType {
+func (self *Context) NewSintType(size stlos.Size)SintType {
 	return &sintType{
 		ctx: self,
 		size: size,
 	}
 }
 
-func (self Context) I8()SintType {
+func (self *Context) I8()SintType {
 	return self.NewSintType(1*stlos.Byte)
 }
 
-func (self Context) I16()SintType {
+func (self *Context) I16()SintType {
 	return self.NewSintType(2*stlos.Byte)
 }
 
-func (self Context) I32()SintType {
+func (self *Context) I32()SintType {
 	return self.NewSintType(4*stlos.Byte)
 }
 
-func (self Context) I64()SintType {
+func (self *Context) I64()SintType {
 	return self.NewSintType(8*stlos.Byte)
 }
 
-func (self Context) I128()SintType {
+func (self *Context) I128()SintType {
 	return self.NewSintType(16*stlos.Byte)
 }
 
-func (self Context) Isize()SintType {
+func (self *Context) Isize()SintType {
 	// TODO: size
 	return self.I64()
 }
@@ -113,7 +113,7 @@ func (self *sintType) String()string{
 	return fmt.Sprintf("i%d", self.size)
 }
 
-func (self *sintType) Context()Context{
+func (self *sintType) Context()*Context{
 	return self.ctx
 }
 
@@ -150,38 +150,38 @@ type UintType interface {
 
 // uintType 无符号整型
 type uintType struct {
-	ctx Context
+	ctx *Context
 	size stlos.Size
 }
 
-func (self Context) NewUintType(size stlos.Size)UintType {
+func (self *Context) NewUintType(size stlos.Size)UintType {
 	return &uintType{
 		ctx: self,
 		size: size,
 	}
 }
 
-func (self Context) U8()UintType {
+func (self *Context) U8()UintType {
 	return self.NewUintType(1*stlos.Byte)
 }
 
-func (self Context) U16()UintType {
+func (self *Context) U16()UintType {
 	return self.NewUintType(2*stlos.Byte)
 }
 
-func (self Context) U32()UintType {
+func (self *Context) U32()UintType {
 	return self.NewUintType(4*stlos.Byte)
 }
 
-func (self Context) U64()UintType {
+func (self *Context) U64()UintType {
 	return self.NewUintType(8*stlos.Byte)
 }
 
-func (self Context) U128()UintType {
+func (self *Context) U128()UintType {
 	return self.NewUintType(16*stlos.Byte)
 }
 
-func (self Context) Usize()UintType {
+func (self *Context) Usize()UintType {
 	// TODO: size
 	return self.U64()
 }
@@ -190,7 +190,7 @@ func (self *uintType) String()string{
 	return fmt.Sprintf("u%d", self.size)
 }
 
-func (self *uintType) Context()Context{
+func (self *uintType) Context()*Context{
 	return self.ctx
 }
 
@@ -226,22 +226,22 @@ type FloatType interface {
 }
 
 type floatType struct {
-	ctx Context
+	ctx *Context
 	size stlos.Size
 }
 
-func (self Context) newFloatType(size stlos.Size)FloatType {
+func (self *Context) newFloatType(size stlos.Size)FloatType {
 	return &floatType{
 		ctx: self,
 		size: size,
 	}
 }
 
-func (self Context) F32()FloatType {
+func (self *Context) F32()FloatType {
 	return self.newFloatType(4*stlos.Byte)
 }
 
-func (self Context) F64()FloatType {
+func (self *Context) F64()FloatType {
 	return self.newFloatType(8*stlos.Byte)
 }
 
@@ -249,7 +249,7 @@ func (self *floatType) String()string{
 	return fmt.Sprintf("f%d", self.size)
 }
 
-func (self *floatType) Context()Context{
+func (self *floatType) Context()*Context{
 	return self.ctx
 }
 
@@ -288,7 +288,7 @@ type ptrType struct {
 	elem Type
 }
 
-func (self Context) NewPtrType(elem Type)PtrType {
+func (self *Context) NewPtrType(elem Type)PtrType {
 	if !elem.Context().Target().Equal(self.Target()){
 		panic("unreachable")
 	}
@@ -299,7 +299,7 @@ func (self *ptrType) String()string{
 	return fmt.Sprintf("*%s", self.elem)
 }
 
-func (self *ptrType) Context()Context{
+func (self *ptrType) Context()*Context{
 	return self.elem.Context()
 }
 
@@ -340,7 +340,7 @@ type arrayType struct {
 	elem Type
 }
 
-func (self Context) NewArrayType(len uint, elem Type)ArrayType {
+func (self *Context) NewArrayType(len uint, elem Type)ArrayType {
 	if !elem.Context().Target().Equal(self.Target()){
 		panic("unreachable")
 	}
@@ -354,7 +354,7 @@ func (self *arrayType) String()string{
 	return fmt.Sprintf("[%d]%s", self.len, self.elem)
 }
 
-func (self *arrayType) Context()Context{
+func (self *arrayType) Context()*Context{
 	return self.elem.Context()
 }
 
@@ -394,11 +394,11 @@ type StructType interface {
 
 // 无名字结构体类型
 type unnamedStructType struct {
-	ctx Context
+	ctx *Context
 	elems []Type
 }
 
-func (self Context) NewStructType(elem ...Type) StructType {
+func (self *Context) NewStructType(elem ...Type) StructType {
 	for _, e := range elem{
 		if !e.Context().Target().Equal(self.Target()){
 			panic("unreachable")
@@ -417,7 +417,7 @@ func (self *unnamedStructType) String()string{
 	return fmt.Sprintf("{%s}", strings.Join(elems, ","))
 }
 
-func (self *unnamedStructType) Context()Context{
+func (self *unnamedStructType) Context()*Context{
 	return self.ctx
 }
 
@@ -463,7 +463,7 @@ type funcType struct {
 	params []Type
 }
 
-func (self Context) NewFuncType(ret Type, param ...Type)FuncType {
+func (self *Context) NewFuncType(ret Type, param ...Type)FuncType {
 	if !ret.Context().Target().Equal(self.Target()){
 		panic("unreachable")
 	}
@@ -485,7 +485,7 @@ func (self *funcType) String()string{
 	return fmt.Sprintf("%s(%s)", self.ret, strings.Join(params, ","))
 }
 
-func (self *funcType) Context()Context{
+func (self *funcType) Context()*Context{
 	return self.ret.Context()
 }
 
