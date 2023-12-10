@@ -2,7 +2,7 @@ package mir
 
 import (
 	"fmt"
-	"math/big"
+	"strconv"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
@@ -18,21 +18,21 @@ type Const interface {
 
 type Number interface {
 	Const
-	FloatValue()*big.Float
+	FloatValue()float64
 }
 
 type Int interface {
 	Number
-	IntValue()*big.Int
+	IntValue()int64
 }
 
 // Sint 有符号整数
 type Sint struct {
 	t SintType
-	value *big.Int
+	value int64
 }
 
-func NewSint(t SintType, value *big.Int)*Sint{
+func NewSint(t SintType, value int64)*Sint{
 	return &Sint{
 		t: t,
 		value: value,
@@ -40,7 +40,7 @@ func NewSint(t SintType, value *big.Int)*Sint{
 }
 
 func (self *Sint) Name()string{
-	return self.value.String()
+	return strconv.FormatInt(self.value, 10)
 }
 
 func (self *Sint) Type()Type{
@@ -48,25 +48,25 @@ func (self *Sint) Type()Type{
 }
 
 func (self *Sint) IsZero()bool{
-	return self.value.Cmp(big.NewInt(0)) == 0
+	return self.value == 0
 }
 
 func (*Sint)constant(){}
 
-func (self *Sint)FloatValue()*big.Float{
-	return new(big.Float).SetInt(self.value)
+func (self *Sint)FloatValue()float64{
+	return float64(self.value)
 }
-func (self *Sint)IntValue()*big.Int{
+func (self *Sint)IntValue()int64{
 	return self.value
 }
 
 // Uint 无符号整数
 type Uint struct {
 	t UintType
-	value *big.Int
+	value uint64
 }
 
-func NewUint(t UintType, value *big.Int)*Uint{
+func NewUint(t UintType, value uint64)*Uint{
 	return &Uint{
 		t: t,
 		value: value,
@@ -75,14 +75,14 @@ func NewUint(t UintType, value *big.Int)*Uint{
 
 func Bool(ctx *Context, v bool)*Uint{
 	if v{
-		return NewUint(ctx.Bool(), big.NewInt(1))
+		return NewUint(ctx.Bool(), 1)
 	}else{
-		return NewUint(ctx.Bool(), big.NewInt(0))
+		return NewUint(ctx.Bool(), 0)
 	}
 }
 
 func (self *Uint) Name()string{
-	return self.value.String()
+	return strconv.FormatUint(self.value, 10)
 }
 
 func (self *Uint) Type()Type{
@@ -90,24 +90,24 @@ func (self *Uint) Type()Type{
 }
 
 func (self *Uint) IsZero()bool{
-	return self.value.Cmp(big.NewInt(0)) == 0
+	return self.value == 0
 }
 
 func (*Uint)constant(){}
 
-func (self *Uint)FloatValue()*big.Float{
-	return new(big.Float).SetInt(self.value)
+func (self *Uint)FloatValue()float64{
+	return float64(self.value)
 }
-func (self *Uint)IntValue()*big.Int{
-	return self.value
+func (self *Uint)IntValue()int64{
+	return int64(self.value)
 }
 
-func NewInt(t IntType, value *big.Int)Int{
+func NewInt(t IntType, value int64)Int{
 	switch tt := t.(type) {
 	case SintType:
 		return NewSint(tt, value)
 	case UintType:
-		return NewUint(tt, value)
+		return NewUint(tt, uint64(value))
 	default:
 		panic("unreachable")
 	}
@@ -116,10 +116,10 @@ func NewInt(t IntType, value *big.Int)Int{
 // Float 浮点数
 type Float struct {
 	t FloatType
-	value *big.Float
+	value float64
 }
 
-func NewFloat(t FloatType, value *big.Float)*Float{
+func NewFloat(t FloatType, value float64)*Float{
 	return &Float{
 		t: t,
 		value: value,
@@ -127,7 +127,7 @@ func NewFloat(t FloatType, value *big.Float)*Float{
 }
 
 func (self *Float) Name()string{
-	return self.value.String()
+	return strconv.FormatFloat(self.value, 'E', -1, 64)
 }
 
 func (self *Float) Type()Type{
@@ -135,23 +135,19 @@ func (self *Float) Type()Type{
 }
 
 func (self *Float) IsZero()bool{
-	return self.value.Cmp(big.NewFloat(0)) == 0
+	return self.value == 0
 }
 
 func (*Float)constant(){}
 
-func (self *Float)FloatValue()*big.Float{
+func (self *Float)FloatValue()float64{
 	return self.value
 }
 
-func NewNumber(t NumberType, value *big.Float)Number{
+func NewNumber(t NumberType, value float64)Number{
 	switch tt := t.(type) {
 	case IntType:
-		if !value.IsInt(){
-			panic("unreachable")
-		}
-		v, _ := value.Int(nil)
-		return NewInt(tt, v)
+		return NewInt(tt, int64(value))
 	case FloatType:
 		return NewFloat(tt, value)
 	default:
@@ -255,11 +251,11 @@ func (*EmptyPtr)constant(){}
 func NewZero(t Type)Const{
 	switch tt := t.(type) {
 	case SintType:
-		return NewSint(tt, big.NewInt(0))
+		return NewSint(tt, 0)
 	case UintType:
-		return NewUint(tt, big.NewInt(0))
+		return NewUint(tt, 0)
 	case FloatType:
-		return NewFloat(tt, big.NewFloat(0))
+		return NewFloat(tt, 0)
 	case PtrType:
 		return NewEmptyPtr(tt)
 	case ArrayType:
@@ -308,9 +304,9 @@ func NewArray(t ArrayType, elem ...Const)Const{
 
 func NewString(ctx *Context, s string)*Array{
 	elems := lo.Map([]byte(s), func(item byte, _ int) Const {
-		return NewInt(ctx.U8(), big.NewInt(int64(item)))
+		return NewInt(ctx.U8(), int64(item))
 	})
-	return NewArray(ctx.NewArrayType(uint(len(elems)+1), ctx.U8()), append(elems, NewInt(ctx.U8(), big.NewInt(0)))...).(*Array)
+	return NewArray(ctx.NewArrayType(uint(len(elems)+1), ctx.U8()), append(elems, NewInt(ctx.U8(), 0))...).(*Array)
 }
 
 func (self *Array) Name()string{
@@ -397,7 +393,7 @@ type ConstArrayIndex struct {
 
 func NewArrayIndex(v, index Const)Const{
 	if stlbasic.Is[ArrayType](v.Type()){
-	}else if stlbasic.Is[PtrType](v.Type()) && stlbasic.Is[Array](v.Type().(PtrType).Elem()){
+	}else if stlbasic.Is[PtrType](v.Type()) && stlbasic.Is[ArrayType](v.Type().(PtrType).Elem()){
 	}else{
 		panic("unreachable")
 	}
@@ -406,7 +402,7 @@ func NewArrayIndex(v, index Const)Const{
 	}
 	if vc, ok := v.(*Array); ok{
 		if ic, ok := index.(*Uint); ok{
-			return vc.Elems()[ic.IntValue().Uint64()]
+			return vc.Elems()[ic.IntValue()]
 		}
 	}
 	return &ConstArrayIndex{
@@ -420,11 +416,10 @@ func (self *ConstArrayIndex) Name()string{
 }
 
 func (self *ConstArrayIndex) Type()Type{
-	if stlbasic.Is[ArrayType](self.v.Type()){
-		return self.v.Type().(ArrayType).Elem()
-	}else{
+	if self.IsPtr(){
 		return self.v.Type().Context().NewPtrType(self.v.Type().(PtrType).Elem().(ArrayType).Elem())
 	}
+	return self.v.Type().(ArrayType).Elem()
 }
 
 func (*ConstArrayIndex) IsZero()bool{
@@ -433,19 +428,23 @@ func (*ConstArrayIndex) IsZero()bool{
 
 func (*ConstArrayIndex)constant(){}
 
+func (self *ConstArrayIndex) IsPtr()bool{
+	return stlbasic.Is[PtrType](self.v.Type())
+}
+
 // ConstStructIndex 结构体索引
 type ConstStructIndex struct {
 	i uint
 	v Const
-	index uint
+	index uint64
 }
 
-func NewStructIndex(v Const, index uint)Const{
-	var sizeLength uint
+func NewStructIndex(v Const, index uint64)Const{
+	var sizeLength uint64
 	if stlbasic.Is[StructType](v.Type()){
-		sizeLength = uint(len(v.Type().(StructType).Elems()))
+		sizeLength = uint64(len(v.Type().(StructType).Elems()))
 	}else if stlbasic.Is[PtrType](v.Type()) && stlbasic.Is[StructType](v.Type().(PtrType).Elem()){
-		sizeLength = uint(len(v.Type().(PtrType).Elem().(StructType).Elems()))
+		sizeLength = uint64(len(v.Type().(PtrType).Elem().(StructType).Elems()))
 	}else{
 		panic("unreachable")
 	}
@@ -466,11 +465,10 @@ func (self *ConstStructIndex) Name()string{
 }
 
 func (self *ConstStructIndex) Type()Type{
-	if stlbasic.Is[StructType](self.v.Type()){
-		return self.v.Type().(StructType).Elems()[self.index]
-	}else{
+	if self.IsPtr(){
 		return self.v.Type().Context().NewPtrType(self.v.Type().(PtrType).Elem().(StructType).Elems()[self.index])
 	}
+	return self.v.Type().(StructType).Elems()[self.index]
 }
 
 func (*ConstStructIndex) IsZero()bool{
@@ -478,3 +476,7 @@ func (*ConstStructIndex) IsZero()bool{
 }
 
 func (*ConstStructIndex)constant(){}
+
+func (self *ConstStructIndex) IsPtr()bool{
+	return stlbasic.Is[PtrType](self.v.Type())
+}

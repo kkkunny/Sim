@@ -1,8 +1,6 @@
 package codegen_ir
 
 import (
-	"math/big"
-
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/iterator"
 
@@ -35,9 +33,6 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 
 func (self *CodeGenerator) codegenFlatBlock(node *mean.Block) {
 	for iter := node.Stmts.Iterator(); iter.Next(); {
-		if self.builder.Current().Terminated() {
-			break
-		}
 		self.codegenStmt(iter.Value())
 	}
 }
@@ -92,9 +87,6 @@ func (self *CodeGenerator) codegenIfElse(node *mean.IfElse) {
 	}
 
 	for _, brenchEndBlock := range brenchEndBlocks {
-		if brenchEndBlock.Terminated() {
-			continue
-		}
 		self.builder.MoveTo(brenchEndBlock)
 		self.builder.BuildUnCondJump(endBlock)
 	}
@@ -192,7 +184,7 @@ func (self *CodeGenerator) codegenFor(node *mean.For) {
 	iter := self.codegenExpr(node.Iterator, false)
 	iterArrayTypeMean := node.Iterator.GetType().(*mean.ArrayType)
 	indexPtr := self.builder.BuildAllocFromStack(self.ctx.Usize())
-	self.builder.BuildStore(mir.NewInt(indexPtr.ElemType().(mir.IntType), big.NewInt(0)), indexPtr)
+	self.builder.BuildStore(mir.NewInt(indexPtr.ElemType().(mir.IntType), 0), indexPtr)
 	cursorPtr := self.codegenLocalVariable(node.Cursor)
 	condBlock := self.builder.Current().Belong().NewBlock()
 	self.builder.BuildUnCondJump(condBlock)
@@ -211,19 +203,19 @@ func (self *CodeGenerator) codegenFor(node *mean.For) {
 		// cond
 		self.builder.MoveTo(condBlock)
 		self.builder.BuildCondJump(
-			self.builder.BuildCmp(mir.CmpKindLT, self.builder.BuildLoad(indexPtr), mir.NewInt(indexPtr.ElemType().(mir.IntType), big.NewInt(int64(iterArrayTypeMean.Size)))),
+			self.builder.BuildCmp(mir.CmpKindLT, self.builder.BuildLoad(indexPtr), mir.NewInt(indexPtr.ElemType().(mir.IntType), int64(iterArrayTypeMean.Size))),
 			entry,
 			outBlock,
 		)
 
 		// action
 		self.builder.MoveTo(actionBlock)
-		self.builder.BuildStore(self.builder.BuildAdd(self.builder.BuildLoad(indexPtr), mir.NewInt(indexPtr.ElemType().(mir.IntType), big.NewInt(1))), indexPtr)
+		self.builder.BuildStore(self.builder.BuildAdd(self.builder.BuildLoad(indexPtr), mir.NewInt(indexPtr.ElemType().(mir.IntType), 1)), indexPtr)
 		self.builder.BuildUnCondJump(condBlock)
 
 		// body
 		self.builder.MoveTo(entry)
-		self.builder.BuildStore(self.builder.BuildArrayIndex(iter, self.builder.BuildLoad(indexPtr)), cursorPtr)
+		self.builder.BuildStore(self.buildArrayIndex(iter, self.builder.BuildLoad(indexPtr), false), cursorPtr)
 
 		self.loops.Set(node, &forRange{
 			Action: actionBlock,

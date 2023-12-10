@@ -11,6 +11,7 @@ import (
 )
 
 type Target interface {
+	Name()string
 	Equal(t Target) bool
 	AlignOf(t Type)uint64
 	SizeOf(t Type)stlos.Size
@@ -18,7 +19,7 @@ type Target interface {
 
 func NewTarget(s string)Target{
 	switch s {
-	case "x86_64":
+	case amd64WindowsTarget{}.Name():
 		return new(amd64WindowsTarget)
 	default:
 		panic("unreachable")
@@ -36,6 +37,10 @@ func DefaultTarget()Target{
 
 // amd64 && windows
 type amd64WindowsTarget struct {}
+
+func (amd64WindowsTarget) Name()string{
+	return "x86_64-windows"
+}
 
 func (self *amd64WindowsTarget) Equal(t Target) bool{
 	return stlbasic.Is[*amd64WindowsTarget](t)

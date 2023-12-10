@@ -1,8 +1,6 @@
 package codegen_ir
 
 import (
-	"math/big"
-
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
@@ -20,12 +18,7 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r mir.Value, not bool) mir
 	case *mean.FuncType, *mean.PtrType, *mean.RefType:
 		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
 	case *mean.ArrayType:
-		at := self.codegenArrayType(meanType)
-		lp, rp := self.builder.BuildAllocFromStack(at), self.builder.BuildAllocFromStack(at)
-		self.builder.BuildStore(l, lp)
-		self.builder.BuildStore(r, rp)
-
-		res := self.buildArrayEqual(meanType, lp, rp)
+		res := self.buildArrayEqual(meanType, l, r)
 		if not {
 			res = self.builder.BuildNot(res)
 		}
@@ -70,21 +63,21 @@ func (self *CodeGenerator) buildArrayEqual(meanType *mean.ArrayType, l, r mir.Va
 
 	// cond
 	self.builder.MoveTo(condBlock)
-	cond := self.builder.BuildCmp(mir.CmpKindLT, self.builder.BuildLoad(indexPtr), mir.NewUint(self.ctx.Usize(), big.NewInt(int64(t.Length()))))
+	index := self.builder.BuildLoad(indexPtr)
+	cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewUint(self.ctx.Usize(), uint64(t.Length())))
 	bodyBlock, outBlock := self.builder.Current().Belong().NewBlock(), self.builder.Current().Belong().NewBlock()
 	self.builder.BuildCondJump(cond, bodyBlock, outBlock)
 
 	// body
 	self.builder.MoveTo(bodyBlock)
-	index := self.builder.BuildLoad(indexPtr)
-	cond = self.buildEqual(meanType.Elem, self.builder.BuildArrayIndex(l, index), self.builder.BuildArrayIndex(r, index), false)
+	cond = self.buildEqual(meanType.Elem, self.buildArrayIndex(l, index, false), self.buildArrayIndex(r, index, false), false)
 	bodyEndBlock := self.builder.Current()
 	actionBlock := bodyEndBlock.Belong().NewBlock()
 	self.builder.BuildCondJump(cond, actionBlock, outBlock)
 
 	// action
 	self.builder.MoveTo(actionBlock)
-	self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewUint(self.ctx.Usize(), big.NewInt(1))), indexPtr)
+	self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewUint(self.ctx.Usize(), 1)), indexPtr)
 	self.builder.BuildUnCondJump(condBlock)
 
 	// out
@@ -124,7 +117,7 @@ func (self *CodeGenerator) buildStructEqual(meanType mean.Type, l, r mir.Value) 
 	nextBlocks := dynarray.NewDynArrayWithLength[pair.Pair[mir.Value, *mir.Block]](uint(len(t.Elems())))
 	srcBlocks := dynarray.NewDynArrayWithLength[*mir.Block](uint(len(t.Elems())))
 	for i := uint32(0); i < uint32(len(t.Elems())); i++ {
-		cond := self.buildEqual(fields.Get(uint(i)), self.builder.BuildStructIndex(l, uint(i)), self.builder.BuildStructIndex(r, uint(i)), false)
+		cond := self.buildEqual(fields.Get(uint(i)), self.buildStructIndex(l, uint64(i), false), self.buildStructIndex(r, uint64(i), false), false)
 		nextBlock := beginBlock.Belong().NewBlock()
 		nextBlocks.Set(uint(i), pair.NewPair(cond, nextBlock))
 		srcBlocks.Set(uint(i), self.builder.Current())
@@ -148,6 +141,44 @@ func (self *CodeGenerator) buildStructEqual(meanType mean.Type, l, r mir.Value) 
 		phi.AddFroms(pair.NewPair[*mir.Block, mir.Value](iter.Value(), stlbasic.Ternary[mir.Value](iter.HasNext(), mir.Bool(self.ctx, false), nextBlocks.Back().First)))
 	}
 	return phi
+}
+
+func (self *CodeGenerator) buildArrayIndex(array, i mir.Value, expectPtr ...bool)mir.Value{
+	var expectType mir.PtrType
+	if ft := array.Type(); stlbasic.Is[mir.PtrType](ft){
+		expectType = self.ctx.NewPtrType(ft.(mir.PtrType).Elem().(mir.ArrayType).Elem())
+	}else{
+		expectType = self.ctx.NewPtrType(ft.(mir.ArrayType).Elem())
+	}
+	value := self.builder.BuildArrayIndex(array, i)
+	if len(expectPtr) != 0 && expectPtr[0] && !value.Type().Equal(expectType){
+		ptr := self.builder.BuildAllocFromStack(expectType.Elem())
+		self.builder.BuildStore(value, ptr)
+		return ptr
+	}else if len(expectPtr) != 0 && !expectPtr[0] && value.Type().Equal(expectType){
+		return self.builder.BuildLoad(value)
+	}else {
+		return value
+	}
+}
+
+func (self *CodeGenerator) buildStructIndex(st mir.Value, i uint64, expectPtr ...bool)mir.Value{
+	var expectType mir.PtrType
+	if ft := st.Type(); stlbasic.Is[mir.PtrType](ft){
+		expectType = self.ctx.NewPtrType(ft.(mir.PtrType).Elem().(mir.StructType).Elems()[i])
+	}else{
+		expectType = self.ctx.NewPtrType(ft.(mir.StructType).Elems()[i])
+	}
+	value := self.builder.BuildStructIndex(st, i)
+	if len(expectPtr) != 0 && expectPtr[0] && !value.Type().Equal(expectType){
+		ptr := self.builder.BuildAllocFromStack(expectType.Elem())
+		self.builder.BuildStore(value, ptr)
+		return ptr
+	}else if len(expectPtr) != 0 && !expectPtr[0] && value.Type().Equal(expectType){
+		return self.builder.BuildLoad(value)
+	}else {
+		return value
+	}
 }
 
 func (self *CodeGenerator) getMainFunction() *mir.Function {

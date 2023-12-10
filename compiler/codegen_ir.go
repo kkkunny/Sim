@@ -15,7 +15,6 @@ import (
 
 func main() {
 	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
-	target := mir.DefaultTarget()
-	module := stlerror.MustWith(codegen_ir.CodegenIr(target, path))
+	module := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), path))
 	fmt.Println(module)
 }

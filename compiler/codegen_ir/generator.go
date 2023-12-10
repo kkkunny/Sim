@@ -1,8 +1,6 @@
 package codegen_ir
 
 import (
-	"math/big"
-
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
@@ -77,7 +75,7 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 	})
 	if !hasMain {
 		self.builder.MoveTo(self.getMainFunction().Blocks().Front())
-		self.builder.BuildReturn(mir.NewUint(self.ctx.U8(), big.NewInt(0)))
+		self.builder.BuildReturn(mir.NewUint(self.ctx.U8(), 0))
 	}
 	return self.module
 }

@@ -1,8 +1,6 @@
 package codegen_ir
 
 import (
-	"math/big"
-
 	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/samber/lo"
@@ -21,7 +19,7 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) mir.Value {
 		return self.codegenBool(exprNode)
 	case *mean.Assign:
 		self.codegenAssign(exprNode)
-		return mir.NewInt(self.codegenBoolType(), big.NewInt(1))
+		return nil
 	case mean.Binary:
 		return self.codegenBinary(exprNode)
 	case mean.Unary:
@@ -33,17 +31,17 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) mir.Value {
 	case mean.Covert:
 		return self.codegenCovert(exprNode)
 	case *mean.Array:
-		return self.codegenArray(exprNode, load)
+		return self.codegenArray(exprNode)
 	case *mean.Index:
 		return self.codegenIndex(exprNode, load)
 	case *mean.Tuple:
-		return self.codegenTuple(exprNode, load)
+		return self.codegenTuple(exprNode)
 	case *mean.Extract:
 		return self.codegenExtract(exprNode, load)
 	case *mean.Zero:
 		return self.codegenZero(exprNode.GetType())
 	case *mean.Struct:
-		return self.codegenStruct(exprNode, load)
+		return self.codegenStruct(exprNode)
 	case *mean.Field:
 		return self.codegenField(exprNode, load)
 	case *mean.String:
@@ -67,19 +65,16 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenInteger(node *mean.Integer) mir.Int {
-	return mir.NewInt(self.codegenIntType(node.Type), node.Value)
+	return mir.NewInt(self.codegenIntType(node.Type), node.Value.Int64())
 }
 
 func (self *CodeGenerator) codegenFloat(node *mean.Float) *mir.Float {
-	return mir.NewFloat(self.codegenFloatType(node.Type), node.Value)
+	v, _ := node.Value.Float64()
+	return mir.NewFloat(self.codegenFloatType(node.Type), v)
 }
 
 func (self *CodeGenerator) codegenBool(node *mean.Boolean) *mir.Uint {
-	if node.Value {
-		return mir.NewUint(self.codegenBoolType(), big.NewInt(1))
-	} else {
-		return mir.NewUint(self.codegenBoolType(), big.NewInt(0))
-	}
+	return mir.Bool(self.ctx, node.Value)
 }
 
 func (self *CodeGenerator) codegenAssign(node *mean.Assign) {
@@ -215,47 +210,33 @@ func (self *CodeGenerator) codegenCovert(node mean.Covert) mir.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenArray(node *mean.Array, load bool) mir.Value {
-	elems := lo.Map(node.Elems, func(item mean.Expr, index int) mir.Value {
+func (self *CodeGenerator) codegenArray(node *mean.Array) mir.Value {
+	elems := lo.Map(node.Elems, func(item mean.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	ptr := self.builder.BuildAllocFromStack(self.codegenType(node.Type))
-	for i, elem := range elems {
-		self.builder.BuildStore(elem, self.builder.BuildArrayIndex(ptr, mir.NewInt(self.ctx.Usize(), big.NewInt(int64(i)))))
-	}
-	if !load {
-		return ptr
-	}
-	return self.builder.BuildLoad(ptr)
+	return self.builder.BuildPackArray(self.codegenArrayType(node.Type), elems...)
 }
 
 func (self *CodeGenerator) codegenIndex(node *mean.Index, load bool) mir.Value {
 	// TODO: 运行时异常：超出索引下标
 	from := self.codegenExpr(node.From, false)
-	ptr := self.builder.BuildArrayIndex(from, self.codegenExpr(node.Index, true))
+	ptr := self.buildArrayIndex(from, self.codegenExpr(node.Index, true))
 	if !load{
 		return ptr
 	}
 	return self.builder.BuildLoad(ptr)
 }
 
-func (self *CodeGenerator) codegenTuple(node *mean.Tuple, load bool) mir.Value {
-	elems := lo.Map(node.Elems, func(item mean.Expr, index int) mir.Value {
+func (self *CodeGenerator) codegenTuple(node *mean.Tuple) mir.Value {
+	elems := lo.Map(node.Elems, func(item mean.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	ptr := self.builder.BuildAllocFromStack(self.codegenType(node.GetType()))
-	for i, elem := range elems {
-		self.builder.BuildStore(elem, self.builder.BuildStructIndex(ptr, uint(i)))
-	}
-	if !load {
-		return ptr
-	}
-	return self.builder.BuildLoad(ptr)
+	return self.builder.BuildPackStruct(self.codegenTupleType(node.GetType().(*mean.TupleType)), elems...)
 }
 
 func (self *CodeGenerator) codegenExtract(node *mean.Extract, load bool) mir.Value {
 	from := self.codegenExpr(node.From, false)
-	ptr := self.builder.BuildStructIndex(from, node.Index)
+	ptr := self.buildStructIndex(from, uint64(node.Index))
 	if load{
 		return self.builder.BuildLoad(ptr)
 	}
@@ -279,23 +260,16 @@ func (self *CodeGenerator) codegenZero(tNode mean.Type) mir.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenStruct(node *mean.Struct, load bool) mir.Value {
-	fields := lo.Map(node.Fields, func(item mean.Expr, index int) mir.Value {
+func (self *CodeGenerator) codegenStruct(node *mean.Struct) mir.Value {
+	fields := lo.Map(node.Fields, func(item mean.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	ptr := self.builder.BuildAllocFromStack(self.codegenType(node.GetType()))
-	for i, field := range fields {
-		self.builder.BuildStore(field, self.builder.BuildStructIndex(ptr, uint(i)))
-	}
-	if !load {
-		return ptr
-	}
-	return self.builder.BuildLoad(ptr)
+	return self.builder.BuildPackStruct(self.codegenStructType(node.Type), fields...)
 }
 
 func (self *CodeGenerator) codegenField(node *mean.Field, load bool) mir.Value {
 	from := self.codegenExpr(node.From, false)
-	ptr := self.builder.BuildStructIndex(from, node.Index)
+	ptr := self.buildStructIndex(from, uint64(node.Index))
 	if load{
 		return self.builder.BuildLoad(ptr)
 	}
@@ -309,8 +283,8 @@ func (self *CodeGenerator) codegenString(node *mean.String) mir.Value {
 	}
 	return mir.NewStruct(
 		st,
-		mir.NewArrayIndex(self.strings.Get(node.Value), mir.NewInt(self.ctx.Usize(), big.NewInt(0))),
-		mir.NewInt(self.ctx.Usize(), big.NewInt(int64(len(node.Value)))),
+		mir.NewArrayIndex(self.strings.Get(node.Value), mir.NewInt(self.ctx.Usize(), 0)),
+		mir.NewInt(self.ctx.Usize(), int64(len(node.Value))),
 	)
 }
 
@@ -318,10 +292,10 @@ func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) mir.Value {
 	ut := self.codegenUnionType(node.Type)
 	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.BuildAllocFromStack(ut)
-	self.builder.BuildStore(value, self.builder.BuildStructIndex(ptr, 0))
+	self.builder.BuildStore(value, self.buildStructIndex(ptr, 0, true))
 	self.builder.BuildStore(
-		mir.NewInt(ut.Elems()[1].(mir.UintType), big.NewInt(int64(node.Type.GetElemIndex(node.Value.GetType())))),
-		self.builder.BuildStructIndex(ptr, 1),
+		mir.NewInt(ut.Elems()[1].(mir.UintType), int64(node.Type.GetElemIndex(node.Value.GetType()))),
+		self.buildStructIndex(ptr, 1, true),
 	)
 	if load {
 		return self.builder.BuildLoad(ptr)
@@ -332,8 +306,8 @@ func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) mir.Value {
 func (self *CodeGenerator) codegenUnionTypeJudgment(node *mean.UnionTypeJudgment) mir.Value {
 	utMean := node.Value.GetType().(*mean.UnionType)
 	ut := self.codegenUnionType(utMean)
-	typeIndex := self.builder.BuildStructIndex(self.codegenExpr(node.Value, false), 1)
-	return self.builder.BuildCmp(mir.CmpKindEQ, typeIndex, mir.NewInt(ut.Elems()[1].(mir.IntType), big.NewInt(int64(utMean.GetElemIndex(node.Type)))))
+	typeIndex := self.buildStructIndex(self.codegenExpr(node.Value, false), 1, false)
+	return self.builder.BuildCmp(mir.CmpKindEQ, typeIndex, mir.NewInt(ut.Elems()[1].(mir.IntType), int64(utMean.GetElemIndex(node.Type))))
 }
 
 func (self *CodeGenerator) codegenUnUnion(node *mean.UnUnion) mir.Value {
@@ -341,7 +315,7 @@ func (self *CodeGenerator) codegenUnUnion(node *mean.UnUnion) mir.Value {
 	if stlbasic.Is[llvm.PointerType](value.Type()) {
 		return self.builder.BuildLoad(value)
 	}
-	elem := self.builder.BuildStructIndex(value, 0)
+	elem := self.buildStructIndex(value, 0, false)
 	ptr := self.builder.BuildAllocFromStack(elem.Type())
 	self.builder.BuildStore(elem, ptr)
 	return self.builder.BuildLoad(ptr)
