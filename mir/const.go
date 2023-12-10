@@ -324,7 +324,7 @@ func (self *Array) Type()Type{
 	return self.t
 }
 
-func (self *Array) IsZero()bool{
+func (*Array) IsZero()bool{
 	return false
 }
 
@@ -378,7 +378,7 @@ func (self *Struct) Type()Type{
 	return self.t
 }
 
-func (self *Struct) IsZero()bool{
+func (*Struct) IsZero()bool{
 	return false
 }
 
@@ -404,8 +404,8 @@ func NewArrayIndex(v, index Const)Const{
 	if !stlbasic.Is[UintType](index.Type()){
 		panic("unreachable")
 	}
-	if vc, ok := v.(Array); ok{
-		if ic, ok := index.(Uint); ok{
+	if vc, ok := v.(*Array); ok{
+		if ic, ok := index.(*Uint); ok{
 			return vc.Elems()[ic.IntValue().Uint64()]
 		}
 	}
@@ -427,7 +427,7 @@ func (self *ConstArrayIndex) Type()Type{
 	}
 }
 
-func (self *ConstArrayIndex) IsZero()bool{
+func (*ConstArrayIndex) IsZero()bool{
 	return false
 }
 
@@ -452,7 +452,7 @@ func NewStructIndex(v Const, index uint)Const{
 	if index >= sizeLength{
 		panic("unreachable")
 	}
-	if vc, ok := v.(Struct); ok{
+	if vc, ok := v.(*Struct); ok{
 		return vc.Elems()[index]
 	}
 	return &ConstStructIndex{
@@ -473,7 +473,7 @@ func (self *ConstStructIndex) Type()Type{
 	}
 }
 
-func (self *ConstStructIndex) IsZero()bool{
+func (*ConstStructIndex) IsZero()bool{
 	return false
 }
 

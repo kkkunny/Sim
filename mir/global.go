@@ -14,7 +14,7 @@ type Global interface {
 	Context()*Context
 	Name()string
 	Define()string
-	setIndex(i uint)
+	setIndex(i uint) uint
 }
 
 // 带名字结构体
@@ -51,8 +51,12 @@ func (self *Module) NamedStructType(name string)(StructType, bool){
 	return res, ok
 }
 
-func (self *namedStruct) setIndex(i uint){
+func (self *namedStruct) setIndex(i uint) uint {
+	if self.name != ""{
+		return i
+	}
 	self.index = i
+	return i+1
 }
 
 func (self *namedStruct) Name()string{
@@ -81,14 +85,12 @@ func (self *namedStruct) Equal(t Type)bool{
 	return self == dst
 }
 
-func (self *namedStruct) Align()stlos.Size{
-	// TODO: get align
-	return 1
+func (self *namedStruct) Align() uint64 {
+	return self.ctx.target.AlignOf(self)
 }
 
 func (self *namedStruct) Size()stlos.Size{
-	// TODO: get size
-	return 0
+	return self.ctx.target.SizeOf(self)
 }
 
 func (self *namedStruct) SetElems(elem ...Type){
@@ -100,7 +102,10 @@ func (self *namedStruct) Elems()[]Type{
 }
 
 func (self *namedStruct) Define()string{
-	return fmt.Sprintf("type %s = %s", self.Name(), self)
+	elems := lo.Map(self.elems, func(item Type, _ int) string {
+		return item.String()
+	})
+	return fmt.Sprintf("type %s = {%s}", self.Name(), strings.Join(elems, ","))
 }
 
 // GlobalVariable 全局变量
@@ -138,8 +143,12 @@ func (self *Module) NamedGlobalVariable(name string)(*GlobalVariable, bool){
 	return v.(*GlobalVariable), true
 }
 
-func (self *GlobalVariable) setIndex(i uint){
+func (self *GlobalVariable) setIndex(i uint) uint {
+	if self.name != ""{
+		return i
+	}
 	self.index = i
+	return i+1
 }
 
 func (self *GlobalVariable) Name()string{
@@ -215,8 +224,12 @@ func (self *Module) NamedFunction(name string)(*Function, bool){
 	return v.(*Function), true
 }
 
-func (self *Function) setIndex(i uint){
+func (self *Function) setIndex(i uint) uint {
+	if self.name != ""{
+		return i
+	}
 	self.index = i
+	return i+1
 }
 
 func (self *Function) Name()string{
@@ -245,15 +258,17 @@ func (self *Function) Define()string{
 			buf.WriteByte(',')
 		}
 	}
-	buf.WriteString(")\n")
+	buf.WriteString("):\n")
 	var i uint
 	for iter:=self.blocks.Iterator(); iter.Next(); {
 		iter.Value().index = i
+		i++
+	}
+	for iter:=self.blocks.Iterator(); iter.Next(); {
 		buf.WriteString(iter.Value().String())
 		if iter.HasNext(){
 			buf.WriteByte('\n')
 		}
-		i++
 	}
 	return buf.String()
 }
@@ -310,8 +325,12 @@ func (self *Module) NamedConstant(name string)(*Constant, bool){
 	return v.(*Constant), true
 }
 
-func (self *Constant) setIndex(i uint){
+func (self *Constant) setIndex(i uint) uint {
+	if self.name != ""{
+		return i
+	}
 	self.index = i
+	return i+1
 }
 
 func (self *Constant) Name()string{

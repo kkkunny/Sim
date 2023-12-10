@@ -9,6 +9,6 @@ func NewContext(target Target)*Context{
 	return &Context{target: target}
 }
 
-func (self Context) Target()Target{
+func (self Context) Target() Target {
 	return self.target
 }

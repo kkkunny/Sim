@@ -32,12 +32,14 @@ func (self *Block) String()string{
 	buf.WriteString(":\n")
 	var i uint
 	for iter:=self.stmts.Iterator(); iter.Next(); {
-		buf.WriteString("  ")
 		stmtValue, ok := iter.Value().(StmtValue)
 		if ok{
 			stmtValue.setIndex(i)
 			i++
 		}
+	}
+	for iter:=self.stmts.Iterator(); iter.Next(); {
+		buf.WriteString("  ")
 		buf.WriteString(iter.Value().Define())
 		if iter.HasNext(){
 			buf.WriteByte('\n')

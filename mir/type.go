@@ -13,7 +13,7 @@ type Type interface {
 	fmt.Stringer
 	Context()*Context
 	Equal(t Type)bool
-	Align()stlos.Size
+	Align() uint64
 	Size()stlos.Size
 }
 
@@ -44,12 +44,12 @@ func (self *voidType) Equal(t Type)bool{
 	return ok
 }
 
-func (self *voidType) Align()stlos.Size{
-	return 0
+func (self *voidType) Align() uint64 {
+	return self.ctx.target.AlignOf(self)
 }
 
 func (self *voidType) Size()stlos.Size{
-	return 0
+	return self.ctx.target.SizeOf(self)
 }
 
 func (self *voidType) void(){}
@@ -57,7 +57,7 @@ func (self *voidType) void(){}
 // NumberType 数字类型
 type NumberType interface {
 	Type
-	number()
+	Bits()uint64
 }
 
 // IntType 整型
@@ -128,17 +128,18 @@ func (self *sintType) Equal(t Type)bool{
 	return self.size.Equal(dst.size)
 }
 
-func (self *sintType) Align()stlos.Size{
-	// TODO: get align
-	return 1
+func (self *sintType) Align() uint64 {
+	return self.ctx.target.AlignOf(self)
 }
 
 func (self *sintType) Size()stlos.Size{
-	// TODO: get size
-	return self.size
+	return self.ctx.target.SizeOf(self)
 }
 
-func (*sintType) number(){}
+func (self *sintType) Bits()uint64{
+	return uint64(self.size)
+}
+
 func (*sintType) integer() {}
 func (*sintType) sint() {}
 
@@ -209,17 +210,18 @@ func (self *uintType) Equal(t Type)bool{
 	return self.size.Equal(dst.size)
 }
 
-func (self *uintType) Align()stlos.Size{
-	// TODO: get align
-	return 1
+func (self *uintType) Align() uint64 {
+	return self.ctx.target.AlignOf(self)
 }
 
 func (self *uintType) Size()stlos.Size{
-	// TODO: get size
-	return self.size
+	return self.ctx.target.SizeOf(self)
 }
 
-func (*uintType) number(){}
+func (self *uintType) Bits()uint64{
+	return uint64(self.size)
+}
+
 func (*uintType) integer() {}
 func (*uintType) uint(){}
 
@@ -268,17 +270,18 @@ func (self *floatType) Equal(t Type)bool{
 	return self.size.Equal(dst.size)
 }
 
-func (self *floatType) Align()stlos.Size{
-	// TODO: get align
-	return 1
+func (self *floatType) Align() uint64 {
+	return self.ctx.target.AlignOf(self)
 }
 
 func (self *floatType) Size()stlos.Size{
-	// TODO: get size
-	return self.size
+	return self.ctx.target.SizeOf(self)
 }
 
-func (*floatType) number() {}
+func (self *floatType) Bits()uint64{
+	return uint64(self.size)
+}
+
 func (*floatType) float() {}
 
 type GenericPtrType interface {
@@ -319,14 +322,12 @@ func (self *ptrType) Equal(t Type)bool{
 	return self.elem.Equal(dst.elem)
 }
 
-func (self *ptrType) Align()stlos.Size{
-	// TODO: get align
-	return 1
+func (self *ptrType) Align() uint64 {
+	return self.Context().target.AlignOf(self)
 }
 
 func (self *ptrType) Size()stlos.Size{
-	// TODO: get size
-	return 8 * stlos.Byte
+	return self.Context().target.SizeOf(self)
 }
 
 func (self *ptrType) Elem()Type{
@@ -374,14 +375,12 @@ func (self *arrayType) Equal(t Type)bool{
 	return self.len == dst.len && self.elem.Equal(dst.elem)
 }
 
-func (self *arrayType) Align()stlos.Size{
-	// TODO: get align
-	return self.elem.Align()
+func (self *arrayType) Align() uint64 {
+	return self.Context().target.AlignOf(self)
 }
 
 func (self *arrayType) Size()stlos.Size{
-	// TODO: get size
-	return self.elem.Size() * stlos.Size(self.len)
+	return self.Context().target.SizeOf(self)
 }
 
 func (self *arrayType) Length()uint{
@@ -446,14 +445,12 @@ func (self *unnamedStructType) Equal(t Type)bool{
 	return true
 }
 
-func (self *unnamedStructType) Align()stlos.Size{
-	// TODO: get align
-	return 1
+func (self *unnamedStructType) Align() uint64 {
+	return self.ctx.target.AlignOf(self)
 }
 
 func (self *unnamedStructType) Size()stlos.Size{
-	// TODO: get size
-	return 0
+	return self.ctx.target.SizeOf(self)
 }
 
 func (self *unnamedStructType) SetElems(elem ...Type){
@@ -515,14 +512,12 @@ func (self *funcType) Equal(t Type)bool{
 	return true
 }
 
-func (self *funcType) Align()stlos.Size{
-	// TODO: get align
-	return 1
+func (self *funcType) Align() uint64 {
+	return self.Context().target.AlignOf(self)
 }
 
 func (self *funcType) Size()stlos.Size{
-	// TODO: get size
-	return 8 * stlos.Byte
+	return self.Context().target.SizeOf(self)
 }
 
 func (self *funcType) Ret()Type{

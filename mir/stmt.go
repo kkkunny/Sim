@@ -829,7 +829,7 @@ func (self *Builder) BuildNumberCovert(v Value, to NumberType)Value{
 }
 
 func (self *NumberCovert) Define()string{
-	return fmt.Sprintf("%s %s = covert number %s to %s", self.Type(), self.Name(), self.v.Name(), self.to)
+	return fmt.Sprintf("%s %s = covert Bits %s to %s", self.Type(), self.Name(), self.v.Name(), self.to)
 }
 
 func (self *NumberCovert) setIndex(i uint){
@@ -1083,7 +1083,7 @@ func (self *Builder) BuildCondJump(cond Value, trueTo, falseTo *Block)Jump {
 	if trueTo == falseTo{
 		return self.BuildUnCondJump(trueTo)
 	}
-	if cc, ok := cond.(Uint); ok{
+	if cc, ok := cond.(*Uint); ok{
 		if cc.IsZero(){
 			return self.BuildUnCondJump(falseTo)
 		}else{
@@ -1148,7 +1148,7 @@ func (self *Phi) Type()Type{
 
 func (self *Phi) AddFroms(from ...pair.Pair[*Block, Value]){
 	for _, f := range from{
-		if !f.Second.Type().Equal(t){
+		if !f.Second.Type().Equal(self.t){
 			panic("unreachable")
 		}
 	}

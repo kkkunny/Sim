@@ -3,7 +3,6 @@ package codegen_ir
 import (
 	"math/big"
 
-	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
@@ -170,12 +169,8 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 }
 
 // CodegenIr 中间代码生成
-func CodegenIr(path string) (*mir.Module, stlerror.Error) {
+func CodegenIr(target mir.Target, path string) (*mir.Module, stlerror.Error) {
 	means, err := analyse.Analyse(path)
-	if err != nil{
-		return nil, err
-	}
-	target, err := stlerror.ErrorWith(llvm.NativeTarget())
 	if err != nil{
 		return nil, err
 	}

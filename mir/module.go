@@ -28,61 +28,61 @@ func (self Module) String()string{
 	var buf strings.Builder
 
 	var ts linkedlist.LinkedList[*namedStruct]
+	var tsNameIndex uint
 	var cs linkedlist.LinkedList[*Constant]
+	var csNameIndex uint
 	var vs linkedlist.LinkedList[*GlobalVariable]
+	var vsNameIndex uint
 	var fs linkedlist.LinkedList[*Function]
+	var fsNameIndex uint
 	for iter:=self.globals.Iterator(); iter.Next(); {
 		switch g := iter.Value().(type) {
 		case *namedStruct:
+			tsNameIndex = g.setIndex(tsNameIndex)
 			ts.PushBack(g)
+		case *Constant:
+			csNameIndex = g.setIndex(csNameIndex)
+			cs.PushBack(g)
 		case *GlobalVariable:
+			vsNameIndex = g.setIndex(vsNameIndex)
 			vs.PushBack(g)
 		case *Function:
+			fsNameIndex = g.setIndex(fsNameIndex)
 			fs.PushBack(g)
 		default:
 			panic("unreachable")
 		}
 	}
 
-	var i uint
 	for iter:=ts.Iterator(); iter.Next(); {
-		iter.Value().setIndex(i)
 		buf.WriteString(iter.Value().Define())
 		buf.WriteByte('\n')
-		i++
 	}
 
 	if !ts.Empty(){
 		buf.WriteByte('\n')
 	}
-	i = 0
 	for iter:=cs.Iterator(); iter.Next(); {
-		iter.Value().setIndex(i)
 		buf.WriteString(iter.Value().Define())
 		buf.WriteByte('\n')
-		i++
 	}
 
 	if !cs.Empty(){
 		buf.WriteByte('\n')
 	}
-	i = 0
-for iter:=vs.Iterator(); iter.Next(); {
-		iter.Value().setIndex(i)
+	for iter:=vs.Iterator(); iter.Next(); {
 		buf.WriteString(iter.Value().Define())
 		buf.WriteByte('\n')
-		i++
 	}
 
 	if !vs.Empty(){
 		buf.WriteByte('\n')
 	}
-	i = 0
 	for iter:=fs.Iterator(); iter.Next(); {
-		iter.Value().setIndex(i)
 		buf.WriteString(iter.Value().Define())
-		buf.WriteByte('\n')
-		i++
+		if iter.HasNext(){
+			buf.WriteString("\n\n")
+		}
 	}
 
 	return buf.String()
