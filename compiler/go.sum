@@ -24,6 +24,8 @@ github.com/kkkunny/stl v0.0.0-20231209041134-f72cd53d377b h1:u74Tvgfsn56iB59pIiU
 github.com/kkkunny/stl v0.0.0-20231209041134-f72cd53d377b/go.mod h1:Ien6sco+xI1itcWSIMajp08+KTwOPvLSrLqSQLWDZwQ=
 github.com/kkkunny/stl v0.0.0-20231210080537-553415c6f469 h1:MVuDS54yHMyS5LMMM9j35M78A4prsVu4TjmNNJ4BHYc=
 github.com/kkkunny/stl v0.0.0-20231210080537-553415c6f469/go.mod h1:Ien6sco+xI1itcWSIMajp08+KTwOPvLSrLqSQLWDZwQ=
+github.com/kkkunny/stl v0.0.0-20231210143620-4dbf6480fb22 h1:mSOCw/TRZtTb5IitfJPLNdLzxB+bNSd5+4eaVAym/LE=
+github.com/kkkunny/stl v0.0.0-20231210143620-4dbf6480fb22/go.mod h1:Ien6sco+xI1itcWSIMajp08+KTwOPvLSrLqSQLWDZwQ=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/samber/lo v1.38.1 h1:j2XEAqXKb09Am4ebOg31SpvzUTTs6EN3VfgeLUhPdXM=

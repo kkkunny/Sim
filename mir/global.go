@@ -13,19 +13,20 @@ import (
 type Global interface {
 	Context()*Context
 	Name()string
+	RealName()string
 	Define()string
 	setIndex(i uint) uint
 }
 
-// 带名字结构体
-type namedStruct struct {
+// NamedStruct 带名字结构体
+type NamedStruct struct {
 	ctx *Context
 	index uint
 	name string
 	elems []Type
 }
 
-func (self *Module) NewNamedStructType(name string, elem ...Type)StructType {
+func (self *Module) NewNamedStructType(name string, elem ...Type)*NamedStruct {
 	if _, ok := self.structMap[name]; ok{
 		panic("unreachable")
 	}
@@ -34,7 +35,7 @@ func (self *Module) NewNamedStructType(name string, elem ...Type)StructType {
 			panic("unreachable")
 		}
 	}
-	t := &namedStruct{
+	t := &NamedStruct{
 		ctx: self.ctx,
 		name: name,
 		elems: elem,
@@ -46,12 +47,12 @@ func (self *Module) NewNamedStructType(name string, elem ...Type)StructType {
 	return t
 }
 
-func (self *Module) NamedStructType(name string)(StructType, bool){
+func (self *Module) NamedStructType(name string)(*NamedStruct, bool){
 	res, ok := self.structMap[name]
 	return res, ok
 }
 
-func (self *namedStruct) setIndex(i uint) uint {
+func (self *NamedStruct) setIndex(i uint) uint {
 	if self.name != ""{
 		return i
 	}
@@ -59,49 +60,53 @@ func (self *namedStruct) setIndex(i uint) uint {
 	return i+1
 }
 
-func (self *namedStruct) Name()string{
+func (self *NamedStruct) Name()string{
 	if self.name != ""{
 		return "t_" + self.name
 	}
 	return fmt.Sprintf("t%d", self.index)
 }
 
-func (self *namedStruct) String()string{
+func (self *NamedStruct) RealName()string{
+	return self.name
+}
+
+func (self *NamedStruct) String()string{
 	return self.Name()
 }
 
-func (self *namedStruct) Context()*Context{
+func (self *NamedStruct) Context()*Context{
 	return self.ctx
 }
 
-func (self *namedStruct) Equal(t Type)bool{
+func (self *NamedStruct) Equal(t Type)bool{
 	if !self.ctx.Target().Equal(t.Context().Target()){
 		return false
 	}
-	dst, ok := t.(*namedStruct)
+	dst, ok := t.(*NamedStruct)
 	if !ok{
 		return false
 	}
 	return self == dst
 }
 
-func (self *namedStruct) Align() uint64 {
+func (self *NamedStruct) Align() uint64 {
 	return self.ctx.target.AlignOf(self)
 }
 
-func (self *namedStruct) Size()stlos.Size{
+func (self *NamedStruct) Size()stlos.Size{
 	return self.ctx.target.SizeOf(self)
 }
 
-func (self *namedStruct) SetElems(elem ...Type){
+func (self *NamedStruct) SetElems(elem ...Type){
 	self.elems = elem
 }
 
-func (self *namedStruct) Elems()[]Type{
+func (self *NamedStruct) Elems()[]Type{
 	return self.elems
 }
 
-func (self *namedStruct) Define()string{
+func (self *NamedStruct) Define()string{
 	elems := lo.Map(self.elems, func(item Type, _ int) string {
 		return item.String()
 	})
@@ -156,6 +161,10 @@ func (self *GlobalVariable) Name()string{
 		return "v_" + self.name
 	}
 	return fmt.Sprintf("v%d", self.index)
+}
+
+func (self *GlobalVariable) RealName()string{
+	return self.name
 }
 
 func (self *GlobalVariable) Context()*Context{
@@ -237,6 +246,10 @@ func (self *Function) Name()string{
 		return "f_" + self.name
 	}
 	return fmt.Sprintf("f%d", self.index)
+}
+
+func (self *Function) RealName()string{
+	return self.name
 }
 
 func (self *Function) Define()string{
@@ -338,6 +351,10 @@ func (self *Constant) Name()string{
 		return "c_" + self.name
 	}
 	return fmt.Sprintf("c%d", self.index)
+}
+
+func (self *Constant) RealName()string{
+	return self.name
 }
 
 func (self *Constant) Context()*Context{

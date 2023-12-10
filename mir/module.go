@@ -11,7 +11,7 @@ type Module struct {
 	ctx *Context
 
 	globals linkedlist.LinkedList[Global]
-	structMap map[string]*namedStruct
+	structMap map[string]*NamedStruct
 	valueMap map[string]Value
 }
 
@@ -19,7 +19,7 @@ func (self *Context) NewModule()*Module{
 	return &Module{
 		ctx: self,
 
-		structMap: make(map[string]*namedStruct),
+		structMap: make(map[string]*NamedStruct),
 		valueMap: make(map[string]Value),
 	}
 }
@@ -27,7 +27,7 @@ func (self *Context) NewModule()*Module{
 func (self Module) String()string{
 	var buf strings.Builder
 
-	var ts linkedlist.LinkedList[*namedStruct]
+	var ts linkedlist.LinkedList[*NamedStruct]
 	var tsNameIndex uint
 	var cs linkedlist.LinkedList[*Constant]
 	var csNameIndex uint
@@ -37,7 +37,7 @@ func (self Module) String()string{
 	var fsNameIndex uint
 	for iter:=self.globals.Iterator(); iter.Next(); {
 		switch g := iter.Value().(type) {
-		case *namedStruct:
+		case *NamedStruct:
 			tsNameIndex = g.setIndex(tsNameIndex)
 			ts.PushBack(g)
 		case *Constant:
@@ -86,4 +86,12 @@ func (self Module) String()string{
 	}
 
 	return buf.String()
+}
+
+func (self *Module) Globals()linkedlist.LinkedList[Global]{
+	return self.globals
+}
+
+func (self *Module) Context()*Context{
+	return self.ctx
 }

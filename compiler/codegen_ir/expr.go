@@ -221,7 +221,7 @@ func (self *CodeGenerator) codegenIndex(node *mean.Index, load bool) mir.Value {
 	// TODO: 运行时异常：超出索引下标
 	from := self.codegenExpr(node.From, false)
 	ptr := self.buildArrayIndex(from, self.codegenExpr(node.Index, true))
-	if !load{
+	if !node.Mutable() || !load{
 		return ptr
 	}
 	return self.builder.BuildLoad(ptr)
@@ -237,8 +237,8 @@ func (self *CodeGenerator) codegenTuple(node *mean.Tuple) mir.Value {
 func (self *CodeGenerator) codegenExtract(node *mean.Extract, load bool) mir.Value {
 	from := self.codegenExpr(node.From, false)
 	ptr := self.buildStructIndex(from, uint64(node.Index))
-	if load{
-		return self.builder.BuildLoad(ptr)
+	if !node.Mutable() || !load{
+		return ptr
 	}
 	return self.builder.BuildLoad(ptr)
 }
@@ -270,8 +270,8 @@ func (self *CodeGenerator) codegenStruct(node *mean.Struct) mir.Value {
 func (self *CodeGenerator) codegenField(node *mean.Field, load bool) mir.Value {
 	from := self.codegenExpr(node.From, false)
 	ptr := self.buildStructIndex(from, uint64(node.Index))
-	if load{
-		return self.builder.BuildLoad(ptr)
+	if !node.Mutable() || !load{
+		return ptr
 	}
 	return self.builder.BuildLoad(ptr)
 }

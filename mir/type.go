@@ -400,40 +400,40 @@ type StructType interface {
 	Elems()[]Type
 }
 
-// 无名字结构体类型
-type unnamedStructType struct {
+// UnnamedStructType 无名字结构体类型
+type UnnamedStructType struct {
 	ctx *Context
 	elems []Type
 }
 
-func (self *Context) NewStructType(elem ...Type) StructType {
+func (self *Context) NewStructType(elem ...Type) *UnnamedStructType {
 	for _, e := range elem{
 		if !e.Context().Target().Equal(self.Target()){
 			panic("unreachable")
 		}
 	}
-	return &unnamedStructType{
+	return &UnnamedStructType{
 		ctx: self,
 		elems: elem,
 	}
 }
 
-func (self *unnamedStructType) String()string{
+func (self *UnnamedStructType) String()string{
 	elems := lo.Map(self.elems, func(item Type, _ int) string {
 		return item.String()
 	})
 	return fmt.Sprintf("{%s}", strings.Join(elems, ","))
 }
 
-func (self *unnamedStructType) Context()*Context{
+func (self *UnnamedStructType) Context()*Context{
 	return self.ctx
 }
 
-func (self *unnamedStructType) Equal(t Type)bool{
+func (self *UnnamedStructType) Equal(t Type)bool{
 	if !self.ctx.Target().Equal(t.Context().Target()){
 		return false
 	}
-	dst, ok := t.(*unnamedStructType)
+	dst, ok := t.(*UnnamedStructType)
 	if !ok || len(self.elems) != len(dst.elems){
 		return false
 	}
@@ -445,19 +445,19 @@ func (self *unnamedStructType) Equal(t Type)bool{
 	return true
 }
 
-func (self *unnamedStructType) Align() uint64 {
+func (self *UnnamedStructType) Align() uint64 {
 	return self.ctx.target.AlignOf(self)
 }
 
-func (self *unnamedStructType) Size()stlos.Size{
+func (self *UnnamedStructType) Size()stlos.Size{
 	return self.ctx.target.SizeOf(self)
 }
 
-func (self *unnamedStructType) SetElems(elem ...Type){
+func (self *UnnamedStructType) SetElems(elem ...Type){
 	self.elems = elem
 }
 
-func (self *unnamedStructType) Elems()[]Type{
+func (self *UnnamedStructType) Elems()[]Type{
 	return self.elems
 }
 

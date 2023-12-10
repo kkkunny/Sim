@@ -6,7 +6,7 @@ replace github.com/kkkunny/Sim/runtime v0.0.0-20231203140042-fdf7df5c03c7 => ../
 
 require (
 	github.com/kkkunny/Sim/runtime v0.0.0-20231203140042-fdf7df5c03c7
-	github.com/kkkunny/stl v0.0.0-20231210080537-553415c6f469
+	github.com/kkkunny/stl v0.0.0-20231210143620-4dbf6480fb22
 )
 
 require (

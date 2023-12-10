@@ -1,6 +1,7 @@
 package mir
 
 import (
+	"fmt"
 	"runtime"
 
 	stlbasic "github.com/kkkunny/stl/basic"
@@ -9,6 +10,22 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
 )
+
+type OS string
+
+const (
+	OSWindows OS = "windows"
+)
+
+type Arch string
+
+const (
+	ArchX8664 Arch = "x86_64"
+)
+
+func PackTargetName(arch Arch, os OS)string{
+	return fmt.Sprintf("%s-%s", arch, os)
+}
 
 type Target interface {
 	Name()string
@@ -19,8 +36,8 @@ type Target interface {
 
 func NewTarget(s string)Target{
 	switch s {
-	case amd64WindowsTarget{}.Name():
-		return new(amd64WindowsTarget)
+	case x8664WindowsTarget{}.Name():
+		return new(x8664WindowsTarget)
 	default:
 		panic("unreachable")
 	}
@@ -29,24 +46,32 @@ func NewTarget(s string)Target{
 func DefaultTarget()Target{
 	switch pair.NewPair(runtime.GOARCH, runtime.GOOS) {
 	case pair.NewPair("amd64", "windows"):
-		return new(amd64WindowsTarget)
+		return new(x8664WindowsTarget)
 	default:
 		panic("unreachable")
 	}
 }
 
-// amd64 && windows
-type amd64WindowsTarget struct {}
+// x86_64 && windows
+type x8664WindowsTarget struct {}
 
-func (amd64WindowsTarget) Name()string{
-	return "x86_64-windows"
+func (self x8664WindowsTarget) Name()string{
+	return PackTargetName(self.Arch(), self.OS())
 }
 
-func (self *amd64WindowsTarget) Equal(t Target) bool{
-	return stlbasic.Is[*amd64WindowsTarget](t)
+func (x8664WindowsTarget) OS()OS{
+	return OSWindows
 }
 
-func (self *amd64WindowsTarget) AlignOf(obj Type)uint64{
+func (x8664WindowsTarget) Arch()Arch{
+	return ArchX8664
+}
+
+func (self *x8664WindowsTarget) Equal(t Target) bool{
+	return stlbasic.Is[*x8664WindowsTarget](t)
+}
+
+func (self *x8664WindowsTarget) AlignOf(obj Type)uint64{
 	switch t := obj.(type) {
 	case VoidType:
 		return 0
@@ -73,7 +98,7 @@ func (self *amd64WindowsTarget) AlignOf(obj Type)uint64{
 	}
 }
 
-func (self *amd64WindowsTarget) SizeOf(obj Type)stlos.Size{
+func (self *x8664WindowsTarget) SizeOf(obj Type)stlos.Size{
 	switch t := obj.(type) {
 	case VoidType:
 		return 0

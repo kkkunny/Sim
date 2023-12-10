@@ -61,3 +61,7 @@ func (self *Block) Terminated()bool{
 	}
 	return false
 }
+
+func (self *Block) Stmts()linkedlist.LinkedList[Stmt]{
+	return self.stmts
+}

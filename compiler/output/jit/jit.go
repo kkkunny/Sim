@@ -10,6 +10,8 @@ import (
 
 // RunJit jit
 func RunJit(module llvm.Module) (uint8, stlerror.Error) {
+	llvm.InitializeAllAsmParsers()
+	llvm.InitializeAllAsmPrinters()
 	engine, err := stlerror.ErrorWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
 	if err != nil {
 		return 0, err

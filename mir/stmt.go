@@ -129,6 +129,14 @@ func (self *Store) Define()string{
 	return fmt.Sprintf("store %s to %s", self.from.Name(), self.to.Name())
 }
 
+func (self *Store) From()Value{
+	return self.from
+}
+
+func (self *Store) To()Value{
+	return self.to
+}
+
 // Load 载入
 type Load struct {
 	b *Block
@@ -166,6 +174,10 @@ func (self *Load) Name()string{
 
 func (self *Load) Type()Type{
 	return self.from.Type().(PtrType).Elem()
+}
+
+func (self *Load) From()Value{
+	return self.from
 }
 
 // And 且
@@ -213,6 +225,14 @@ func (self *And) Type()Type{
 	return self.l.Type()
 }
 
+func (self *And) Left()Value{
+	return self.l
+}
+
+func (self *And) Right()Value{
+	return self.r
+}
+
 // Or 或
 type Or struct {
 	b *Block
@@ -256,6 +276,14 @@ func (self *Or) Name()string{
 
 func (self *Or) Type()Type{
 	return self.l.Type()
+}
+
+func (self *Or) Left()Value{
+	return self.l
+}
+
+func (self *Or) Right()Value{
+	return self.r
 }
 
 // Xor 异或
@@ -303,6 +331,14 @@ func (self *Xor) Type()Type{
 	return self.l.Type()
 }
 
+func (self *Xor) Left()Value{
+	return self.l
+}
+
+func (self *Xor) Right()Value{
+	return self.r
+}
+
 // Shl 左移
 type Shl struct {
 	b *Block
@@ -346,6 +382,14 @@ func (self *Shl) Name()string{
 
 func (self *Shl) Type()Type{
 	return self.l.Type()
+}
+
+func (self *Shl) Left()Value{
+	return self.l
+}
+
+func (self *Shl) Right()Value{
+	return self.r
 }
 
 // Shr 右移
@@ -393,6 +437,14 @@ func (self *Shr) Type()Type{
 	return self.l.Type()
 }
 
+func (self *Shr) Left()Value{
+	return self.l
+}
+
+func (self *Shr) Right()Value{
+	return self.r
+}
+
 // Not 非
 
 type Not struct {
@@ -434,6 +486,10 @@ func (self *Not) Name()string{
 
 func (self *Not) Type()Type{
 	return self.v.Type()
+}
+
+func (self *Not) Value()Value{
+	return self.v
 }
 
 // Add 加
@@ -481,6 +537,14 @@ func (self *Add) Type()Type{
 	return self.l.Type()
 }
 
+func (self *Add) Left()Value{
+	return self.l
+}
+
+func (self *Add) Right()Value{
+	return self.r
+}
+
 // Sub 减
 type Sub struct {
 	b *Block
@@ -524,6 +588,14 @@ func (self *Sub) Name()string{
 
 func (self *Sub) Type()Type{
 	return self.l.Type()
+}
+
+func (self *Sub) Left()Value{
+	return self.l
+}
+
+func (self *Sub) Right()Value{
+	return self.r
 }
 
 // Mul 乘
@@ -571,6 +643,14 @@ func (self *Mul) Type()Type{
 	return self.l.Type()
 }
 
+func (self *Mul) Left()Value{
+	return self.l
+}
+
+func (self *Mul) Right()Value{
+	return self.r
+}
+
 // Div 除
 type Div struct {
 	b *Block
@@ -614,6 +694,14 @@ func (self *Div) Name()string{
 
 func (self *Div) Type()Type{
 	return self.l.Type()
+}
+
+func (self *Div) Left()Value{
+	return self.l
+}
+
+func (self *Div) Right()Value{
+	return self.r
 }
 
 // Rem 取余
@@ -661,47 +749,19 @@ func (self *Rem) Type()Type{
 	return self.l.Type()
 }
 
-// Neg 取反
+func (self *Rem) Left()Value{
+	return self.l
+}
 
-type Neg struct {
-	b *Block
-	i uint
-	v Value
+func (self *Rem) Right()Value{
+	return self.r
 }
 
 func (self *Builder) BuildNeg(v Value)Value{
 	if !stlbasic.Is[NumberType](v.Type()){
 		panic("unreachable")
 	}
-	if vc, ok := v.(Number); ok{
-		return NewNumber(v.Type().(NumberType), 0-vc.FloatValue())
-	}
-	stmt := &Neg{
-		b: self.cur,
-		v: v,
-	}
-	self.cur.stmts.PushBack(stmt)
-	return stmt
-}
-
-func (self *Neg) Belong()*Block{
-	return self.b
-}
-
-func (self *Neg) Define()string{
-	return fmt.Sprintf("%s %s = neg %s", self.Type(), self.Name(), self.v.Name())
-}
-
-func (self *Neg) setIndex(i uint){
-	self.i = i
-}
-
-func (self *Neg) Name()string{
-	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
-}
-
-func (self *Neg) Type()Type{
-	return self.v.Type()
+	return self.BuildSub(NewZero(v.Type()), v)
 }
 
 type CmpKind uint8
@@ -798,6 +858,18 @@ func (self *Cmp) Type()Type{
 	return self.l.Type().Context().Bool()
 }
 
+func (self *Cmp) Kind()CmpKind{
+	return self.kind
+}
+
+func (self *Cmp) Left()Value{
+	return self.l
+}
+
+func (self *Cmp) Right()Value{
+	return self.r
+}
+
 type PtrEqualKind uint8
 
 const (
@@ -862,6 +934,18 @@ func (self *PtrEqual) Type()Type{
 	return self.l.Type().Context().Bool()
 }
 
+func (self *PtrEqual) Kind()PtrEqualKind{
+	return self.kind
+}
+
+func (self *PtrEqual) Left()Value{
+	return self.l
+}
+
+func (self *PtrEqual) Right()Value{
+	return self.r
+}
+
 // Call 调用
 
 type Call struct {
@@ -913,6 +997,14 @@ func (self *Call) Type()Type{
 	return self.f.Type().(FuncType).Ret()
 }
 
+func (self *Call) Func()Value{
+	return self.f
+}
+
+func (self *Call) Args()[]Value{
+	return self.args
+}
+
 // NumberCovert 数字转换
 type NumberCovert struct {
 	b *Block
@@ -960,6 +1052,10 @@ func (self *NumberCovert) Type()Type{
 	return self.to
 }
 
+func (self *NumberCovert) From()Value{
+	return self.v
+}
+
 // PtrToUint 指针转uint
 type PtrToUint struct {
 	b *Block
@@ -1001,6 +1097,10 @@ func (self *PtrToUint) Type()Type{
 	return self.to
 }
 
+func (self *PtrToUint) From()Value{
+	return self.v
+}
+
 // UintToPtr uint转指针
 type UintToPtr struct {
 	b *Block
@@ -1040,6 +1140,10 @@ func (self *UintToPtr) Name()string{
 
 func (self *UintToPtr) Type()Type{
 	return self.to
+}
+
+func (self *UintToPtr) From()Value{
+	return self.v
 }
 
 // ArrayIndex 数组索引
@@ -1098,6 +1202,14 @@ func (self *ArrayIndex) Type()Type{
 
 func (self *ArrayIndex) IsPtr()bool{
 	return stlbasic.Is[PtrType](self.v.Type())
+}
+
+func (self *ArrayIndex) Array()Value{
+	return self.v
+}
+
+func (self *ArrayIndex) Index()Value{
+	return self.index
 }
 
 // StructIndex 结构体索引
@@ -1159,6 +1271,14 @@ func (self *StructIndex) IsPtr()bool{
 	return stlbasic.Is[PtrType](self.v.Type())
 }
 
+func (self *StructIndex) Array()Value{
+	return self.v
+}
+
+func (self *StructIndex) Index()uint64{
+	return self.index
+}
+
 type Terminating interface {
 	Stmt
 	terminate()
@@ -1199,6 +1319,10 @@ func (self *Return) Define()string{
 	return fmt.Sprintf("ret %s", self.v.Name())
 }
 
+func (self *Return) Value()(Value, bool){
+	return self.v, self.v!=nil
+}
+
 func (*Return)terminate(){}
 
 type Jump interface {
@@ -1227,6 +1351,10 @@ func (self *UnCondJump) Belong()*Block{
 
 func (self *UnCondJump) Define()string{
 	return fmt.Sprintf("jump %s", self.to.Name())
+}
+
+func (self *UnCondJump) To()*Block{
+	return self.to
 }
 
 func (*UnCondJump)terminate(){}
@@ -1269,6 +1397,18 @@ func (self *CondJump) Belong()*Block{
 
 func (self *CondJump) Define()string{
 	return fmt.Sprintf("if %s jump %s or %s", self.cond.Name(), self.trueTo.Name(), self.falseTo.Name())
+}
+
+func (self *CondJump) Cond()Value{
+	return self.cond
+}
+
+func (self *CondJump) TrueBlock()*Block{
+	return self.trueTo
+}
+
+func (self *CondJump) FalseBlock()*Block{
+	return self.falseTo
 }
 
 func (*CondJump)terminate(){}
@@ -1327,6 +1467,10 @@ func (self *Phi) AddFroms(from ...pair.Pair[*Block, Value]){
 		}
 	}
 	self.froms = append(self.froms, from...)
+}
+
+func (self *Phi) Froms()[]pair.Pair[*Block, Value]{
+	return self.froms
 }
 
 // PackArray 打包数组
@@ -1390,6 +1534,10 @@ func (self *PackArray) Type()Type{
 	return self.t
 }
 
+func (self *PackArray) Elems()[]Value{
+	return self.elems
+}
+
 // PackStruct 打包结构体
 type PackStruct struct {
 	b *Block
@@ -1449,4 +1597,8 @@ func (self *PackStruct) Name()string{
 
 func (self *PackStruct) Type()Type{
 	return self.t
+}
+
+func (self *PackStruct) Elems()[]Value{
+	return self.elems
 }

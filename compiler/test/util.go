@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
 	stltest "github.com/kkkunny/stl/test"
 
@@ -13,6 +12,8 @@ import (
 	"github.com/kkkunny/Sim/config"
 	_ "github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/lex"
+	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/mir/output/llvm"
 	"github.com/kkkunny/Sim/output/jit"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
@@ -21,8 +22,6 @@ import (
 
 func init() {
 	config.ROOT = filepath.Dir(config.ROOT)
-	stlerror.Must(llvm.InitializeNativeTarget())
-	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 }
 
 func assertRetEq(t *testing.T, code string, expect uint8, skips ...uint) {
@@ -31,11 +30,13 @@ func assertRetEq(t *testing.T, code string, expect uint8, skips ...uint) {
 		skip = skips[0]
 	}
 	path := stlerror.MustWith(filepath.Abs(stlerror.MustWith(util.GetFileName(skip+1))))
-	target := stlerror.MustWith(llvm.NativeTarget())
 	r := stlerror.MustWith(reader.NewReaderFromString(path, code))
-	module := codegen_ir.New(target, analyse.New(parse.New(lex.New(r)).Parse()).Analyse()).Codegen()
-	stlerror.Must(module.Verify())
-	stltest.AssertEq(t, stlerror.MustWith(jit.RunJit(module)), expect)
+	mirModule := codegen_ir.New(mir.DefaultTarget(), analyse.New(parse.New(lex.New(r)).Parse()).Analyse()).Codegen()
+	outputer := llvm.NewLLVMOutputer()
+	outputer.Codegen(mirModule)
+	llvmModule := outputer.Module()
+	stlerror.Must(llvmModule.Verify())
+	stltest.AssertEq(t, stlerror.MustWith(jit.RunJit(llvmModule)), expect)
 }
 
 func assertRetEqZero(t *testing.T, code string) {
