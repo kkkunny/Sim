@@ -91,6 +91,10 @@ func (self *namedStruct) Size()stlos.Size{
 	return 0
 }
 
+func (self *namedStruct) SetElems(elem ...Type){
+	self.elems = elem
+}
+
 func (self *namedStruct) Elems()[]Type{
 	return self.elems
 }
@@ -155,6 +159,10 @@ func (self *GlobalVariable) Define()string{
 	}else{
 		return fmt.Sprintf("var %s %s", self.t, self.Name())
 	}
+}
+
+func (self *GlobalVariable) SetValue(v Const){
+	self.value = v
 }
 
 func (self *GlobalVariable) Value()(Const, bool){
@@ -260,6 +268,10 @@ func (self *Function) Context()*Context{
 
 func (self *Function) Params()[]*Param{
 	return self.params
+}
+
+func (self *Function) Blocks()linkedlist.LinkedList[*Block]{
+	return self.blocks
 }
 
 // Constant 常量

@@ -7,12 +7,18 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 )
 
 // Stmt 语句
 type Stmt interface {
 	Define()string
+}
+
+type StmtValue interface {
+	Stmt
+	Value
 	setIndex(i uint)
 }
 
@@ -82,7 +88,6 @@ func (self *AllocFromHeap) ElemType()Type{
 
 // Store 赋值
 type Store struct {
-	i uint
 	from, to Value
 }
 
@@ -100,10 +105,6 @@ func (self *Builder) BuildStore(from, to Value)*Store{
 
 func (self *Store) Define()string{
 	return fmt.Sprintf("store %s to %s", self.from.Name(), self.to.Name())
-}
-
-func (self *Store) setIndex(i uint){
-	self.i = i
 }
 
 // Load 载入
@@ -754,7 +755,7 @@ type Call struct {
 	args []Value
 }
 
-func (self *Builder) BuildCall(f Value, arg ...Value)Value{
+func (self *Builder) BuildCall(f Value, arg ...Value)StmtValue{
 	params := f.Type().(FuncType).Params()
 	if len(params) != len(arg){
 		panic("unreachable")
@@ -1010,4 +1011,146 @@ func (self *StructIndex) Type()Type{
 	}else{
 		return self.v.Type().Context().NewPtrType(self.v.Type().(PtrType).Elem().(StructType).Elems()[self.index])
 	}
+}
+
+type Terminating interface {
+	Stmt
+	terminate()
+}
+
+// Return 返回
+type Return struct {
+	v Value
+}
+
+func (self *Builder) BuildReturn(v ...Value)*Return{
+	var value Value
+	if len(v) != 0{
+		value = v[0]
+	}
+	if value == nil && self.cur.f.t.Ret().Equal(self.ctx.Void()){
+	}else if value != nil && value.Type().Equal(self.cur.f.t.Ret()){
+	}else{
+		panic("unreachable")
+	}
+	stmt := &Return{v: value}
+	self.cur.stmts.PushBack(stmt)
+	return stmt
+}
+
+func (self *Return) Define()string{
+	if self.v == nil{
+		return "ret"
+	}
+	return fmt.Sprintf("ret %s", self.v.Name())
+}
+
+func (*Return)terminate(){}
+
+type Jump interface {
+	Terminating
+	jump()
+}
+
+// UnCondJump 无条件跳转
+type UnCondJump struct {
+	to *Block
+}
+
+func (self *Builder) BuildUnCondJump(to *Block)*UnCondJump {
+	stmt := &UnCondJump{to: to}
+	self.cur.stmts.PushBack(stmt)
+	return stmt
+}
+
+func (self *UnCondJump) Define()string{
+	return fmt.Sprintf("jump %s", self.to.Name())
+}
+
+func (*UnCondJump)terminate(){}
+func (*UnCondJump) jump(){}
+
+// CondJump 条件跳转
+type CondJump struct {
+	cond Value
+	trueTo, falseTo *Block
+}
+
+func (self *Builder) BuildCondJump(cond Value, trueTo, falseTo *Block)Jump {
+	if !cond.Type().Equal(self.ctx.Bool()){
+		panic("unreachable")
+	}
+	if trueTo == falseTo{
+		return self.BuildUnCondJump(trueTo)
+	}
+	if cc, ok := cond.(Uint); ok{
+		if cc.IsZero(){
+			return self.BuildUnCondJump(falseTo)
+		}else{
+			return self.BuildUnCondJump(trueTo)
+		}
+	}
+	stmt := &CondJump{
+		cond: cond,
+		trueTo: trueTo,
+		falseTo: falseTo,
+	}
+	self.cur.stmts.PushBack(stmt)
+	return stmt
+}
+
+func (self *CondJump) Define()string{
+	return fmt.Sprintf("if %s jump %s or %s", self.cond.Name(), self.trueTo.Name(), self.falseTo.Name())
+}
+
+func (*CondJump)terminate(){}
+func (*CondJump) jump(){}
+
+// Phi 跳转收拢
+type Phi struct {
+	i uint
+	t Type
+	froms []pair.Pair[*Block, Value]
+}
+
+func (self *Builder) BuildPhi(t Type, from ...pair.Pair[*Block, Value])*Phi {
+	for _, f := range from{
+		if !f.Second.Type().Equal(t){
+			panic("unreachable")
+		}
+	}
+	stmt := &Phi{
+		t: t,
+		froms: from,
+	}
+	self.cur.stmts.PushBack(stmt)
+	return stmt
+}
+
+func (self *Phi) Define()string{
+	froms := lo.Map(self.froms, func(item pair.Pair[*Block, Value], _ int) string {
+		return fmt.Sprintf("%s:%s", item.First.Name(), item.Second.Name())
+	})
+	return fmt.Sprintf("%s %s = phi [%s]", self.t, self.Name(), strings.Join(froms, ","))
+}
+
+func (self *Phi) setIndex(i uint){
+	self.i = i
+}
+
+func (self *Phi) Name()string{
+	return fmt.Sprintf("%%%d", self.i)
+}
+
+func (self *Phi) Type()Type{
+	return self.t
+}
+
+func (self *Phi) AddFroms(from ...pair.Pair[*Block, Value]){
+	for _, f := range from{
+		if !f.Second.Type().Equal(t){
+			panic("unreachable")
+		}
+	}
+	self.froms = append(self.froms, from...)
 }

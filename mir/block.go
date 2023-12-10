@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"strings"
 
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedlist"
 )
 
 // Block 代码块
 type Block struct {
+	f *Function
 	index uint
 	stmts linkedlist.LinkedList[Stmt]
 }
 
 func (self *Function) NewBlock()*Block{
-	b := &Block{}
+	b := &Block{f: self}
 	self.blocks.PushBack(b)
 	return b
 }
@@ -31,13 +33,29 @@ func (self *Block) String()string{
 	var i uint
 	for iter:=self.stmts.Iterator(); iter.Next(); {
 		buf.WriteString("  ")
-		iter.Value().setIndex(i)
+		stmtValue, ok := iter.Value().(StmtValue)
+		if ok{
+			stmtValue.setIndex(i)
+			i++
+		}
 		buf.WriteString(iter.Value().Define())
 		if iter.HasNext(){
 			buf.WriteByte('\n')
 		}
-		i++
 	}
 
 	return buf.String()
+}
+
+func (self *Block) Belong()*Function{
+	return self.f
+}
+
+func (self *Block) Terminated()bool{
+	for iter:=self.stmts.Iterator(); iter.Next(); {
+		if stlbasic.Is[Terminating](iter.Value()){
+			return true
+		}
+	}
+	return false
 }

@@ -397,6 +397,7 @@ func (self *arrayType) array(){}
 // StructType 结构体类型
 type StructType interface {
 	Type
+	SetElems(elem ...Type)
 	Elems()[]Type
 }
 
@@ -453,6 +454,10 @@ func (self *unnamedStructType) Align()stlos.Size{
 func (self *unnamedStructType) Size()stlos.Size{
 	// TODO: get size
 	return 0
+}
+
+func (self *unnamedStructType) SetElems(elem ...Type){
+	self.elems = elem
 }
 
 func (self *unnamedStructType) Elems()[]Type{

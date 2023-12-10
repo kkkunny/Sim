@@ -9,3 +9,11 @@ type Builder struct {
 func (self *Context) NewBuilder()*Builder{
 	return &Builder{ctx: self}
 }
+
+func (self *Builder) Current()*Block{
+	return self.cur
+}
+
+func (self *Builder) MoveTo(block *Block){
+	self.cur = block
+}

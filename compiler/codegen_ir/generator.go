@@ -1,7 +1,8 @@
 package codegen_ir
 
 import (
-	"github.com/kkkunny/go-llvm"
+	"math/big"
+
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
@@ -39,7 +40,7 @@ func New(target mir.Target, means linkedlist.LinkedList[mean.Global]) *CodeGener
 }
 
 // Codegen 代码生成
-func (self *CodeGenerator) Codegen() llvm.Module {
+func (self *CodeGenerator) Codegen() *mir.Module {
 	// 类型声明
 	iterator.Foreach(self.means, func(v mean.Global) bool {
 		st, ok := v.(*mean.StructDef)
@@ -60,25 +61,23 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 	})
 	// 初始化函数
 	// FIXME: jit无法运行llvm.global_ctors
-	self.builder.MoveToAfter(self.getInitFunction().EntryBlock())
-	self.builder.CreateRet(nil)
+	self.builder.MoveTo(self.getInitFunction().Blocks().Front())
+	self.builder.BuildReturn()
 	// 主函数
 	var hasMain bool
 	iterator.Foreach(self.means, func(v mean.Global) bool {
 		if funcNode, ok := v.(*mean.FuncDef); ok && funcNode.Name == "main" {
 			hasMain = true
-			f := self.values[funcNode].(llvm.Function)
-			self.builder.MoveToAfter(self.getMainFunction().EntryBlock())
-			var ret llvm.Value = self.builder.CreateCall("", self.codegenFuncType(funcNode.GetType().(*mean.FuncType)), f)
-			self.builder.CreateRet(&ret)
+			f := self.values.Get(funcNode).(*mir.Function)
+			self.builder.MoveTo(self.getMainFunction().Blocks().Front())
+			self.builder.BuildReturn(self.builder.BuildCall(f))
 			return false
 		}
 		return true
 	})
 	if !hasMain {
-		self.builder.MoveToAfter(self.getMainFunction().EntryBlock())
-		var ret llvm.Value = self.ctx.ConstInteger(self.ctx.IntegerType(8), 0)
-		self.builder.CreateRet(&ret)
+		self.builder.MoveTo(self.getMainFunction().Blocks().Front())
+		self.builder.BuildReturn(mir.NewUint(self.ctx.U8(), big.NewInt(0)))
 	}
 	return self.module
 }

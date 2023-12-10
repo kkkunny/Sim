@@ -1,23 +1,22 @@
 package codegen_ir
 
 import (
-	"github.com/kkkunny/go-llvm"
-
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/mir"
 )
 
 func (self *CodeGenerator) declStructDef(node *mean.StructDef) {
-	self.structs.Set(node, self.ctx.NamedStructType("", false))
+	self.structs.Set(node, self.module.NewNamedStructType(""))
 }
 
 func (self *CodeGenerator) defStructDef(node *mean.StructDef) {
 	st := self.structs.Get(node)
-	fields := make([]llvm.Type, node.Fields.Length())
+	fields := make([]mir.Type, node.Fields.Length())
 	var i int
 	for iter := node.Fields.Values().Iterator(); iter.Next(); i++ {
 		fields[i] = self.codegenType(iter.Value().Second)
 	}
-	st.SetElems(false, fields...)
+	st.SetElems(fields...)
 }
 
 func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
@@ -38,41 +37,28 @@ func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
 
 func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
 	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
-	f := self.newFunction(node.ExternName, ft)
-	if node.ExternName == "" {
-		f.SetLinkage(llvm.InternalLinkage)
-	} else {
-		f.SetLinkage(llvm.ExternalLinkage)
-	}
-	self.values[node] = f
+	f := self.module.NewFunction(node.ExternName, ft)
+	self.values.Set(node, f)
 }
 
 func (self *CodeGenerator) declMethodDef(node *mean.MethodDef) {
 	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
-	f := self.newFunction("", ft)
-	f.SetLinkage(llvm.InternalLinkage)
-	self.values[node] = f
+	f := self.module.NewFunction("", ft)
+	self.values.Set(node, f)
 }
 
 func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
 	t := self.codegenType(node.Type)
-	v := self.module.NewGlobal("", t)
-	if node.ExternName == "" {
-		v.SetLinkage(llvm.InternalLinkage)
-	} else {
-		v.SetLinkage(llvm.ExternalLinkage)
-	}
-	self.values[node] = v
-	v.SetInitializer(self.ctx.ConstNull(self.codegenType(node.GetType())))
+	v := self.module.NewGlobalVariable("", t, mir.NewZero(self.codegenType(node.GetType())))
+	self.values.Set(node, v)
 }
 
 func (self *CodeGenerator) declGenericFuncDef(node *mean.GenericFuncDef) {
 	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
 		inst := iter.Value()
 		ft := self.codegenFuncType(inst.GetType().(*mean.FuncType))
-		f := self.newFunction("", ft)
-		f.SetLinkage(llvm.InternalLinkage)
-		self.values[inst] = f
+		f := self.module.NewFunction("", ft)
+		self.values.Set(inst, f)
 	}
 }
 
@@ -98,41 +84,55 @@ func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
 }
 
 func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
-	f := self.values[node].(llvm.Function)
-	self.builder.MoveToAfter(f.NewBlock("entry"))
-	self.enterFunction(self.codegenFuncType(node.GetType().(*mean.FuncType)), f, node.Params)
+	f := self.values.Get(node).(*mir.Function)
+	self.builder.MoveTo(f.NewBlock())
+	for i, p := range f.Params() {
+		paramNode := node.Params[i]
+
+		pt := self.codegenType(paramNode.GetType())
+		param := self.builder.BuildAllocFromStack(pt)
+		self.builder.BuildStore(p, param)
+		self.values.Set(paramNode, param)
+	}
 	block, _ := self.codegenBlock(node.Body.MustValue(), nil)
-	self.builder.CreateBr(block)
+	self.builder.BuildUnCondJump(block)
 }
 
 func (self *CodeGenerator) defMethodDef(node *mean.MethodDef) {
-	f := self.values[node].(llvm.Function)
-	self.builder.MoveToAfter(f.NewBlock("entry"))
-	self.enterFunction(self.codegenFuncType(node.GetType().(*mean.FuncType)), f, append([]*mean.Param{node.SelfParam}, node.Params...))
+	f := self.values.Get(node).(*mir.Function)
+	self.builder.MoveTo(f.NewBlock())
+	for i, p := range f.Params() {
+		paramNode := node.Params[i]
+
+		pt := self.codegenType(paramNode.GetType())
+		param := self.builder.BuildAllocFromStack(pt)
+		self.builder.BuildStore(p, param)
+		self.values.Set(paramNode, param)
+	}
 	block, _ := self.codegenBlock(node.Body, nil)
-	self.builder.CreateBr(block)
+	self.builder.BuildUnCondJump(block)
 }
 
 func (self *CodeGenerator) defFuncDecl(node *mean.FuncDef) {
-	_ = self.values[node].(llvm.Function)
+	_ = self.values.Get(node).(*mir.Function)
 }
 
 func (self *CodeGenerator) defGlobalVariable(node *mean.Variable) {
-	gv := self.values[node].(llvm.GlobalValue)
-	self.builder.MoveToAfter(self.getInitFunction().EntryBlock())
+	gv := self.values.Get(node).(*mir.GlobalVariable)
+	self.builder.MoveTo(self.getInitFunction().Blocks().Front())
 	value := self.codegenExpr(node.Value, true)
-	if constValue, ok := value.(llvm.Constant); ok {
-		gv.SetInitializer(constValue)
+	if constValue, ok := value.(mir.Const); ok {
+		gv.SetValue(constValue)
 	} else {
-		self.builder.CreateStore(value, gv)
+		self.builder.BuildStore(value, gv)
 	}
 }
 
 func (self *CodeGenerator) defGenericFuncDef(node *mean.GenericFuncDef) {
 	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
 		inst := iter.Value()
-		f := self.values[inst].(llvm.Function)
-		self.builder.MoveToAfter(f.NewBlock("entry"))
+		f := self.values.Get(inst).(*mir.Function)
+		self.builder.MoveTo(f.NewBlock())
 
 		var i int
 		for iter:=node.GenericParams.Values().Iterator(); iter.Next(); {
@@ -140,9 +140,16 @@ func (self *CodeGenerator) defGenericFuncDef(node *mean.GenericFuncDef) {
 			i++
 		}
 
-		self.enterFunction(self.codegenFuncType(inst.GetType().(*mean.FuncType)), f, node.Params)
+		for i, p := range f.Params() {
+			paramNode := node.Params[i]
+
+			pt := self.codegenType(paramNode.GetType())
+			param := self.builder.BuildAllocFromStack(pt)
+			self.builder.BuildStore(p, param)
+			self.values.Set(paramNode, param)
+		}
 		block, _ := self.codegenBlock(node.Body, nil)
-		self.builder.CreateBr(block)
+		self.builder.BuildUnCondJump(block)
 
 		self.genericParams.Clear()
 	}
