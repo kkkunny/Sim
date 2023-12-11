@@ -135,7 +135,7 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 	case *mir.Cmp:
 		switch sv.Kind() {
 		case mir.CmpKindEQ:
-			switch sv.Type().(type) {
+			switch sv.Left().Type().(type) {
 			case mir.IntType:
 				return self.builder.CreateIntCmp("", llvm.IntEQ, self.codegenValue(sv.Left()), self.codegenValue(sv.Right()))
 			case mir.FloatType:
@@ -144,7 +144,7 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 				panic("unreachable")
 			}
 		case mir.CmpKindNE:
-			switch sv.Type().(type) {
+			switch sv.Left().Type().(type) {
 			case mir.IntType:
 				return self.builder.CreateIntCmp("", llvm.IntNE, self.codegenValue(sv.Left()), self.codegenValue(sv.Right()))
 			case mir.FloatType:
@@ -153,7 +153,7 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 				panic("unreachable")
 			}
 		case mir.CmpKindLT:
-			switch sv.Type().(type) {
+			switch sv.Left().Type().(type) {
 			case mir.SintType:
 				return self.builder.CreateIntCmp("", llvm.IntSLT, self.codegenValue(sv.Left()), self.codegenValue(sv.Right()))
 			case mir.UintType:
@@ -164,7 +164,7 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 				panic("unreachable")
 			}
 		case mir.CmpKindLE:
-			switch sv.Type().(type) {
+			switch sv.Left().Type().(type) {
 			case mir.SintType:
 				return self.builder.CreateIntCmp("", llvm.IntSLE, self.codegenValue(sv.Left()), self.codegenValue(sv.Right()))
 			case mir.UintType:
@@ -175,7 +175,7 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 				panic("unreachable")
 			}
 		case mir.CmpKindGT:
-			switch sv.Type().(type) {
+			switch sv.Left().Type().(type) {
 			case mir.SintType:
 				return self.builder.CreateIntCmp("", llvm.IntSGT, self.codegenValue(sv.Left()), self.codegenValue(sv.Right()))
 			case mir.UintType:
@@ -186,7 +186,7 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 				panic("unreachable")
 			}
 		case mir.CmpKindGE:
-			switch sv.Type().(type) {
+			switch sv.Left().Type().(type) {
 			case mir.SintType:
 				return self.builder.CreateIntCmp("", llvm.IntSGE, self.codegenValue(sv.Left()), self.codegenValue(sv.Right()))
 			case mir.UintType:
@@ -216,8 +216,9 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 
 		switch {
 		case self.target.IsWindows():
-			parent := self.values.Get(sv.Belong().Belong()).(llvm.Function)
-			if retType := self.codegenType(sv.Type()); retType.String() != parent.FunctionType().ReturnType().String(){
+			retType := self.codegenType(sv.Type())
+			targetType := self.codegenFuncType(sv.Func().Type().(mir.FuncType))
+			if retType.String() != targetType.ReturnType().String(){
 				ptr := self.builder.CreateAlloca("", retType)
 				args = append([]llvm.Value{ptr}, args...)
 			}
@@ -230,8 +231,8 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 				}
 			}
 
-			var ret llvm.Value = self.builder.CreateCall("", self.codegenFuncType(sv.Func().Type().(mir.FuncType)), f, args...)
-			if retType := self.codegenType(sv.Type()); retType.String() != parent.FunctionType().ReturnType().String(){
+			var ret llvm.Value = self.builder.CreateCall("", targetType, f, args...)
+			if retType.String() != targetType.ReturnType().String(){
 				ret = self.builder.CreateLoad("", retType, args[0])
 			}
 			return ret
