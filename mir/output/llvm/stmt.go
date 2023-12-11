@@ -284,6 +284,8 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 		return self.builder.CreatePtrToInt("", self.codegenValue(sv.From()), self.codegenIntType(sv.Type().(mir.IntType)))
 	case *mir.UintToPtr:
 		return self.builder.CreateIntToPtr("", self.codegenValue(sv.From()), self.codegenType(sv.Type()).(llvm.PointerType))
+	case *mir.PtrToPtr:
+		return self.builder.CreateBitCast("", self.codegenValue(sv.From()), self.codegenType(sv.Type()))
 	case *mir.ArrayIndex:
 		array := self.codegenValue(sv.Array())
 		index := self.codegenValue(sv.Index())

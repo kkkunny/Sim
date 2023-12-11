@@ -6,6 +6,8 @@ github.com/kkkunny/stl v0.0.0-20231210143620-4dbf6480fb22 h1:mSOCw/TRZtTb5IitfJP
 github.com/kkkunny/stl v0.0.0-20231210143620-4dbf6480fb22/go.mod h1:Ien6sco+xI1itcWSIMajp08+KTwOPvLSrLqSQLWDZwQ=
 github.com/kkkunny/stl v0.0.0-20231211130034-b464741edf80 h1:RnlDN3QvQJXkQlrHkGj9zOWSrcEMkfuvj7qsv8QXd+4=
 github.com/kkkunny/stl v0.0.0-20231211130034-b464741edf80/go.mod h1:Ien6sco+xI1itcWSIMajp08+KTwOPvLSrLqSQLWDZwQ=
+github.com/kkkunny/stl v0.0.0-20231211155739-a86ec5255d50 h1:aCPilhmHv12cPo/AV1qk/2Me9qBXL3v9ph6+yZ7V0gI=
+github.com/kkkunny/stl v0.0.0-20231211155739-a86ec5255d50/go.mod h1:Ien6sco+xI1itcWSIMajp08+KTwOPvLSrLqSQLWDZwQ=
 github.com/samber/lo v1.39.0 h1:4gTz1wUhNYLhFSKl6O+8peW0v2F4BCY034GRpU9WnuA=
 github.com/samber/lo v1.39.0/go.mod h1:+m/ZKRl6ClXCE2Lgf3MsQlWfh4bn1bz6CXEOxnEXnEA=
 golang.org/x/exp v0.0.0-20230905200255-921286631fa9 h1:GoHiUyI/Tp2nVkLI2mCxVkOjsbSXD66ic0XW0js0R9g=

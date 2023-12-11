@@ -1,7 +1,6 @@
 package codegen_ir
 
 import (
-	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/samber/lo"
 
@@ -292,7 +291,9 @@ func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) mir.Value {
 	ut := self.codegenUnionType(node.Type)
 	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.BuildAllocFromStack(ut)
-	self.builder.BuildStore(value, self.buildStructIndex(ptr, 0, true))
+	dataPtr := self.buildStructIndex(ptr, 0, true)
+	dataPtr = self.builder.BuildPtrToPtr(dataPtr, self.ctx.NewPtrType(value.Type()))
+	self.builder.BuildStore(value, dataPtr)
 	self.builder.BuildStore(
 		mir.NewInt(ut.Elems()[1].(mir.UintType), int64(node.Type.GetElemIndex(node.Value.GetType()))),
 		self.buildStructIndex(ptr, 1, true),
@@ -312,13 +313,9 @@ func (self *CodeGenerator) codegenUnionTypeJudgment(node *mean.UnionTypeJudgment
 
 func (self *CodeGenerator) codegenUnUnion(node *mean.UnUnion) mir.Value {
 	value := self.codegenExpr(node.Value, false)
-	if stlbasic.Is[llvm.PointerType](value.Type()) {
-		return self.builder.BuildLoad(value)
-	}
-	elem := self.buildStructIndex(value, 0, false)
-	ptr := self.builder.BuildAllocFromStack(elem.Type())
-	self.builder.BuildStore(elem, ptr)
-	return self.builder.BuildLoad(ptr)
+	elemPtr := self.buildStructIndex(value, 0, true)
+	elemPtr = self.builder.BuildPtrToPtr(elemPtr, self.ctx.NewPtrType(self.codegenType(node.GetType())))
+	return self.builder.BuildLoad(elemPtr)
 }
 
 func (self *CodeGenerator) codegenWrapWithNull(node *mean.WrapWithNull, load bool) mir.Value {

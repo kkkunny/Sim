@@ -7,6 +7,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/pair"
+	stlmath "github.com/kkkunny/stl/math"
 	"github.com/samber/lo"
 )
 
@@ -458,7 +459,7 @@ func (self *Builder) BuildNot(v Value)Value{
 		panic("unreachable")
 	}
 	if vc, ok := v.(Int); ok{
-		return NewInt(v.Type().(IntType), ^vc.IntValue())
+		return NewInt(v.Type().(IntType), stlmath.NotWithBits(vc.IntValue(), uint64(vc.Type().Size())))
 	}
 	stmt := &Not{
 		b: self.cur,
@@ -1143,6 +1144,51 @@ func (self *UintToPtr) Type()Type{
 }
 
 func (self *UintToPtr) From()Value{
+	return self.v
+}
+
+// PtrToPtr 指针转指针
+type PtrToPtr struct {
+	b *Block
+	i uint
+	v Value
+	to GenericPtrType
+}
+
+func (self *Builder) BuildPtrToPtr(v Value, to GenericPtrType)StmtValue{
+	if !stlbasic.Is[GenericPtrType](v.Type()){
+		panic("unreachable")
+	}
+	stmt := &PtrToPtr{
+		b: self.cur,
+		v: v,
+		to: to,
+	}
+	self.cur.stmts.PushBack(stmt)
+	return stmt
+}
+
+func (self *PtrToPtr) Belong()*Block{
+	return self.b
+}
+
+func (self *PtrToPtr) Define()string{
+	return fmt.Sprintf("%s %s = covert ptr %s to %s", self.Type(), self.Name(), self.v.Name(), self.to)
+}
+
+func (self *PtrToPtr) setIndex(i uint){
+	self.i = i
+}
+
+func (self *PtrToPtr) Name()string{
+	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
+}
+
+func (self *PtrToPtr) Type()Type{
+	return self.to
+}
+
+func (self *PtrToPtr) From()Value{
 	return self.v
 }
 

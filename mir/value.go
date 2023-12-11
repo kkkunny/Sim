@@ -21,6 +21,10 @@ func newParam(i uint, t Type)*Param{
 }
 
 func (self *Param) Type()Type{
+	return self.t.Context().NewPtrType(self.t)
+}
+
+func (self *Param) ValueType()Type{
 	return self.t
 }
 
@@ -29,5 +33,5 @@ func (self *Param) Name()string{
 }
 
 func (self *Param) Define()string{
-	return fmt.Sprintf("%s %s", self.Type(), self.Name())
+	return fmt.Sprintf("%s %s", self.ValueType(), self.Name())
 }

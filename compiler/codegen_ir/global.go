@@ -87,12 +87,7 @@ func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 	f := self.values.Get(node).(*mir.Function)
 	self.builder.MoveTo(f.NewBlock())
 	for i, p := range f.Params() {
-		paramNode := node.Params[i]
-
-		pt := self.codegenType(paramNode.GetType())
-		param := self.builder.BuildAllocFromStack(pt)
-		self.builder.BuildStore(p, param)
-		self.values.Set(paramNode, param)
+		self.values.Set(node.Params[i], p)
 	}
 	block, _ := self.codegenBlock(node.Body.MustValue(), nil)
 	self.builder.BuildUnCondJump(block)
@@ -103,12 +98,7 @@ func (self *CodeGenerator) defMethodDef(node *mean.MethodDef) {
 	self.builder.MoveTo(f.NewBlock())
 	paramNodes := append([]*mean.Param{node.SelfParam}, node.Params...)
 	for i, p := range f.Params() {
-		paramNode := paramNodes[i]
-
-		pt := self.codegenType(paramNode.GetType())
-		param := self.builder.BuildAllocFromStack(pt)
-		self.builder.BuildStore(p, param)
-		self.values.Set(paramNode, param)
+		self.values.Set(paramNodes[i], p)
 	}
 	block, _ := self.codegenBlock(node.Body, nil)
 	self.builder.BuildUnCondJump(block)
@@ -142,12 +132,7 @@ func (self *CodeGenerator) defGenericFuncDef(node *mean.GenericFuncDef) {
 		}
 
 		for i, p := range f.Params() {
-			paramNode := node.Params[i]
-
-			pt := self.codegenType(paramNode.GetType())
-			param := self.builder.BuildAllocFromStack(pt)
-			self.builder.BuildStore(p, param)
-			self.values.Set(paramNode, param)
+			self.values.Set(node.Params[i], p)
 		}
 		block, _ := self.codegenBlock(node.Body, nil)
 		self.builder.BuildUnCondJump(block)

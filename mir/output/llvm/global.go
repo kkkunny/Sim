@@ -2,6 +2,7 @@ package llvm
 
 import (
 	"github.com/kkkunny/go-llvm"
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/mir"
@@ -80,25 +81,32 @@ func (self *LLVMOutputer) codegenDefValue(ir mir.Global){
 		g.SetInitializer(self.codegenConst(global.Value()))
 	case *mir.Function:
 		f := self.values.Get(global).(llvm.Function)
-		switch {
-		case self.target.IsWindows() && self.codegenType(global.Type().(mir.FuncType).Ret()).String() != f.FunctionType().ReturnType().String():
-			for i, paramIr := range global.Params(){
-				self.values.Set(paramIr, f.GetParam(uint(i)+1))
-			}
-		default:
-			for i, paramIr := range global.Params(){
-				self.values.Set(paramIr, f.GetParam(uint(i)))
+		if blockIrs := global.Blocks(); blockIrs.Len() == 0{
+			return
+		}
+
+		self.builder.MoveToAfter(f.NewBlock("entry"))
+		params := f.Params()
+		if self.target.IsWindows() && self.codegenType(global.Type().(mir.FuncType).Ret()).String() != f.FunctionType().ReturnType().String(){
+			params = params[1:]
+		}
+		for i, param := range params{
+			srcParamType := self.codegenType(global.Params()[i].ValueType())
+			if stlbasic.Is[llvm.StructType](srcParamType) || stlbasic.Is[llvm.ArrayType](srcParamType){
+				self.values.Set(global.Params()[i], param)
+			}else{
+				ptr := self.builder.CreateAlloca("", param.Type())
+				self.builder.CreateStore(param, ptr)
+				self.values.Set(global.Params()[i], ptr)
 			}
 		}
-		if blockIrs := global.Blocks(); blockIrs.Len() != 0{
-			for cursor:=blockIrs.Front(); cursor!=nil; cursor=cursor.Next(){
-				self.blocks.Set(cursor.Value, f.NewBlock(""))
-			}
+
+		for cursor:=global.Blocks().Front(); cursor!=nil; cursor=cursor.Next(){
+			self.blocks.Set(cursor.Value, f.NewBlock(""))
 		}
-		if blockIrs := global.Blocks(); blockIrs.Len() != 0{
-			for cursor:=blockIrs.Front(); cursor!=nil; cursor=cursor.Next(){
-				self.codegenBlock(cursor.Value)
-			}
+		self.builder.CreateBr(self.blocks.Get(global.Blocks().Front().Value))
+		for cursor:=global.Blocks().Front(); cursor!=nil; cursor=cursor.Next(){
+			self.codegenBlock(cursor.Value)
 		}
 	default:
 		panic("unreachable")
