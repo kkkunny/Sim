@@ -90,14 +90,14 @@ func (self *LLVMOutputer) codegenDefValue(ir mir.Global){
 				self.values.Set(paramIr, f.GetParam(uint(i)))
 			}
 		}
-		if blockIrs := global.Blocks(); !blockIrs.Empty(){
-			for iter:=blockIrs.Iterator(); iter.Next(); {
-				self.blocks.Set(iter.Value(), f.NewBlock(""))
+		if blockIrs := global.Blocks(); blockIrs.Len() != 0{
+			for cursor:=blockIrs.Front(); cursor!=nil; cursor=cursor.Next(){
+				self.blocks.Set(cursor.Value, f.NewBlock(""))
 			}
 		}
-		if blockIrs := global.Blocks(); !blockIrs.Empty(){
-			for iter:=blockIrs.Iterator(); iter.Next(); {
-				self.codegenBlock(iter.Value())
+		if blockIrs := global.Blocks(); blockIrs.Len() != 0{
+			for cursor:=blockIrs.Front(); cursor!=nil; cursor=cursor.Next(){
+				self.codegenBlock(cursor.Value)
 			}
 		}
 	default:

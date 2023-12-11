@@ -4,13 +4,14 @@ import (
 	"strings"
 
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/list"
 )
 
 // Module 模块
 type Module struct {
 	ctx *Context
 
-	globals linkedlist.LinkedList[Global]
+	globals *list.List[Global]
 	structMap map[string]*NamedStruct
 	valueMap map[string]Value
 }
@@ -19,6 +20,7 @@ func (self *Context) NewModule()*Module{
 	return &Module{
 		ctx: self,
 
+		globals: list.New[Global](),
 		structMap: make(map[string]*NamedStruct),
 		valueMap: make(map[string]Value),
 	}
@@ -35,8 +37,8 @@ func (self Module) String()string{
 	var vsNameIndex uint
 	var fs linkedlist.LinkedList[*Function]
 	var fsNameIndex uint
-	for iter:=self.globals.Iterator(); iter.Next(); {
-		switch g := iter.Value().(type) {
+	for cursor:=self.globals.Front(); cursor!=nil; cursor=cursor.Next(){
+		switch g := cursor.Value.(type) {
 		case *NamedStruct:
 			tsNameIndex = g.setIndex(tsNameIndex)
 			ts.PushBack(g)
@@ -88,7 +90,7 @@ func (self Module) String()string{
 	return buf.String()
 }
 
-func (self *Module) Globals()linkedlist.LinkedList[Global]{
+func (self *Module) Globals()*list.List[Global]{
 	return self.globals
 }
 

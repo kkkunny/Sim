@@ -9,16 +9,17 @@ import (
 	"github.com/kkkunny/Sim/mir"
 )
 
+var targetInitFunc = map[mir.Arch]func(){
+	mir.ArchX8664: sync.OnceFunc(func() {
+		stlerror.Must(llvm.InitializeTargetInfo(llvm.X86))
+		stlerror.Must(llvm.InitializeTarget(llvm.X86))
+		stlerror.Must(llvm.InitializeTargetMC(llvm.X86))
+	}),
+}
+
 func getTarget(target mir.Target)*llvm.Target{
-	switch target.Arch(){
-	case mir.ArchX8664:
-		sync.OnceFunc(func() {
-			stlerror.Must(llvm.InitializeTargetInfo(llvm.X86))
-			stlerror.Must(llvm.InitializeTarget(llvm.X86))
-			stlerror.Must(llvm.InitializeTargetMC(llvm.X86))
-		})
-	default:
-		panic("unreachable")
+	if initFn, ok := targetInitFunc[target.Arch()]; ok{
+		initFn()
 	}
 
 	switch target.Name() {

@@ -37,18 +37,18 @@ func (self *LLVMOutputer) init(module *mir.Module){
 func (self *LLVMOutputer) Codegen(module *mir.Module){
 	self.init(module)
 
-	for iter:=module.Globals().Iterator(); iter.Next(); {
-		self.codegenDeclType(iter.Value())
+	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
+		self.codegenDeclType(cursor.Value)
 	}
-	for iter:=module.Globals().Iterator(); iter.Next(); {
-		self.codegenDefType(iter.Value())
+	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
+		self.codegenDefType(cursor.Value)
 	}
 
-	for iter:=module.Globals().Iterator(); iter.Next(); {
-		self.codegenDeclValue(iter.Value())
+	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
+		self.codegenDeclValue(cursor.Value)
 	}
-	for iter:=module.Globals().Iterator(); iter.Next(); {
-		self.codegenDefValue(iter.Value())
+	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
+		self.codegenDefValue(cursor.Value)
 	}
 }
 

@@ -119,7 +119,7 @@ func (self *CodeGenerator) defFuncDecl(node *mean.FuncDef) {
 
 func (self *CodeGenerator) defGlobalVariable(node *mean.Variable) {
 	gv := self.values.Get(node).(*mir.GlobalVariable)
-	self.builder.MoveTo(self.getInitFunction().Blocks().Front())
+	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
 	value := self.codegenExpr(node.Value, true)
 	if constValue, ok := value.(mir.Const); ok {
 		gv.SetValue(constValue)

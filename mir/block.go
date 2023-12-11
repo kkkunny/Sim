@@ -5,18 +5,21 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/list"
 )
 
 // Block 代码块
 type Block struct {
 	f *Function
 	index uint
-	stmts linkedlist.LinkedList[Stmt]
+	stmts *list.List[Stmt]
 }
 
 func (self *Function) NewBlock()*Block{
-	b := &Block{f: self}
+	b := &Block{
+		f: self,
+		stmts: list.New[Stmt](),
+	}
 	self.blocks.PushBack(b)
 	return b
 }
@@ -31,17 +34,17 @@ func (self *Block) String()string{
 	buf.WriteString(self.Name())
 	buf.WriteString(":\n")
 	var i uint
-	for iter:=self.stmts.Iterator(); iter.Next(); {
-		stmtValue, ok := iter.Value().(StmtValue)
+	for cursor:=self.stmts.Front(); cursor!=nil; cursor=cursor.Next(){
+		stmtValue, ok := cursor.Value.(StmtValue)
 		if ok{
 			stmtValue.setIndex(i)
 			i++
 		}
 	}
-	for iter:=self.stmts.Iterator(); iter.Next(); {
+	for cursor:=self.stmts.Front(); cursor!=nil; cursor=cursor.Next(){
 		buf.WriteString("  ")
-		buf.WriteString(iter.Value().Define())
-		if iter.HasNext(){
+		buf.WriteString(cursor.Value.Define())
+		if cursor.Next() != nil{
 			buf.WriteByte('\n')
 		}
 	}
@@ -54,14 +57,14 @@ func (self *Block) Belong()*Function{
 }
 
 func (self *Block) Terminated()bool{
-	for iter:=self.stmts.Iterator(); iter.Next(); {
-		if stlbasic.Is[Terminating](iter.Value()){
+	for cursor:=self.stmts.Front(); cursor!=nil; cursor=cursor.Next(){
+		if stlbasic.Is[Terminating](cursor.Value){
 			return true
 		}
 	}
 	return false
 }
 
-func (self *Block) Stmts()linkedlist.LinkedList[Stmt]{
+func (self *Block) Stmts()*list.List[Stmt]{
 	return self.stmts
 }

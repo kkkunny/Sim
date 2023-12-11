@@ -10,12 +10,14 @@ import (
 	"github.com/kkkunny/Sim/runtime"
 )
 
+var initJit = sync.OnceFunc(func() {
+	stlerror.Must(llvm.InitializeNativeAsmParser())
+	stlerror.Must(llvm.InitializeNativeAsmPrinter())
+})
+
 // RunJit jit
 func RunJit(module llvm.Module) (uint8, stlerror.Error) {
-	sync.OnceFunc(func() {
-		stlerror.Must(llvm.InitializeNativeAsmParser())
-		stlerror.Must(llvm.InitializeNativeAsmPrinter())
-	})
+	initJit()
 	engine, err := stlerror.ErrorWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
 	if err != nil {
 		return 0, err

@@ -59,7 +59,7 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 	})
 	// 初始化函数
 	// FIXME: jit无法运行llvm.global_ctors
-	self.builder.MoveTo(self.getInitFunction().Blocks().Front())
+	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
 	self.builder.BuildReturn()
 	// 主函数
 	var hasMain bool
@@ -67,14 +67,14 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		if funcNode, ok := v.(*mean.FuncDef); ok && funcNode.Name == "main" {
 			hasMain = true
 			f := self.values.Get(funcNode).(*mir.Function)
-			self.builder.MoveTo(self.getMainFunction().Blocks().Front())
+			self.builder.MoveTo(self.getMainFunction().Blocks().Front().Value)
 			self.builder.BuildReturn(self.builder.BuildCall(f))
 			return false
 		}
 		return true
 	})
 	if !hasMain {
-		self.builder.MoveTo(self.getMainFunction().Blocks().Front())
+		self.builder.MoveTo(self.getMainFunction().Blocks().Front().Value)
 		self.builder.BuildReturn(mir.NewUint(self.ctx.U8(), 0))
 	}
 	return self.module

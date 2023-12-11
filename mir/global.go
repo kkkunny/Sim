@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/list"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
 )
@@ -203,7 +203,7 @@ type Function struct {
 
 	t FuncType
 	params []*Param
-	blocks linkedlist.LinkedList[*Block]
+	blocks *list.List[*Block]
 }
 
 func (self *Module) NewFunction(name string, t FuncType)*Function{
@@ -217,6 +217,7 @@ func (self *Module) NewFunction(name string, t FuncType)*Function{
 		params: lo.Map(t.Params(), func(item Type, index int) *Param {
 			return newParam(uint(index), item)
 		}),
+		blocks: list.New[*Block](),
 	}
 	if name != ""{
 		self.valueMap[name] = v
@@ -253,7 +254,7 @@ func (self *Function) RealName()string{
 }
 
 func (self *Function) Define()string{
-	if self.blocks.Empty(){
+	if self.blocks.Len() == 0{
 		params := lo.Map(self.t.Params(), func(item Type, _ int) string {
 			return item.String()
 		})
@@ -273,13 +274,13 @@ func (self *Function) Define()string{
 	}
 	buf.WriteString("):\n")
 	var i uint
-	for iter:=self.blocks.Iterator(); iter.Next(); {
-		iter.Value().index = i
+	for cursor:=self.blocks.Front(); cursor!=nil; cursor=cursor.Next(){
+		cursor.Value.index = i
 		i++
 	}
-	for iter:=self.blocks.Iterator(); iter.Next(); {
-		buf.WriteString(iter.Value().String())
-		if iter.HasNext(){
+	for cursor:=self.blocks.Front(); cursor!=nil; cursor=cursor.Next(){
+		buf.WriteString(cursor.Value.String())
+		if cursor.Next() != nil{
 			buf.WriteByte('\n')
 		}
 	}
@@ -298,7 +299,7 @@ func (self *Function) Params()[]*Param{
 	return self.params
 }
 
-func (self *Function) Blocks()linkedlist.LinkedList[*Block]{
+func (self *Function) Blocks()*list.List[*Block]{
 	return self.blocks
 }
 
