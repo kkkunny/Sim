@@ -432,6 +432,14 @@ func (self *ConstArrayIndex) IsPtr()bool{
 	return stlbasic.Is[PtrType](self.v.Type())
 }
 
+func (self *ConstArrayIndex) Array()Const{
+	return self.v
+}
+
+func (self *ConstArrayIndex) Index()Const{
+	return self.index
+}
+
 // ConstStructIndex 结构体索引
 type ConstStructIndex struct {
 	i uint
@@ -479,4 +487,12 @@ func (*ConstStructIndex)constant(){}
 
 func (self *ConstStructIndex) IsPtr()bool{
 	return stlbasic.Is[PtrType](self.v.Type())
+}
+
+func (self *ConstStructIndex) Struct()Const{
+	return self.v
+}
+
+func (self *ConstStructIndex) Index()uint64{
+	return self.index
 }

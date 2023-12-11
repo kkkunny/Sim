@@ -362,7 +362,7 @@ func (self *Constant) Context()*Context{
 }
 
 func (self *Constant) Define()string{
-	return fmt.Sprintf("const %s %s = %s", self.Type(), self.Name(), self.value)
+	return fmt.Sprintf("const %s %s = %s", self.Type(), self.Name(), self.value.Name())
 }
 
 func (self *Constant) Value()Const{

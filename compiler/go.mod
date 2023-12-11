@@ -2,7 +2,9 @@ module github.com/kkkunny/Sim
 
 go 1.21.3
 
-replace github.com/kkkunny/Sim/runtime v0.0.0-20231203140042-fdf7df5c03c7 => ../runtime
+replace (
+	github.com/kkkunny/Sim/runtime v0.0.0-20231203140042-fdf7df5c03c7 => ../runtime
+)
 
 require (
 	github.com/kkkunny/Sim/runtime v0.0.0-20231203140042-fdf7df5c03c7
@@ -10,7 +12,7 @@ require (
 )
 
 require (
-	github.com/kkkunny/go-llvm v0.0.0-20231207150123-78a8eba85d86
+	github.com/kkkunny/go-llvm v0.0.0-20231211085630-645376e96b05
 	github.com/samber/lo v1.38.1
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 )

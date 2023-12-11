@@ -16,17 +16,21 @@ func RunJit(module llvm.Module) (uint8, stlerror.Error) {
 	if err != nil {
 		return 0, err
 	}
-	mainFn, ok := module.GetFunction("main")
+	mainFn, ok := engine.GetFunction("main")
 	if !ok {
 		return 0, stlerror.Errorf("can not fond the main function")
 	}
-	strEqStrFn, ok := module.GetFunction("sim_runtime_str_eq_str")
+	strEqStrFn, ok := engine.GetFunction("sim_runtime_str_eq_str")
 	if ok {
-		engine.MapGlobal(strEqStrFn, runtime.StrEqStr)
+		engine.MapGlobalToC(strEqStrFn, runtime.StrEqStr)
 	}
-	debugFn, ok := module.GetFunction("sim_runtime_debug")
+	debugFn, ok := engine.GetFunction("sim_runtime_debug")
 	if ok {
-		engine.MapGlobal(debugFn, runtime.Debug)
+		engine.MapGlobalToC(debugFn, runtime.Debug)
+	}
+	checkNull, ok := engine.GetFunction("sim_runtime_check_null")
+	if ok {
+		engine.MapGlobalToC(checkNull, runtime.CheckNull)
 	}
 	return uint8(engine.RunFunction(mainFn).Integer(false)), nil
 }

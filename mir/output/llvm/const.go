@@ -29,6 +29,8 @@ func (self *LLVMOutputer) codegenConst(ir mir.Const)llvm.Constant{
 		return self.codegenConstArrayIndex(c)
 	case *mir.ConstStructIndex:
 		return self.codegenConstStructIndex(c)
+	case *mir.Constant:
+		return self.values.Get(c).(llvm.Constant)
 	default:
 		panic("unreachable")
 	}
@@ -73,11 +75,20 @@ func (self *LLVMOutputer) codegenStruct(ir *mir.Struct)llvm.Constant{
 }
 
 func (self *LLVMOutputer) codegenConstArrayIndex(ir *mir.ConstArrayIndex)llvm.Constant{
-	// TODO
-	panic("unreachable")
+	v := self.codegenConst(ir.Array())
+	i := self.codegenConst(ir.Index())
+	if ir.IsPtr(){
+		return self.ctx.ConstInBoundsGEP(self.codegenType(ir.Array().Type()), v, self.ctx.ConstInteger(self.ctx.IntegerType(64), 0), i)
+	}else{
+		return self.ctx.ConstExtractElement(v, i)
+	}
 }
 
 func (self *LLVMOutputer) codegenConstStructIndex(ir *mir.ConstStructIndex)llvm.Constant{
-	// TODO
-	panic("unreachable")
+	v := self.codegenConst(ir.Struct())
+	if ir.IsPtr(){
+		return self.ctx.ConstInBoundsGEP(self.codegenType(ir.Struct().Type()), v, self.ctx.ConstInteger(self.ctx.IntegerType(32), int64(ir.Index())))
+	}else{
+		return self.ctx.ConstExtractElement(v, self.ctx.ConstInteger(self.ctx.IntegerType(32), int64(ir.Index())))
+	}
 }

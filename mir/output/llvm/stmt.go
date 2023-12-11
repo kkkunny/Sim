@@ -12,7 +12,8 @@ import (
 func (self *LLVMOutputer) codegenStmt(ir mir.Stmt){
 	switch stmt := ir.(type) {
 	case *mir.Store:
-		self.builder.CreateStore(self.codegenValue(stmt.From()), self.codegenValue(stmt.To()))
+		inst := self.builder.CreateStore(self.codegenValue(stmt.From()), self.codegenValue(stmt.To()))
+		inst.SetAlign(uint32(stmt.From().Type().Align()))
 	case *mir.Return:
 		valueIr, ok := stmt.Value()
 		if !ok{
@@ -48,12 +49,15 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 
 	switch sv := ir.(type) {
 	case *mir.AllocFromStack:
-		return self.builder.CreateAlloca("", self.codegenType(sv.ElemType()))
+		inst := self.builder.CreateAlloca("", self.codegenType(sv.ElemType()))
+		inst.SetAlign(uint32(sv.ElemType().Align()))
+		return inst
 	case *mir.AllocFromHeap:
-		// TODO
-		panic("unreachable")
+		return self.builder.CreateMalloc("", self.codegenType(sv.ElemType()))
 	case *mir.Load:
-		return self.builder.CreateLoad("", self.codegenType(sv.Type()), self.codegenValue(sv.From()))
+		inst := self.builder.CreateLoad("", self.codegenType(sv.Type()), self.codegenValue(sv.From()))
+		inst.SetAlign(uint32(sv.Type().Align()))
+		return inst
 	case *mir.And:
 		return self.builder.CreateAnd("", self.codegenValue(sv.Left()), self.codegenValue(sv.Right()))
 	case *mir.Or:

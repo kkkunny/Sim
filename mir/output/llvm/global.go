@@ -42,6 +42,7 @@ func (self *LLVMOutputer) codegenDeclValue(ir mir.Global){
 		}else{
 			g.SetLinkage(llvm.ExternalLinkage)
 		}
+		g.SetAlign(uint32(global.ValueType().Align()))
 		self.values.Set(global, g)
 	case *mir.Constant:
 		g := self.module.NewGlobal(global.RealName(), self.codegenType(global.ValueType()))
@@ -51,6 +52,7 @@ func (self *LLVMOutputer) codegenDeclValue(ir mir.Global){
 			g.SetLinkage(llvm.ExternalLinkage)
 		}
 		g.SetGlobalConstant(true)
+		g.SetAlign(uint32(global.ValueType().Align()))
 		self.values.Set(global, g)
 	case *mir.Function:
 		f := self.module.NewFunction(global.RealName(), self.codegenFuncType(global.Type().(mir.FuncType)))
