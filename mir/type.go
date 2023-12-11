@@ -105,8 +105,7 @@ func (self *Context) I128()SintType {
 }
 
 func (self *Context) Isize()SintType {
-	// TODO: size
-	return self.I64()
+	return self.NewSintType(self.target.PtrSize())
 }
 
 func (self *sintType) String()string{
@@ -187,8 +186,7 @@ func (self *Context) U128()UintType {
 }
 
 func (self *Context) Usize()UintType {
-	// TODO: size
-	return self.U64()
+	return self.NewUintType(self.target.PtrSize())
 }
 
 func (self *uintType) String()string{

@@ -30,9 +30,12 @@ func PackTargetName(arch Arch, os OS)string{
 
 type Target interface {
 	Name()string
+	OS()OS
+	Arch()Arch
 	Equal(t Target) bool
 	AlignOf(t Type)uint64
 	SizeOf(t Type)stlos.Size
+	PtrSize()stlos.Size
 }
 
 func NewTarget(s string)Target{
@@ -131,6 +134,10 @@ func (self *x8664WindowsTarget) SizeOf(obj Type)stlos.Size{
 	}
 }
 
+func (self *x8664WindowsTarget) PtrSize()stlos.Size{
+	return stlos.Byte * 8
+}
+
 // x86_64 && linux
 type x8664LinuxTarget struct {}
 
@@ -205,4 +212,8 @@ func (self *x8664LinuxTarget) SizeOf(obj Type)stlos.Size{
 	default:
 		panic("unreachable")
 	}
+}
+
+func (self *x8664LinuxTarget) PtrSize()stlos.Size{
+	return stlos.Byte * 8
 }

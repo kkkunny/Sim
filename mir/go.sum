@@ -1,5 +1,7 @@
 github.com/kkkunny/go-llvm v0.0.0-20231211085630-645376e96b05 h1:BwWRbpYjRIlyqUeAFsLY5pwOXiJaJOQ2ciBCuGDRjuY=
 github.com/kkkunny/go-llvm v0.0.0-20231211085630-645376e96b05/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
+github.com/kkkunny/go-llvm v0.0.0-20231211123616-ac9b8433f29c h1:79ntjojyIaDj2JrpC6l3qdJTGRJ0Mxr3MEFkZ3Exi+E=
+github.com/kkkunny/go-llvm v0.0.0-20231211123616-ac9b8433f29c/go.mod h1:3vOsdDMD0flAC4YHxfqUZ2juZ40oCI/5HBIVPKGLT34=
 github.com/kkkunny/stl v0.0.0-20231210143620-4dbf6480fb22 h1:mSOCw/TRZtTb5IitfJPLNdLzxB+bNSd5+4eaVAym/LE=
 github.com/kkkunny/stl v0.0.0-20231210143620-4dbf6480fb22/go.mod h1:Ien6sco+xI1itcWSIMajp08+KTwOPvLSrLqSQLWDZwQ=
 github.com/samber/lo v1.39.0 h1:4gTz1wUhNYLhFSKl6O+8peW0v2F4BCY034GRpU9WnuA=

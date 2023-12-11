@@ -2,6 +2,8 @@ package jit
 
 import "C"
 import (
+	"sync"
+
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
 
@@ -10,8 +12,10 @@ import (
 
 // RunJit jit
 func RunJit(module llvm.Module) (uint8, stlerror.Error) {
-	llvm.InitializeAllAsmParsers()
-	llvm.InitializeAllAsmPrinters()
+	sync.OnceFunc(func() {
+		stlerror.Must(llvm.InitializeNativeAsmParser())
+		stlerror.Must(llvm.InitializeNativeAsmPrinter())
+	})
 	engine, err := stlerror.ErrorWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
 	if err != nil {
 		return 0, err
