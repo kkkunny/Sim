@@ -101,8 +101,9 @@ func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 func (self *CodeGenerator) defMethodDef(node *mean.MethodDef) {
 	f := self.values.Get(node).(*mir.Function)
 	self.builder.MoveTo(f.NewBlock())
+	paramNodes := append([]*mean.Param{node.SelfParam}, node.Params...)
 	for i, p := range f.Params() {
-		paramNode := node.Params[i]
+		paramNode := paramNodes[i]
 
 		pt := self.codegenType(paramNode.GetType())
 		param := self.builder.BuildAllocFromStack(pt)

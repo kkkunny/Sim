@@ -1,13 +1,12 @@
+struct T{
+    data: u8
+}
+
+func (mut T) get_data()u8{
+    return self.data
+}
+
 func main()u8{
-	let mut a: u8 = 10
-    loop {
-		if a == 0{
-            break
-        }else if a < 5{
-			a = a - 1
-			continue
-		}
-		a = a - 2
-	}
-	return a
+    let v: T = T{data: 1}
+    return v.get_data() - 1
 }

@@ -38,5 +38,5 @@ func RunJit(module llvm.Module) (uint8, stlerror.Error) {
 	if ok {
 		engine.MapGlobalToC(checkNull, runtime.CheckNull)
 	}
-	return uint8(engine.RunFunction(mainFn).Integer(false)), nil
+	return engine.RunMainFunction(mainFn, nil, nil), nil
 }
