@@ -1,7 +1,6 @@
 package codegen_ir
 
 import (
-	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
@@ -9,81 +8,39 @@ import (
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/mean"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/mir/pass"
 )
 
-func (self *CodeGenerator) buildArrayIndex(t llvm.ArrayType, from, index llvm.Value, load bool) llvm.Value {
-	// NOTE: from必须是该数组的指针
-	elemPtr := self.builder.CreateInBoundsGEP("", t, from, self.ctx.ConstInteger(index.Type().(llvm.IntegerType), 0), index)
-	if !load {
-		return elemPtr
-	}
-	return self.builder.CreateLoad("", t.Element(), elemPtr)
-}
-
-func (self *CodeGenerator) buildArrayIndexWith(t llvm.ArrayType, from llvm.Value, index uint, load bool) llvm.Value {
-	if _, ptr := from.Type().(llvm.PointerType); ptr {
-		return self.buildArrayIndex(t, from, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(index)), load)
-	} else {
-		if !load {
-			panic("unreachable")
-		}
-		return self.builder.CreateExtractValue("", from, index)
-	}
-}
-
-func (self *CodeGenerator) buildStructIndex(t llvm.StructType, from llvm.Value, index uint, load bool) llvm.Value {
-	// TODO: 结构体和数组取下标和指针类型冲突
-	if _, ptr := from.Type().(llvm.PointerType); ptr {
-		elemPtr := self.builder.CreateStructGEP("", t, from, index)
-		if !load {
-			return elemPtr
-		}
-		return self.builder.CreateLoad("", t.GetElem(uint32(index)), elemPtr)
-	} else {
-		if !load {
-			panic("unreachable")
-		}
-		return self.builder.CreateExtractValue("", from, index)
-	}
-}
-
-func (self *CodeGenerator) buildEqual(t mean.Type, l, r llvm.Value, not bool) llvm.Value {
+func (self *CodeGenerator) buildEqual(t mean.Type, l, r mir.Value, not bool) mir.Value {
 	switch meanType := t.(type) {
-	case *mean.EmptyType:
-		return self.ctx.ConstInteger(self.ctx.IntegerType(1), stlbasic.Ternary[int64](!not, 1, 0))
-	case mean.IntType, *mean.BoolType, *mean.FuncType, *mean.PtrType, *mean.RefType:
-		return self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
-	case *mean.FloatType:
-		return self.builder.CreateFloatCmp("", stlbasic.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
+	case mean.IntType, *mean.BoolType, *mean.FloatType:
+		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
+	case *mean.FuncType, *mean.PtrType, *mean.RefType:
+		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
 	case *mean.ArrayType:
-		at := self.codegenArrayType(meanType)
-		lp, rp := self.builder.CreateAlloca("", at), self.builder.CreateAlloca("", at)
-		self.builder.CreateStore(l, lp)
-		self.builder.CreateStore(r, rp)
-
-		res := self.buildArrayEqual(meanType, lp, rp)
+		res := self.buildArrayEqual(meanType, l, r)
 		if not {
-			res = self.builder.CreateNot("", res)
+			res = self.builder.BuildNot(res)
 		}
 		return res
 	case *mean.TupleType, *mean.StructType:
 		res := self.buildStructEqual(meanType, l, r)
 		if not {
-			res = self.builder.CreateNot("", res)
+			res = self.builder.BuildNot(res)
 		}
 		return res
 	case *mean.StringType:
 		name := "sim_runtime_str_eq_str"
-		ft := self.ctx.FunctionType(false, self.ctx.IntegerType(1), l.Type(), r.Type())
-		var f llvm.Function
+		ft := self.ctx.NewFuncType(self.ctx.Bool(), l.Type(), r.Type())
+		var f *mir.Function
 		var ok bool
-		if f, ok = self.module.GetFunction(name); !ok {
-			f = self.newFunction(name, ft)
+		if f, ok = self.module.NamedFunction(name); !ok {
+			f = self.module.NewFunction(name, ft)
 		}
-		res := self.buildCall(true, ft, f, l, r)
+		var res mir.Value = self.builder.BuildCall(f, l, r)
 		if not {
-			res = self.builder.CreateNot("", res)
+			res = self.builder.BuildNot(res)
 		}
 		return res
 	case *mean.UnionType:
@@ -94,57 +51,50 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r llvm.Value, not bool) ll
 	}
 }
 
-func (self *CodeGenerator) buildArrayEqual(meanType *mean.ArrayType, l, r llvm.Value) llvm.Value {
+func (self *CodeGenerator) buildArrayEqual(meanType *mean.ArrayType, l, r mir.Value) mir.Value {
 	t := self.codegenArrayType(meanType)
-	if t.Capacity() == 0 {
-		return self.ctx.ConstInteger(self.ctx.IntegerType(1), 1)
+	if t.Length() == 0 {
+		return mir.Bool(self.ctx, true)
 	}
 
-	indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
-	self.builder.CreateStore(self.ctx.ConstNull(self.ctx.IntPtrType(self.target)), indexPtr)
-	condBlock := self.builder.CurrentBlock().Belong().NewBlock("")
-	self.builder.CreateBr(condBlock)
+	indexPtr := self.builder.BuildAllocFromStack(self.ctx.Usize())
+	self.builder.BuildStore(mir.NewZero(indexPtr.ElemType()), indexPtr)
+	condBlock := self.builder.Current().Belong().NewBlock()
+	self.builder.BuildUnCondJump(condBlock)
 
 	// cond
-	self.builder.MoveToAfter(condBlock)
-	var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(t.Capacity())))
-	bodyBlock, outBlock := self.builder.CurrentBlock().Belong().NewBlock(""), self.builder.CurrentBlock().Belong().NewBlock("")
-	self.builder.CreateCondBr(cond, bodyBlock, outBlock)
+	self.builder.MoveTo(condBlock)
+	index := self.builder.BuildLoad(indexPtr)
+	cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewUint(self.ctx.Usize(), uint64(t.Length())))
+	bodyBlock, outBlock := self.builder.Current().Belong().NewBlock(), self.builder.Current().Belong().NewBlock()
+	self.builder.BuildCondJump(cond, bodyBlock, outBlock)
 
 	// body
-	self.builder.MoveToAfter(bodyBlock)
-	index := self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr)
-	cond = self.buildEqual(meanType.Elem, self.buildArrayIndex(t, l, index, true), self.buildArrayIndex(t, r, index, true), false)
-	bodyEndBlock := self.builder.CurrentBlock()
-	actionBlock := bodyEndBlock.Belong().NewBlock("")
-	self.builder.CreateCondBr(cond, actionBlock, outBlock)
+	self.builder.MoveTo(bodyBlock)
+	cond = self.buildEqual(meanType.Elem, self.buildArrayIndex(l, index, false), self.buildArrayIndex(r, index, false), false)
+	bodyEndBlock := self.builder.Current()
+	actionBlock := bodyEndBlock.Belong().NewBlock()
+	self.builder.BuildCondJump(cond, actionBlock, outBlock)
 
 	// action
-	self.builder.MoveToAfter(actionBlock)
-	self.builder.CreateStore(self.builder.CreateUAdd("", index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
-	self.builder.CreateBr(condBlock)
+	self.builder.MoveTo(actionBlock)
+	self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewUint(self.ctx.Usize(), 1)), indexPtr)
+	self.builder.BuildUnCondJump(condBlock)
 
 	// out
-	self.builder.MoveToAfter(outBlock)
-	phi := self.builder.CreatePHI("", self.ctx.IntegerType(1))
-	phi.AddIncomings(
-		struct {
-			Value llvm.Value
-			Block llvm.Block
-		}{Value: self.ctx.ConstInteger(self.ctx.IntegerType(1), 1), Block: condBlock},
-		struct {
-			Value llvm.Value
-			Block llvm.Block
-		}{Value: self.ctx.ConstInteger(self.ctx.IntegerType(1), 0), Block: bodyEndBlock},
+	self.builder.MoveTo(outBlock)
+	return self.builder.BuildPhi(
+		self.ctx.Bool(),
+		pair.NewPair[*mir.Block, mir.Value](condBlock, mir.Bool(self.ctx, true)),
+		pair.NewPair[*mir.Block, mir.Value](bodyEndBlock, mir.Bool(self.ctx, false)),
 	)
-	return phi
 }
 
-func (self *CodeGenerator) buildStructEqual(meanType mean.Type, l, r llvm.Value) llvm.Value {
+func (self *CodeGenerator) buildStructEqual(meanType mean.Type, l, r mir.Value) mir.Value {
 	_, isTuple := meanType.(*mean.TupleType)
-	t := stlbasic.TernaryAction(isTuple, func() llvm.StructType {
+	t := stlbasic.TernaryAction(isTuple, func() mir.StructType {
 		return self.codegenTupleType(meanType.(*mean.TupleType))
-	}, func() llvm.StructType {
+	}, func() mir.StructType {
 		return self.codegenStructType(meanType.(*mean.StructType))
 	})
 	fields := stlbasic.TernaryAction(isTuple, func() dynarray.DynArray[mean.Type] {
@@ -160,194 +110,103 @@ func (self *CodeGenerator) buildStructEqual(meanType mean.Type, l, r llvm.Value)
 		return res
 	})
 
-	if t.CountElems() == 0 {
-		return self.ctx.ConstInteger(self.ctx.IntegerType(1), 1)
+	if len(t.Elems()) == 0 {
+		return mir.Bool(self.ctx, true)
 	}
 
-	beginBlock := self.builder.CurrentBlock()
-	nextBlocks := dynarray.NewDynArrayWithLength[pair.Pair[llvm.Value, llvm.Block]](uint(t.CountElems()))
-	srcBlocks := dynarray.NewDynArrayWithLength[llvm.Block](uint(t.CountElems()))
-	for i := uint32(0); i < t.CountElems(); i++ {
-		cond := self.buildEqual(fields.Get(uint(i)), self.buildStructIndex(t, l, uint(i), true), self.buildStructIndex(t, r, uint(i), true), false)
-		nextBlock := beginBlock.Belong().NewBlock("")
+	beginBlock := self.builder.Current()
+	nextBlocks := dynarray.NewDynArrayWithLength[pair.Pair[mir.Value, *mir.Block]](uint(len(t.Elems())))
+	srcBlocks := dynarray.NewDynArrayWithLength[*mir.Block](uint(len(t.Elems())))
+	for i := uint32(0); i < uint32(len(t.Elems())); i++ {
+		cond := self.buildEqual(fields.Get(uint(i)), self.buildStructIndex(l, uint64(i), false), self.buildStructIndex(r, uint64(i), false), false)
+		nextBlock := beginBlock.Belong().NewBlock()
 		nextBlocks.Set(uint(i), pair.NewPair(cond, nextBlock))
-		srcBlocks.Set(uint(i), self.builder.CurrentBlock())
-		self.builder.MoveToAfter(nextBlock)
+		srcBlocks.Set(uint(i), self.builder.Current())
+		self.builder.MoveTo(nextBlock)
 	}
-	self.builder.MoveToAfter(beginBlock)
+	self.builder.MoveTo(beginBlock)
 
 	endBlock := nextBlocks.Back().Second
 	for iter := nextBlocks.Iterator(); iter.Next(); {
 		item := iter.Value()
 		if iter.HasNext() {
-			self.builder.CreateCondBr(item.First, item.Second, endBlock)
+			self.builder.BuildCondJump(item.First, item.Second, endBlock)
 		} else {
-			self.builder.CreateBr(endBlock)
+			self.builder.BuildUnCondJump(endBlock)
 		}
-		self.builder.MoveToAfter(item.Second)
+		self.builder.MoveTo(item.Second)
 	}
 
-	phi := self.builder.CreatePHI("", self.ctx.IntegerType(1))
+	phi := self.builder.BuildPhi(self.ctx.Bool())
 	for iter := srcBlocks.Iterator(); iter.Next(); {
-		phi.AddIncomings(struct {
-			Value llvm.Value
-			Block llvm.Block
-		}{Value: stlbasic.Ternary[llvm.Value](iter.HasNext(), self.ctx.ConstInteger(self.ctx.IntegerType(1), 0), nextBlocks.Back().First), Block: iter.Value()})
+		phi.AddFroms(pair.NewPair[*mir.Block, mir.Value](iter.Value(), stlbasic.Ternary[mir.Value](iter.HasNext(), mir.Bool(self.ctx, false), nextBlocks.Back().First)))
 	}
 	return phi
 }
 
-func (self *CodeGenerator) getMainFunction() llvm.Function {
-	mainFn, ok := self.module.GetFunction("main")
+func (self *CodeGenerator) buildArrayIndex(array, i mir.Value, expectPtr ...bool)mir.Value{
+	var expectType mir.PtrType
+	if ft := array.Type(); stlbasic.Is[mir.PtrType](ft){
+		expectType = self.ctx.NewPtrType(ft.(mir.PtrType).Elem().(mir.ArrayType).Elem())
+	}else{
+		expectType = self.ctx.NewPtrType(ft.(mir.ArrayType).Elem())
+	}
+	value := self.builder.BuildArrayIndex(array, i)
+	if len(expectPtr) != 0 && expectPtr[0] && !value.Type().Equal(expectType){
+		ptr := self.builder.BuildAllocFromStack(expectType.Elem())
+		self.builder.BuildStore(value, ptr)
+		return ptr
+	}else if len(expectPtr) != 0 && !expectPtr[0] && value.Type().Equal(expectType){
+		return self.builder.BuildLoad(value)
+	}else {
+		return value
+	}
+}
+
+func (self *CodeGenerator) buildStructIndex(st mir.Value, i uint64, expectPtr ...bool)mir.Value{
+	var expectType mir.PtrType
+	if ft := st.Type(); stlbasic.Is[mir.PtrType](ft){
+		expectType = self.ctx.NewPtrType(ft.(mir.PtrType).Elem().(mir.StructType).Elems()[i])
+	}else{
+		expectType = self.ctx.NewPtrType(ft.(mir.StructType).Elems()[i])
+	}
+	value := self.builder.BuildStructIndex(st, i)
+	if len(expectPtr) != 0 && expectPtr[0] && !value.Type().Equal(expectType){
+		ptr := self.builder.BuildAllocFromStack(expectType.Elem())
+		self.builder.BuildStore(value, ptr)
+		return ptr
+	}else if len(expectPtr) != 0 && !expectPtr[0] && value.Type().Equal(expectType){
+		return self.builder.BuildLoad(value)
+	}else {
+		return value
+	}
+}
+
+func (self *CodeGenerator) getMainFunction() *mir.Function {
+	mainFn, ok := self.module.NamedFunction("main")
 	if !ok {
-		mainFn = self.module.NewFunction("main", self.ctx.FunctionType(false, self.ctx.IntegerType(8)))
-		mainFn.NewBlock("entry")
+		mainFn = self.module.NewFunction("main", self.ctx.NewFuncType(self.ctx.U8()))
+		mainFn.NewBlock()
 	}
 	return mainFn
 }
 
-func (self *CodeGenerator) getInitFunction() llvm.Function {
-	initFn, ok := self.module.GetFunction("sim_runtime_init")
+func (self *CodeGenerator) getInitFunction() *mir.Function {
+	initFn, ok := self.module.NamedFunction("sim_runtime_init")
 	if !ok {
-		initFn = self.module.NewFunction("sim_runtime_init", self.ctx.FunctionType(false, self.ctx.VoidType()))
-		self.module.AddConstructor(65535, initFn)
-		initFn.NewBlock("entry")
+		initFn = self.module.NewFunction("sim_runtime_init", self.ctx.NewFuncType(self.ctx.Void()))
+		initFn.NewBlock()
 	}
 	return initFn
 }
 
-// NOTE: 跟系统、架构相关
-func (self *CodeGenerator) buildCall(load bool, ft llvm.FunctionType, f llvm.Value, param ...llvm.Value) llvm.Value {
-	switch {
-	case self.target.IsWindows():
-		var retChangeToPtr bool
-		retType, paramTypes := ft.ReturnType(), ft.Params()
-		if stlbasic.Is[llvm.StructType](retType) || stlbasic.Is[llvm.Array](retType) {
-			ptr := self.builder.CreateAlloca("", retType)
-			param = append([]llvm.Value{ptr}, param...)
-			paramTypes = append([]llvm.Type{self.ctx.PointerType(retType)}, paramTypes...)
-			retType = self.ctx.VoidType()
-			retChangeToPtr = true
-		}
-		for i, p := range param {
-			if pt := p.Type(); stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.Array](pt) {
-				ptr := self.builder.CreateAlloca("", pt)
-				self.builder.CreateStore(p, ptr)
-				param[i] = ptr
-				paramTypes[i] = self.ctx.PointerType(pt)
-			}
-		}
-		var ret llvm.Value = self.builder.CreateCall("", self.ctx.FunctionType(false, retType, paramTypes...), f, param...)
-		if retChangeToPtr {
-			ret = param[0]
-			if load {
-				ret = self.builder.CreateLoad("", ft.ReturnType(), ret)
-			}
-		}
-		return ret
-	case self.target.IsLinux():
-		return self.builder.CreateCall("", self.ctx.FunctionType(false, ft.ReturnType(), ft.Params()...), f, param...)
-	default:
-		panic("unreachable")
-	}
-}
-
-// NOTE: 跟系统、架构相关
-func (self *CodeGenerator) buildRet(ft llvm.FunctionType, ret *llvm.Value) {
-	switch {
-	case self.target.IsWindows():
-		f := self.builder.CurrentBlock().Belong()
-
-		retChangeToPtr := stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.Array](ft.ReturnType())
-	
-		if retChangeToPtr {
-			self.builder.CreateStore(*ret, f.GetParam(0))
-			self.builder.CreateRet(nil)
-		} else {
-			self.builder.CreateRet(ret)
-		}
-	case self.target.IsLinux():
-		self.builder.CreateRet(ret)
-	default:
-		panic("unreachable")
-	}
-}
-
-// NOTE: 跟系统、架构相关
-func (self *CodeGenerator) newFunction(name string, t llvm.FunctionType) llvm.Function {
-	switch {
-	case self.target.IsWindows():
-		ret, param := t.ReturnType(), t.Params()
-		if stlbasic.Is[llvm.StructType](ret) || stlbasic.Is[llvm.Array](ret) {
-			param = append([]llvm.Type{self.ctx.PointerType(ret)}, param...)
-			ret = self.ctx.VoidType()
-		}
-		for i, p := range param {
-			if stlbasic.Is[llvm.StructType](p) || stlbasic.Is[llvm.Array](p) {
-				param[i] = self.ctx.PointerType(p)
-			}
-		}
-		return self.module.NewFunction(name, self.ctx.FunctionType(false, ret, param...))
-	case self.target.IsLinux():
-		return self.module.NewFunction(name, self.ctx.FunctionType(false, t.ReturnType(), t.Params()...))
-	default:
-		panic("unreachable")
-	}
-}
-
-// NOTE: 跟系统、架构相关
-func (self *CodeGenerator) enterFunction(ft llvm.FunctionType, f llvm.Function, paramNodes []*mean.Param) {
-	switch {
-	case self.target.IsWindows():
-		var params []llvm.Param
-		if stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.Array](ft.ReturnType()) {
-			params = f.Params()[1:]
-		} else {
-			params = f.Params()
-		}
-		for i, p := range params {
-			paramNode := paramNodes[i]
-
-			pt := self.codegenType(paramNode.GetType())
-			if stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.Array](pt) {
-				self.values[paramNode] = p
-			} else {
-				param := self.builder.CreateAlloca("", pt)
-				self.builder.CreateStore(p, param)
-				self.values[paramNode] = param
-			}
-		}
-	case self.target.IsLinux():
-		for i, p := range f.Params() {
-			paramNode := paramNodes[i]
-	
-			pt := self.codegenType(paramNode.GetType())
-			param := self.builder.CreateAlloca("", pt)
-			self.builder.CreateStore(p, param)
-			self.values[paramNode] = param
-		}
-	default:
-		panic("unreachable")
-	}
-}
-
 // CodegenIr 中间代码生成
-func CodegenIr(path string) (llvm.Module, stlerror.Error) {
+func CodegenIr(target mir.Target, path string) (*mir.Module, stlerror.Error) {
 	means, err := analyse.Analyse(path)
 	if err != nil{
-		return llvm.Module{}, err
-	}
-	_ = util.Logger.Infof(0, "LLVM VERSION: %s", llvm.Version)
-	if err = stlerror.ErrorWrap(llvm.InitializeNativeTarget()); err != nil{
-		return llvm.Module{}, err
-	}
-	target, err := stlerror.ErrorWith(llvm.NativeTarget())
-	if err != nil{
-		return llvm.Module{}, err
+		return nil, err
 	}
 	module := New(target, means).Codegen()
-	if err = stlerror.ErrorWrap(module.Verify()); err != nil{
-		return llvm.Module{}, err
-	}
+	pass.Run(module, pass.DeadCodeElimination)
 	return module, nil
 }

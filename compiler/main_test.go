@@ -1,20 +1,25 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
+	stltest "github.com/kkkunny/stl/test"
 
 	"github.com/kkkunny/Sim/codegen_ir"
+	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/mir/output/llvm"
 	"github.com/kkkunny/Sim/output/jit"
 )
 
 func TestDebug(t *testing.T) {
-	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 	path := stlerror.MustWith(filepath.Abs("example/main.sim"))
-	module := stlerror.MustWith(codegen_ir.CodegenIr(path))
-	os.Exit(int(stlerror.MustWith(jit.RunJit(module))))
+	mirModule := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), path))
+	outputer := llvm.NewLLVMOutputer()
+	outputer.Codegen(mirModule)
+	llvmModule := outputer.Module()
+	stlerror.Must(llvmModule.Verify())
+	ret := stlerror.MustWith(jit.RunJit(llvmModule))
+	stltest.AssertEq(t, ret, 0)
 }

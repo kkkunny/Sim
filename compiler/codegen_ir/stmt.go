@@ -1,11 +1,11 @@
 package codegen_ir
 
 import (
-	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/mir"
 )
 
 func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
@@ -33,158 +33,149 @@ func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
 
 func (self *CodeGenerator) codegenFlatBlock(node *mean.Block) {
 	for iter := node.Stmts.Iterator(); iter.Next(); {
-		if self.builder.CurrentBlock().IsTerminating() {
-			break
-		}
 		self.codegenStmt(iter.Value())
 	}
 }
 
-func (self *CodeGenerator) codegenBlock(node *mean.Block, afterBlockCreate func(block llvm.Block)) (llvm.Block, llvm.Block) {
-	from := self.builder.CurrentBlock()
-	block := from.Belong().NewBlock("")
+func (self *CodeGenerator) codegenBlock(node *mean.Block, afterBlockCreate func(block *mir.Block)) (*mir.Block, *mir.Block) {
+	from := self.builder.Current()
+	block := from.Belong().NewBlock()
 	if afterBlockCreate != nil {
 		afterBlockCreate(block)
 	}
 
-	self.builder.MoveToAfter(block)
-	defer self.builder.MoveToAfter(from)
+	self.builder.MoveTo(block)
+	defer self.builder.MoveTo(from)
 
 	self.codegenFlatBlock(node)
 
-	return block, self.builder.CurrentBlock()
+	return block, self.builder.Current()
 }
 
 func (self *CodeGenerator) codegenReturn(node *mean.Return) {
-	ft := self.codegenFuncType(node.Func.GetFuncType())
 	if v, ok := node.Value.Value(); ok {
-		v := self.codegenExpr(v, true)
-		self.buildRet(ft, &v)
+		self.builder.BuildReturn(self.codegenExpr(v, true))
 	} else {
-		self.buildRet(ft, nil)
+		self.builder.BuildReturn()
 	}
 }
 
-func (self *CodeGenerator) codegenLocalVariable(node *mean.Variable) llvm.Value {
-	t := self.codegenType(node.Type)
+func (self *CodeGenerator) codegenLocalVariable(node *mean.Variable) mir.Value {
 	value := self.codegenExpr(node.Value, true)
-	ptr := self.builder.CreateAlloca("", t)
-	self.builder.CreateStore(value, ptr)
-	self.values[node] = ptr
+	ptr := self.builder.BuildAllocFromStack(self.codegenType(node.Type))
+	self.builder.BuildStore(value, ptr)
+	self.values.Set(node, ptr)
 	return ptr
 }
 
 func (self *CodeGenerator) codegenIfElse(node *mean.IfElse) {
 	blocks := self.codegenIfElseNode(node)
 
-	var brenchEndBlocks []llvm.Block
-	var endBlock llvm.Block
+	var brenchEndBlocks []*mir.Block
+	var endBlock *mir.Block
 	if node.HasElse() {
 		brenchEndBlocks = blocks
-		end := iterator.All(dynarray.NewDynArrayWith(brenchEndBlocks...), func(v llvm.Block) bool {
-			return v.IsTerminating()
+		end := iterator.All(dynarray.NewDynArrayWith(brenchEndBlocks...), func(v *mir.Block) bool {
+			return v.Terminated()
 		})
 		if end {
 			return
 		}
-		endBlock = blocks[0].Belong().NewBlock("")
+		endBlock = blocks[0].Belong().NewBlock()
 	} else {
 		brenchEndBlocks, endBlock = blocks[:len(blocks)-1], blocks[len(blocks)-1]
 	}
 
 	for _, brenchEndBlock := range brenchEndBlocks {
-		if brenchEndBlock.IsTerminating() {
-			continue
-		}
-		self.builder.MoveToAfter(brenchEndBlock)
-		self.builder.CreateBr(endBlock)
+		self.builder.MoveTo(brenchEndBlock)
+		self.builder.BuildUnCondJump(endBlock)
 	}
-	self.builder.MoveToAfter(endBlock)
+	self.builder.MoveTo(endBlock)
 }
 
-func (self *CodeGenerator) codegenIfElseNode(node *mean.IfElse) []llvm.Block {
+func (self *CodeGenerator) codegenIfElseNode(node *mean.IfElse) []*mir.Block {
 	if condNode, ok := node.Cond.Value(); ok {
 		cond := self.codegenExpr(condNode, true)
 		trueStartBlock, trueEndBlock := self.codegenBlock(node.Body, nil)
-		falseBlock := trueStartBlock.Belong().NewBlock("")
-		self.builder.CreateCondBr(cond, trueStartBlock, falseBlock)
-		self.builder.MoveToAfter(falseBlock)
+		falseBlock := trueStartBlock.Belong().NewBlock()
+		self.builder.BuildCondJump(cond, trueStartBlock, falseBlock)
+		self.builder.MoveTo(falseBlock)
 
 		if nextNode, ok := node.Next.Value(); ok {
 			blocks := self.codegenIfElseNode(nextNode)
-			return append([]llvm.Block{trueEndBlock}, blocks...)
+			return append([]*mir.Block{trueEndBlock}, blocks...)
 		} else {
-			return []llvm.Block{trueEndBlock, falseBlock}
+			return []*mir.Block{trueEndBlock, falseBlock}
 		}
 	} else {
 		self.codegenFlatBlock(node.Body)
-		return []llvm.Block{self.builder.CurrentBlock()}
+		return []*mir.Block{self.builder.Current()}
 	}
 }
 
 type loop interface {
-	SetOutBlock(block llvm.Block)
-	GetOutBlock() (*llvm.Block, bool)
-	GetNextBlock() llvm.Block
+	SetOutBlock(block *mir.Block)
+	GetOutBlock() (*mir.Block, bool)
+	GetNextBlock() *mir.Block
 }
 
 type endlessLoop struct {
-	BodyEntry llvm.Block
-	Out       *llvm.Block
+	BodyEntry *mir.Block
+	Out       *mir.Block
 }
 
-func (self *endlessLoop) SetOutBlock(block llvm.Block) {
-	self.Out = &block
+func (self *endlessLoop) SetOutBlock(block *mir.Block) {
+	self.Out = block
 }
 
-func (self *endlessLoop) GetOutBlock() (*llvm.Block, bool) {
+func (self *endlessLoop) GetOutBlock() (*mir.Block, bool) {
 	return self.Out, self.Out != nil
 }
 
-func (self *endlessLoop) GetNextBlock() llvm.Block {
+func (self *endlessLoop) GetNextBlock() *mir.Block {
 	return self.BodyEntry
 }
 
 func (self *CodeGenerator) codegenEndlessLoop(node *mean.EndlessLoop) {
-	entryBlock, endBlock := self.codegenBlock(node.Body, func(block llvm.Block) {
+	entryBlock, endBlock := self.codegenBlock(node.Body, func(block *mir.Block) {
 		self.loops.Set(node, &endlessLoop{BodyEntry: block})
 	})
-	self.builder.CreateBr(entryBlock)
-	if !endBlock.IsTerminating() {
-		self.builder.MoveToAfter(endBlock)
-		self.builder.CreateBr(entryBlock)
+	self.builder.BuildUnCondJump(entryBlock)
+	if !endBlock.Terminated() {
+		self.builder.MoveTo(endBlock)
+		self.builder.BuildUnCondJump(entryBlock)
 	}
 	if outBlock, ok := self.loops.Get(node).GetOutBlock(); ok {
-		self.builder.MoveToAfter(*outBlock)
+		self.builder.MoveTo(outBlock)
 	}
 }
 
 func (self *CodeGenerator) codegenBreak(node *mean.Break) {
 	loop := self.loops.Get(node.Loop)
 	if _, ok := loop.GetOutBlock(); !ok {
-		loop.SetOutBlock(self.builder.CurrentBlock().Belong().NewBlock(""))
+		loop.SetOutBlock(self.builder.Current().Belong().NewBlock())
 	}
 	endBlock, _ := loop.GetOutBlock()
-	self.builder.CreateBr(*endBlock)
+	self.builder.BuildUnCondJump(endBlock)
 }
 
 func (self *CodeGenerator) codegenContinue(node *mean.Continue) {
 	loop := self.loops.Get(node.Loop)
-	self.builder.CreateBr(loop.GetNextBlock())
+	self.builder.BuildUnCondJump(loop.GetNextBlock())
 }
 
 type forRange struct {
-	Action llvm.Block
-	Out    llvm.Block
+	Action *mir.Block
+	Out    *mir.Block
 }
 
-func (self *forRange) SetOutBlock(block llvm.Block) {}
+func (self *forRange) SetOutBlock(block *mir.Block) {}
 
-func (self *forRange) GetOutBlock() (*llvm.Block, bool) {
-	return &self.Out, true
+func (self *forRange) GetOutBlock() (*mir.Block, bool) {
+	return self.Out, true
 }
 
-func (self *forRange) GetNextBlock() llvm.Block {
+func (self *forRange) GetNextBlock() *mir.Block {
 	return self.Action
 }
 
@@ -192,39 +183,39 @@ func (self *CodeGenerator) codegenFor(node *mean.For) {
 	// pre
 	iter := self.codegenExpr(node.Iterator, false)
 	iterArrayTypeMean := node.Iterator.GetType().(*mean.ArrayType)
-	indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
-	self.builder.CreateStore(self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0), indexPtr)
+	indexPtr := self.builder.BuildAllocFromStack(self.ctx.Usize())
+	self.builder.BuildStore(mir.NewInt(indexPtr.ElemType().(mir.IntType), 0), indexPtr)
 	cursorPtr := self.codegenLocalVariable(node.Cursor)
-	condBlock := self.builder.CurrentBlock().Belong().NewBlock("")
-	self.builder.CreateBr(condBlock)
-	self.builder.MoveToAfter(condBlock)
-	var actionBlock llvm.Block
+	condBlock := self.builder.Current().Belong().NewBlock()
+	self.builder.BuildUnCondJump(condBlock)
+	self.builder.MoveTo(condBlock)
+	var actionBlock *mir.Block
 
-	beforeBody := func(entry llvm.Block) {
-		curBlock := self.builder.CurrentBlock()
+	beforeBody := func(entry *mir.Block) {
+		curBlock := self.builder.Current()
 		defer func() {
-			self.builder.MoveToAfter(curBlock)
+			self.builder.MoveTo(curBlock)
 		}()
 
-		actionBlock = curBlock.Belong().NewBlock("")
-		outBlock := curBlock.Belong().NewBlock("")
+		actionBlock = curBlock.Belong().NewBlock()
+		outBlock := curBlock.Belong().NewBlock()
 
 		// cond
-		self.builder.MoveToAfter(condBlock)
-		self.builder.CreateCondBr(
-			self.builder.CreateIntCmp("", llvm.IntULT, self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(iterArrayTypeMean.Size))),
+		self.builder.MoveTo(condBlock)
+		self.builder.BuildCondJump(
+			self.builder.BuildCmp(mir.CmpKindLT, self.builder.BuildLoad(indexPtr), mir.NewInt(indexPtr.ElemType().(mir.IntType), int64(iterArrayTypeMean.Size))),
 			entry,
 			outBlock,
 		)
 
 		// action
-		self.builder.MoveToAfter(actionBlock)
-		self.builder.CreateStore(self.builder.CreateUAdd("", self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
-		self.builder.CreateBr(condBlock)
+		self.builder.MoveTo(actionBlock)
+		self.builder.BuildStore(self.builder.BuildAdd(self.builder.BuildLoad(indexPtr), mir.NewInt(indexPtr.ElemType().(mir.IntType), 1)), indexPtr)
+		self.builder.BuildUnCondJump(condBlock)
 
 		// body
-		self.builder.MoveToAfter(entry)
-		self.builder.CreateStore(self.buildArrayIndex(self.codegenArrayType(iterArrayTypeMean), iter, self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr), true), cursorPtr)
+		self.builder.MoveTo(entry)
+		self.builder.BuildStore(self.buildArrayIndex(iter, self.builder.BuildLoad(indexPtr), false), cursorPtr)
 
 		self.loops.Set(node, &forRange{
 			Action: actionBlock,
@@ -233,11 +224,11 @@ func (self *CodeGenerator) codegenFor(node *mean.For) {
 	}
 
 	_, endBlock := self.codegenBlock(node.Body, beforeBody)
-	if !endBlock.IsTerminating() {
-		self.builder.MoveToAfter(endBlock)
-		self.builder.CreateBr(actionBlock)
+	if !endBlock.Terminated() {
+		self.builder.MoveTo(endBlock)
+		self.builder.BuildUnCondJump(actionBlock)
 	}
 	if outBlock, ok := self.loops.Get(node).GetOutBlock(); ok {
-		self.builder.MoveToAfter(*outBlock)
+		self.builder.MoveTo(outBlock)
 	}
 }
