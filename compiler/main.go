@@ -1,4 +1,4 @@
-//go:build !lex && !parse && !analyse && !codegenir && !codegenllvm
+//go:build !lex && !parse && !analyse && !codegenir && !codegenllvm && !codegenasm
 package main
 
 import (

@@ -62,6 +62,16 @@ func (self *LLVMOutputer) codegenDeclValue(ir mir.Global){
 		}else{
 			f.SetLinkage(llvm.ExternalLinkage)
 		}
+		for _, attr := range global.Attributes(){
+			switch attr {
+			case mir.FunctionAttributeInit:
+				self.module.AddConstructor(65535, f)
+			case mir.FunctionAttributeFini:
+				self.module.AddDestructor(65535, f)
+			default:
+				panic("unreachable")
+			}
+		}
 		self.values.Set(global, f)
 	default:
 		panic("unreachable")

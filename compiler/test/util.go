@@ -37,7 +37,6 @@ func assertRetEq(t *testing.T, code string, expect uint8, skips ...uint) {
 	outputer := llvm.NewLLVMOutputer()
 	outputer.Codegen(mirModule)
 	llvmModule := outputer.Module()
-	stlerror.Must(llvmModule.Verify())
 	stltest.AssertEq(t, stlerror.MustWith(jit.RunJit(llvmModule)), expect)
 }
 

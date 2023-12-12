@@ -195,6 +195,7 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 	initFn, ok := self.module.NamedFunction("sim_runtime_init")
 	if !ok {
 		initFn = self.module.NewFunction("sim_runtime_init", self.ctx.NewFuncType(self.ctx.Void()))
+		initFn.SetAttribute(mir.FunctionAttributeInit)
 		initFn.NewBlock()
 	}
 	return initFn

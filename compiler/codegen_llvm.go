@@ -19,7 +19,5 @@ func main() {
 	mirModule := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), path))
 	outputer := llvm.NewLLVMOutputer()
 	outputer.Codegen(mirModule)
-	llvmModule := outputer.Module()
-	stlerror.Must(llvmModule.Verify())
-	fmt.Println(llvmModule)
+	fmt.Println(outputer.Module())
 }

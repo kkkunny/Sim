@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/list"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
@@ -204,6 +205,8 @@ type Function struct {
 	t FuncType
 	params []*Param
 	blocks *list.List[*Block]
+
+	attrs hashset.HashSet[FunctionAttribute]
 }
 
 func (self *Module) NewFunction(name string, t FuncType)*Function{
@@ -258,7 +261,11 @@ func (self *Function) Define()string{
 		params := lo.Map(self.t.Params(), func(item Type, _ int) string {
 			return item.String()
 		})
-		return fmt.Sprintf("%s %s(%s)", self.t.Ret(), self.Name(), strings.Join(params, ","))
+		attrs := lo.Map(self.Attributes(), func(item FunctionAttribute, _ int) string {
+			return string(item)
+		})
+		attrStr := stlbasic.Ternary(len(attrs)==0, "", fmt.Sprintf("\nattrs: %s", strings.Join(attrs, ";")))
+		return fmt.Sprintf("%s %s(%s)%s", self.t.Ret(), self.Name(), strings.Join(params, ","), attrStr)
 	}
 
 	var buf strings.Builder
@@ -273,6 +280,17 @@ func (self *Function) Define()string{
 		}
 	}
 	buf.WriteString("):\n")
+	if !self.attrs.Empty(){
+		buf.WriteString("attrs: ")
+	}
+	for iter:=self.attrs.Iterator(); iter.Next(); {
+		buf.WriteString(string(iter.Value()))
+		if iter.HasNext(){
+			buf.WriteByte(';')
+		}else{
+			buf.WriteByte('\n')
+		}
+	}
 	var i uint
 	for cursor:=self.blocks.Front(); cursor!=nil; cursor=cursor.Next(){
 		cursor.Value.index = i
@@ -301,6 +319,32 @@ func (self *Function) Params()[]*Param{
 
 func (self *Function) Blocks()*list.List[*Block]{
 	return self.blocks
+}
+
+// FunctionAttribute 函数属性
+type FunctionAttribute string
+
+const (
+	FunctionAttributeInit FunctionAttribute = "init"  // init
+	FunctionAttributeFini FunctionAttribute = "fini"  // fini
+)
+
+func (self *Function) SetAttribute(attr ...FunctionAttribute){
+	for _, a := range attr{
+		switch a {
+		case FunctionAttributeInit, FunctionAttributeFini:
+			if !self.t.Ret().Equal(self.ctx.Void()) || len(self.t.Params()) != 0{
+				panic("unreachable")
+			}
+		default:
+			panic("unreachable")
+		}
+		self.attrs.Add(a)
+	}
+}
+
+func (self *Function) Attributes()[]FunctionAttribute{
+	return self.attrs.ToSlice().ToSlice()
 }
 
 // Constant 常量

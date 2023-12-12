@@ -3,6 +3,7 @@ package llvm
 import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
+	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/mir"
 )
@@ -50,6 +51,8 @@ func (self *LLVMOutputer) Codegen(module *mir.Module){
 	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
 		self.codegenDefValue(cursor.Value)
 	}
+
+	stlerror.Must(self.module.Verify())
 }
 
 func (self *LLVMOutputer) Module()llvm.Module{

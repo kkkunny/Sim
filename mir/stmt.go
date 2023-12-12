@@ -459,7 +459,11 @@ func (self *Builder) BuildNot(v Value)Value{
 		panic("unreachable")
 	}
 	if vc, ok := v.(Int); ok{
-		return NewInt(v.Type().(IntType), stlmath.NotWithBits(vc.IntValue(), uint64(vc.Type().Size())))
+		if stlbasic.Is[*Sint](vc){
+			return NewSint(v.Type().(SintType), stlmath.NotWithBits(vc.IntValue(), uint64(vc.Type().Size())))
+		}else{
+			return NewUint(v.Type().(UintType), stlmath.NotWithBits(uint64(vc.IntValue()), uint64(vc.Type().Size())))
+		}
 	}
 	stmt := &Not{
 		b: self.cur,
