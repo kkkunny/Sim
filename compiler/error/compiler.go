@@ -9,7 +9,7 @@ import (
 	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/ast"
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 )
@@ -24,7 +24,7 @@ func ThrowError(pos reader.Position, format string, args ...any) {
 }
 
 // ThrowCanNotGetDefault 不能获得默认值
-func ThrowCanNotGetDefault(pos reader.Position, t mean.Type) {
+func ThrowCanNotGetDefault(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "can not get the default value for type `%s`", t)
 }
 
@@ -34,7 +34,7 @@ func ThrowExpectAttribute(pos reader.Position, attr ast.Attr) {
 }
 
 // ThrowTypeMismatchError 类型不匹配
-func ThrowTypeMismatchError(pos reader.Position, t1, t2 mean.Type) {
+func ThrowTypeMismatchError(pos reader.Position, t1, t2 hir.Type) {
 	ThrowError(pos, "type `%s` does not match type `%s`", t1, t2)
 }
 
@@ -54,17 +54,17 @@ func ThrowNotMutableError(pos reader.Position) {
 }
 
 // ThrowIllegalBinaryError 非法的二元运算
-func ThrowIllegalBinaryError(pos reader.Position, op token.Token, left, right mean.Expr) {
+func ThrowIllegalBinaryError(pos reader.Position, op token.Token, left, right hir.Expr) {
 	ThrowError(pos, "illegal binary operation with type `%s` `%s` `%s`", left.GetType(), op.Source(), right.GetType())
 }
 
 // ThrowIllegalUnaryError 非法的一元运算
-func ThrowIllegalUnaryError(pos reader.Position, op token.Token, t mean.Type) {
+func ThrowIllegalUnaryError(pos reader.Position, op token.Token, t hir.Type) {
 	ThrowError(pos, "illegal unary operation with `%s` type `%s`", op.Source(), t)
 }
 
 // ThrowNotFunctionError 必须是函数
-func ThrowNotFunctionError(pos reader.Position, t mean.Type) {
+func ThrowNotFunctionError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect function type but there is `%s`", t)
 }
 
@@ -74,12 +74,12 @@ func ThrowParameterNumberNotMatchError(pos reader.Position, expect, now uint) {
 }
 
 // ThrowIllegalCovertError 非法的类型转换
-func ThrowIllegalCovertError(pos reader.Position, from, to mean.Type) {
+func ThrowIllegalCovertError(pos reader.Position, from, to hir.Type) {
 	ThrowError(pos, "type `%s` can not covert to `%s`", from, to)
 }
 
 // ThrowNotArrayError 必须是数组
-func ThrowNotArrayError(pos reader.Position, t mean.Type) {
+func ThrowNotArrayError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect array type but there is `%s`", t)
 }
 
@@ -89,22 +89,22 @@ func ThrowExpectPointerTypeError(pos reader.Position) {
 }
 
 // ThrowExpectPointerError 期待指针
-func ThrowExpectPointerError(pos reader.Position, t mean.Type) {
+func ThrowExpectPointerError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect pointer type but there is `%s`", t)
 }
 
 // ThrowExpectReferenceError 期待引用
-func ThrowExpectReferenceError(pos reader.Position, t mean.Type) {
+func ThrowExpectReferenceError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect reference type but there is `%s`", t)
 }
 
 // ThrowNotTupleError 必须是元组
-func ThrowNotTupleError(pos reader.Position, t mean.Type) {
+func ThrowNotTupleError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect tuple type but there is `%s`", t)
 }
 
 // ThrowNotStructError 必须是结构体
-func ThrowNotStructError(pos reader.Position, t mean.Type) {
+func ThrowNotStructError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect struct type but there is `%s`", t)
 }
 
@@ -119,7 +119,7 @@ func ThrowLoopControlError(pos reader.Position) {
 }
 
 // ThrowMissingReturnValueError 缺失返回值
-func ThrowMissingReturnValueError(pos reader.Position, t mean.Type) {
+func ThrowMissingReturnValueError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "missing a return value type `%s`", t)
 }
 

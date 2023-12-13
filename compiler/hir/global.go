@@ -1,4 +1,4 @@
-package mean
+package hir
 
 import (
 	"strings"

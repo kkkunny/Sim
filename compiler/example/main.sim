@@ -1,18 +1,12 @@
-struct A{
+struct T{
     data: u8
 }
 
-func (A) default()Self{
-    return A{data: 1}
-}
-
-func default<T: Default>()T{
-    let v: T
-    return v
+func (mut T) get_data()u8{
+    return self.data
 }
 
 func main()u8{
-    let i: A = default::<A>()
-    let j: u8 = default::<u8>()
-    return i.data - 1
+    let v: T = T{data: 1}
+    return v.get_data() - 1
 }
