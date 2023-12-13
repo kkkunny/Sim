@@ -1,15 +1,15 @@
 package codegen_ir
 
 import (
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *CodeGenerator) declStructDef(node *mean.StructDef) {
+func (self *CodeGenerator) declStructDef(node *hir.StructDef) {
 	self.structs.Set(node, self.module.NewNamedStructType(""))
 }
 
-func (self *CodeGenerator) defStructDef(node *mean.StructDef) {
+func (self *CodeGenerator) defStructDef(node *hir.StructDef) {
 	st := self.structs.Get(node)
 	fields := make([]mir.Type, node.Fields.Length())
 	var i int
@@ -19,71 +19,71 @@ func (self *CodeGenerator) defStructDef(node *mean.StructDef) {
 	st.SetElems(fields...)
 }
 
-func (self *CodeGenerator) codegenGlobalDecl(node mean.Global) {
+func (self *CodeGenerator) codegenGlobalDecl(node hir.Global) {
 	switch globalNode := node.(type) {
-	case *mean.FuncDef:
+	case *hir.FuncDef:
 		self.declFuncDef(globalNode)
-	case *mean.MethodDef:
+	case *hir.MethodDef:
 		self.declMethodDef(globalNode)
-	case *mean.Variable:
+	case *hir.Variable:
 		self.declGlobalVariable(globalNode)
-	case *mean.GenericFuncDef:
+	case *hir.GenericFuncDef:
 		self.declGenericFuncDef(globalNode)
-	case *mean.StructDef:
+	case *hir.StructDef:
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) declFuncDef(node *mean.FuncDef) {
-	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
+func (self *CodeGenerator) declFuncDef(node *hir.FuncDef) {
+	ft := self.codegenFuncType(node.GetType().(*hir.FuncType))
 	f := self.module.NewFunction(node.ExternName, ft)
 	self.values.Set(node, f)
 }
 
-func (self *CodeGenerator) declMethodDef(node *mean.MethodDef) {
-	ft := self.codegenFuncType(node.GetType().(*mean.FuncType))
+func (self *CodeGenerator) declMethodDef(node *hir.MethodDef) {
+	ft := self.codegenFuncType(node.GetType().(*hir.FuncType))
 	f := self.module.NewFunction("", ft)
 	self.values.Set(node, f)
 }
 
-func (self *CodeGenerator) declGlobalVariable(node *mean.Variable) {
+func (self *CodeGenerator) declGlobalVariable(node *hir.Variable) {
 	t := self.codegenType(node.Type)
 	v := self.module.NewGlobalVariable("", t, mir.NewZero(self.codegenType(node.GetType())))
 	self.values.Set(node, v)
 }
 
-func (self *CodeGenerator) declGenericFuncDef(node *mean.GenericFuncDef) {
+func (self *CodeGenerator) declGenericFuncDef(node *hir.GenericFuncDef) {
 	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
 		inst := iter.Value()
-		ft := self.codegenFuncType(inst.GetType().(*mean.FuncType))
+		ft := self.codegenFuncType(inst.GetType().(*hir.FuncType))
 		f := self.module.NewFunction("", ft)
 		self.values.Set(inst, f)
 	}
 }
 
-func (self *CodeGenerator) codegenGlobalDef(node mean.Global) {
+func (self *CodeGenerator) codegenGlobalDef(node hir.Global) {
 	switch globalNode := node.(type) {
-	case *mean.FuncDef:
+	case *hir.FuncDef:
 		if globalNode.Body.IsNone() {
 			self.defFuncDecl(globalNode)
 		} else {
 			self.defFuncDef(globalNode)
 		}
-	case *mean.MethodDef:
+	case *hir.MethodDef:
 		self.defMethodDef(globalNode)
-	case *mean.StructDef:
+	case *hir.StructDef:
 		self.defStructDef(globalNode)
-	case *mean.Variable:
+	case *hir.Variable:
 		self.defGlobalVariable(globalNode)
-	case *mean.GenericFuncDef:
+	case *hir.GenericFuncDef:
 		self.defGenericFuncDef(globalNode)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
+func (self *CodeGenerator) defFuncDef(node *hir.FuncDef) {
 	f := self.values.Get(node).(*mir.Function)
 	self.builder.MoveTo(f.NewBlock())
 	for i, p := range f.Params() {
@@ -93,10 +93,10 @@ func (self *CodeGenerator) defFuncDef(node *mean.FuncDef) {
 	self.builder.BuildUnCondJump(block)
 }
 
-func (self *CodeGenerator) defMethodDef(node *mean.MethodDef) {
+func (self *CodeGenerator) defMethodDef(node *hir.MethodDef) {
 	f := self.values.Get(node).(*mir.Function)
 	self.builder.MoveTo(f.NewBlock())
-	paramNodes := append([]*mean.Param{node.SelfParam}, node.Params...)
+	paramNodes := append([]*hir.Param{node.SelfParam}, node.Params...)
 	for i, p := range f.Params() {
 		self.values.Set(paramNodes[i], p)
 	}
@@ -104,11 +104,11 @@ func (self *CodeGenerator) defMethodDef(node *mean.MethodDef) {
 	self.builder.BuildUnCondJump(block)
 }
 
-func (self *CodeGenerator) defFuncDecl(node *mean.FuncDef) {
+func (self *CodeGenerator) defFuncDecl(node *hir.FuncDef) {
 	_ = self.values.Get(node).(*mir.Function)
 }
 
-func (self *CodeGenerator) defGlobalVariable(node *mean.Variable) {
+func (self *CodeGenerator) defGlobalVariable(node *hir.Variable) {
 	gv := self.values.Get(node).(*mir.GlobalVariable)
 	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
 	value := self.codegenExpr(node.Value, true)
@@ -119,7 +119,7 @@ func (self *CodeGenerator) defGlobalVariable(node *mean.Variable) {
 	}
 }
 
-func (self *CodeGenerator) defGenericFuncDef(node *mean.GenericFuncDef) {
+func (self *CodeGenerator) defGenericFuncDef(node *hir.GenericFuncDef) {
 	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
 		inst := iter.Value()
 		f := self.values.Get(inst).(*mir.Function)

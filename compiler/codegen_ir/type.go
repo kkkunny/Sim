@@ -4,50 +4,50 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *CodeGenerator) codegenType(node mean.Type) mir.Type {
+func (self *CodeGenerator) codegenType(node hir.Type) mir.Type {
 	switch typeNode := node.(type) {
-	case *mean.EmptyType:
+	case *hir.EmptyType:
 		return self.codegenEmptyType(typeNode)
-	case *mean.SintType:
+	case *hir.SintType:
 		return self.codegenSintType(typeNode)
-	case *mean.UintType:
+	case *hir.UintType:
 		return self.codegenUintType(typeNode)
-	case *mean.FloatType:
+	case *hir.FloatType:
 		return self.codegenFloatType(typeNode)
-	case *mean.FuncType:
+	case *hir.FuncType:
 		return self.codegenFuncType(typeNode)
-	case *mean.BoolType:
+	case *hir.BoolType:
 		return self.codegenBoolType()
-	case *mean.ArrayType:
+	case *hir.ArrayType:
 		return self.codegenArrayType(typeNode)
-	case *mean.TupleType:
+	case *hir.TupleType:
 		return self.codegenTupleType(typeNode)
-	case *mean.StructType:
+	case *hir.StructType:
 		return self.codegenStructType(typeNode)
-	case *mean.StringType:
+	case *hir.StringType:
 		return self.codegenStringType()
-	case *mean.UnionType:
+	case *hir.UnionType:
 		return self.codegenUnionType(typeNode)
-	case *mean.PtrType:
+	case *hir.PtrType:
 		return self.codegenPtrType(typeNode)
-	case *mean.RefType:
+	case *hir.RefType:
 		return self.codegenRefType(typeNode)
-	case *mean.GenericParam:
+	case *hir.GenericParam:
 		return self.codegenGenericParam(typeNode)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenEmptyType(_ *mean.EmptyType) mir.VoidType {
+func (self *CodeGenerator) codegenEmptyType(_ *hir.EmptyType) mir.VoidType {
 	return self.ctx.Void()
 }
 
-func (self *CodeGenerator) codegenSintType(node *mean.SintType) mir.SintType {
+func (self *CodeGenerator) codegenSintType(node *hir.SintType) mir.SintType {
 	bits := node.GetBits()
 	if bits == 0{
 		return self.ctx.Isize()
@@ -55,7 +55,7 @@ func (self *CodeGenerator) codegenSintType(node *mean.SintType) mir.SintType {
 	return self.ctx.NewSintType(stlos.Size(bits))
 }
 
-func (self *CodeGenerator) codegenUintType(node *mean.UintType) mir.UintType {
+func (self *CodeGenerator) codegenUintType(node *hir.UintType) mir.UintType {
 	bits := node.GetBits()
 	if bits == 0{
 		return self.ctx.Usize()
@@ -63,18 +63,18 @@ func (self *CodeGenerator) codegenUintType(node *mean.UintType) mir.UintType {
 	return self.ctx.NewUintType(stlos.Size(bits))
 }
 
-func (self *CodeGenerator) codegenIntType(node mean.IntType) mir.IntType {
+func (self *CodeGenerator) codegenIntType(node hir.IntType) mir.IntType {
 	switch intNode := node.(type) {
-	case *mean.SintType:
+	case *hir.SintType:
 		return self.codegenSintType(intNode)
-	case *mean.UintType:
+	case *hir.UintType:
 		return self.codegenUintType(intNode)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenFloatType(node *mean.FloatType) mir.FloatType {
+func (self *CodeGenerator) codegenFloatType(node *hir.FloatType) mir.FloatType {
 	switch node.Bits {
 	case 32:
 		return self.ctx.F32()
@@ -85,9 +85,9 @@ func (self *CodeGenerator) codegenFloatType(node *mean.FloatType) mir.FloatType 
 	}
 }
 
-func (self *CodeGenerator) codegenFuncType(node *mean.FuncType) mir.FuncType {
+func (self *CodeGenerator) codegenFuncType(node *hir.FuncType) mir.FuncType {
 	ret := self.codegenType(node.Ret)
-	params := lo.Map(node.Params, func(item mean.Type, index int) mir.Type {
+	params := lo.Map(node.Params, func(item hir.Type, index int) mir.Type {
 		return self.codegenType(item)
 	})
 	return self.ctx.NewFuncType(ret, params...)
@@ -97,18 +97,18 @@ func (self *CodeGenerator) codegenBoolType() mir.UintType {
 	return self.ctx.NewUintType(1)
 }
 
-func (self *CodeGenerator) codegenArrayType(node *mean.ArrayType) mir.ArrayType {
+func (self *CodeGenerator) codegenArrayType(node *hir.ArrayType) mir.ArrayType {
 	return self.ctx.NewArrayType(node.Size, self.codegenType(node.Elem))
 }
 
-func (self *CodeGenerator) codegenTupleType(node *mean.TupleType) mir.StructType {
-	elems := lo.Map(node.Elems, func(item mean.Type, index int) mir.Type {
+func (self *CodeGenerator) codegenTupleType(node *hir.TupleType) mir.StructType {
+	elems := lo.Map(node.Elems, func(item hir.Type, index int) mir.Type {
 		return self.codegenType(item)
 	})
 	return self.ctx.NewStructType(elems...)
 }
 
-func (self *CodeGenerator) codegenStructType(node *mean.StructType) mir.StructType {
+func (self *CodeGenerator) codegenStructType(node *hir.StructType) mir.StructType {
 	return self.structs.Get(node)
 }
 
@@ -120,7 +120,7 @@ func (self *CodeGenerator) codegenStringType() mir.StructType {
 	return self.module.NewNamedStructType("str", self.ctx.NewPtrType(self.ctx.U8()), self.ctx.Usize())
 }
 
-func (self *CodeGenerator) codegenUnionType(node *mean.UnionType) mir.StructType {
+func (self *CodeGenerator) codegenUnionType(node *hir.UnionType) mir.StructType {
 	var maxSizeType mir.Type
 	var maxSize stlos.Size
 	for _, e := range node.Elems{
@@ -132,14 +132,14 @@ func (self *CodeGenerator) codegenUnionType(node *mean.UnionType) mir.StructType
 	return self.ctx.NewStructType(maxSizeType, self.ctx.U8())
 }
 
-func (self *CodeGenerator) codegenPtrType(node *mean.PtrType) mir.PtrType {
+func (self *CodeGenerator) codegenPtrType(node *hir.PtrType) mir.PtrType {
 	return self.ctx.NewPtrType(self.codegenType(node.Elem))
 }
 
-func (self *CodeGenerator) codegenRefType(node *mean.RefType) mir.PtrType {
+func (self *CodeGenerator) codegenRefType(node *hir.RefType) mir.PtrType {
 	return self.ctx.NewPtrType(self.codegenType(node.Elem))
 }
 
-func (self *CodeGenerator) codegenGenericParam(node *mean.GenericParam)mir.Type{
+func (self *CodeGenerator) codegenGenericParam(node *hir.GenericParam)mir.Type{
 	return self.codegenType(self.genericParams.Get(node))
 }

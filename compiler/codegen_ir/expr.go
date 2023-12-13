@@ -4,58 +4,58 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) mir.Value {
+func (self *CodeGenerator) codegenExpr(node hir.Expr, load bool) mir.Value {
 	switch exprNode := node.(type) {
-	case *mean.Integer:
+	case *hir.Integer:
 		return self.codegenInteger(exprNode)
-	case *mean.Float:
+	case *hir.Float:
 		return self.codegenFloat(exprNode)
-	case *mean.Boolean:
+	case *hir.Boolean:
 		return self.codegenBool(exprNode)
-	case *mean.Assign:
+	case *hir.Assign:
 		self.codegenAssign(exprNode)
 		return nil
-	case mean.Binary:
+	case hir.Binary:
 		return self.codegenBinary(exprNode)
-	case mean.Unary:
+	case hir.Unary:
 		return self.codegenUnary(exprNode, load)
-	case mean.Ident:
+	case hir.Ident:
 		return self.codegenIdent(exprNode, load)
-	case *mean.Call:
+	case *hir.Call:
 		return self.codegenCall(exprNode)
-	case mean.Covert:
+	case hir.Covert:
 		return self.codegenCovert(exprNode)
-	case *mean.Array:
+	case *hir.Array:
 		return self.codegenArray(exprNode)
-	case *mean.Index:
+	case *hir.Index:
 		return self.codegenIndex(exprNode, load)
-	case *mean.Tuple:
+	case *hir.Tuple:
 		return self.codegenTuple(exprNode)
-	case *mean.Extract:
+	case *hir.Extract:
 		return self.codegenExtract(exprNode, load)
-	case *mean.Zero:
+	case *hir.Zero:
 		return self.codegenZero(exprNode.GetType())
-	case *mean.Struct:
+	case *hir.Struct:
 		return self.codegenStruct(exprNode)
-	case *mean.Field:
+	case *hir.Field:
 		return self.codegenField(exprNode, load)
-	case *mean.String:
+	case *hir.String:
 		return self.codegenString(exprNode)
-	case *mean.Union:
+	case *hir.Union:
 		return self.codegenUnion(exprNode, load)
-	case *mean.UnionTypeJudgment:
+	case *hir.UnionTypeJudgment:
 		return self.codegenUnionTypeJudgment(exprNode)
-	case *mean.UnUnion:
+	case *hir.UnUnion:
 		return self.codegenUnUnion(exprNode)
-	case *mean.WrapWithNull:
+	case *hir.WrapWithNull:
 		return self.codegenWrapWithNull(exprNode, load)
-	case *mean.CheckNull:
+	case *hir.CheckNull:
 		return self.codegenCheckNull(exprNode)
-	case *mean.MethodDef:
+	case *hir.MethodDef:
 		// TODO: 闭包
 		panic("unreachable")
 	default:
@@ -63,35 +63,35 @@ func (self *CodeGenerator) codegenExpr(node mean.Expr, load bool) mir.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenInteger(node *mean.Integer) mir.Int {
+func (self *CodeGenerator) codegenInteger(node *hir.Integer) mir.Int {
 	return mir.NewInt(self.codegenIntType(node.Type), node.Value.Int64())
 }
 
-func (self *CodeGenerator) codegenFloat(node *mean.Float) *mir.Float {
+func (self *CodeGenerator) codegenFloat(node *hir.Float) *mir.Float {
 	v, _ := node.Value.Float64()
 	return mir.NewFloat(self.codegenFloatType(node.Type), v)
 }
 
-func (self *CodeGenerator) codegenBool(node *mean.Boolean) *mir.Uint {
+func (self *CodeGenerator) codegenBool(node *hir.Boolean) *mir.Uint {
 	return mir.Bool(self.ctx, node.Value)
 }
 
-func (self *CodeGenerator) codegenAssign(node *mean.Assign) {
-	if lpack, ok := node.Left.(*mean.Tuple); ok {
+func (self *CodeGenerator) codegenAssign(node *hir.Assign) {
+	if lpack, ok := node.Left.(*hir.Tuple); ok {
 		// 解包
-		if rpack, ok := node.Right.(*mean.Tuple); ok {
+		if rpack, ok := node.Right.(*hir.Tuple); ok {
 			for i, le := range lpack.Elems {
 				re := rpack.Elems[i]
-				self.codegenAssign(&mean.Assign{
+				self.codegenAssign(&hir.Assign{
 					Left:  le,
 					Right: re,
 				})
 			}
 		} else {
 			for i, le := range lpack.Elems {
-				self.codegenAssign(&mean.Assign{
+				self.codegenAssign(&hir.Assign{
 					Left: le,
-					Right: &mean.Extract{
+					Right: &hir.Extract{
 						From:  node.Right,
 						Index: uint(i),
 					},
@@ -104,55 +104,55 @@ func (self *CodeGenerator) codegenAssign(node *mean.Assign) {
 	}
 }
 
-func (self *CodeGenerator) codegenBinary(node mean.Binary) mir.Value {
+func (self *CodeGenerator) codegenBinary(node hir.Binary) mir.Value {
 	left, right := self.codegenExpr(node.GetLeft(), true), self.codegenExpr(node.GetRight(), true)
 	switch node.(type) {
-	case *mean.IntAndInt, *mean.BoolAndBool:
+	case *hir.IntAndInt, *hir.BoolAndBool:
 		return self.builder.BuildAnd(left, right)
-	case *mean.IntOrInt, *mean.BoolOrBool:
+	case *hir.IntOrInt, *hir.BoolOrBool:
 		return self.builder.BuildOr(left, right)
-	case *mean.IntXorInt:
+	case *hir.IntXorInt:
 		return self.builder.BuildXor(left, right)
-	case *mean.IntShlInt:
+	case *hir.IntShlInt:
 		return self.builder.BuildShl(left, right)
-	case *mean.IntShrInt:
+	case *hir.IntShrInt:
 		return self.builder.BuildShr(left, right)
-	case *mean.NumAddNum:
+	case *hir.NumAddNum:
 		return self.builder.BuildAdd(left, right)
-	case *mean.NumSubNum:
+	case *hir.NumSubNum:
 		return self.builder.BuildSub(left, right)
-	case *mean.NumMulNum:
+	case *hir.NumMulNum:
 		return self.builder.BuildMul(left, right)
-	case *mean.NumDivNum:
+	case *hir.NumDivNum:
 		return self.builder.BuildDiv(left, right)
-	case *mean.NumRemNum:
+	case *hir.NumRemNum:
 		return self.builder.BuildRem(left, right)
-	case *mean.NumLtNum:
+	case *hir.NumLtNum:
 		return self.builder.BuildCmp(mir.CmpKindLT, left, right)
-	case *mean.NumGtNum:
+	case *hir.NumGtNum:
 		return self.builder.BuildCmp(mir.CmpKindGT, left, right)
-	case *mean.NumLeNum:
+	case *hir.NumLeNum:
 		return self.builder.BuildCmp(mir.CmpKindLE, left, right)
-	case *mean.NumGeNum:
+	case *hir.NumGeNum:
 		return self.builder.BuildCmp(mir.CmpKindGE, left, right)
-	case *mean.NumEqNum, *mean.BoolEqBool, *mean.FuncEqFunc, *mean.ArrayEqArray, *mean.StructEqStruct, *mean.TupleEqTuple, *mean.StringEqString, *mean.UnionEqUnion:
+	case *hir.NumEqNum, *hir.BoolEqBool, *hir.FuncEqFunc, *hir.ArrayEqArray, *hir.StructEqStruct, *hir.TupleEqTuple, *hir.StringEqString, *hir.UnionEqUnion:
 		return self.buildEqual(node.GetLeft().GetType(), left, right, false)
-	case *mean.NumNeNum, *mean.BoolNeBool, *mean.FuncNeFunc, *mean.ArrayNeArray, *mean.StructNeStruct, *mean.TupleNeTuple, *mean.StringNeString, *mean.UnionNeUnion:
+	case *hir.NumNeNum, *hir.BoolNeBool, *hir.FuncNeFunc, *hir.ArrayNeArray, *hir.StructNeStruct, *hir.TupleNeTuple, *hir.StringNeString, *hir.UnionNeUnion:
 		return self.buildEqual(node.GetLeft().GetType(), left, right, true)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenUnary(node mean.Unary, load bool) mir.Value {
+func (self *CodeGenerator) codegenUnary(node hir.Unary, load bool) mir.Value {
 	switch node.(type) {
-	case *mean.NumNegate:
+	case *hir.NumNegate:
 		return self.builder.BuildNeg(self.codegenExpr(node.GetValue(), true))
-	case *mean.IntBitNegate, *mean.BoolNegate:
+	case *hir.IntBitNegate, *hir.BoolNegate:
 		return self.builder.BuildNot(self.codegenExpr(node.GetValue(), true))
-	case *mean.GetPtr:
+	case *hir.GetPtr:
 		return self.codegenExpr(node.GetValue(), false)
-	case *mean.GetValue:
+	case *hir.GetValue:
 		ptr := self.codegenExpr(node.GetValue(), true)
 		if !load {
 			return ptr
@@ -163,11 +163,11 @@ func (self *CodeGenerator) codegenUnary(node mean.Unary, load bool) mir.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) mir.Value {
+func (self *CodeGenerator) codegenIdent(node hir.Ident, load bool) mir.Value {
 	switch identNode := node.(type) {
-	case *mean.FuncDef,*mean.GenericFuncInstance:
+	case *hir.FuncDef,*hir.GenericFuncInstance:
 		return self.values.Get(identNode).(*mir.Function)
-	case *mean.Param, *mean.Variable:
+	case *hir.Param, *hir.Variable:
 		p := self.values.Get(identNode)
 		if !load {
 			return p
@@ -178,45 +178,45 @@ func (self *CodeGenerator) codegenIdent(node mean.Ident, load bool) mir.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenCall(node *mean.Call) mir.Value {
-	if method, ok := node.Func.(*mean.Method); ok{
+func (self *CodeGenerator) codegenCall(node *hir.Call) mir.Value {
+	if method, ok := node.Func.(*hir.Method); ok{
 		f := self.values.Get(method.Define)
 		selfParam := self.codegenExpr(method.Self, true)
-		args := lo.Map(node.Args, func(item mean.Expr, index int) mir.Value {
+		args := lo.Map(node.Args, func(item hir.Expr, index int) mir.Value {
 			return self.codegenExpr(item, true)
 		})
 		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
-	}else if method, ok := node.Func.(*mean.TraitMethod); ok{
+	}else if method, ok := node.Func.(*hir.TraitMethod); ok{
 		return self.codegenTraitMethodCall(method, node.Args)
 	} else{
 		f := self.codegenExpr(node.Func, true)
-		args := lo.Map(node.Args, func(item mean.Expr, index int) mir.Value {
+		args := lo.Map(node.Args, func(item hir.Expr, index int) mir.Value {
 			return self.codegenExpr(item, true)
 		})
 		return self.builder.BuildCall(f, args...)
 	}
 }
 
-func (self *CodeGenerator) codegenCovert(node mean.Covert) mir.Value {
+func (self *CodeGenerator) codegenCovert(node hir.Covert) mir.Value {
 	from := self.codegenExpr(node.GetFrom(), true)
 	to := self.codegenType(node.GetType())
 
 	switch node.(type) {
-	case *mean.Num2Num:
+	case *hir.Num2Num:
 		return self.builder.BuildNumberCovert(from, to.(mir.NumberType))
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenArray(node *mean.Array) mir.Value {
-	elems := lo.Map(node.Elems, func(item mean.Expr, _ int) mir.Value {
+func (self *CodeGenerator) codegenArray(node *hir.Array) mir.Value {
+	elems := lo.Map(node.Elems, func(item hir.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
 	return self.builder.BuildPackArray(self.codegenArrayType(node.Type), elems...)
 }
 
-func (self *CodeGenerator) codegenIndex(node *mean.Index, load bool) mir.Value {
+func (self *CodeGenerator) codegenIndex(node *hir.Index, load bool) mir.Value {
 	// TODO: 运行时异常：超出索引下标
 	from := self.codegenExpr(node.From, false)
 	ptr := self.buildArrayIndex(from, self.codegenExpr(node.Index, true))
@@ -226,14 +226,14 @@ func (self *CodeGenerator) codegenIndex(node *mean.Index, load bool) mir.Value {
 	return self.builder.BuildLoad(ptr)
 }
 
-func (self *CodeGenerator) codegenTuple(node *mean.Tuple) mir.Value {
-	elems := lo.Map(node.Elems, func(item mean.Expr, _ int) mir.Value {
+func (self *CodeGenerator) codegenTuple(node *hir.Tuple) mir.Value {
+	elems := lo.Map(node.Elems, func(item hir.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.BuildPackStruct(self.codegenTupleType(node.GetType().(*mean.TupleType)), elems...)
+	return self.builder.BuildPackStruct(self.codegenTupleType(node.GetType().(*hir.TupleType)), elems...)
 }
 
-func (self *CodeGenerator) codegenExtract(node *mean.Extract, load bool) mir.Value {
+func (self *CodeGenerator) codegenExtract(node *hir.Extract, load bool) mir.Value {
 	from := self.codegenExpr(node.From, false)
 	ptr := self.buildStructIndex(from, uint64(node.Index))
 	if !load || (stlbasic.Is[*mir.StructIndex](ptr) && !ptr.(*mir.StructIndex).IsPtr()){
@@ -242,15 +242,15 @@ func (self *CodeGenerator) codegenExtract(node *mean.Extract, load bool) mir.Val
 	return self.builder.BuildLoad(ptr)
 }
 
-func (self *CodeGenerator) codegenZero(tNode mean.Type) mir.Value {
+func (self *CodeGenerator) codegenZero(tNode hir.Type) mir.Value {
 	switch ttNode := tNode.(type) {
-	case mean.NumberType, *mean.BoolType, *mean.StringType, *mean.PtrType, *mean.RefType:
+	case hir.NumberType, *hir.BoolType, *hir.StringType, *hir.PtrType, *hir.RefType:
 		return mir.NewZero(self.codegenType(ttNode))
-	case *mean.ArrayType, *mean.StructType, *mean.UnionType:
+	case *hir.ArrayType, *hir.StructType, *hir.UnionType:
 		// TODO: 复杂类型default值
 		return mir.NewZero(self.codegenType(ttNode))
-	case *mean.GenericParam:
-		return self.codegenCall(&mean.Call{Func: &mean.TraitMethod{
+	case *hir.GenericParam:
+		return self.codegenCall(&hir.Call{Func: &hir.TraitMethod{
 			Type: ttNode,
 			Name: "default",
 		}})
@@ -259,14 +259,14 @@ func (self *CodeGenerator) codegenZero(tNode mean.Type) mir.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenStruct(node *mean.Struct) mir.Value {
-	fields := lo.Map(node.Fields, func(item mean.Expr, _ int) mir.Value {
+func (self *CodeGenerator) codegenStruct(node *hir.Struct) mir.Value {
+	fields := lo.Map(node.Fields, func(item hir.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
 	return self.builder.BuildPackStruct(self.codegenStructType(node.Type), fields...)
 }
 
-func (self *CodeGenerator) codegenField(node *mean.Field, load bool) mir.Value {
+func (self *CodeGenerator) codegenField(node *hir.Field, load bool) mir.Value {
 	from := self.codegenExpr(node.From, false)
 	ptr := self.buildStructIndex(from, uint64(node.Index))
 	if !load || (stlbasic.Is[*mir.StructIndex](ptr) && !ptr.(*mir.StructIndex).IsPtr()){
@@ -275,7 +275,7 @@ func (self *CodeGenerator) codegenField(node *mean.Field, load bool) mir.Value {
 	return self.builder.BuildLoad(ptr)
 }
 
-func (self *CodeGenerator) codegenString(node *mean.String) mir.Value {
+func (self *CodeGenerator) codegenString(node *hir.String) mir.Value {
 	st := self.codegenStringType()
 	if !self.strings.ContainKey(node.Value) {
 		self.strings.Set(node.Value, self.module.NewConstant("", mir.NewString(self.ctx, node.Value)))
@@ -287,7 +287,7 @@ func (self *CodeGenerator) codegenString(node *mean.String) mir.Value {
 	)
 }
 
-func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) mir.Value {
+func (self *CodeGenerator) codegenUnion(node *hir.Union, load bool) mir.Value {
 	ut := self.codegenUnionType(node.Type)
 	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.BuildAllocFromStack(ut)
@@ -304,25 +304,25 @@ func (self *CodeGenerator) codegenUnion(node *mean.Union, load bool) mir.Value {
 	return ptr
 }
 
-func (self *CodeGenerator) codegenUnionTypeJudgment(node *mean.UnionTypeJudgment) mir.Value {
-	utMean := node.Value.GetType().(*mean.UnionType)
+func (self *CodeGenerator) codegenUnionTypeJudgment(node *hir.UnionTypeJudgment) mir.Value {
+	utMean := node.Value.GetType().(*hir.UnionType)
 	ut := self.codegenUnionType(utMean)
 	typeIndex := self.buildStructIndex(self.codegenExpr(node.Value, false), 1, false)
 	return self.builder.BuildCmp(mir.CmpKindEQ, typeIndex, mir.NewInt(ut.Elems()[1].(mir.IntType), int64(utMean.GetElemIndex(node.Type))))
 }
 
-func (self *CodeGenerator) codegenUnUnion(node *mean.UnUnion) mir.Value {
+func (self *CodeGenerator) codegenUnUnion(node *hir.UnUnion) mir.Value {
 	value := self.codegenExpr(node.Value, false)
 	elemPtr := self.buildStructIndex(value, 0, true)
 	elemPtr = self.builder.BuildPtrToPtr(elemPtr, self.ctx.NewPtrType(self.codegenType(node.GetType())))
 	return self.builder.BuildLoad(elemPtr)
 }
 
-func (self *CodeGenerator) codegenWrapWithNull(node *mean.WrapWithNull, load bool) mir.Value {
+func (self *CodeGenerator) codegenWrapWithNull(node *hir.WrapWithNull, load bool) mir.Value {
 	return self.codegenExpr(node.Value, load)
 }
 
-func (self *CodeGenerator) codegenCheckNull(node *mean.CheckNull) mir.Value {
+func (self *CodeGenerator) codegenCheckNull(node *hir.CheckNull) mir.Value {
 	name := "sim_runtime_check_null"
 	ptrType := self.ctx.NewPtrType(self.ctx.U8())
 	ft := self.ctx.NewFuncType(ptrType, ptrType)
@@ -335,11 +335,11 @@ func (self *CodeGenerator) codegenCheckNull(node *mean.CheckNull) mir.Value {
 	return self.builder.BuildCall(f, ptr)
 }
 
-func (self *CodeGenerator) codegenTraitMethodCall(node *mean.TraitMethod, args []mean.Expr)mir.Value{
+func (self *CodeGenerator) codegenTraitMethodCall(node *hir.TraitMethod, args []hir.Expr)mir.Value{
 	autTypeNodeObj := self.genericParams.Get(node.Type)
 	switch autTypeNode:=autTypeNodeObj.(type) {
-	case *mean.StructType:
-		method := autTypeNode.GetImplMethod(node.Name, node.GetType().(*mean.FuncType))
+	case *hir.StructType:
+		method := autTypeNode.GetImplMethod(node.Name, node.GetType().(*hir.FuncType))
 		f := self.values.Get(method)
 		var selfParam mir.Value
 		if selfNode, ok := node.Value.Value(); ok{
@@ -347,74 +347,74 @@ func (self *CodeGenerator) codegenTraitMethodCall(node *mean.TraitMethod, args [
 		}else{
 			selfParam = mir.NewZero(self.codegenStructType(method.Scope))
 		}
-		args := lo.Map(args, func(item mean.Expr, index int) mir.Value {
+		args := lo.Map(args, func(item hir.Expr, index int) mir.Value {
 			return self.codegenExpr(item, true)
 		})
 		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
-	case *mean.SintType:
+	case *hir.SintType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.UintType:
+	case *hir.UintType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.FloatType:
+	case *hir.FloatType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.ArrayType:
+	case *hir.ArrayType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.TupleType:
+	case *hir.TupleType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.PtrType:
+	case *hir.PtrType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.RefType:
+	case *hir.RefType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.UnionType:
+	case *hir.UnionType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.BoolType:
+	case *hir.BoolType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)
 		default:
 			panic("unreachable")
 		}
-	case *mean.StringType:
+	case *hir.StringType:
 		switch node.Name {
 		case "default":
 			return self.codegenZero(autTypeNode)

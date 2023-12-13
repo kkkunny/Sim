@@ -7,30 +7,30 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/analyse"
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 	"github.com/kkkunny/Sim/mir/pass"
 )
 
-func (self *CodeGenerator) buildEqual(t mean.Type, l, r mir.Value, not bool) mir.Value {
+func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
 	switch meanType := t.(type) {
-	case mean.IntType, *mean.BoolType, *mean.FloatType:
+	case hir.IntType, *hir.BoolType, *hir.FloatType:
 		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
-	case *mean.FuncType, *mean.PtrType, *mean.RefType:
+	case *hir.FuncType, *hir.PtrType, *hir.RefType:
 		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
-	case *mean.ArrayType:
+	case *hir.ArrayType:
 		res := self.buildArrayEqual(meanType, l, r)
 		if not {
 			res = self.builder.BuildNot(res)
 		}
 		return res
-	case *mean.TupleType, *mean.StructType:
+	case *hir.TupleType, *hir.StructType:
 		res := self.buildStructEqual(meanType, l, r)
 		if not {
 			res = self.builder.BuildNot(res)
 		}
 		return res
-	case *mean.StringType:
+	case *hir.StringType:
 		name := "sim_runtime_str_eq_str"
 		ft := self.ctx.NewFuncType(self.ctx.Bool(), l.Type(), r.Type())
 		var f *mir.Function
@@ -43,7 +43,7 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r mir.Value, not bool) mir
 			res = self.builder.BuildNot(res)
 		}
 		return res
-	case *mean.UnionType:
+	case *hir.UnionType:
 		// TODO: 联合类型比较
 		panic("unreachable")
 	default:
@@ -51,7 +51,7 @@ func (self *CodeGenerator) buildEqual(t mean.Type, l, r mir.Value, not bool) mir
 	}
 }
 
-func (self *CodeGenerator) buildArrayEqual(meanType *mean.ArrayType, l, r mir.Value) mir.Value {
+func (self *CodeGenerator) buildArrayEqual(meanType *hir.ArrayType, l, r mir.Value) mir.Value {
 	t := self.codegenArrayType(meanType)
 	if t.Length() == 0 {
 		return mir.Bool(self.ctx, true)
@@ -90,18 +90,18 @@ func (self *CodeGenerator) buildArrayEqual(meanType *mean.ArrayType, l, r mir.Va
 	)
 }
 
-func (self *CodeGenerator) buildStructEqual(meanType mean.Type, l, r mir.Value) mir.Value {
-	_, isTuple := meanType.(*mean.TupleType)
+func (self *CodeGenerator) buildStructEqual(meanType hir.Type, l, r mir.Value) mir.Value {
+	_, isTuple := meanType.(*hir.TupleType)
 	t := stlbasic.TernaryAction(isTuple, func() mir.StructType {
-		return self.codegenTupleType(meanType.(*mean.TupleType))
+		return self.codegenTupleType(meanType.(*hir.TupleType))
 	}, func() mir.StructType {
-		return self.codegenStructType(meanType.(*mean.StructType))
+		return self.codegenStructType(meanType.(*hir.StructType))
 	})
-	fields := stlbasic.TernaryAction(isTuple, func() dynarray.DynArray[mean.Type] {
-		return dynarray.NewDynArrayWith(meanType.(*mean.TupleType).Elems...)
-	}, func() dynarray.DynArray[mean.Type] {
-		values := meanType.(*mean.StructType).Fields.Values()
-		res := dynarray.NewDynArrayWithLength[mean.Type](values.Length())
+	fields := stlbasic.TernaryAction(isTuple, func() dynarray.DynArray[hir.Type] {
+		return dynarray.NewDynArrayWith(meanType.(*hir.TupleType).Elems...)
+	}, func() dynarray.DynArray[hir.Type] {
+		values := meanType.(*hir.StructType).Fields.Values()
+		res := dynarray.NewDynArrayWithLength[hir.Type](values.Length())
 		var i uint
 		for iter:=values.Iterator(); iter.Next(); {
 			res.Set(i, iter.Value().Second)

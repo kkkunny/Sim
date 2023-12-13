@@ -7,15 +7,15 @@ import (
 	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/ast"
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 
 	"github.com/kkkunny/Sim/util"
 )
 
 // 作用域
 type _Scope interface {
-	SetValue(name string, v mean.Ident) bool
-	GetValue(pkg, name string) (mean.Ident, bool)
+	SetValue(name string, v hir.Ident) bool
+	GetValue(pkg, name string) (hir.Ident, bool)
 }
 
 // 包作用域
@@ -24,12 +24,12 @@ type _PkgScope struct {
 	externs   hashmap.HashMap[string, *_PkgScope]
 	links     linkedhashset.LinkedHashSet[*_PkgScope]
 
-	values    hashmap.HashMap[string, mean.Ident]
-	structs   hashmap.HashMap[string, *mean.StructType]
-	typeAlias hashmap.HashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]]
+	values    hashmap.HashMap[string, hir.Ident]
+	structs   hashmap.HashMap[string, *hir.StructType]
+	typeAlias hashmap.HashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, hir.Type]]]
 	traits hashmap.HashMap[string, pair.Pair[bool, *ast.Trait]]
 
-	genericFunctions hashmap.HashMap[string, *mean.GenericFuncDef]
+	genericFunctions hashmap.HashMap[string, *hir.GenericFuncDef]
 }
 
 func _NewPkgScope(path string) *_PkgScope {
@@ -37,11 +37,11 @@ func _NewPkgScope(path string) *_PkgScope {
 		path:      path,
 		externs:   hashmap.NewHashMap[string, *_PkgScope](),
 		links:     linkedhashset.NewLinkedHashSet[*_PkgScope](),
-		values:    hashmap.NewHashMap[string, mean.Ident](),
-		structs:   hashmap.NewHashMap[string, *mean.StructType](),
-		typeAlias: hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]]](),
+		values:    hashmap.NewHashMap[string, hir.Ident](),
+		structs:   hashmap.NewHashMap[string, *hir.StructType](),
+		typeAlias: hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, hir.Type]]](),
 		traits: hashmap.NewHashMap[string, pair.Pair[bool, *ast.Trait]](),
-		genericFunctions: hashmap.NewHashMap[string, *mean.GenericFuncDef](),
+		genericFunctions: hashmap.NewHashMap[string, *hir.GenericFuncDef](),
 	}
 }
 
@@ -50,7 +50,7 @@ func (self *_PkgScope) IsBuildIn() bool {
 	return self.path == util.GetBuildInPackagePath()
 }
 
-func (self *_PkgScope) SetValue(name string, v mean.Ident) bool {
+func (self *_PkgScope) SetValue(name string, v hir.Ident) bool {
 	if _, ok := self.getValue(name); ok {
 		return false
 	}
@@ -61,25 +61,25 @@ func (self *_PkgScope) SetValue(name string, v mean.Ident) bool {
 	return true
 }
 
-func (self *_PkgScope) getLocalValue(name string) (mean.Ident, bool) {
+func (self *_PkgScope) getLocalValue(name string) (hir.Ident, bool) {
 	return self.values.Get(name), self.values.ContainKey(name)
 }
 
-func (self *_PkgScope) getValue(name string) (mean.Ident, bool) {
+func (self *_PkgScope) getValue(name string) (hir.Ident, bool) {
 	v, ok := self.getLocalValue(name)
 	if ok {
 		return v, true
 	}
 	for iter := self.links.Iterator(); iter.Next(); {
 		v, ok := iter.Value().getLocalValue(name)
-		if ok && v.(mean.Global).GetPublic() {
+		if ok && v.(hir.Global).GetPublic() {
 			return v, true
 		}
 	}
 	return nil, false
 }
 
-func (self *_PkgScope) GetValue(pkg, name string) (mean.Ident, bool) {
+func (self *_PkgScope) GetValue(pkg, name string) (hir.Ident, bool) {
 	if pkg == "" {
 		return self.getValue(name)
 	}
@@ -88,13 +88,13 @@ func (self *_PkgScope) GetValue(pkg, name string) (mean.Ident, bool) {
 		return nil, false
 	}
 	v, ok := pkgScope.getLocalValue(name)
-	if !ok || !v.(mean.Global).GetPublic() {
+	if !ok || !v.(hir.Global).GetPublic() {
 		return nil, false
 	}
 	return v, true
 }
 
-func (self *_PkgScope) SetStruct(st *mean.StructType) bool {
+func (self *_PkgScope) SetStruct(st *hir.StructType) bool {
 	if _, ok := self.getStruct(st.Name); ok {
 		return false
 	}
@@ -105,11 +105,11 @@ func (self *_PkgScope) SetStruct(st *mean.StructType) bool {
 	return true
 }
 
-func (self *_PkgScope) getLocalStruct(name string) (*mean.StructType, bool) {
+func (self *_PkgScope) getLocalStruct(name string) (*hir.StructType, bool) {
 	return self.structs.Get(name), self.structs.ContainKey(name)
 }
 
-func (self *_PkgScope) getStruct(name string) (*mean.StructType, bool) {
+func (self *_PkgScope) getStruct(name string) (*hir.StructType, bool) {
 	st, ok := self.getLocalStruct(name)
 	if ok {
 		return st, true
@@ -123,7 +123,7 @@ func (self *_PkgScope) getStruct(name string) (*mean.StructType, bool) {
 	return nil, false
 }
 
-func (self *_PkgScope) GetStruct(pkg, name string) (*mean.StructType, bool) {
+func (self *_PkgScope) GetStruct(pkg, name string) (*hir.StructType, bool) {
 	if pkg == "" {
 		return self.getStruct(name)
 	}
@@ -186,22 +186,22 @@ func (self *_PkgScope) DeclTypeAlias(name string, node *ast.TypeAlias) bool {
 	if _, ok := self.getTypeAlias(name); ok {
 		return false
 	}
-	self.typeAlias.Set(name, pair.NewPair(node.Public, either.Left[*ast.TypeAlias, mean.Type](node)))
+	self.typeAlias.Set(name, pair.NewPair(node.Public, either.Left[*ast.TypeAlias, hir.Type](node)))
 	return true
 }
 
-func (self *_PkgScope) DefTypeAlias(name string, t mean.Type) {
+func (self *_PkgScope) DefTypeAlias(name string, t hir.Type) {
 	if !self.typeAlias.ContainKey(name){
 		panic("unreachable")
 	}
-	self.typeAlias.Set(name, pair.NewPair(self.typeAlias.Get(name).First, either.Right[*ast.TypeAlias, mean.Type](t)))
+	self.typeAlias.Set(name, pair.NewPair(self.typeAlias.Get(name).First, either.Right[*ast.TypeAlias, hir.Type](t)))
 }
 
-func (self *_PkgScope) getLocalTypeAlias(name string) (pair.Pair[bool, either.Either[*ast.TypeAlias, mean.Type]], bool) {
+func (self *_PkgScope) getLocalTypeAlias(name string) (pair.Pair[bool, either.Either[*ast.TypeAlias, hir.Type]], bool) {
 	return self.typeAlias.Get(name), self.typeAlias.ContainKey(name)
 }
 
-func (self *_PkgScope) getTypeAlias(name string) (either.Either[*ast.TypeAlias, mean.Type], bool) {
+func (self *_PkgScope) getTypeAlias(name string) (either.Either[*ast.TypeAlias, hir.Type], bool) {
 	info, ok := self.getLocalTypeAlias(name)
 	if ok {
 		return info.Second, true
@@ -212,24 +212,24 @@ func (self *_PkgScope) getTypeAlias(name string) (either.Either[*ast.TypeAlias, 
 			return info.Second, true
 		}
 	}
-	var tmp either.Either[*ast.TypeAlias, mean.Type]
+	var tmp either.Either[*ast.TypeAlias, hir.Type]
 	return tmp, false
 }
 
-func (self *_PkgScope) GetTypeAlias(pkg, name string) (either.Either[*ast.TypeAlias, mean.Type], bool) {
+func (self *_PkgScope) GetTypeAlias(pkg, name string) (either.Either[*ast.TypeAlias, hir.Type], bool) {
 	if pkg == "" {
 		return self.getTypeAlias(name)
 	}
 	pkgScope := self.externs.Get(pkg)
 	if pkgScope == nil {
-		var tmp either.Either[*ast.TypeAlias, mean.Type]
+		var tmp either.Either[*ast.TypeAlias, hir.Type]
 		return tmp, false
 	}
 	data, ok := pkgScope.getLocalTypeAlias(name)
 	return data.Second, ok && data.First
 }
 
-func (self *_PkgScope) SetGenericFunction(name string, f *mean.GenericFuncDef) bool {
+func (self *_PkgScope) SetGenericFunction(name string, f *hir.GenericFuncDef) bool {
 	if _, ok := self.getValue(name); ok {
 		return false
 	}
@@ -240,11 +240,11 @@ func (self *_PkgScope) SetGenericFunction(name string, f *mean.GenericFuncDef) b
 	return true
 }
 
-func (self *_PkgScope) getLocalGenericFunction(name string) (*mean.GenericFuncDef, bool) {
+func (self *_PkgScope) getLocalGenericFunction(name string) (*hir.GenericFuncDef, bool) {
 	return self.genericFunctions.Get(name), self.genericFunctions.ContainKey(name)
 }
 
-func (self *_PkgScope) getGenericFunction(name string) (*mean.GenericFuncDef, bool) {
+func (self *_PkgScope) getGenericFunction(name string) (*hir.GenericFuncDef, bool) {
 	f, ok := self.getLocalGenericFunction(name)
 	if ok {
 		return f, true
@@ -258,7 +258,7 @@ func (self *_PkgScope) getGenericFunction(name string) (*mean.GenericFuncDef, bo
 	return nil, false
 }
 
-func (self *_PkgScope) GetGenericFunction(pkg, name string) (*mean.GenericFuncDef, bool) {
+func (self *_PkgScope) GetGenericFunction(pkg, name string) (*hir.GenericFuncDef, bool) {
 	if pkg == "" {
 		return self.getGenericFunction(name)
 	}
@@ -279,19 +279,19 @@ type _LocalScope interface {
 	GetParent() _Scope
 	GetFuncScope() *_FuncScope
 	GetPkgScope() *_PkgScope
-	GetFunc() mean.GlobalFunc
-	SetLoop(loop mean.Loop)
-	GetLoop() mean.Loop
+	GetFunc() hir.GlobalFunc
+	SetLoop(loop hir.Loop)
+	GetLoop() hir.Loop
 }
 
 // 函数作用域
 type _FuncScope struct {
 	_BlockScope
 	parent *_PkgScope
-	def    mean.GlobalFunc
+	def    hir.GlobalFunc
 }
 
-func _NewFuncScope(p *_PkgScope, def mean.GlobalFunc) *_FuncScope {
+func _NewFuncScope(p *_PkgScope, def hir.GlobalFunc) *_FuncScope {
 	self := &_FuncScope{
 		parent: p,
 		def:    def,
@@ -300,11 +300,11 @@ func _NewFuncScope(p *_PkgScope, def mean.GlobalFunc) *_FuncScope {
 	return self
 }
 
-func (self *_FuncScope) SetValue(name string, v mean.Ident) bool {
+func (self *_FuncScope) SetValue(name string, v hir.Ident) bool {
 	return self._BlockScope.SetValue(name, v)
 }
 
-func (self *_FuncScope) GetValue(pkg, name string) (mean.Ident, bool) {
+func (self *_FuncScope) GetValue(pkg, name string) (hir.Ident, bool) {
 	if pkg != "" {
 		return self.parent.GetValue(pkg, name)
 	}
@@ -326,30 +326,30 @@ func (self *_FuncScope) GetPkgScope() *_PkgScope {
 	return self.parent
 }
 
-func (self *_FuncScope) GetFunc() mean.GlobalFunc {
+func (self *_FuncScope) GetFunc() hir.GlobalFunc {
 	return self.def
 }
 
 // 代码块作用域
 type _BlockScope struct {
 	parent _LocalScope
-	values hashmap.HashMap[string, mean.Ident]
-	loop   mean.Loop
+	values hashmap.HashMap[string, hir.Ident]
+	loop   hir.Loop
 }
 
 func _NewBlockScope(p _LocalScope) *_BlockScope {
 	return &_BlockScope{
 		parent: p,
-		values: hashmap.NewHashMap[string, mean.Ident](),
+		values: hashmap.NewHashMap[string, hir.Ident](),
 	}
 }
 
-func (self *_BlockScope) SetValue(name string, v mean.Ident) bool {
+func (self *_BlockScope) SetValue(name string, v hir.Ident) bool {
 	self.values.Set(name, v)
 	return true
 }
 
-func (self *_BlockScope) GetValue(pkg, name string) (mean.Ident, bool) {
+func (self *_BlockScope) GetValue(pkg, name string) (hir.Ident, bool) {
 	if pkg != "" {
 		return self.parent.GetValue(pkg, name)
 	}
@@ -371,15 +371,15 @@ func (self *_BlockScope) GetPkgScope() *_PkgScope {
 	return self.parent.GetPkgScope()
 }
 
-func (self *_BlockScope) GetFunc() mean.GlobalFunc {
+func (self *_BlockScope) GetFunc() hir.GlobalFunc {
 	return self.parent.GetFunc()
 }
 
-func (self *_BlockScope) SetLoop(loop mean.Loop) {
+func (self *_BlockScope) SetLoop(loop hir.Loop) {
 	self.loop = loop
 }
 
-func (self *_BlockScope) GetLoop() mean.Loop {
+func (self *_BlockScope) GetLoop() hir.Loop {
 	if self.loop != nil {
 		return self.loop
 	}
