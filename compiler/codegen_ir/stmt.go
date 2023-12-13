@@ -4,40 +4,40 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/iterator"
 
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *CodeGenerator) codegenStmt(node mean.Stmt) {
+func (self *CodeGenerator) codegenStmt(node hir.Stmt) {
 	switch stmtNode := node.(type) {
-	case *mean.Return:
+	case *hir.Return:
 		self.codegenReturn(stmtNode)
-	case *mean.Variable:
+	case *hir.Variable:
 		self.codegenLocalVariable(stmtNode)
-	case *mean.IfElse:
+	case *hir.IfElse:
 		self.codegenIfElse(stmtNode)
-	case mean.Expr:
+	case hir.Expr:
 		self.codegenExpr(stmtNode, false)
-	case *mean.EndlessLoop:
+	case *hir.EndlessLoop:
 		self.codegenEndlessLoop(stmtNode)
-	case *mean.Break:
+	case *hir.Break:
 		self.codegenBreak(stmtNode)
-	case *mean.Continue:
+	case *hir.Continue:
 		self.codegenContinue(stmtNode)
-	case *mean.For:
+	case *hir.For:
 		self.codegenFor(stmtNode)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenFlatBlock(node *mean.Block) {
+func (self *CodeGenerator) codegenFlatBlock(node *hir.Block) {
 	for iter := node.Stmts.Iterator(); iter.Next(); {
 		self.codegenStmt(iter.Value())
 	}
 }
 
-func (self *CodeGenerator) codegenBlock(node *mean.Block, afterBlockCreate func(block *mir.Block)) (*mir.Block, *mir.Block) {
+func (self *CodeGenerator) codegenBlock(node *hir.Block, afterBlockCreate func(block *mir.Block)) (*mir.Block, *mir.Block) {
 	from := self.builder.Current()
 	block := from.Belong().NewBlock()
 	if afterBlockCreate != nil {
@@ -52,7 +52,7 @@ func (self *CodeGenerator) codegenBlock(node *mean.Block, afterBlockCreate func(
 	return block, self.builder.Current()
 }
 
-func (self *CodeGenerator) codegenReturn(node *mean.Return) {
+func (self *CodeGenerator) codegenReturn(node *hir.Return) {
 	if v, ok := node.Value.Value(); ok {
 		self.builder.BuildReturn(self.codegenExpr(v, true))
 	} else {
@@ -60,7 +60,7 @@ func (self *CodeGenerator) codegenReturn(node *mean.Return) {
 	}
 }
 
-func (self *CodeGenerator) codegenLocalVariable(node *mean.Variable) mir.Value {
+func (self *CodeGenerator) codegenLocalVariable(node *hir.Variable) mir.Value {
 	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.BuildAllocFromStack(self.codegenType(node.Type))
 	self.builder.BuildStore(value, ptr)
@@ -68,7 +68,7 @@ func (self *CodeGenerator) codegenLocalVariable(node *mean.Variable) mir.Value {
 	return ptr
 }
 
-func (self *CodeGenerator) codegenIfElse(node *mean.IfElse) {
+func (self *CodeGenerator) codegenIfElse(node *hir.IfElse) {
 	blocks := self.codegenIfElseNode(node)
 
 	var brenchEndBlocks []*mir.Block
@@ -93,7 +93,7 @@ func (self *CodeGenerator) codegenIfElse(node *mean.IfElse) {
 	self.builder.MoveTo(endBlock)
 }
 
-func (self *CodeGenerator) codegenIfElseNode(node *mean.IfElse) []*mir.Block {
+func (self *CodeGenerator) codegenIfElseNode(node *hir.IfElse) []*mir.Block {
 	if condNode, ok := node.Cond.Value(); ok {
 		cond := self.codegenExpr(condNode, true)
 		trueStartBlock, trueEndBlock := self.codegenBlock(node.Body, nil)
@@ -136,7 +136,7 @@ func (self *endlessLoop) GetNextBlock() *mir.Block {
 	return self.BodyEntry
 }
 
-func (self *CodeGenerator) codegenEndlessLoop(node *mean.EndlessLoop) {
+func (self *CodeGenerator) codegenEndlessLoop(node *hir.EndlessLoop) {
 	entryBlock, endBlock := self.codegenBlock(node.Body, func(block *mir.Block) {
 		self.loops.Set(node, &endlessLoop{BodyEntry: block})
 	})
@@ -150,7 +150,7 @@ func (self *CodeGenerator) codegenEndlessLoop(node *mean.EndlessLoop) {
 	}
 }
 
-func (self *CodeGenerator) codegenBreak(node *mean.Break) {
+func (self *CodeGenerator) codegenBreak(node *hir.Break) {
 	loop := self.loops.Get(node.Loop)
 	if _, ok := loop.GetOutBlock(); !ok {
 		loop.SetOutBlock(self.builder.Current().Belong().NewBlock())
@@ -159,7 +159,7 @@ func (self *CodeGenerator) codegenBreak(node *mean.Break) {
 	self.builder.BuildUnCondJump(endBlock)
 }
 
-func (self *CodeGenerator) codegenContinue(node *mean.Continue) {
+func (self *CodeGenerator) codegenContinue(node *hir.Continue) {
 	loop := self.loops.Get(node.Loop)
 	self.builder.BuildUnCondJump(loop.GetNextBlock())
 }
@@ -179,10 +179,10 @@ func (self *forRange) GetNextBlock() *mir.Block {
 	return self.Action
 }
 
-func (self *CodeGenerator) codegenFor(node *mean.For) {
+func (self *CodeGenerator) codegenFor(node *hir.For) {
 	// pre
 	iter := self.codegenExpr(node.Iterator, false)
-	iterArrayTypeMean := node.Iterator.GetType().(*mean.ArrayType)
+	iterArrayTypeMean := node.Iterator.GetType().(*hir.ArrayType)
 	indexPtr := self.builder.BuildAllocFromStack(self.ctx.Usize())
 	self.builder.BuildStore(mir.NewInt(indexPtr.ElemType().(mir.IntType), 0), indexPtr)
 	cursorPtr := self.codegenLocalVariable(node.Cursor)

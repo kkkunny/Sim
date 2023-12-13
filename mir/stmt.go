@@ -7,7 +7,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/pair"
-	stlmath "github.com/kkkunny/stl/math"
+	stlbits "github.com/kkkunny/stl/math/bits"
 	"github.com/samber/lo"
 )
 
@@ -460,9 +460,9 @@ func (self *Builder) BuildNot(v Value)Value{
 	}
 	if vc, ok := v.(Int); ok{
 		if stlbasic.Is[*Sint](vc){
-			return NewSint(v.Type().(SintType), stlmath.NotWithBits(vc.IntValue(), uint64(vc.Type().Size())))
+			return NewSint(v.Type().(SintType), stlbits.NotWithLength(vc.IntValue(), uint64(vc.Type().Size())))
 		}else{
-			return NewUint(v.Type().(UintType), stlmath.NotWithBits(uint64(vc.IntValue()), uint64(vc.Type().Size())))
+			return NewUint(v.Type().(UintType), stlbits.NotWithLength(uint64(vc.IntValue()), uint64(vc.Type().Size())))
 		}
 	}
 	stmt := &Not{
