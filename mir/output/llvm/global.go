@@ -102,7 +102,7 @@ func (self *LLVMOutputer) codegenDefValue(ir mir.Global){
 		}
 		for i, param := range params{
 			srcParamType := self.codegenType(global.Params()[i].ValueType())
-			if stlbasic.Is[llvm.StructType](srcParamType) || stlbasic.Is[llvm.ArrayType](srcParamType){
+			if self.target.IsWindows() && (stlbasic.Is[llvm.StructType](srcParamType) || stlbasic.Is[llvm.ArrayType](srcParamType)){
 				self.values.Set(global.Params()[i], param)
 			}else{
 				ptr := self.builder.CreateAlloca("", param.Type())
