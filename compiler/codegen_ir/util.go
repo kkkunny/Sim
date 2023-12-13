@@ -9,7 +9,7 @@ import (
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/mir/pass"
+	module2 "github.com/kkkunny/Sim/mir/pass/module"
 )
 
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
@@ -208,6 +208,6 @@ func CodegenIr(target mir.Target, path string) (*mir.Module, stlerror.Error) {
 		return nil, err
 	}
 	module := New(target, means).Codegen()
-	pass.Run(module, pass.DeadCodeElimination)
+	module2.Run(module, module2.DeadCodeElimination)
 	return module, nil
 }

@@ -1377,7 +1377,7 @@ func (*Return)terminate(){}
 
 type Jump interface {
 	Terminating
-	jump()
+	Targets()[]*Block
 }
 
 // UnCondJump 无条件跳转
@@ -1408,7 +1408,10 @@ func (self *UnCondJump) To()*Block{
 }
 
 func (*UnCondJump)terminate(){}
-func (*UnCondJump) jump(){}
+
+func (self *UnCondJump) Targets()[]*Block{
+	return []*Block{self.to}
+}
 
 // CondJump 条件跳转
 type CondJump struct {
@@ -1462,7 +1465,10 @@ func (self *CondJump) FalseBlock()*Block{
 }
 
 func (*CondJump)terminate(){}
-func (*CondJump) jump(){}
+
+func (self *CondJump) Targets()[]*Block{
+	return []*Block{self.trueTo, self.falseTo}
+}
 
 // Phi 跳转收拢
 type Phi struct {

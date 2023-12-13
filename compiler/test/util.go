@@ -14,7 +14,8 @@ import (
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/mir"
 	"github.com/kkkunny/Sim/mir/output/llvm"
-	"github.com/kkkunny/Sim/mir/pass"
+	"github.com/kkkunny/Sim/mir/pass/function"
+	"github.com/kkkunny/Sim/mir/pass/module"
 	"github.com/kkkunny/Sim/output/jit"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
@@ -33,7 +34,7 @@ func assertRetEq(t *testing.T, code string, expect uint8, skips ...uint) {
 	path := stlerror.MustWith(filepath.Abs(stlerror.MustWith(util.GetFileName(skip+1))))
 	r := stlerror.MustWith(reader.NewReaderFromString(path, code))
 	mirModule := codegen_ir.New(mir.DefaultTarget(), analyse.New(parse.New(lex.New(r)).Parse()).Analyse()).Codegen()
-	pass.Run(mirModule, pass.DeadCodeElimination)
+	module.RunModule(mirModule, function.UnreachableCodeElimination)
 	outputer := llvm.NewLLVMOutputer()
 	outputer.Codegen(mirModule)
 	llvmModule := outputer.Module()

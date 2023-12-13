@@ -68,3 +68,7 @@ func (self *Block) Terminated()bool{
 func (self *Block) Stmts()*list.List[Stmt]{
 	return self.stmts
 }
+
+func (self *Block) IsEntry()bool{
+	return self.f.Blocks().Front().Value == self
+}
