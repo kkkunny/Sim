@@ -1,0 +1,26 @@
+{
+  "name": "sim",
+  "displayName": "Sim",
+  "description": "Sim language support",
+  "version": "0.0.1",
+  "author": "kkkunny",
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "sim",
+      "aliases": ["Sim", "sim"],
+      "extensions": [".sim"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "sim",
+      "scopeName": "source.sim",
+      "path": "./syntaxes/sim.tmLanguage.json"
+    }]
+  }
+}

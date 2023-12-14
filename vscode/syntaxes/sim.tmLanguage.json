@@ -1,0 +1,351 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Sim",
+	"scopeName": "source.sim",
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"comment": "func",
+					"match": "\\bfunc\\b",
+					"name": "keyword.other.fn.rust"
+				},
+				{
+					"comment": "control",
+					"match": "\\b(return|break|continue|if|else|loop|for|in)\\b",
+					"name": "keyword.control.rust"
+				},
+				{
+					"comment": "let",
+					"match": "\\blet\\b",
+					"name": "keyword.other.rust storage.type.rust"
+				},
+				{
+					"comment": "mut",
+					"match": "\\bmut\\b",
+					"name": "storage.modifier.mut.rust"
+				},
+				{
+					"comment": "other",
+					"match": "\\b(pub|as|is)\\b",
+					"name": "keyword.other.rust"
+				}
+			]
+		},
+		"types": {
+			"patterns": [
+				{
+					"match": "\\b(i(8|16|32|64|128|size)|u(8|16|32|64|128|size)|float(32|64))\\b",
+					"name": "entity.name.type.numeric.rust"
+				},
+				{
+					"match": "\\b(bool|str|Self)\\b",
+					"name": "entity.name.type.primitive.rust"
+				},
+				{
+					"match": "\\bSelf\\b",
+					"name": "variable.language.self.rust"
+				},
+				{
+					"match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b",
+					"name": "entity.name.type.rust"
+				},
+				{
+					"include": "#constants"
+				},
+				{
+					"include": "#operators"
+				}
+			]
+		},
+		"constants": {
+			"patterns": [
+				{
+					"comment": "booleans",
+					"match": "\\b(true|false|null)\\b",
+					"name": "constant.language.bool.rust"
+				},
+				{
+					"comment": "strings",
+					"match": "\".*?\"",
+					"name": "string.quoted.double.rust"
+				},
+				{
+					"comment": "strings",
+					"match": "'.*?'",
+					"name": "string.quoted.single.char.rust"
+				},
+				{
+					"comment": "numeric",
+					"match": "\\d+(.\\d+)?",
+					"name": "constant.numeric.decimal.rust"
+				}
+			]
+		},
+		"variables": {
+			"patterns": [
+				{
+					"match": "\\bself\\b",
+					"name": "variable.language.self.rust"
+				},
+				{
+					"match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b",
+					"name": "entity.name.type.rust"
+				}
+			]
+		},
+		"expration": {
+			"patterns": [
+				{
+					"include": "#constants"
+				},
+				{
+					"include": "#variables"
+				}
+			]
+		},
+		"params": {
+			"patterns": [
+				{
+					"begin": "\\b(pub\\s+)?([a-zA-Z_][a-zA-Z0-9_]*)\\s*:\\s*(.+)",
+					"beginCaptures": {
+						"1": {
+							"patterns": [
+								{
+									"include": "#keywords"
+								}
+							]
+						},
+						"2": {
+							"name": "entity.name.type.rust"
+						},
+						"3": {
+							"patterns": [
+								{
+									"include": "#types"
+								}
+							]
+						}
+					},
+					"end": "($|,)"
+				}
+			]
+		},
+		"operators": {
+			"patterns": [
+				{
+					"comment": "equal",
+					"match": "==|!=",
+					"name": "keyword.operator.assignment.equal.rust"
+				},
+				{
+					"comment": "comparison",
+					"match": "(<|>)(=)?",
+					"name": "keyword.operator.comparison.rust"
+				},
+				{
+					"comment": "assignment",
+					"match": "=",
+					"name": "keyword.operator.assignment.rust"
+				},
+				{
+					"comment": "scope",
+					"match": "::",
+					"name": "keyword.operator.namespace.rust"
+				},
+				{
+					"comment": "point",
+					"match": "\\.",
+					"name": "keyword.operator.access.dot.rust"
+				},
+				{
+					"comment": "logical and byte",
+					"match": "!|\\|\\||&&|\\^|<<|>>|&|\\|",
+					"name": "keyword.operator.logical.rust"
+				},
+				{
+					"comment": "math",
+					"match": "\\+|-|\\*|/|%",
+					"name": "keyword.operator.math.rust"
+				}
+			]
+		}
+	},
+	"patterns": [
+		{
+			"comment": "import package",
+			"begin": "\\b(import)\\s+",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.other.rust"
+				}
+			},
+			"end": "($|;)",
+			"patterns": [
+				{
+					"match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b",
+					"name": "entity.name.module.rust"
+				}
+			]
+		},
+		{
+			"comment": "type alias",
+			"begin": "\\b(type)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.declaration.type.rust"
+				},
+				"2": {
+					"name": "entity.name.type.rust"
+				}
+			},
+			"end": "($|;)",
+			"patterns": [
+				{
+					"include": "#types"
+				},
+				{
+					"include": "#operators"
+				}
+			]
+		},
+		{
+			"comment": "struct define",
+			"begin": "\\b(struct)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.declaration.struct.rust"
+				},
+				"2": {
+					"name": "entity.name.type.rust"
+				}
+			},
+			"end": "\\}",
+			"patterns": [
+				{
+					"include": "#params"
+				}
+			]
+		},
+		{
+			"comment": "attribute define",
+			"begin": "(@[a-zA-Z_][a-zA-Z0-9_]*)\\b",
+			"beginCaptures": {
+				"1": {
+					"name": "entity.name.function.macro.rust"
+				}
+			},
+			"end": "($|;)",
+			"patterns": [
+				{
+					"include": "#constants"
+				}
+			]
+		},
+		{
+			"comment": "function declaration",
+			"begin": "\\b(func)\\s+(\\(.+?\\)\\s*)?([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+			"beginCaptures": {
+				"1": {
+					"patterns": [
+						{
+							"include": "#keywords"
+						}
+					]
+				},
+				"2": {
+					"patterns": [
+						{
+							"include": "#keywords"
+						},
+						{
+							"include": "#variables"
+						}
+					]
+				},
+				"3": {
+					"name": "entity.name.type.rust"
+				}
+			},
+			"end": "($|;|{)",
+			"patterns": [
+				{
+					"match": "\\((.+)?\\)(.+)?",
+					"captures": {
+						"1": {
+							"patterns": [
+								{
+									"include": "#params"
+								}
+							]
+						},
+						"2": {
+							"patterns": [
+								{
+									"include": "#types"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"comment": "global variable define",
+			"begin": "\\b(let)\\s+(mut\\s+)?([a-zA-Z_][a-zA-Z0-9_]*)",
+			"beginCaptures": {
+				"1": {
+					"patterns": [
+						{
+							"include": "#keywords"
+						}
+					]
+				},
+				"2": {
+					"patterns": [
+						{
+							"include": "#keywords"
+						}
+					]
+				},
+				"3": {
+					"name": "entity.name.type.rust"
+				}
+			},
+			"end": "($|;)",
+			"patterns": [
+				{
+					"match": ":\\s*([^=]+)\\s*(=\\s*.+)?",
+					"captures": {
+						"1": {
+							"patterns": [
+								{
+									"include": "#types"
+								}
+							]
+						},
+						"2": {
+							"patterns": [
+								{
+									"include": "#operators"
+								},
+								{
+									"include": "#expration"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#operators"
+		},
+		{
+			"include": "#expration"
+		}
+	]
+}
