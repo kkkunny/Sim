@@ -1,6 +1,8 @@
-package mean
+package hir
 
 import (
+	"strings"
+
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
@@ -23,8 +25,28 @@ type StructDef struct {
 	Methods hashmap.HashMap[string, *MethodDef]
 }
 
-func (self StructDef) GetPublic() bool {
+func (self *StructDef) GetPublic() bool {
 	return self.Public
+}
+
+func (self *StructDef) Impl(t *Trait)bool{
+	for targetIter:=t.Methods.Iterator(); targetIter.Next(); {
+		target := targetIter.Value()
+		if self.GetImplMethod(target.First, target.Second) == nil{
+			return false
+		}
+	}
+	return true
+}
+
+func (self *StructDef) GetImplMethod(name string, ft *FuncType)*MethodDef{
+	for iter:=self.Methods.Values().Iterator(); iter.Next(); {
+		fun := iter.Value()
+		if fun.Name == name && fun.GetMethodType().Equal(ft){
+			return fun
+		}
+	}
+	return nil
 }
 
 // Variable 变量定义
@@ -37,7 +59,7 @@ type Variable struct {
 	Value      Expr
 }
 
-func (self Variable) GetPublic() bool {
+func (self *Variable) GetPublic() bool {
 	return self.Public
 }
 
@@ -53,9 +75,8 @@ func (self *Variable) Mutable() bool {
 
 func (*Variable) ident() {}
 
-// Function 函数
-type Function interface {
-	Expr
+type GlobalFunc interface {
+	Global
 	GetFuncType()*FuncType
 }
 
@@ -69,7 +90,7 @@ type FuncDef struct {
 	Body       util.Option[*Block]
 }
 
-func (self FuncDef) GetPublic() bool {
+func (self *FuncDef) GetPublic() bool {
 	return self.Public
 }
 
@@ -106,7 +127,7 @@ type MethodDef struct {
 	Body       *Block
 }
 
-func (self MethodDef) GetPublic() bool {
+func (self *MethodDef) GetPublic() bool {
 	return self.Public
 }
 
@@ -128,4 +149,63 @@ func (self *MethodDef) GetType() Type {
 
 func (self *MethodDef) Mutable() bool {
 	return false
+}
+
+func (self *MethodDef) GetMethodType() *FuncType {
+	params := lo.Map(self.Params, func(item *Param, index int) Type {
+		return item.GetType()
+	})
+	return &FuncType{
+		Ret:    self.Ret,
+		Params: params,
+	}
+}
+
+// GenericFuncDef 泛型函数定义
+type GenericFuncDef struct {
+	Public     bool
+	Name       string
+	GenericParams linkedhashmap.LinkedHashMap[string, *GenericParam]
+	Params     []*Param
+	Ret        Type
+	Body       *Block
+
+	Instances hashmap.HashMap[string, *GenericFuncInstance]
+}
+
+func (self *GenericFuncDef) GetPublic() bool {
+	return self.Public
+}
+
+func (self *GenericFuncDef) GetFuncType() *FuncType {
+	params := lo.Map(self.Params, func(item *Param, index int) Type {
+		return item.GetType()
+	})
+	return &FuncType{
+		Ret:    self.Ret,
+		Params: params,
+	}
+}
+
+func (self *GenericFuncDef) AddInstance(genericArg ...Type)*GenericFuncInstance{
+	if uint(len(genericArg)) != self.GenericParams.Length(){
+		panic("unreachable")
+	}
+
+	typeNames := lo.Map(genericArg, func(item Type, _ int) string {
+		return item.String()
+	})
+	key := strings.Join(typeNames, ", ")
+
+	inst := self.Instances.Get(key)
+	if inst != nil{
+		return inst
+	}
+
+	inst = &GenericFuncInstance{
+		Define: self,
+		Params: genericArg,
+	}
+	self.Instances.Set(key, inst)
+	return inst
 }

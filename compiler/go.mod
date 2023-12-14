@@ -2,11 +2,11 @@ module github.com/kkkunny/Sim
 
 go 1.21.3
 
-require github.com/kkkunny/stl v0.0.0-20231114084730-4ad25211cae2
+require github.com/kkkunny/stl v0.0.0-20231213142909-ea2e4638d64f
 
 require (
-	github.com/kkkunny/go-llvm v0.0.0-20231127122439-069c027c3a34
-	github.com/samber/lo v1.38.1
+	github.com/kkkunny/go-llvm v0.0.0-20231211123616-ac9b8433f29c
+	github.com/samber/lo v1.39.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 )
 

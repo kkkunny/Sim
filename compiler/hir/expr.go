@@ -1,9 +1,12 @@
-package mean
+package hir
 
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
+
+	"github.com/kkkunny/Sim/util"
 )
 
 // Expr 表达式
@@ -22,7 +25,7 @@ type Ident interface {
 // Integer 整数
 type Integer struct {
 	Type  IntType
-	Value big.Int
+	Value *big.Int
 }
 
 func (self *Integer) stmt() {}
@@ -38,7 +41,7 @@ func (self *Integer) Mutable() bool {
 // Float 浮点数
 type Float struct {
 	Type  *FloatType
-	Value big.Float
+	Value *big.Float
 }
 
 func (self *Float) stmt() {}
@@ -1207,22 +1210,18 @@ func (self *CheckNull) Mutable() bool {
 
 // Method 方法
 type Method struct {
-	Self Expr
-	Method *MethodDef
+	Self   Expr
+	Define *MethodDef
 }
 
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*StructDef{
-	return self.Self.GetType().(*StructType)
+	return self.Self.GetType().(*StructDef)
 }
 
 func (self *Method) GetType() Type {
-	ft := self.Method.GetFuncType()
-	return &FuncType{
-		Ret: ft.Ret,
-		Params: ft.Params[1:],
-	}
+	return self.Define.GetMethodType()
 }
 
 func (self *Method) Mutable() bool {
@@ -1230,3 +1229,56 @@ func (self *Method) Mutable() bool {
 }
 
 func (*Method) ident() {}
+
+// GenericFuncInstance 泛型函数实例
+type GenericFuncInstance struct {
+	Define *GenericFuncDef
+	Params []Type
+}
+
+func (self *GenericFuncInstance) stmt() {}
+
+func (self *GenericFuncInstance) GetType() Type {
+	if self.Define.GenericParams.Length() != uint(len(self.Params)){
+		panic("unreachable")
+	}
+	table := hashmap.NewHashMapWithCapacity[*GenericParam, Type](self.Define.GenericParams.Length())
+	var i int
+	for iter:=self.Define.GenericParams.Values().Iterator(); iter.Next(); {
+		table.Set(iter.Value(), self.Params[i])
+		i++
+	}
+	return ReplaceGenericParam(self.Define.GetFuncType(), table)
+}
+
+func (self *GenericFuncInstance) Mutable() bool {
+	return false
+}
+
+func (*GenericFuncInstance) ident() {}
+
+// TraitMethod 特性方法
+type TraitMethod struct {
+	Type *GenericParam
+	Value util.Option[Expr]
+	Name string
+}
+
+func (self *TraitMethod) stmt() {}
+
+func (self *TraitMethod) GetType() Type {
+	constraint := self.Type.Constraint.MustValue()
+	for iter:=constraint.Methods.Iterator(); iter.Next(); {
+		data := iter.Value()
+		if data.First == self.Name{
+			return data.Second
+		}
+	}
+	panic("unreachable")
+}
+
+func (self *TraitMethod) Mutable() bool {
+	return false
+}
+
+func (*TraitMethod) ident() {}

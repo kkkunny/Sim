@@ -1,4 +1,4 @@
-package mean
+package hir
 
 import (
 	"fmt"
@@ -6,10 +6,11 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/config"
+	"github.com/kkkunny/Sim/util"
 )
 
 var (
@@ -53,6 +54,9 @@ func (*EmptyType) String() string {
 }
 
 func (self *EmptyType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	_, ok := dst.(*EmptyType)
 	return ok
 }
@@ -83,10 +87,16 @@ type SintType struct {
 }
 
 func (self *SintType) String() string {
+	if self.Bits == 0{
+		return "isize"
+	}
 	return fmt.Sprintf("i%d", self.Bits)
 }
 
 func (self *SintType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	t, ok := dst.(*SintType)
 	if !ok {
 		return false
@@ -99,7 +109,7 @@ func (self *SintType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -124,10 +134,16 @@ type UintType struct {
 }
 
 func (self *UintType) String() string {
+	if self.Bits == 0{
+		return "usize"
+	}
 	return fmt.Sprintf("u%d", self.Bits)
 }
 
 func (self *UintType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	t, ok := dst.(*UintType)
 	if !ok {
 		return false
@@ -140,7 +156,7 @@ func (self *UintType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -169,6 +185,9 @@ func (self *FloatType) String() string {
 }
 
 func (self *FloatType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	t, ok := dst.(*FloatType)
 	if !ok {
 		return false
@@ -181,7 +200,7 @@ func (self *FloatType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -211,6 +230,9 @@ func (self *FuncType) String() string {
 }
 
 func (self *FuncType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	t, ok := dst.(*FuncType)
 	if !ok || len(t.Params) != len(self.Params) {
 		return false
@@ -228,7 +250,7 @@ func (self *FuncType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -247,6 +269,9 @@ func (*BoolType) String() string {
 }
 
 func (self *BoolType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	_, ok := dst.(*BoolType)
 	return ok
 }
@@ -256,7 +281,7 @@ func (self *BoolType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -278,6 +303,9 @@ func (self *ArrayType) String() string {
 }
 
 func (self *ArrayType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	t, ok := dst.(*ArrayType)
 	if !ok {
 		return false
@@ -290,7 +318,7 @@ func (self *ArrayType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -314,6 +342,9 @@ func (self *TupleType) String() string {
 }
 
 func (self *TupleType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	t, ok := dst.(*TupleType)
 	if !ok || len(self.Elems) != len(t.Elems) {
 		return false
@@ -331,7 +362,7 @@ func (self *TupleType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -359,11 +390,14 @@ func (self *StructType) String() string {
 }
 
 func (self *StructType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	t, ok := dst.(*StructDef)
 	if !ok {
 		return false
 	}
-	return self == t
+	return self.Pkg==t.Pkg && self.Name==t.Name
 }
 
 func (self *StructType) AssignableTo(dst Type) bool {
@@ -371,7 +405,7 @@ func (self *StructType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -395,6 +429,9 @@ func (*StringType) String() string {
 }
 
 func (self *StringType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	_, ok := dst.(*StringType)
 	return ok
 }
@@ -404,7 +441,7 @@ func (self *StringType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -417,20 +454,29 @@ func (self *StringType) HasDefault()bool{
 
 // UnionType 联合类型
 type UnionType struct {
-	Elems linkedhashmap.LinkedHashMap[string, Type]
+	Elems []Type
 }
 
 func (self *UnionType) String() string {
-	return fmt.Sprintf("<%s>", strings.Join(self.Elems.Keys().ToSlice(), ", "))
+	elemStrs := lo.Map(self.Elems, func(item Type, _ int) string {
+		return item.String()
+	})
+	return fmt.Sprintf("<%s>", strings.Join(elemStrs, ", "))
 }
 
 func (self *UnionType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	ut, ok := dst.(*UnionType)
 	if !ok {
 		return false
 	}
-	for li, ri := self.Elems.Iterator(), ut.Elems.Iterator(); li.Next() && ri.Next(); {
-		if !li.Value().Equal(ri.Value()) {
+	if len(self.Elems) != len(ut.Elems){
+		return false
+	}
+	for i, e := range self.Elems {
+		if !e.Equal(ut.Elems[i]) {
 			return false
 		}
 	}
@@ -442,31 +488,31 @@ func (self *UnionType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
 	return false
 }
 
+// Contain 是否包含类型
+func (self *UnionType) Contain(elem Type) bool {
+	return self.GetElemIndex(elem) >= 0
+}
+
 // GetElemIndex 获取子类型下标
 func (self *UnionType) GetElemIndex(elem Type) int {
-	if !self.Elems.ContainKey(elem.String()) {
-		return -1
-	}
-	var index int
-	for iter := self.Elems.Values().Iterator(); iter.Next(); {
-		if elem.Equal(iter.Value()) {
-			break
+	for i, e := range self.Elems {
+		if e.Equal(elem){
+			return i
 		}
-		index++
 	}
-	return index
+	return -1
 }
 
 func (self *UnionType) HasDefault()bool{
-	for iter := self.Elems.Values().Iterator(); iter.Next(); {
-		if !iter.Value().HasDefault(){
+	for _, e := range self.Elems {
+		if !e.HasDefault(){
 			return false
 		}
 	}
@@ -483,6 +529,9 @@ func (self *PtrType) String() string {
 }
 
 func (self *PtrType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	pt, ok := dst.(*PtrType)
 	if !ok {
 		return false
@@ -495,7 +544,7 @@ func (self *PtrType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -516,6 +565,9 @@ func (self *RefType) String() string {
 }
 
 func (self *RefType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
 	pt, ok := dst.(*RefType)
 	if !ok {
 		return false
@@ -531,7 +583,7 @@ func (self *RefType) AssignableTo(dst Type) bool {
 		return true
 	}
 	if ut, ok := dst.(*UnionType); ok {
-		if ut.Elems.ContainKey(self.String()) {
+		if ut.Contain(self) {
 			return true
 		}
 	}
@@ -544,4 +596,77 @@ func (self *RefType) ToPtrType() *PtrType {
 
 func (self *RefType) HasDefault()bool{
 	return true
+}
+
+// GenericParam 泛型参数
+type GenericParam struct {
+	Name string
+	Constraint util.Option[*Trait]
+}
+
+// ReplaceGenericParam 替换类型中包含的泛型参数
+func ReplaceGenericParam(t Type, table hashmap.HashMap[*GenericParam, Type])Type{
+	switch tt := t.(type) {
+	case *EmptyType, NumberType, *BoolType, *StringType, *StructType:
+		return tt
+	case *FuncType:
+		return &FuncType{
+			Ret: ReplaceGenericParam(tt.Ret, table),
+			Params: lo.Map(tt.Params, func(item Type, _ int) Type {
+				return ReplaceGenericParam(item, table)
+			}),
+		}
+	case *ArrayType:
+		return &ArrayType{
+			Size: tt.Size,
+			Elem: ReplaceGenericParam(tt.Elem, table),
+		}
+	case *TupleType:
+		return &TupleType{Elems: lo.Map(tt.Elems, func(item Type, _ int) Type {
+			return ReplaceGenericParam(item, table)
+		})}
+	case *PtrType:
+		return &PtrType{Elem: ReplaceGenericParam(tt.Elem, table)}
+	case *RefType:
+		return &RefType{Elem: ReplaceGenericParam(tt.Elem, table)}
+	case *UnionType:
+		return &UnionType{Elems: lo.Map(tt.Elems, func(item Type, _ int) Type {
+			return ReplaceGenericParam(item, table)
+		})}
+	case *GenericParam:
+		to := table.Get(tt)
+		if to == nil{
+			panic("unreachable")
+		}
+		return to
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *GenericParam) String() string {
+	return self.Name
+}
+
+func (self *GenericParam) Equal(dst Type) bool {
+	return self == dst
+}
+
+func (self *GenericParam) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Contain(self) {
+			return true
+		}
+	}
+	return false
+}
+
+func (self *GenericParam) HasDefault()bool{
+	if constraint, ok := self.Constraint.Value(); ok{
+		return constraint.Pkg == util.GetBuildInPackagePath() && constraint.Name == "Default"
+	}
+	return false
 }

@@ -76,6 +76,7 @@ const (
 	TYPE
 	SELFVALUE
 	SELFTYPE
+	TRAIT
 	_KeywordEnd
 )
 
@@ -142,6 +143,7 @@ var kindNames = [...]string{
 	TYPE:     "type",
 	SELFVALUE: "self",
 	SELFTYPE:  "Self",
+	TRAIT: "trait",
 }
 
 // Lookup 区分标识符和关键字

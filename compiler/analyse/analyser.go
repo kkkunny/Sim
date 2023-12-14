@@ -1,14 +1,15 @@
 package analyse
 
 import (
-	"github.com/kkkunny/go-llvm"
+	"path/filepath"
+
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/token"
 
 	"github.com/kkkunny/Sim/ast"
@@ -23,33 +24,34 @@ type Analyser struct {
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 
-	selfValue *mean.Param
-	selfType *mean.StructDef
+	selfValue *hir.Param
+	selfType  hir.Type
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
+	genericFuncScope hashmap.HashMap[*hir.GenericFuncDef, *_FuncScope]
 }
 
-func New(path string, asts linkedlist.LinkedList[ast.Global], target *llvm.Target) *Analyser {
-	if target != nil {
-		mean.Isize.Bits = target.PointerSize()
-		mean.Usize.Bits = target.PointerSize()
-	}
+func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
+	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
 	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
 	return &Analyser{
 		asts:     asts,
 		pkgs:     &pkgs,
-		pkgScope: _NewPkgScope(path),
+		pkgScope: _NewPkgScope(pkgPath),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
+		genericFuncScope: hashmap.NewHashMap[*hir.GenericFuncDef, *_FuncScope](),
 	}
 }
 
-func newSon(parent *Analyser, path string, asts linkedlist.LinkedList[ast.Global]) *Analyser {
+func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser {
+	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
 	return &Analyser{
 		parent:   parent,
 		asts:     asts,
 		pkgs:     parent.pkgs,
-		pkgScope: _NewPkgScope(path),
+		pkgScope: _NewPkgScope(pkgPath),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
+		genericFuncScope: hashmap.NewHashMap[*hir.GenericFuncDef, *_FuncScope](),
 	}
 }
 
@@ -64,8 +66,8 @@ func (self *Analyser) checkLoopImport(path string) bool {
 }
 
 // Analyse 分析语义
-func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
-	meanNodes := linkedlist.NewLinkedList[mean.Global]()
+func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
+	meanNodes := linkedlist.NewLinkedList[hir.Global]()
 
 	// 包
 	if !self.pkgScope.IsBuildIn() {
@@ -74,6 +76,14 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
 		if im, ok := v.(*ast.Import); ok {
 			meanNodes.Append(self.analyseImport(im))
+		}
+		return true
+	})
+
+	// trait
+	iterator.Foreach(self.asts, func(v ast.Global) bool {
+		if trait, ok := v.(*ast.Trait); ok {
+			self.declTrait(trait)
 		}
 		return true
 	})
@@ -99,7 +109,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
 	})
 	// 类型循环检测
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
-		trace := hashset.NewHashSet[mean.Type]()
+		trace := hashset.NewHashSet[hir.Type]()
 		var circle bool
 		var name token.Token
 		switch node := v.(type) {
@@ -131,7 +141,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[mean.Global] {
 	return meanNodes
 }
 
-func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[mean.Type], t mean.Type)bool{
+func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
 	if trace.Contain(t){
 		return true
 	}
@@ -141,24 +151,24 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[mean.Type], t mean.
 	}()
 
 	switch typ := t.(type) {
-	case *mean.EmptyType, mean.NumberType, *mean.FuncType, *mean.BoolType, *mean.StringType, *mean.PtrType, *mean.RefType:
-	case *mean.ArrayType:
+	case *hir.EmptyType, hir.NumberType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.PtrType, *hir.RefType:
+	case *hir.ArrayType:
 		return self.checkTypeCircle(trace, typ.Elem)
-	case *mean.TupleType:
+	case *hir.TupleType:
 		for _, e := range typ.Elems{
 			if self.checkTypeCircle(trace, e){
 				return true
 			}
 		}
-	case *mean.StructType:
+	case *hir.StructType:
 		for iter:=typ.Fields.Iterator(); iter.Next(); {
 			if self.checkTypeCircle(trace, iter.Value().Second.Second){
 				return true
 			}
 		}
-	case *mean.UnionType:
-		for iter:=typ.Elems.Iterator(); iter.Next(); {
-			if self.checkTypeCircle(trace, iter.Value().Second){
+	case *hir.UnionType:
+		for _, e := range typ.Elems {
+			if self.checkTypeCircle(trace, e){
 				return true
 			}
 		}

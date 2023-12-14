@@ -3,6 +3,7 @@ package parse
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
@@ -30,6 +31,8 @@ func (self *Parser) parseGlobal() ast.Global {
 		return self.parseVariable(true, attrs, pub)
 	case token.IMPORT:
 		return self.parseImport(attrs)
+	case token.TRAIT:
+		return self.parseTrait(attrs, pub)
 	case token.TYPE:
 		return self.parseTypeAlias(attrs, pub)
 	default:
@@ -47,15 +50,18 @@ func (self *Parser) parseFuncOrMethodDef(attrs []ast.Attr, pub *token.Token) ast
 	}
 }
 
-func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) *ast.FuncDef {
+func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) ast.Global {
 	expectAttrIn(attrs, new(ast.Extern))
 
 	if pub != nil {
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
+	if self.nextIs(token.LT){
+		return self.parseGenericFuncDef(attrs, pub, begin, name)
+	}
 	self.expectNextIs(token.LPA)
-	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
+	params := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
 		mut := self.skipNextIs(token.MUT)
 		pn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
@@ -66,7 +72,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 			Type:    pt,
 		}
 	})
-	self.expectNextIs(token.RPA)
+	paramEnd := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
 	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
@@ -78,7 +84,8 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 		Begin:  begin,
 		Public: pub != nil,
 		Name:   name,
-		Params: args,
+		Params: params,
+		ParamEnd: paramEnd,
 		Ret:    ret,
 		Body:   body,
 	}
@@ -209,6 +216,31 @@ func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
 	}
 }
 
+func (self *Parser) parseTrait(attrs []ast.Attr, pub *token.Token) *ast.Trait {
+	expectAttrIn(attrs)
+
+	begin := self.expectNextIs(token.TRAIT).Position
+	if pub != nil {
+		begin = pub.Position
+	}
+	name := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.LBR)
+	methods := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, *ast.FuncType] {
+		fn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		ft := self.parseFuncType()
+		return pair.NewPair(fn, ft)
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.Trait{
+		Begin:  begin,
+		Public: pub != nil,
+		Name:   name,
+		Methods: methods,
+		End:    end,
+	}
+}
+
 func (self *Parser) parseTypeAlias(attrs []ast.Attr, pub *token.Token) *ast.TypeAlias {
 	expectAttrIn(attrs)
 
@@ -221,5 +253,45 @@ func (self *Parser) parseTypeAlias(attrs []ast.Attr, pub *token.Token) *ast.Type
 		Public: pub != nil,
 		Name:   name,
 		Type:   typ,
+	}
+}
+
+func (self *Parser) parseGenericFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position, name token.Token) *ast.GenericFuncDef {
+	expectAttrIn(attrs)
+
+	self.expectNextIs(token.LT)
+	genericParams := loopParseWithUtil(self, token.COM, token.GT, func() pair.Pair[token.Token, util.Option[*ast.IdentType]] {
+		name := self.expectNextIs(token.IDENT)
+		constraint := util.None[*ast.IdentType]()
+		if self.skipNextIs(token.COL){
+			constraint = util.Some[*ast.IdentType](self.parseIdentType())
+		}
+		return pair.NewPair(name, constraint)
+	})
+	self.expectNextIs(token.GT)
+	self.expectNextIs(token.LPA)
+	params := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
+		mut := self.skipNextIs(token.MUT)
+		pn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		pt := self.parseType()
+		return ast.Param{
+			Mutable: mut,
+			Name:    pn,
+			Type:    pt,
+		}
+	})
+	self.expectNextIs(token.RPA)
+	ret := self.parseOptionType()
+	body := self.parseBlock()
+	return &ast.GenericFuncDef{
+		Attrs:  attrs,
+		Begin:  begin,
+		Public: pub != nil,
+		Name:   name,
+		GenericParams: genericParams,
+		Params: params,
+		Ret:    ret,
+		Body:   body,
 	}
 }

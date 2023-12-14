@@ -3,19 +3,16 @@ package analyse
 import (
 	"math/big"
 
-	"github.com/kkkunny/stl/container/iterator"
-	"github.com/kkkunny/stl/container/linkedhashmap"
-	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/mean"
+	"github.com/kkkunny/Sim/hir"
 
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *Analyser) analyseType(node ast.Type) mean.Type {
+func (self *Analyser) analyseType(node ast.Type) hir.Type {
 	switch typeNode := node.(type) {
 	case *ast.IdentType:
 		return self.analyseIdentType(typeNode)
@@ -38,48 +35,48 @@ func (self *Analyser) analyseType(node ast.Type) mean.Type {
 	}
 }
 
-func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) mean.Type {
+func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
 	t, ok := node.Value()
 	if !ok {
-		return mean.Empty
+		return hir.Empty
 	}
 	return self.analyseType(t)
 }
 
-func (self *Analyser) analyseIdentType(node *ast.IdentType) mean.Type {
+func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	switch name := node.Name.Source(); name {
 	case "isize":
-		return mean.Isize
+		return hir.Isize
 	case "i8":
-		return mean.I8
+		return hir.I8
 	case "i16":
-		return mean.I16
+		return hir.I16
 	case "i32":
-		return mean.I32
+		return hir.I32
 	case "i64":
-		return mean.I64
+		return hir.I64
 	case "i128":
-		return mean.I128
+		return hir.I128
 	case "usize":
-		return mean.Usize
+		return hir.Usize
 	case "u8":
-		return mean.U8
+		return hir.U8
 	case "u16":
-		return mean.U16
+		return hir.U16
 	case "u32":
-		return mean.U32
+		return hir.U32
 	case "u64":
-		return mean.U64
+		return hir.U64
 	case "u128":
-		return mean.U128
+		return hir.U128
 	case "f32":
-		return mean.F32
+		return hir.F32
 	case "f64":
-		return mean.F64
+		return hir.F64
 	case "bool":
-		return mean.Bool
+		return hir.Bool
 	case "str":
-		return mean.Str
+		return hir.Str
 	default:
 		var pkgName string
 		if pkgToken, ok := node.Pkg.Value(); ok {
@@ -87,10 +84,22 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) mean.Type {
 			if !self.pkgScope.externs.ContainKey(pkgName) {
 				errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 			}
+		}else{
+			// 泛型参数
+			if self.localScope != nil{
+				switch funDecl := self.localScope.GetFunc().(type){
+				case *hir.GenericFuncDef:
+					if gp := funDecl.GenericParams.Get(node.Name.Source()); gp != nil{
+						return gp
+					}
+				}
+			}
 		}
+		// 结构体
 		if st, ok := self.pkgScope.GetStruct(pkgName, name); ok {
 			return st
 		}
+		// 类型别名
 		if typeAlias, ok := self.pkgScope.GetTypeAlias(pkgName, name); ok {
 			if target, ok := typeAlias.Right(); ok{
 				return target
@@ -102,17 +111,17 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) mean.Type {
 	}
 }
 
-func (self *Analyser) analyseFuncType(node *ast.FuncType) *mean.FuncType {
-	params := lo.Map(node.Params, func(item ast.Type, index int) mean.Type {
+func (self *Analyser) analyseFuncType(node *ast.FuncType) *hir.FuncType {
+	params := lo.Map(node.Params, func(item ast.Type, index int) hir.Type {
 		return self.analyseType(item)
 	})
-	return &mean.FuncType{
+	return &hir.FuncType{
 		Ret:    self.analyseOptionType(node.Ret),
 		Params: params,
 	}
 }
 
-func (self *Analyser) analyseArrayType(node *ast.ArrayType) *mean.ArrayType {
+func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
 	size, ok := big.NewInt(0).SetString(node.Size.Source(), 10)
 	if !ok {
 		panic("unreachable")
@@ -121,38 +130,51 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *mean.ArrayType {
 		errors.ThrowIllegalInteger(node.Position(), node.Size)
 	}
 	elem := self.analyseType(node.Elem)
-	return &mean.ArrayType{
+	return &hir.ArrayType{
 		Size: uint(size.Uint64()),
 		Elem: elem,
 	}
 }
 
-func (self *Analyser) analyseTupleType(node *ast.TupleType) *mean.TupleType {
-	elems := lo.Map(node.Elems, func(item ast.Type, index int) mean.Type {
+func (self *Analyser) analyseTupleType(node *ast.TupleType) *hir.TupleType {
+	elems := lo.Map(node.Elems, func(item ast.Type, index int) hir.Type {
 		return self.analyseType(item)
 	})
-	return &mean.TupleType{Elems: elems}
+	return &hir.TupleType{Elems: elems}
 }
 
-func (self *Analyser) analyseUnionType(node *ast.UnionType) *mean.UnionType {
-	elems := iterator.Map[ast.Type, pair.Pair[string, mean.Type], linkedhashmap.LinkedHashMap[string, mean.Type]](node.Elems, func(v ast.Type) pair.Pair[string, mean.Type] {
-		et := self.analyseType(v)
-		return pair.NewPair(et.String(), et)
-	})
-	return &mean.UnionType{Elems: elems}
+func (self *Analyser) analyseUnionType(node *ast.UnionType) *hir.UnionType {
+	return &hir.UnionType{Elems: lo.Map(node.Elems.ToSlice(), func(item ast.Type, _ int) hir.Type {
+		return self.analyseType(item)
+	})}
 }
 
-func (self *Analyser) analysePtrType(node *ast.PtrType) *mean.PtrType {
-	return &mean.PtrType{Elem: self.analyseType(node.Elem)}
+func (self *Analyser) analysePtrType(node *ast.PtrType) *hir.PtrType {
+	return &hir.PtrType{Elem: self.analyseType(node.Elem)}
 }
 
-func (self *Analyser) analyseRefType(node *ast.RefType) *mean.RefType {
-	return &mean.RefType{Elem: self.analyseType(node.Elem)}
+func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
+	return &hir.RefType{Elem: self.analyseType(node.Elem)}
 }
 
-func (self *Analyser) analyseSelfType(node *ast.SelfType)*mean.StructType{
+func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
 	if self.selfType == nil{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
 	return self.selfType
+}
+
+func (self *Analyser) analyseTraitType(selfType hir.Type, node *ast.IdentType) *hir.Trait {
+	var pkgName string
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		pkgName = pkgToken.Source()
+		if !self.pkgScope.externs.ContainKey(pkgName) {
+			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+		}
+	}
+	if traitNode, ok := self.pkgScope.GetTrait(pkgName, node.Name.Source()); ok {
+		return self.defTrait(selfType, traitNode)
+	}
+	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+	return nil
 }
