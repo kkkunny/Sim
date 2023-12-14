@@ -20,7 +20,7 @@ func Run(function *mir.Function, pass ...Pass){
 
 var (
 	// DeadCodeElimination 死码消除
-	DeadCodeElimination = newUnionPass(UnreachableCodeElimination, DeadVariablesElimination)
+	DeadCodeElimination = newUnionPass(UnreachableCodeElimination, DeadVariablesElimination, CodeBlockMerge)
 )
 
 func newUnionPass(pass ...Pass)Pass{

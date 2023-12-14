@@ -1479,6 +1479,9 @@ type Phi struct {
 }
 
 func (self *Builder) BuildPhi(t Type, from ...pair.Pair[*Block, Value])*Phi {
+	if self.cur.stmts.Len() != 0{
+		panic("unreachable")
+	}
 	for _, f := range from{
 		if !f.Second.Type().Equal(t){
 			panic("unreachable")
