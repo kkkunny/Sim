@@ -1321,7 +1321,7 @@ func (self *StructIndex) IsPtr()bool{
 	return stlbasic.Is[PtrType](self.v.Type())
 }
 
-func (self *StructIndex) Array()Value{
+func (self *StructIndex) Struct()Value{
 	return self.v
 }
 

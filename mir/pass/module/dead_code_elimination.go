@@ -21,6 +21,6 @@ func (self *_DeadCodeElimination) Run(ir *mir.Module){
 func (self *_DeadCodeElimination) walkGlobal(ir mir.Global){
 	switch global := ir.(type) {
 	case *mir.Function:
-		function.Run(global, function.UnreachableCodeElimination)
+		function.Run(global, function.DeadCodeElimination)
 	}
 }

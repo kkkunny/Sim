@@ -300,9 +300,9 @@ func (self *LLVMOutputer) codegenStmtValue(ir mir.StmtValue)(res llvm.Value){
 			return self.builder.CreateLoad("", self.codegenType(sv.Type()), elemPtr)
 		}
 	case *mir.StructIndex:
-		st := self.codegenValue(sv.Array())
+		st := self.codegenValue(sv.Struct())
 		if sv.IsPtr(){
-			stt := self.codegenStructType(sv.Array().Type().(mir.PtrType).Elem().(mir.StructType))
+			stt := self.codegenStructType(sv.Struct().Type().(mir.PtrType).Elem().(mir.StructType))
 			return self.builder.CreateStructGEP("", stt, st, uint(sv.Index()))
 		}else{
 			return self.builder.CreateExtractValue("", st, uint(sv.Index()))
