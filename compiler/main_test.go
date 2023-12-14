@@ -1,10 +1,10 @@
 package main
 
 import (
-	"path/filepath"
 	"testing"
 
 	stlerror "github.com/kkkunny/stl/error"
+	stlos "github.com/kkkunny/stl/os"
 	stltest "github.com/kkkunny/stl/test"
 
 	"github.com/kkkunny/Sim/codegen_ir"
@@ -14,8 +14,7 @@ import (
 )
 
 func TestDebug(t *testing.T) {
-	path := stlerror.MustWith(filepath.Abs("example/main.sim"))
-	mirModule := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), path))
+	mirModule := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), stlos.NewFilePath("example/main.sim")))
 	outputer := llvm.NewLLVMOutputer()
 	outputer.Codegen(mirModule)
 	llvmModule := outputer.Module()

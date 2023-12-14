@@ -84,8 +84,8 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 	}
 }
 
-func (self *Analyser) analyseLocalVariable(node *ast.Variable) *hir.Variable {
-	v := &hir.Variable{
+func (self *Analyser) analyseLocalVariable(node *ast.Variable) *hir.VarDef {
+	v := &hir.VarDef{
 		Mut:  node.Mutable,
 		Name: node.Name.Source(),
 	}
@@ -171,11 +171,11 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 	et := iterType.(*hir.ArrayType).Elem
 	loop := &hir.For{
 		Iterator: iterator,
-		Cursor: &hir.Variable{
+		Cursor: &hir.VarDef{
 			Mut:   node.CursorMut,
 			Type:  et,
 			Name:  node.Cursor.Source(),
-			Value: &hir.Zero{Type: et},
+			Value: &hir.Default{Type: et},
 		},
 	}
 	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {

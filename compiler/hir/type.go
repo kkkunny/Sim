@@ -2,14 +2,12 @@ package hir
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/config"
 	"github.com/kkkunny/Sim/util"
 )
 
@@ -381,12 +379,7 @@ func (self *TupleType) HasDefault()bool{
 type StructType = StructDef
 
 func (self *StructType) String() string {
-	rel, err := filepath.Rel(self.Pkg, config.ROOT)
-	if err != nil{
-		panic(err)
-	}
-	splits := strings.Split(rel, string([]rune{filepath.Separator}))
-	return strings.Join(append(splits, self.Name), ".")
+	return fmt.Sprintf("%s.%s", self.Pkg, self.Name)
 }
 
 func (self *StructType) Equal(dst Type) bool {
@@ -601,7 +594,7 @@ func (self *RefType) HasDefault()bool{
 // GenericParam 泛型参数
 type GenericParam struct {
 	Name string
-	Constraint util.Option[*Trait]
+	Constraint util.Option[*TraitDef]
 }
 
 // ReplaceGenericParam 替换类型中包含的泛型参数
@@ -666,7 +659,7 @@ func (self *GenericParam) AssignableTo(dst Type) bool {
 
 func (self *GenericParam) HasDefault()bool{
 	if constraint, ok := self.Constraint.Value(); ok{
-		return constraint.Pkg == util.GetBuildInPackagePath() && constraint.Name == "Default"
+		return constraint.Pkg == BuildInPackage && constraint.Name == "Default"
 	}
 	return false
 }

@@ -164,7 +164,7 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
 	return self.selfType
 }
 
-func (self *Analyser) analyseTraitType(selfType hir.Type, node *ast.IdentType) *hir.Trait {
+func (self *Analyser) analyseTraitType(selfType hir.Type, node *ast.IdentType) *hir.TraitDef {
 	var pkgName string
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()

@@ -1046,18 +1046,18 @@ func (self *Struct) Mutable() bool {
 	return false
 }
 
-// Zero 零值
-type Zero struct {
+// Default 默认值
+type Default struct {
 	Type Type
 }
 
-func (*Zero) stmt() {}
+func (*Default) stmt() {}
 
-func (self *Zero) GetType() Type {
+func (self *Default) GetType() Type {
 	return self.Type
 }
 
-func (self *Zero) Mutable() bool {
+func (self *Default) Mutable() bool {
 	return false
 }
 

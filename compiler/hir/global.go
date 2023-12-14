@@ -19,7 +19,7 @@ type Global interface {
 // StructDef 结构体定义
 type StructDef struct {
 	Public bool
-	Pkg string
+	Pkg Package
 	Name   string
 	Fields linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]
 	Methods hashmap.HashMap[string, *MethodDef]
@@ -29,7 +29,7 @@ func (self *StructDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *StructDef) Impl(t *Trait)bool{
+func (self *StructDef) Impl(t *TraitDef)bool{
 	for targetIter:=t.Methods.Iterator(); targetIter.Next(); {
 		target := targetIter.Value()
 		if self.GetImplMethod(target.First, target.Second) == nil{
@@ -49,8 +49,8 @@ func (self *StructDef) GetImplMethod(name string, ft *FuncType)*MethodDef{
 	return nil
 }
 
-// Variable 变量定义
-type Variable struct {
+// VarDef 变量定义
+type VarDef struct {
 	Public     bool
 	Mut        bool
 	Type       Type
@@ -59,21 +59,21 @@ type Variable struct {
 	Value      Expr
 }
 
-func (self *Variable) GetPublic() bool {
+func (self *VarDef) GetPublic() bool {
 	return self.Public
 }
 
-func (*Variable) stmt() {}
+func (*VarDef) stmt() {}
 
-func (self *Variable) GetType() Type {
+func (self *VarDef) GetType() Type {
 	return self.Type
 }
 
-func (self *Variable) Mutable() bool {
+func (self *VarDef) Mutable() bool {
 	return self.Mut
 }
 
-func (*Variable) ident() {}
+func (*VarDef) ident() {}
 
 type GlobalFunc interface {
 	Global
@@ -208,4 +208,15 @@ func (self *GenericFuncDef) AddInstance(genericArg ...Type)*GenericFuncInstance{
 	}
 	self.Instances.Set(key, inst)
 	return inst
+}
+
+// TraitDef 特性定义
+type TraitDef struct {
+	Pkg Package
+	Name string
+	Methods hashmap.HashMap[string, *FuncType]
+}
+
+func DefaultTrait(t Type)*TraitDef {
+	return &TraitDef{Methods: hashmap.NewHashMapWith[string, *FuncType]("default", &FuncType{Ret: t})}
 }

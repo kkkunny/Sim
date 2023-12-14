@@ -1,8 +1,6 @@
 package analyse
 
 import (
-	"path/filepath"
-
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/hashmap"
@@ -11,12 +9,12 @@ import (
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/pair"
+	stlerror "github.com/kkkunny/stl/error"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 
 	"github.com/kkkunny/Sim/ast"
-	"github.com/kkkunny/Sim/config"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
@@ -33,71 +31,36 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.
 		importAll = alias.Is(token.MUL)
 		pkgName = node.Paths.Back().Source()
 	}
-	if self.pkgScope.externs.ContainKey(pkgName) {
-		errors.ThrowIdentifierDuplicationError(node.Paths.Back().Position, node.Paths.Back())
-	}
 
-	// 包地址（唯一标识符）
+	// 包地址
 	paths := iterator.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
 		return v.Source()
 	}).ToSlice()
-	pkgPath := filepath.Join(append([]string{config.ROOT}, paths...)...)
-
-	// 检查循环导入
-	if self.checkLoopImport(pkgPath) {
-		errors.ThrowCircularReference(node.Paths.Back().Position, node.Paths.Back())
-	}
-	// 如果有缓存则直接返回
-	if pkgScope := self.pkgs.Get(pkgPath); pkgScope != nil {
-		if importAll {
-			self.pkgScope.links.Add(pkgScope)
-		} else {
-			self.pkgScope.externs.Set(pkgName, pkgScope)
-		}
-		return linkedlist.LinkedList[hir.Global]{}
-	}
-
-	// 语义分析目标包
-	pkgMeans, pkgScope, err := analyseSonPackage(self, pkgPath)
-	if err != nil || pkgMeans.Empty() {
+	pkg, err := hir.OfficialPackage.GetSon(paths...)
+	if err != nil{
 		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
 	}
-	// 放进缓存
-	self.pkgs.Set(pkgPath, pkgScope)
-	if importAll {
-		self.pkgScope.links.Add(pkgScope)
-	} else {
-		self.pkgScope.externs.Set(pkgName, pkgScope)
-	}
-	return pkgMeans
-}
 
-// 导入buildin包
-func (self *Analyser) importBuildInPackage() linkedlist.LinkedList[hir.Global] {
-	dir := util.GetBuildInPackagePath()
-
-	// 如果有缓存则直接返回
-	if pkgScope := self.pkgs.Get(dir); pkgScope != nil {
-		self.pkgScope.links.Add(pkgScope)
-		return linkedlist.LinkedList[hir.Global]{}
+	hirs, importErrKind := self.importPackage(pkg, pkgName, importAll)
+	if importErrKind != importPackageErrorNone{
+		switch importErrKind {
+		case importPackageErrorCircular:
+			errors.ThrowCircularReference(node.Paths.Back().Position, node.Paths.Back())
+		case importPackageErrorDuplication:
+			errors.ThrowIdentifierDuplicationError(node.Paths.Back().Position, node.Paths.Back())
+		case importPackageErrorInvalid:
+			errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
+		default:
+			panic("unreachable")
+		}
 	}
-
-	// 语义分析目标包
-	pkgMeans, pkgScope, err := analyseSonPackage(self, dir)
-	if err != nil || pkgMeans.Empty() {
-		// HACK: 报编译器异常而不是直接panic
-		panic(err)
-	}
-	// 放进缓存
-	self.pkgs.Set(dir, pkgScope)
-	self.pkgScope.links.Add(pkgScope)
-	return pkgMeans
+	return hirs
 }
 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	st := &hir.StructDef{
 		Public: node.Public,
-		Pkg: self.pkgScope.path,
+		Pkg: self.pkgScope.pkg,
 		Name:   node.Name.Source(),
 		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, hir.Type]](),
 		Methods: hashmap.NewHashMap[string, *hir.MethodDef](),
@@ -146,7 +109,7 @@ func (self *Analyser) declTrait(node *ast.Trait) {
 	}
 }
 
-func (self *Analyser) defTrait(selfType hir.Type, node *ast.Trait) *hir.Trait {
+func (self *Analyser) defTrait(selfType hir.Type, node *ast.Trait) *hir.TraitDef {
 	prevSelfType := self.selfType
 	self.selfType = selfType
 	defer func() {
@@ -157,8 +120,8 @@ func (self *Analyser) defTrait(selfType hir.Type, node *ast.Trait) *hir.Trait {
 	for _, pair := range node.Methods{
 		methods.Set(pair.First.Source(), self.analyseFuncType(pair.Second))
 	}
-	return &hir.Trait{
-		Pkg: filepath.Dir(node.Position().Reader.Path()),
+	return &hir.TraitDef{
+		Pkg: stlerror.MustWith(hir.NewPackage(node.Position().Reader.Path().Dir())),
 		Name: node.Name.Source(),
 		Methods: methods,
 	}
@@ -319,7 +282,7 @@ func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 		}
 	}
 
-	v := &hir.Variable{
+	v := &hir.VarDef{
 		Public:     node.Public,
 		Mut:        node.Mutable,
 		Type:       self.analyseType(node.Type.MustValue()),
@@ -481,12 +444,12 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
 	return f
 }
 
-func (self *Analyser) defGlobalVariable(node *ast.Variable) *hir.Variable {
+func (self *Analyser) defGlobalVariable(node *ast.Variable) *hir.VarDef {
 	value, ok := self.pkgScope.GetValue("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	v := value.(*hir.Variable)
+	v := value.(*hir.VarDef)
 
 	if valueNode, ok := node.Value.Value(); ok{
 		v.Value = self.expectExpr(v.Type, valueNode)

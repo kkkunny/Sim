@@ -6,17 +6,18 @@ import (
 	"unicode/utf8"
 
 	stlerror "github.com/kkkunny/stl/error"
+	stlos "github.com/kkkunny/stl/os"
 )
 
 // IO读取器
 type _IOReader struct {
-	path    string
+	path    stlos.FilePath
 	reader  io.ReadSeeker
 	rowLens []uint
 }
 
 // NewReaderFromIO 从io中新建读取器
-func NewReaderFromIO(path string, reader io.ReadSeeker) (Reader, stlerror.Error) {
+func NewReaderFromIO(path stlos.FilePath, reader io.ReadSeeker) (Reader, stlerror.Error) {
 	var rowlens []uint
 	var rowLen uint
 	for {
@@ -47,7 +48,7 @@ func NewReaderFromIO(path string, reader io.ReadSeeker) (Reader, stlerror.Error)
 	}, nil
 }
 
-func (self _IOReader) Path() string {
+func (self _IOReader) Path() stlos.FilePath {
 	return self.path
 }
 

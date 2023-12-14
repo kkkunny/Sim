@@ -1,12 +1,11 @@
 package analyse
 
 import (
-	"path/filepath"
-
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
+	stlerror "github.com/kkkunny/stl/error"
 
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/hir"
@@ -20,7 +19,7 @@ type Analyser struct {
 	parent *Analyser
 	asts   linkedlist.LinkedList[ast.Global]
 
-	pkgs       *hashmap.HashMap[string, *_PkgScope]
+	pkgs       *hashmap.HashMap[hir.Package, *_PkgScope]
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 
@@ -32,37 +31,33 @@ type Analyser struct {
 }
 
 func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
-	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
-	pkgs := hashmap.NewHashMap[string, *_PkgScope]()
+	var pkg hir.Package
+	if !asts.Empty(){
+		pkg = stlerror.MustWith(hir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
+	}
+	pkgs := hashmap.NewHashMap[hir.Package, *_PkgScope]()
 	return &Analyser{
 		asts:     asts,
 		pkgs:     &pkgs,
-		pkgScope: _NewPkgScope(pkgPath),
+		pkgScope: _NewPkgScope(pkg),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
 		genericFuncScope: hashmap.NewHashMap[*hir.GenericFuncDef, *_FuncScope](),
 	}
 }
 
 func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser {
-	pkgPath := filepath.Dir(asts.Front().Position().Reader.Path())
+	var pkg hir.Package
+	if !asts.Empty(){
+		pkg = stlerror.MustWith(hir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
+	}
 	return &Analyser{
 		parent:   parent,
 		asts:     asts,
 		pkgs:     parent.pkgs,
-		pkgScope: _NewPkgScope(pkgPath),
+		pkgScope: _NewPkgScope(pkg),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
 		genericFuncScope: hashmap.NewHashMap[*hir.GenericFuncDef, *_FuncScope](),
 	}
-}
-
-func (self *Analyser) checkLoopImport(path string) bool {
-	if self.pkgScope.path == path {
-		return true
-	}
-	if self.parent != nil {
-		return self.parent.checkLoopImport(path)
-	}
-	return false
 }
 
 // Analyse 分析语义
@@ -70,8 +65,9 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	meanNodes := linkedlist.NewLinkedList[hir.Global]()
 
 	// 包
-	if !self.pkgScope.IsBuildIn() {
-		meanNodes.Append(self.importBuildInPackage())
+	if self.pkgScope.pkg != hir.BuildInPackage {
+		hirs, _ := self.importPackage(hir.BuildInPackage, "", true)
+		meanNodes.Append(hirs)
 	}
 	iterator.Foreach(self.asts, func(v ast.Global) bool {
 		if im, ok := v.(*ast.Import); ok {
