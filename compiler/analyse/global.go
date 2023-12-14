@@ -59,8 +59,8 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.
 
 func (self *Analyser) declTypeDef(node *ast.StructDef) {
 	st := &hir.StructDef{
-		Public: node.Public,
 		Pkg: self.pkgScope.pkg,
+		Public: node.Public,
 		Name:   node.Name.Source(),
 		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, hir.Type]](),
 		Methods: hashmap.NewHashMap[string, *hir.MethodDef](),
@@ -200,6 +200,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		}
 	})
 	f := &hir.FuncDef{
+		Pkg: self.pkgScope.pkg,
 		Public:     node.Public,
 		ExternName: externName,
 		Name:       node.Name.Source(),
@@ -253,6 +254,7 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		}
 	})
 	f := &hir.MethodDef{
+		Pkg: self.pkgScope.pkg,
 		Public:    node.Public,
 		Scope:     st,
 		Name:      node.Name.Source(),
@@ -283,6 +285,7 @@ func (self *Analyser) declGlobalVariable(node *ast.Variable) {
 	}
 
 	v := &hir.VarDef{
+		Pkg: self.pkgScope.pkg,
 		Public:     node.Public,
 		Mut:        node.Mutable,
 		Type:       self.analyseType(node.Type.MustValue()),
@@ -328,6 +331,7 @@ func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
 	}
 
 	f := &hir.GenericFuncDef{
+		Pkg: self.pkgScope.pkg,
 		Public:     node.Public,
 		Name:       node.Name.Source(),
 		GenericParams: genericParams,

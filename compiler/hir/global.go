@@ -13,16 +13,21 @@ import (
 
 // Global 全局
 type Global interface {
+	GetPackage()Package
 	GetPublic() bool
 }
 
 // StructDef 结构体定义
 type StructDef struct {
-	Public bool
 	Pkg Package
+	Public bool
 	Name   string
 	Fields linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]
 	Methods hashmap.HashMap[string, *MethodDef]
+}
+
+func (self *StructDef) GetPackage()Package{
+	return self.Pkg
 }
 
 func (self *StructDef) GetPublic() bool {
@@ -51,12 +56,17 @@ func (self *StructDef) GetImplMethod(name string, ft *FuncType)*MethodDef{
 
 // VarDef 变量定义
 type VarDef struct {
+	Pkg Package
 	Public     bool
 	Mut        bool
 	Type       Type
 	ExternName string
 	Name       string
 	Value      Expr
+}
+
+func (self *VarDef) GetPackage()Package{
+	return self.Pkg
 }
 
 func (self *VarDef) GetPublic() bool {
@@ -82,12 +92,17 @@ type GlobalFunc interface {
 
 // FuncDef 函数定义
 type FuncDef struct {
+	Pkg Package
 	Public     bool
 	ExternName string
 	Name       string
 	Params     []*Param
 	Ret        Type
 	Body       util.Option[*Block]
+}
+
+func (self *FuncDef) GetPackage()Package{
+	return self.Pkg
 }
 
 func (self *FuncDef) GetPublic() bool {
@@ -118,6 +133,7 @@ func (*FuncDef) ident() {}
 
 // MethodDef 方法定义
 type MethodDef struct {
+	Pkg Package
 	Public     bool
 	Scope *StructDef
 	Name       string
@@ -125,6 +141,10 @@ type MethodDef struct {
 	Params     []*Param
 	Ret        Type
 	Body       *Block
+}
+
+func (self *MethodDef) GetPackage()Package{
+	return self.Pkg
 }
 
 func (self *MethodDef) GetPublic() bool {
@@ -163,6 +183,7 @@ func (self *MethodDef) GetMethodType() *FuncType {
 
 // GenericFuncDef 泛型函数定义
 type GenericFuncDef struct {
+	Pkg Package
 	Public     bool
 	Name       string
 	GenericParams linkedhashmap.LinkedHashMap[string, *GenericParam]
@@ -171,6 +192,10 @@ type GenericFuncDef struct {
 	Body       *Block
 
 	Instances hashmap.HashMap[string, *GenericFuncInstance]
+}
+
+func (self *GenericFuncDef) GetPackage()Package{
+	return self.Pkg
 }
 
 func (self *GenericFuncDef) GetPublic() bool {
@@ -215,6 +240,10 @@ type TraitDef struct {
 	Pkg Package
 	Name string
 	Methods hashmap.HashMap[string, *FuncType]
+}
+
+func (self *TraitDef) GetPackage()Package{
+	return self.Pkg
 }
 
 func DefaultTrait(t Type)*TraitDef {

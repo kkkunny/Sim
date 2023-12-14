@@ -2,9 +2,7 @@ module github.com/kkkunny/Sim
 
 go 1.21.3
 
-replace github.com/kkkunny/stl v0.0.0-20231213142909-ea2e4638d64f => E:\go\src\github.com\kkkunny\stl
-
-require github.com/kkkunny/stl v0.0.0-20231213142909-ea2e4638d64f
+require github.com/kkkunny/stl v0.0.0-20231214140006-3dfc1f734e02
 
 require (
 	github.com/kkkunny/go-llvm v0.0.0-20231211123616-ac9b8433f29c

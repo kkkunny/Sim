@@ -86,6 +86,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 
 func (self *Analyser) analyseLocalVariable(node *ast.Variable) *hir.VarDef {
 	v := &hir.VarDef{
+		Pkg: self.pkgScope.pkg,
 		Mut:  node.Mutable,
 		Name: node.Name.Source(),
 	}
