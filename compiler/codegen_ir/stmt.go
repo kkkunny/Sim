@@ -3,6 +3,7 @@ package codegen_ir
 import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/iterator"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
@@ -71,14 +72,13 @@ func (self *CodeGenerator) codegenLocalVariable(node *hir.VarDef) mir.Value {
 }
 
 func (self *CodeGenerator) codegenMultiLocalVariable(node *hir.MultiVarDef) mir.Value {
-	for i, varNode := range node.Vars{
+	for _, varNode := range node.Vars{
 		ptr := self.builder.BuildAllocFromStack(self.codegenType(varNode.Type))
-		self.builder.BuildStore(self.codegenExtract(&hir.Extract{
-			From: node.Value,
-			Index: uint(i),
-		}, true), ptr)
 		self.values.Set(varNode, ptr)
 	}
+	self.codegenUnTuple(node.Value, lo.Map(node.Vars, func(item *hir.VarDef, _ int) hir.Expr {
+		return item
+	}))
 	return nil
 }
 

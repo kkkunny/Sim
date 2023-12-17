@@ -1,7 +1,8 @@
-pub let (mut m: i32, n: i8)
-
 func main()u8{
-    let (mut m: i32, n) = (1, 2 as u8)
-    let x = 1
-    return n
+	let mut i: u8 = 0
+	let mut j: u8 = 0
+	let mut m: u8 = 0
+	let n: ((u8, u8), u8) = ((1, 2), 3)
+	((i, j), m) = n
+    return m - 3
 }

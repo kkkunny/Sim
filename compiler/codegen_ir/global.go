@@ -1,6 +1,8 @@
 package codegen_ir
 
 import (
+	"github.com/samber/lo"
+
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 )
@@ -137,15 +139,9 @@ func (self *CodeGenerator) defMultiGlobalVariable(node *hir.MultiVarDef) {
 		}
 	}else{
 		self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
-		for i, varNode := range node.Vars{
-			self.codegenAssign(&hir.Assign{
-				Left: varNode,
-				Right: &hir.Extract{
-					From: node.Value,
-					Index: uint(i),
-				},
-			})
-		}
+		self.codegenUnTuple(node.Value, lo.Map(node.Vars, func(item *hir.VarDef, _ int) hir.Expr {
+			return item
+		}))
 	}
 }
 

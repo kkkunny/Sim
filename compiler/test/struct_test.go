@@ -52,8 +52,7 @@ func main()u8{
 func TestSelf(t *testing.T) {
 	assertRetEqZero(t, `
 struct T{
-    data: u8,
-    ptr: *Self
+    data: u8
 }
 
 func (mut T) get_data()u8{

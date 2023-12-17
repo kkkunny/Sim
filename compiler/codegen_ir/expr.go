@@ -77,30 +77,38 @@ func (self *CodeGenerator) codegenBool(node *hir.Boolean) *mir.Uint {
 }
 
 func (self *CodeGenerator) codegenAssign(node *hir.Assign) {
-	if lpack, ok := node.Left.(*hir.Tuple); ok {
-		// 解包
-		if rpack, ok := node.Right.(*hir.Tuple); ok {
-			for i, le := range lpack.Elems {
-				re := rpack.Elems[i]
-				self.codegenAssign(&hir.Assign{
-					Left:  le,
-					Right: re,
-				})
-			}
-		} else {
-			for i, le := range lpack.Elems {
-				self.codegenAssign(&hir.Assign{
-					Left: le,
-					Right: &hir.Extract{
-						From:  node.Right,
-						Index: uint(i),
-					},
-				})
-			}
-		}
+	if l, ok := node.Left.(*hir.Tuple); ok {
+		self.codegenUnTuple(node.Right, l.Elems)
 	} else {
 		left, right := self.codegenExpr(node.GetLeft(), false), self.codegenExpr(node.GetRight(), true)
 		self.builder.BuildStore(right, left)
+	}
+}
+
+func (self *CodeGenerator) codegenUnTuple(fromNode hir.Expr, toNodes []hir.Expr) {
+	if tupleNode, ok := fromNode.(*hir.Tuple); ok{
+		for i, l := range toNodes {
+			self.codegenAssign(&hir.Assign{
+				Left:  l,
+				Right: tupleNode.Elems[i],
+			})
+		}
+	}else{
+		var unTuple func(from mir.Value, toNodes []hir.Expr)
+		unTuple = func(from mir.Value, toNodes []hir.Expr) {
+			for i, toNode := range toNodes{
+				if toNodes, ok := toNode.(*hir.Tuple); ok{
+					index := self.buildStructIndex(from, uint64(i))
+					unTuple(index, toNodes.Elems)
+				}else{
+					value := self.buildStructIndex(from, uint64(i), false)
+					to := self.codegenExpr(toNode, false)
+					self.builder.BuildStore(value, to)
+				}
+			}
+		}
+		from := self.codegenExpr(fromNode, false)
+		unTuple(from, toNodes)
 	}
 }
 
