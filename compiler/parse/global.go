@@ -160,13 +160,7 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.Stru
 	}
 }
 
-func (self *Parser) parseVariable(global bool, attrs []ast.Attr, pub *token.Token) *ast.Variable {
-	expectAttrIn(attrs, new(ast.Extern))
-
-	begin := self.expectNextIs(token.LET).Position
-	if pub != nil {
-		begin = pub.Position
-	}
+func (self *Parser) parseVarDef(global bool) ast.VarDef {
 	mut := self.skipNextIs(token.MUT)
 	name := self.expectNextIs(token.IDENT)
 	typ := util.None[ast.Type]()
@@ -174,19 +168,66 @@ func (self *Parser) parseVariable(global bool, attrs []ast.Attr, pub *token.Toke
 		self.expectNextIs(token.COL)
 		typ = util.Some(self.parseType())
 	}
+	return ast.VarDef{
+		Mutable: mut,
+		Name: name,
+		Type: typ,
+	}
+}
+
+func (self *Parser) parseVariable(global bool, attrs []ast.Attr, pub *token.Token) ast.VariableDef {
+	begin := self.expectNextIs(token.LET).Position
+	if pub != nil {
+		begin = pub.Position
+	}
+	if !self.nextIs(token.LPA){
+		return self.parseSingleVariable(begin, attrs, global, pub != nil)
+	}else{
+		return self.parseMultipleVariable(begin, attrs, global, pub != nil)
+	}
+}
+
+func (self *Parser) parseSingleVariable(begin reader.Position, attrs []ast.Attr, global bool, pub bool) *ast.SingleVariableDef {
+	expectAttrIn(attrs, new(ast.Extern))
+
+	varDef := self.parseVarDef(global)
 	value := util.None[ast.Expr]()
-	if self.nextIs(token.ASS) || typ.IsNone(){
+	if self.nextIs(token.ASS) || varDef.Type.IsNone(){
 		self.expectNextIs(token.ASS)
 		value = util.Some(self.mustExpr(self.parseOptionExpr(true)))
 	}
-	return &ast.Variable{
+	return &ast.SingleVariableDef{
 		Attrs:   attrs,
-		Public:  mut,
+		Public:  pub,
 		Begin:   begin,
-		Mutable: mut,
-		Name:    name,
-		Type:    typ,
+		Var: varDef,
 		Value:   value,
+	}
+}
+
+func (self *Parser) parseMultipleVariable(begin reader.Position, attrs []ast.Attr, global bool, pub bool) *ast.MultipleVariableDef {
+	expectAttrIn(attrs)
+
+	self.expectNextIs(token.LPA)
+	var anyNoType bool
+	varDefs := loopParseWithUtil(self, token.COM, token.RPA, func() ast.VarDef {
+		varDef := self.parseVarDef(global)
+		anyNoType = anyNoType || varDef.Type.IsNone()
+		return varDef
+	})
+	self.expectNextIs(token.RPA)
+	value := util.None[ast.Expr]()
+	if self.nextIs(token.ASS) || anyNoType {
+		self.expectNextIs(token.ASS)
+		value = util.Some(self.mustExpr(self.parseOptionExpr(true)))
+	}
+	return &ast.MultipleVariableDef{
+		Attrs:   attrs,
+		Public:  pub,
+		Begin:   begin,
+		Vars: varDefs,
+		Value:   value,
+		End: self.curTok.Position,
 	}
 }
 

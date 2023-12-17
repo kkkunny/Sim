@@ -208,7 +208,7 @@ func main()u8{
 `)
 }
 
-func TestUnpack(t *testing.T) {
+func TestUnTuple(t *testing.T) {
 	assertRetEqZero(t, `
 func main()u8{
 	let mut i: u8 = 0

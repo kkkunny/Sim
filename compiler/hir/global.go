@@ -85,6 +85,27 @@ func (self *VarDef) Mutable() bool {
 
 func (*VarDef) ident() {}
 
+// MultiVarDef 多变量定义
+type MultiVarDef struct {
+	Vars []*VarDef
+	Value      Expr
+}
+
+func (self *MultiVarDef) GetPackage()Package{
+	return self.Vars[0].GetPackage()
+}
+
+func (self *MultiVarDef) GetPublic() bool {
+	for _, v := range self.Vars{
+		if !v.Public{
+			return false
+		}
+	}
+	return true
+}
+
+func (*MultiVarDef) stmt() {}
+
 type GlobalFunc interface {
 	Global
 	GetFuncType()*FuncType

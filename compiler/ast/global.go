@@ -55,28 +55,72 @@ func (self *StructDef) Position() reader.Position {
 
 func (*StructDef) global() {}
 
-// Variable 变量定义
-type Variable struct {
-	Attrs   []Attr
-	Begin   reader.Position
-	Public  bool
+type VariableDef interface {
+	Global
+	Stmt
+	variable()
+}
+
+type VarDef struct {
 	Mutable bool
 	Name    token.Token
 	Type    util.Option[Type]
-	Value   util.Option[Expr]
 }
 
-func (self *Variable) Position() reader.Position {
+// SingleVariableDef 单变量定义
+type SingleVariableDef struct {
+	Attrs   []Attr
+	Begin   reader.Position
+	Public bool
+	Var    VarDef
+	Value  util.Option[Expr]
+}
+
+func (self *SingleVariableDef) Position() reader.Position {
 	if v, ok := self.Value.Value(); ok{
 		return reader.MixPosition(self.Begin, v.Position())
 	}else{
-		return reader.MixPosition(self.Begin, self.Type.MustValue().Position())
+		return reader.MixPosition(self.Begin, self.Var.Type.MustValue().Position())
 	}
 }
 
-func (*Variable) stmt() {}
+func (*SingleVariableDef) stmt() {}
 
-func (*Variable) global() {}
+func (*SingleVariableDef) global() {}
+
+func (*SingleVariableDef) variable() {}
+
+// MultipleVariableDef 多变量定义
+type MultipleVariableDef struct {
+	Attrs   []Attr
+	Begin   reader.Position
+	Public  bool
+	Vars []VarDef
+	Value   util.Option[Expr]
+	End reader.Position
+}
+
+func (self *MultipleVariableDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (*MultipleVariableDef) stmt() {}
+
+func (*MultipleVariableDef) global() {}
+
+func (*MultipleVariableDef) variable() {}
+
+func (self *MultipleVariableDef) ToSingleList()[]*SingleVariableDef{
+	return lo.Map(self.Vars, func(item VarDef, _ int) *SingleVariableDef {
+		return &SingleVariableDef{
+			Attrs: self.Attrs,
+			Begin: self.Begin,
+			Public: self.Public,
+			Var: item,
+			Value: util.None[Expr](),
+		}
+	})
+}
 
 // Import 包导入
 type Import struct {

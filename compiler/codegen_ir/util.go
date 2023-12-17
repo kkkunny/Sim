@@ -15,7 +15,7 @@ import (
 
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
 	switch meanType := t.(type) {
-	case hir.IntType, *hir.BoolType, *hir.FloatType:
+	case hir.NumberType, *hir.BoolType:
 		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
 	case *hir.FuncType, *hir.PtrType, *hir.RefType:
 		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)

@@ -1,9 +1,8 @@
-import std::c
-
-func b()c::a{
-    return 1
-}
-
 func main()u8{
-    return 0
+	let mut i: u8 = 0
+	let mut j: u8 = 0
+	let mut m: u8 = 0
+	let n: ((u8, u8), u8) = ((1, 2), 3)
+	((i, j), m) = n
+    return m - 3
 }

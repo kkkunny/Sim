@@ -1,6 +1,8 @@
 package codegen_ir
 
 import (
+	"github.com/samber/lo"
+
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 )
@@ -27,6 +29,8 @@ func (self *CodeGenerator) codegenGlobalDecl(node hir.Global) {
 		self.declMethodDef(globalNode)
 	case *hir.VarDef:
 		self.declGlobalVariable(globalNode)
+	case *hir.MultiVarDef:
+		self.declMultiGlobalVariable(globalNode)
 	case *hir.GenericFuncDef:
 		self.declGenericFuncDef(globalNode)
 	case *hir.StructDef:
@@ -53,6 +57,12 @@ func (self *CodeGenerator) declGlobalVariable(node *hir.VarDef) {
 	self.values.Set(node, v)
 }
 
+func (self *CodeGenerator) declMultiGlobalVariable(node *hir.MultiVarDef) {
+	for _, varDef := range node.Vars{
+		self.declGlobalVariable(varDef)
+	}
+}
+
 func (self *CodeGenerator) declGenericFuncDef(node *hir.GenericFuncDef) {
 	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
 		inst := iter.Value()
@@ -76,6 +86,8 @@ func (self *CodeGenerator) codegenGlobalDef(node hir.Global) {
 		self.defStructDef(globalNode)
 	case *hir.VarDef:
 		self.defGlobalVariable(globalNode)
+	case *hir.MultiVarDef:
+		self.defMultiGlobalVariable(globalNode)
 	case *hir.GenericFuncDef:
 		self.defGenericFuncDef(globalNode)
 	default:
@@ -116,6 +128,20 @@ func (self *CodeGenerator) defGlobalVariable(node *hir.VarDef) {
 		gv.SetValue(constValue)
 	} else {
 		self.builder.BuildStore(value, gv)
+	}
+}
+
+func (self *CodeGenerator) defMultiGlobalVariable(node *hir.MultiVarDef) {
+	if constant, ok := node.Value.(*hir.Tuple); ok && len(constant.Elems) == len(node.Vars){
+		for i, varNode := range node.Vars{
+			varNode.Value = constant.Elems[i]
+			self.defGlobalVariable(varNode)
+		}
+	}else{
+		self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
+		self.codegenUnTuple(node.Value, lo.Map(node.Vars, func(item *hir.VarDef, _ int) hir.Expr {
+			return item
+		}))
 	}
 }
 
