@@ -161,7 +161,9 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	case *ast.MethodDef:
 		self.declMethodDef(globalNode)
 	case *ast.SingleVariableDef:
-		self.declGlobalVariable(globalNode)
+		self.declSingleGlobalVariable(globalNode)
+	case *ast.MultipleVariableDef:
+		self.declMultiGlobalVariable(globalNode)
 	case *ast.GenericFuncDef:
 		self.declGenericFuncDef(globalNode)
 	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.Trait:
@@ -272,7 +274,7 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 	st.Methods.Set(f.Name, f)
 }
 
-func (self *Analyser) declGlobalVariable(node *ast.SingleVariableDef) {
+func (self *Analyser) declSingleGlobalVariable(node *ast.SingleVariableDef) {
 	var externName string
 	for _, attrObj := range node.Attrs {
 		switch attr := attrObj.(type) {
@@ -287,13 +289,19 @@ func (self *Analyser) declGlobalVariable(node *ast.SingleVariableDef) {
 	v := &hir.VarDef{
 		Pkg: self.pkgScope.pkg,
 		Public:     node.Public,
-		Mut:        node.Mutable,
-		Type:       self.analyseType(node.Type.MustValue()),
+		Mut:        node.Var.Mutable,
+		Type:       self.analyseType(node.Var.Type.MustValue()),
 		ExternName: externName,
-		Name:       node.Name.Source(),
+		Name:       node.Var.Name.Source(),
 	}
 	if !self.pkgScope.SetValue(v.Name, v) {
-		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
+	}
+}
+
+func (self *Analyser) declMultiGlobalVariable(node *ast.MultipleVariableDef) {
+	for _, single := range node.ToSingleList(){
+		self.declSingleGlobalVariable(single)
 	}
 }
 
@@ -370,7 +378,9 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 	case *ast.MethodDef:
 		return self.defMethodDef(globalNode)
 	case *ast.SingleVariableDef:
-		return self.defGlobalVariable(globalNode)
+		return self.defSingleGlobalVariable(globalNode)
+	case *ast.MultipleVariableDef:
+		return self.defMultiGlobalVariable(globalNode)
 	case *ast.GenericFuncDef:
 		return self.defGenericFuncDef(globalNode)
 	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.Trait:
@@ -448,8 +458,8 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
 	return f
 }
 
-func (self *Analyser) defGlobalVariable(node *ast.SingleVariableDef) *hir.VarDef {
-	value, ok := self.pkgScope.GetValue("", node.Name.Source())
+func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *hir.VarDef {
+	value, ok := self.pkgScope.GetValue("", node.Var.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
@@ -458,9 +468,37 @@ func (self *Analyser) defGlobalVariable(node *ast.SingleVariableDef) *hir.VarDef
 	if valueNode, ok := node.Value.Value(); ok{
 		v.Value = self.expectExpr(v.Type, valueNode)
 	}else{
-		v.Value = self.getTypeDefaultValue(node.Type.MustValue().Position(), v.Type)
+		v.Value = self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type)
 	}
 	return v
+}
+
+func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) *hir.MultiVarDef {
+	vars := lo.Map(node.Vars, func(item ast.VarDef, _ int) *hir.VarDef {
+		value, ok := self.pkgScope.GetValue("", item.Name.Source())
+		if !ok {
+			panic("unreachable")
+		}
+		return value.(*hir.VarDef)
+	})
+	varTypes := lo.Map(vars, func(item *hir.VarDef, _ int) hir.Type {
+		return item.GetType()
+	})
+
+	var value hir.Expr
+	if valueNode, ok := node.Value.Value(); ok{
+		value = self.expectExpr(&hir.TupleType{Elems: varTypes}, valueNode)
+	}else{
+		tupleValue := &hir.Tuple{Elems: make([]hir.Expr, len(vars))}
+		for i, varDef := range node.Vars{
+			tupleValue.Elems[i] = self.getTypeDefaultValue(varDef.Type.MustValue().Position(), varTypes[i])
+		}
+		value = tupleValue
+	}
+	return &hir.MultiVarDef{
+		Vars: vars,
+		Value: value,
+	}
 }
 
 func (self *Analyser) defGenericFuncDef(node *ast.GenericFuncDef) *hir.GenericFuncDef {

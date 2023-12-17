@@ -110,6 +110,18 @@ func (*MultipleVariableDef) global() {}
 
 func (*MultipleVariableDef) variable() {}
 
+func (self *MultipleVariableDef) ToSingleList()[]*SingleVariableDef{
+	return lo.Map(self.Vars, func(item VarDef, _ int) *SingleVariableDef {
+		return &SingleVariableDef{
+			Attrs: self.Attrs,
+			Begin: self.Begin,
+			Public: self.Public,
+			Var: item,
+			Value: util.None[Expr](),
+		}
+	})
+}
+
 // Import 包导入
 type Import struct {
 	Begin reader.Position

@@ -176,8 +176,6 @@ func (self *Parser) parseVarDef(global bool) ast.VarDef {
 }
 
 func (self *Parser) parseVariable(global bool, attrs []ast.Attr, pub *token.Token) ast.VariableDef {
-	expectAttrIn(attrs, new(ast.Extern))
-
 	begin := self.expectNextIs(token.LET).Position
 	if pub != nil {
 		begin = pub.Position
@@ -190,6 +188,8 @@ func (self *Parser) parseVariable(global bool, attrs []ast.Attr, pub *token.Toke
 }
 
 func (self *Parser) parseSingleVariable(begin reader.Position, attrs []ast.Attr, global bool, pub bool) *ast.SingleVariableDef {
+	expectAttrIn(attrs, new(ast.Extern))
+
 	varDef := self.parseVarDef(global)
 	value := util.None[ast.Expr]()
 	if self.nextIs(token.ASS) || varDef.Type.IsNone(){
@@ -206,6 +206,8 @@ func (self *Parser) parseSingleVariable(begin reader.Position, attrs []ast.Attr,
 }
 
 func (self *Parser) parseMultipleVariable(begin reader.Position, attrs []ast.Attr, global bool, pub bool) *ast.MultipleVariableDef {
+	expectAttrIn(attrs)
+
 	self.expectNextIs(token.LPA)
 	var anyNoType bool
 	varDefs := loopParseWithUtil(self, token.COM, token.RPA, func() ast.VarDef {

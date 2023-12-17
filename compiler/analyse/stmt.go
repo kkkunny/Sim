@@ -3,6 +3,7 @@ package analyse
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 
@@ -16,8 +17,10 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
 	case *ast.Return:
 		ret := self.analyseReturn(stmtNode)
 		return ret, hir.BlockEofReturn
-	case *ast.SingleVariable:
-		return self.analyseLocalVariable(stmtNode), hir.BlockEofNone
+	case *ast.SingleVariableDef:
+		return self.analyseSingleLocalVariable(stmtNode), hir.BlockEofNone
+	case *ast.MultipleVariableDef:
+		return self.analyseLocalMultiVariable(stmtNode), hir.BlockEofNone
 	case *ast.Block:
 		return self.analyseBlock(stmtNode, nil)
 	case *ast.IfElse:
@@ -84,17 +87,17 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 	}
 }
 
-func (self *Analyser) analyseLocalVariable(node *ast.SingleVariable) *hir.VarDef {
+func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *hir.VarDef {
 	v := &hir.VarDef{
 		Pkg: self.pkgScope.pkg,
-		Mut:  node.Mutable,
-		Name: node.Name.Source(),
+		Mut:  node.Var.Mutable,
+		Name: node.Var.Name.Source(),
 	}
 	if !self.localScope.SetValue(v.Name, v) {
-		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
+		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
 
-	if typeNode, ok := node.Type.Value(); ok{
+	if typeNode, ok := node.Var.Type.Value(); ok{
 		v.Type = self.analyseType(typeNode)
 		if valueNode, ok := node.Value.Value(); ok{
 			v.Value = self.expectExpr(v.Type, valueNode)
@@ -106,6 +109,54 @@ func (self *Analyser) analyseLocalVariable(node *ast.SingleVariable) *hir.VarDef
 		v.Type = v.Value.GetType()
 	}
 	return v
+}
+
+func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *hir.MultiVarDef {
+	allHaveType := true
+	vars := lo.Map(node.Vars, func(item ast.VarDef, _ int) *hir.VarDef {
+		v := &hir.VarDef{
+			Pkg: self.pkgScope.pkg,
+			Mut:  item.Mutable,
+			Name: item.Name.Source(),
+		}
+		if typeNode, ok := item.Type.Value(); ok{
+			v.Type = self.analyseType(typeNode)
+		}else{
+			allHaveType = false
+		}
+		if !self.localScope.SetValue(v.Name, v) {
+			errors.ThrowIdentifierDuplicationError(item.Name.Position, item.Name)
+		}
+		return v
+	})
+	varTypes := lo.Map(vars, func(item *hir.VarDef, _ int) hir.Type {
+		return item.GetType()
+	})
+
+	var value hir.Expr
+	if valueNode, ok := node.Value.Value(); ok && allHaveType{
+		value = self.expectExpr(&hir.TupleType{Elems: varTypes}, valueNode)
+	}else if ok{
+		value = self.analyseExpr(&hir.TupleType{Elems: varTypes}, valueNode)
+		vt, ok := value.GetType().(*hir.TupleType)
+		if !ok{
+			errors.ThrowNotTupleError(valueNode.Position(), value.GetType())
+		}else if len(vt.Elems) != len(vars){
+			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(vars)), uint(len(vt.Elems)))
+		}
+		for i, v := range vars{
+			v.Type = vt.Elems[i]
+		}
+	}else{
+		elems := lo.Map(vars, func(item *hir.VarDef, i int) hir.Expr {
+			return self.getTypeDefaultValue(node.Vars[i].Type.MustValue().Position(), item.GetType())
+		})
+		value = &hir.Tuple{Elems: elems}
+	}
+	return &hir.MultiVarDef{
+		Vars: vars,
+		Value: value,
+	}
 }
 
 func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof) {
