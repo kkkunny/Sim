@@ -6,4 +6,10 @@ import (
 )
 
 // ROOT 语言根目录
-var ROOT stlos.FilePath = stlerror.MustWith(stlos.GetWorkDirectory()).Dir()
+var ROOT = func() stlos.FilePath {
+	workdir := stlerror.MustWith(stlos.GetWorkDirectory())
+	if workdir.Base() == "test"{
+		workdir = workdir.Dir()
+	}
+	return workdir.Dir()
+}()
