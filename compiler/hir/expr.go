@@ -406,371 +406,49 @@ func (self *NumGeNum) GetRight() Expr {
 	return self.Right
 }
 
-// NumEqNum 数字等于数字
-type NumEqNum struct {
+// Equal 比较相等
+type Equal struct {
 	Left, Right Expr
 }
 
-func (self *NumEqNum) stmt() {}
+func (self *Equal) stmt() {}
 
-func (self *NumEqNum) GetType() Type {
+func (self *Equal) GetType() Type {
 	return Bool
 }
 
-func (self *NumEqNum) Mutable() bool {
+func (self *Equal) Mutable() bool {
 	return false
 }
 
-func (self *NumEqNum) GetLeft() Expr {
+func (self *Equal) GetLeft() Expr {
 	return self.Left
 }
 
-func (self *NumEqNum) GetRight() Expr {
+func (self *Equal) GetRight() Expr {
 	return self.Right
 }
 
-// BoolEqBool 布尔等于布尔
-type BoolEqBool struct {
+// NotEqual 比较不相等
+type NotEqual struct {
 	Left, Right Expr
 }
 
-func (self *BoolEqBool) stmt() {}
+func (self *NotEqual) stmt() {}
 
-func (self *BoolEqBool) GetType() Type {
+func (self *NotEqual) GetType() Type {
 	return Bool
 }
 
-func (self *BoolEqBool) Mutable() bool {
+func (self *NotEqual) Mutable() bool {
 	return false
 }
 
-func (self *BoolEqBool) GetLeft() Expr {
+func (self *NotEqual) GetLeft() Expr {
 	return self.Left
 }
 
-func (self *BoolEqBool) GetRight() Expr {
-	return self.Right
-}
-
-// FuncEqFunc 函数等于函数
-type FuncEqFunc struct {
-	Left, Right Expr
-}
-
-func (self *FuncEqFunc) stmt() {}
-
-func (self *FuncEqFunc) GetType() Type {
-	return Bool
-}
-
-func (self *FuncEqFunc) Mutable() bool {
-	return false
-}
-
-func (self *FuncEqFunc) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *FuncEqFunc) GetRight() Expr {
-	return self.Right
-}
-
-// ArrayEqArray 数组等于数组
-type ArrayEqArray struct {
-	Left, Right Expr
-}
-
-func (self *ArrayEqArray) stmt() {}
-
-func (self *ArrayEqArray) GetType() Type {
-	return Bool
-}
-
-func (self *ArrayEqArray) Mutable() bool {
-	return false
-}
-
-func (self *ArrayEqArray) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *ArrayEqArray) GetRight() Expr {
-	return self.Right
-}
-
-// TupleEqTuple 元组等于元组
-type TupleEqTuple struct {
-	Left, Right Expr
-}
-
-func (self *TupleEqTuple) stmt() {}
-
-func (self *TupleEqTuple) GetType() Type {
-	return Bool
-}
-
-func (self *TupleEqTuple) Mutable() bool {
-	return false
-}
-
-func (self *TupleEqTuple) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *TupleEqTuple) GetRight() Expr {
-	return self.Right
-}
-
-// StructEqStruct 结构体等于结构体
-type StructEqStruct struct {
-	Left, Right Expr
-}
-
-func (self *StructEqStruct) stmt() {}
-
-func (self *StructEqStruct) GetType() Type {
-	return Bool
-}
-
-func (self *StructEqStruct) Mutable() bool {
-	return false
-}
-
-func (self *StructEqStruct) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *StructEqStruct) GetRight() Expr {
-	return self.Right
-}
-
-// StringEqString 字符串等于字符串
-type StringEqString struct {
-	Left, Right Expr
-}
-
-func (self *StringEqString) stmt() {}
-
-func (self *StringEqString) GetType() Type {
-	return Bool
-}
-
-func (self *StringEqString) Mutable() bool {
-	return false
-}
-
-func (self *StringEqString) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *StringEqString) GetRight() Expr {
-	return self.Right
-}
-
-// UnionEqUnion 联合等于联合
-type UnionEqUnion struct {
-	Left, Right Expr
-}
-
-func (self *UnionEqUnion) stmt() {}
-
-func (self *UnionEqUnion) GetType() Type {
-	return Bool
-}
-
-func (self *UnionEqUnion) Mutable() bool {
-	return false
-}
-
-func (self *UnionEqUnion) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *UnionEqUnion) GetRight() Expr {
-	return self.Right
-}
-
-// NumNeNum 数字不等数字
-type NumNeNum struct {
-	Left, Right Expr
-}
-
-func (self *NumNeNum) stmt() {}
-
-func (self *NumNeNum) GetType() Type {
-	return Bool
-}
-
-func (self *NumNeNum) Mutable() bool {
-	return false
-}
-
-func (self *NumNeNum) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *NumNeNum) GetRight() Expr {
-	return self.Right
-}
-
-// BoolNeBool 布尔不等布尔
-type BoolNeBool struct {
-	Left, Right Expr
-}
-
-func (self *BoolNeBool) stmt() {}
-
-func (self *BoolNeBool) GetType() Type {
-	return Bool
-}
-
-func (self *BoolNeBool) Mutable() bool {
-	return false
-}
-
-func (self *BoolNeBool) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *BoolNeBool) GetRight() Expr {
-	return self.Right
-}
-
-// FuncNeFunc 函数不等函数
-type FuncNeFunc struct {
-	Left, Right Expr
-}
-
-func (self *FuncNeFunc) stmt() {}
-
-func (self *FuncNeFunc) GetType() Type {
-	return Bool
-}
-
-func (self *FuncNeFunc) Mutable() bool {
-	return false
-}
-
-func (self *FuncNeFunc) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *FuncNeFunc) GetRight() Expr {
-	return self.Right
-}
-
-// ArrayNeArray 数组不等数组
-type ArrayNeArray struct {
-	Left, Right Expr
-}
-
-func (self *ArrayNeArray) stmt() {}
-
-func (self *ArrayNeArray) GetType() Type {
-	return Bool
-}
-
-func (self *ArrayNeArray) Mutable() bool {
-	return false
-}
-
-func (self *ArrayNeArray) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *ArrayNeArray) GetRight() Expr {
-	return self.Right
-}
-
-// TupleNeTuple 元组不等元组
-type TupleNeTuple struct {
-	Left, Right Expr
-}
-
-func (self *TupleNeTuple) stmt() {}
-
-func (self *TupleNeTuple) GetType() Type {
-	return Bool
-}
-
-func (self *TupleNeTuple) Mutable() bool {
-	return false
-}
-
-func (self *TupleNeTuple) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *TupleNeTuple) GetRight() Expr {
-	return self.Right
-}
-
-// StructNeStruct 结构体不等结构体
-type StructNeStruct struct {
-	Left, Right Expr
-}
-
-func (self *StructNeStruct) stmt() {}
-
-func (self *StructNeStruct) GetType() Type {
-	return Bool
-}
-
-func (self *StructNeStruct) Mutable() bool {
-	return false
-}
-
-func (self *StructNeStruct) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *StructNeStruct) GetRight() Expr {
-	return self.Right
-}
-
-// StringNeString 字符串不等字符串
-type StringNeString struct {
-	Left, Right Expr
-}
-
-func (self *StringNeString) stmt() {}
-
-func (self *StringNeString) GetType() Type {
-	return Bool
-}
-
-func (self *StringNeString) Mutable() bool {
-	return false
-}
-
-func (self *StringNeString) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *StringNeString) GetRight() Expr {
-	return self.Right
-}
-
-// UnionNeUnion 联合不等于联合
-type UnionNeUnion struct {
-	Left, Right Expr
-}
-
-func (self *UnionNeUnion) stmt() {}
-
-func (self *UnionNeUnion) GetType() Type {
-	return Bool
-}
-
-func (self *UnionNeUnion) Mutable() bool {
-	return false
-}
-
-func (self *UnionNeUnion) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *UnionNeUnion) GetRight() Expr {
+func (self *NotEqual) GetRight() Expr {
 	return self.Right
 }
 

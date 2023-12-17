@@ -217,112 +217,24 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 		}
 	case token.EQ:
 		if lt.Equal(rt) {
-			switch {
-			case stlbasic.Is[hir.NumberType](lt):
-				return &hir.NumEqNum{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.BoolType](lt):
-				return &hir.BoolEqBool{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.FuncType](lt):
-				return &hir.FuncEqFunc{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.ArrayType](lt):
-				return &hir.ArrayEqArray{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.TupleType](lt):
-				return &hir.TupleEqTuple{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StructType](lt):
-				return &hir.StructEqStruct{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StringType](lt):
-				return &hir.StringEqString{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.UnionType](lt):
-				return &hir.UnionEqUnion{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StringType](lt):
-				return &hir.StringEqString{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.UnionType](lt):
-				return &hir.UnionEqUnion{
+			if stlbasic.Is[hir.NumberType](lt) || stlbasic.Is[*hir.BoolType](lt) || stlbasic.Is[*hir.FuncType](lt) ||
+			stlbasic.Is[*hir.ArrayType](lt) || stlbasic.Is[*hir.TupleType](lt) || stlbasic.Is[*hir.StructType](lt) ||
+			stlbasic.Is[*hir.StringType](lt) || stlbasic.Is[*hir.UnionType](lt) || stlbasic.Is[*hir.PtrType](lt) ||
+			stlbasic.Is[*hir.RefType](lt){
+				return &hir.Equal{
 					Left:  left,
 					Right: right,
 				}
 			}
 		}
 	case token.NE:
-		if lt.Equal(rt) {
-			switch {
-			case stlbasic.Is[hir.NumberType](lt):
-				return &hir.NumNeNum{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.BoolType](lt):
-				return &hir.BoolNeBool{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.FuncType](lt):
-				return &hir.FuncNeFunc{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.ArrayType](lt):
-				return &hir.ArrayNeArray{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.TupleType](lt):
-				return &hir.TupleNeTuple{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StructType](lt):
-				return &hir.StructNeStruct{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StringType](lt):
-				return &hir.StringNeString{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.UnionType](lt):
-				return &hir.UnionNeUnion{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StringType](lt):
-				return &hir.StringNeString{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.UnionType](lt):
-				return &hir.UnionNeUnion{
-					Left:  left,
-					Right: right,
-				}
+		if stlbasic.Is[hir.NumberType](lt) || stlbasic.Is[*hir.BoolType](lt) || stlbasic.Is[*hir.FuncType](lt) ||
+			stlbasic.Is[*hir.ArrayType](lt) || stlbasic.Is[*hir.TupleType](lt) || stlbasic.Is[*hir.StructType](lt) ||
+			stlbasic.Is[*hir.StringType](lt) || stlbasic.Is[*hir.UnionType](lt) || stlbasic.Is[*hir.PtrType](lt) ||
+			stlbasic.Is[*hir.RefType](lt){
+			return &hir.NotEqual{
+				Left:  left,
+				Right: right,
 			}
 		}
 	case token.LT:

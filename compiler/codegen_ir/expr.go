@@ -143,9 +143,9 @@ func (self *CodeGenerator) codegenBinary(node hir.Binary) mir.Value {
 		return self.builder.BuildCmp(mir.CmpKindLE, left, right)
 	case *hir.NumGeNum:
 		return self.builder.BuildCmp(mir.CmpKindGE, left, right)
-	case *hir.NumEqNum, *hir.BoolEqBool, *hir.FuncEqFunc, *hir.ArrayEqArray, *hir.StructEqStruct, *hir.TupleEqTuple, *hir.StringEqString, *hir.UnionEqUnion:
+	case *hir.Equal:
 		return self.buildEqual(node.GetLeft().GetType(), left, right, false)
-	case *hir.NumNeNum, *hir.BoolNeBool, *hir.FuncNeFunc, *hir.ArrayNeArray, *hir.StructNeStruct, *hir.TupleNeTuple, *hir.StringNeString, *hir.UnionNeUnion:
+	case *hir.NotEqual:
 		return self.buildEqual(node.GetLeft().GetType(), left, right, true)
 	default:
 		panic("unreachable")
