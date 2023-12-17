@@ -21,4 +21,4 @@ pub type str = str
 
 pub type byte = u8
 
-pub type ptr = *u8?
+pub type ptr = *?u8

@@ -114,17 +114,16 @@ func (self *Parser) parseUnionType() *ast.UnionType {
 
 func (self *Parser) parsePtrOrRefType() ast.Type {
 	begin := self.expectNextIs(token.MUL).Position
-	elem := self.parseType()
-	if self.skipNextIs(token.QUE) {
+	if self.skipNextIs(token.QUE){
+		elem := self.parseType()
 		return &ast.PtrType{
 			Begin: begin,
 			Elem:  elem,
-			End:   self.curTok.Position,
 		}
-	} else {
+	}else{
 		return &ast.RefType{
 			Begin: begin,
-			Elem:  elem,
+			Elem:  self.parseType(),
 		}
 	}
 }
