@@ -28,6 +28,7 @@ type _PkgScope struct {
 	traits hashmap.HashMap[string, pair.Pair[bool, *ast.Trait]]
 
 	genericFunctions hashmap.HashMap[string, *hir.GenericFuncDef]
+	genericStructs hashmap.HashMap[string, *hir.GenericStructDef]
 }
 
 func _NewPkgScope(pkg hir.Package) *_PkgScope {
@@ -40,6 +41,7 @@ func _NewPkgScope(pkg hir.Package) *_PkgScope {
 		typeAlias:        hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, hir.Type]]](),
 		traits:           hashmap.NewHashMap[string, pair.Pair[bool, *ast.Trait]](),
 		genericFunctions: hashmap.NewHashMap[string, *hir.GenericFuncDef](),
+		genericStructs: hashmap.NewHashMap[string, *hir.GenericStructDef](),
 	}
 }
 
@@ -92,6 +94,9 @@ func (self *_PkgScope) SetStruct(st *hir.StructType) bool {
 		return false
 	}
 	if _, ok := self.getTypeAlias(st.Name); ok {
+		return false
+	}
+	if _, ok := self.getGenericStruct(st.Name); ok {
 		return false
 	}
 	self.structs.Set(st.Name, st)
@@ -179,6 +184,9 @@ func (self *_PkgScope) DeclTypeAlias(name string, node *ast.TypeAlias) bool {
 	if _, ok := self.getTypeAlias(name); ok {
 		return false
 	}
+	if _, ok := self.getGenericStruct(name); ok {
+		return false
+	}
 	self.typeAlias.Set(name, pair.NewPair(node.Public, either.Left[*ast.TypeAlias, hir.Type](node)))
 	return true
 }
@@ -264,6 +272,53 @@ func (self *_PkgScope) GetGenericFunction(pkg, name string) (*hir.GenericFuncDef
 		return nil, false
 	}
 	return f, true
+}
+
+func (self *_PkgScope) SetGenericStruct(st *hir.GenericStructDef) bool {
+	if _, ok := self.getStruct(st.Name); ok {
+		return false
+	}
+	if _, ok := self.getTypeAlias(st.Name); ok {
+		return false
+	}
+	if _, ok := self.getGenericStruct(st.Name); ok {
+		return false
+	}
+	self.genericStructs.Set(st.Name, st)
+	return true
+}
+
+func (self *_PkgScope) getLocalGenericStruct(name string) (*hir.GenericStructDef, bool) {
+	return self.genericStructs.Get(name), self.genericStructs.ContainKey(name)
+}
+
+func (self *_PkgScope) getGenericStruct(name string) (*hir.GenericStructDef, bool) {
+	f, ok := self.getLocalGenericStruct(name)
+	if ok {
+		return f, true
+	}
+	for iter := self.links.Iterator(); iter.Next(); {
+		st, ok := iter.Value().getLocalGenericStruct(name)
+		if ok && st.GetPublic() {
+			return st, true
+		}
+	}
+	return nil, false
+}
+
+func (self *_PkgScope) GetGenericStruct(pkg, name string) (*hir.GenericStructDef, bool) {
+	if pkg == "" {
+		return self.getGenericStruct(name)
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		return nil, false
+	}
+	st, ok := pkgScope.getLocalGenericStruct(name)
+	if !ok || !st.GetPublic() {
+		return nil, false
+	}
+	return st, true
 }
 
 // 本地作用域

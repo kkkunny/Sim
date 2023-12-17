@@ -88,18 +88,22 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
-			self.declTypeDef(node)
+			self.declStructDef(node)
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
+		case *ast.GenericStructDef:
+			self.declGenericStructDef(node)
 		}
 		return true
 	})
 	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
-			meanNodes.PushBack(self.defTypeDef(node))
+			meanNodes.PushBack(self.defStructDef(node))
 		case *ast.TypeAlias:
 			self.defTypeAlias(node.Name.Source())
+		case *ast.GenericStructDef:
+			meanNodes.PushBack(self.defGenericStructDef(node))
 		}
 		return true
 	})

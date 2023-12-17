@@ -6,6 +6,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/util"
@@ -406,6 +407,7 @@ func (self *StructType) AssignableTo(dst Type) bool {
 }
 
 func (self *StructType) HasDefault()bool{
+	// TODO: 结构体默认值
 	for iter := self.Fields.Values().Iterator(); iter.Next(); {
 		if !iter.Value().Second.HasDefault(){
 			return false
@@ -662,4 +664,50 @@ func (self *GenericParam) HasDefault()bool{
 		return constraint.Pkg == BuildInPackage && constraint.Name == "Default"
 	}
 	return false
+}
+
+// GenericStructInstance 泛型结构体实例
+type GenericStructInstance struct {
+	Define *GenericStructDef
+	Params []Type
+}
+
+func (self *GenericStructInstance) String() string {
+	params := stlslices.Map(self.Params, func(_ int, e Type) string {
+		return e.String()
+	})
+	return fmt.Sprintf("%s::%s<%s>", self.Define.Pkg, self.Define.Name, strings.Join(params, ", "))
+}
+
+func (self *GenericStructInstance) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
+	t, ok := dst.(*GenericStructInstance)
+	if !ok || self.Define != t.Define || len(self.Params) != len(t.Params) {
+		return false
+	}
+	for i, p := range self.Params{
+		if !p.Equal(t.Params[i]){
+			return false
+		}
+	}
+	return true
+}
+
+func (self *GenericStructInstance) AssignableTo(dst Type) bool {
+	if self.Equal(dst) {
+		return true
+	}
+	if ut, ok := dst.(*UnionType); ok {
+		if ut.Contain(self) {
+			return true
+		}
+	}
+	return false
+}
+
+func (self *GenericStructInstance) HasDefault()bool{
+	// TODO: 泛型结构体实例默认值
+	return true
 }

@@ -3,6 +3,5 @@ struct Result<T>{
 }
 
 func main()u8{
-	let a = Result::<u8>{data: 1}
-    return a.data
+    return 1
 }
