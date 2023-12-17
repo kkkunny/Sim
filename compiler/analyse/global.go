@@ -160,7 +160,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declFuncDef(globalNode)
 	case *ast.MethodDef:
 		self.declMethodDef(globalNode)
-	case *ast.Variable:
+	case *ast.SingleVariableDef:
 		self.declGlobalVariable(globalNode)
 	case *ast.GenericFuncDef:
 		self.declGenericFuncDef(globalNode)
@@ -272,7 +272,7 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 	st.Methods.Set(f.Name, f)
 }
 
-func (self *Analyser) declGlobalVariable(node *ast.Variable) {
+func (self *Analyser) declGlobalVariable(node *ast.SingleVariableDef) {
 	var externName string
 	for _, attrObj := range node.Attrs {
 		switch attr := attrObj.(type) {
@@ -369,7 +369,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defFuncDef(globalNode)
 	case *ast.MethodDef:
 		return self.defMethodDef(globalNode)
-	case *ast.Variable:
+	case *ast.SingleVariableDef:
 		return self.defGlobalVariable(globalNode)
 	case *ast.GenericFuncDef:
 		return self.defGenericFuncDef(globalNode)
@@ -448,7 +448,7 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
 	return f
 }
 
-func (self *Analyser) defGlobalVariable(node *ast.Variable) *hir.VarDef {
+func (self *Analyser) defGlobalVariable(node *ast.SingleVariableDef) *hir.VarDef {
 	value, ok := self.pkgScope.GetValue("", node.Name.Source())
 	if !ok {
 		panic("unreachable")

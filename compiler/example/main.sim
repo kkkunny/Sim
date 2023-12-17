@@ -1,9 +1,7 @@
-import std::c
-
-func b()c::a{
-    return 1
-}
+pub let (mut m: i32, n: i8)
 
 func main()u8{
-    return 0
+    let (mut m: i32, n: i8) = (1, 2)
+    let x = 1
+    return n
 }

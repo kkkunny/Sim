@@ -16,7 +16,7 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
 	case *ast.Return:
 		ret := self.analyseReturn(stmtNode)
 		return ret, hir.BlockEofReturn
-	case *ast.Variable:
+	case *ast.SingleVariable:
 		return self.analyseLocalVariable(stmtNode), hir.BlockEofNone
 	case *ast.Block:
 		return self.analyseBlock(stmtNode, nil)
@@ -84,7 +84,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 	}
 }
 
-func (self *Analyser) analyseLocalVariable(node *ast.Variable) *hir.VarDef {
+func (self *Analyser) analyseLocalVariable(node *ast.SingleVariable) *hir.VarDef {
 	v := &hir.VarDef{
 		Pkg: self.pkgScope.pkg,
 		Mut:  node.Mutable,
