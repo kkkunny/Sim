@@ -640,7 +640,7 @@ func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
 	fieldName := node.Index.Source()
 	if st, ok := from.GetType().(*hir.StructType); ok{
 		// 方法
-		if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.path){
+		if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.pkg){
 			return &hir.Method{
 				Self:   from,
 				Define: method,
@@ -651,7 +651,7 @@ func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
 		var i int
 		for iter := st.Fields.Iterator(); iter.Next(); i++ {
 			field := iter.Value()
-			if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.path) {
+			if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.pkg) {
 				return &hir.Field{
 					From:  from,
 					Index: uint(i),
@@ -703,7 +703,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	}
 }
 
-func (self *Analyser) analyseNull(expect hir.Type, node *ast.Null) *hir.Zero {
+func (self *Analyser) analyseNull(expect hir.Type, node *ast.Null) *hir.Default {
 	if expect == nil || !(stlbasic.Is[*hir.PtrType](expect) || stlbasic.Is[*hir.RefType](expect)) {
 		errors.ThrowExpectPointerTypeError(node.Position())
 	}
@@ -713,7 +713,7 @@ func (self *Analyser) analyseNull(expect hir.Type, node *ast.Null) *hir.Zero {
 	} else {
 		t = expect.(*hir.RefType).ToPtrType()
 	}
-	return &hir.Zero{Type: t}
+	return &hir.Default{Type: t}
 }
 
 func (self *Analyser) analyseCheckNull(expect hir.Type, node *ast.CheckNull) *hir.CheckNull {
@@ -743,5 +743,5 @@ func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) hir.E
 	if !t.HasDefault(){
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
-	return &hir.Zero{Type: t}
+	return &hir.Default{Type: t}
 }

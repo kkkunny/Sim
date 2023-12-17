@@ -91,7 +91,7 @@ type Continue struct {
 func (*Continue) stmt() {}
 
 type For struct {
-	Cursor   *Variable
+	Cursor   *VarDef
 	Iterator Expr
 	Body     *Block
 }

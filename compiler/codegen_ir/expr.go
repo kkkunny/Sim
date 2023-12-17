@@ -37,7 +37,7 @@ func (self *CodeGenerator) codegenExpr(node hir.Expr, load bool) mir.Value {
 		return self.codegenTuple(exprNode)
 	case *hir.Extract:
 		return self.codegenExtract(exprNode, load)
-	case *hir.Zero:
+	case *hir.Default:
 		return self.codegenZero(exprNode.GetType())
 	case *hir.Struct:
 		return self.codegenStruct(exprNode)
@@ -167,7 +167,7 @@ func (self *CodeGenerator) codegenIdent(node hir.Ident, load bool) mir.Value {
 	switch identNode := node.(type) {
 	case *hir.FuncDef,*hir.GenericFuncInstance:
 		return self.values.Get(identNode).(*mir.Function)
-	case *hir.Param, *hir.Variable:
+	case *hir.Param, *hir.VarDef:
 		p := self.values.Get(identNode)
 		if !load {
 			return p

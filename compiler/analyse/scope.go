@@ -8,8 +8,6 @@ import (
 
 	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/hir"
-
-	"github.com/kkkunny/Sim/util"
 )
 
 // 作用域
@@ -20,8 +18,8 @@ type _Scope interface {
 
 // 包作用域
 type _PkgScope struct {
-	path      string
-	externs   hashmap.HashMap[string, *_PkgScope]
+	pkg     hir.Package
+	externs hashmap.HashMap[string, *_PkgScope]
 	links     linkedhashset.LinkedHashSet[*_PkgScope]
 
 	values    hashmap.HashMap[string, hir.Ident]
@@ -32,22 +30,17 @@ type _PkgScope struct {
 	genericFunctions hashmap.HashMap[string, *hir.GenericFuncDef]
 }
 
-func _NewPkgScope(path string) *_PkgScope {
+func _NewPkgScope(pkg hir.Package) *_PkgScope {
 	return &_PkgScope{
-		path:      path,
-		externs:   hashmap.NewHashMap[string, *_PkgScope](),
-		links:     linkedhashset.NewLinkedHashSet[*_PkgScope](),
-		values:    hashmap.NewHashMap[string, hir.Ident](),
-		structs:   hashmap.NewHashMap[string, *hir.StructType](),
-		typeAlias: hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, hir.Type]]](),
-		traits: hashmap.NewHashMap[string, pair.Pair[bool, *ast.Trait]](),
+		pkg:              pkg,
+		externs:          hashmap.NewHashMap[string, *_PkgScope](),
+		links:            linkedhashset.NewLinkedHashSet[*_PkgScope](),
+		values:           hashmap.NewHashMap[string, hir.Ident](),
+		structs:          hashmap.NewHashMap[string, *hir.StructType](),
+		typeAlias:        hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, hir.Type]]](),
+		traits:           hashmap.NewHashMap[string, pair.Pair[bool, *ast.Trait]](),
 		genericFunctions: hashmap.NewHashMap[string, *hir.GenericFuncDef](),
 	}
-}
-
-// IsBuildIn 是否是buildin包
-func (self *_PkgScope) IsBuildIn() bool {
-	return self.path == util.GetBuildInPackagePath()
 }
 
 func (self *_PkgScope) SetValue(name string, v hir.Ident) bool {

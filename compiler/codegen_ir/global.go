@@ -25,7 +25,7 @@ func (self *CodeGenerator) codegenGlobalDecl(node hir.Global) {
 		self.declFuncDef(globalNode)
 	case *hir.MethodDef:
 		self.declMethodDef(globalNode)
-	case *hir.Variable:
+	case *hir.VarDef:
 		self.declGlobalVariable(globalNode)
 	case *hir.GenericFuncDef:
 		self.declGenericFuncDef(globalNode)
@@ -47,7 +47,7 @@ func (self *CodeGenerator) declMethodDef(node *hir.MethodDef) {
 	self.values.Set(node, f)
 }
 
-func (self *CodeGenerator) declGlobalVariable(node *hir.Variable) {
+func (self *CodeGenerator) declGlobalVariable(node *hir.VarDef) {
 	t := self.codegenType(node.Type)
 	v := self.module.NewGlobalVariable("", t, mir.NewZero(self.codegenType(node.GetType())))
 	self.values.Set(node, v)
@@ -74,7 +74,7 @@ func (self *CodeGenerator) codegenGlobalDef(node hir.Global) {
 		self.defMethodDef(globalNode)
 	case *hir.StructDef:
 		self.defStructDef(globalNode)
-	case *hir.Variable:
+	case *hir.VarDef:
 		self.defGlobalVariable(globalNode)
 	case *hir.GenericFuncDef:
 		self.defGenericFuncDef(globalNode)
@@ -108,7 +108,7 @@ func (self *CodeGenerator) defFuncDecl(node *hir.FuncDef) {
 	_ = self.values.Get(node).(*mir.Function)
 }
 
-func (self *CodeGenerator) defGlobalVariable(node *hir.Variable) {
+func (self *CodeGenerator) defGlobalVariable(node *hir.VarDef) {
 	gv := self.values.Get(node).(*mir.GlobalVariable)
 	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
 	value := self.codegenExpr(node.Value, true)

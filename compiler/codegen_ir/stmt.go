@@ -12,7 +12,7 @@ func (self *CodeGenerator) codegenStmt(node hir.Stmt) {
 	switch stmtNode := node.(type) {
 	case *hir.Return:
 		self.codegenReturn(stmtNode)
-	case *hir.Variable:
+	case *hir.VarDef:
 		self.codegenLocalVariable(stmtNode)
 	case *hir.IfElse:
 		self.codegenIfElse(stmtNode)
@@ -60,7 +60,7 @@ func (self *CodeGenerator) codegenReturn(node *hir.Return) {
 	}
 }
 
-func (self *CodeGenerator) codegenLocalVariable(node *hir.Variable) mir.Value {
+func (self *CodeGenerator) codegenLocalVariable(node *hir.VarDef) mir.Value {
 	value := self.codegenExpr(node.Value, true)
 	ptr := self.builder.BuildAllocFromStack(self.codegenType(node.Type))
 	self.builder.BuildStore(value, ptr)

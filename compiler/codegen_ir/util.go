@@ -5,6 +5,7 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
 	stlerror "github.com/kkkunny/stl/error"
+	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/hir"
@@ -202,7 +203,7 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 }
 
 // CodegenIr 中间代码生成
-func CodegenIr(target mir.Target, path string) (*mir.Module, stlerror.Error) {
+func CodegenIr(target mir.Target, path stlos.FilePath) (*mir.Module, stlerror.Error) {
 	means, err := analyse.Analyse(path)
 	if err != nil{
 		return nil, err
