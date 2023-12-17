@@ -1,4 +1,4 @@
-pub type voidptr = *i8?
+pub type voidptr = *?i8
 
 pub type char = i8
 pub type short = i16

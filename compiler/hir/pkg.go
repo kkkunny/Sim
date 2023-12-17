@@ -59,8 +59,8 @@ func (self Package) Hash()uint64{
 
 func (self Package) String()string{
 	relpath := stlerror.MustWith(stlos.FilePath(self).Rel(stlos.FilePath(OfficialPackage)))
-	dirnames := strings.Split(relpath.String(), string([]rune{filepath.Separator}))[1:]
-	return strings.Join(dirnames, ".")
+	dirnames := strings.Split(relpath.String(), string([]rune{filepath.Separator}))
+	return strings.Join(dirnames, "::")
 }
 
 func (self Package) Path() stlos.FilePath{

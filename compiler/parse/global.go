@@ -197,7 +197,7 @@ func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
 	var paths dynarray.DynArray[token.Token]
 	for {
 		paths.PushBack(self.expectNextIs(token.IDENT))
-		if !self.skipNextIs(token.DOT) {
+		if !self.skipNextIs(token.SCOPE) {
 			break
 		}
 	}

@@ -379,7 +379,7 @@ func (self *TupleType) HasDefault()bool{
 type StructType = StructDef
 
 func (self *StructType) String() string {
-	return fmt.Sprintf("%s.%s", self.Pkg, self.Name)
+	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
 }
 
 func (self *StructType) Equal(dst Type) bool {
