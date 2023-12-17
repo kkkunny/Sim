@@ -34,12 +34,14 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseBool())
 	case token.IDENT:
 		ident := self.parseIdent()
-		if !canStruct || !self.nextIs(token.LBR) || len(ident.GenericArgs) > 0 {
+		if !canStruct || !self.nextIs(token.LBR) {
 			return util.Some[ast.Expr](ident)
 		}
 		return util.Some[ast.Expr](self.parseStruct(&ast.IdentType{
 			Pkg:  ident.Pkg,
 			Name: ident.Name,
+			GenericArgs: ident.GenericArgs,
+			End: ident.End,
 		}))
 	case token.LPA:
 		return util.Some[ast.Expr](self.parseTuple())

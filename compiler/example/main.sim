@@ -1,8 +1,8 @@
+struct Result<T>{
+    data: T
+}
+
 func main()u8{
-	let mut i: u8 = 0
-	let mut j: u8 = 0
-	let mut m: u8 = 0
-	let n: ((u8, u8), u8) = ((1, 2), 3)
-	((i, j), m) = n
-    return m - 3
+	let a = Result::<u8>{data: 1}
+    return a.data
 }

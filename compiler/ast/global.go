@@ -55,6 +55,22 @@ func (self *StructDef) Position() reader.Position {
 
 func (*StructDef) global() {}
 
+// GenericStructDef 泛型结构体定义
+type GenericStructDef struct {
+	Begin  reader.Position
+	Public bool
+	Name   token.Token
+	GenericParams []pair.Pair[token.Token, util.Option[*IdentType]]
+	Fields []lo.Tuple3[bool, token.Token, Type]
+	End    reader.Position
+}
+
+func (self *GenericStructDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (*GenericStructDef) global() {}
+
 type VariableDef interface {
 	Global
 	Stmt

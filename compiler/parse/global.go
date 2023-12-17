@@ -130,7 +130,7 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 	}
 }
 
-func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.StructDef {
+func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) ast.Global {
 	expectAttrIn(attrs)
 
 	begin := self.expectNextIs(token.STRUCT).Position
@@ -138,6 +138,9 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.Stru
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
+	if self.nextIs(token.LT){
+		return self.parseGenericStructDef(attrs, pub, begin, name)
+	}
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
 		pub := self.skipNextIs(token.PUBLIC)
@@ -155,6 +158,42 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.Stru
 		Begin:  begin,
 		Public: pub != nil,
 		Name:   name,
+		Fields: fields,
+		End:    end,
+	}
+}
+
+func (self *Parser) parseGenericStructDef(attrs []ast.Attr, pub *token.Token, begin reader.Position, name token.Token) *ast.GenericStructDef {
+	expectAttrIn(attrs)
+
+	self.expectNextIs(token.LT)
+	genericParams := loopParseWithUtil(self, token.COM, token.GT, func() pair.Pair[token.Token, util.Option[*ast.IdentType]] {
+		name := self.expectNextIs(token.IDENT)
+		constraint := util.None[*ast.IdentType]()
+		if self.skipNextIs(token.COL){
+			constraint = util.Some[*ast.IdentType](self.parseIdentType())
+		}
+		return pair.NewPair(name, constraint)
+	})
+	self.expectNextIs(token.GT)
+	self.expectNextIs(token.LBR)
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
+		pub := self.skipNextIs(token.PUBLIC)
+		fn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		ft := self.parseType()
+		return lo.Tuple3[bool, token.Token, ast.Type]{
+			A: pub,
+			B: fn,
+			C: ft,
+		}
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.GenericStructDef{
+		Begin:  begin,
+		Public: pub != nil,
+		Name:   name,
+		GenericParams: genericParams,
 		Fields: fields,
 		End:    end,
 	}
