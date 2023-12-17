@@ -177,18 +177,3 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
 	}
 	return self.selfType
 }
-
-func (self *Analyser) analyseTraitType(selfType hir.Type, node *ast.IdentType) *hir.TraitDef {
-	var pkgName string
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.ContainKey(pkgName) {
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-		}
-	}
-	if traitNode, ok := self.pkgScope.GetTrait(pkgName, node.Name.Source()); ok {
-		return self.defTrait(selfType, traitNode)
-	}
-	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-	return nil
-}

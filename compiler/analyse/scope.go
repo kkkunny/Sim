@@ -25,7 +25,6 @@ type _PkgScope struct {
 	values    hashmap.HashMap[string, hir.Ident]
 	structs   hashmap.HashMap[string, *hir.StructType]
 	typeAlias hashmap.HashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, hir.Type]]]
-	traits hashmap.HashMap[string, pair.Pair[bool, *ast.Trait]]
 
 	genericFunctions hashmap.HashMap[string, *hir.GenericFuncDef]
 	genericStructs hashmap.HashMap[string, *hir.GenericStructDef]
@@ -39,7 +38,6 @@ func _NewPkgScope(pkg hir.Package) *_PkgScope {
 		values:           hashmap.NewHashMap[string, hir.Ident](),
 		structs:          hashmap.NewHashMap[string, *hir.StructType](),
 		typeAlias:        hashmap.NewHashMap[string, pair.Pair[bool, either.Either[*ast.TypeAlias, hir.Type]]](),
-		traits:           hashmap.NewHashMap[string, pair.Pair[bool, *ast.Trait]](),
 		genericFunctions: hashmap.NewHashMap[string, *hir.GenericFuncDef](),
 		genericStructs: hashmap.NewHashMap[string, *hir.GenericStructDef](),
 	}
@@ -134,47 +132,6 @@ func (self *_PkgScope) GetStruct(pkg, name string) (*hir.StructType, bool) {
 		return nil, false
 	}
 	return t, true
-}
-
-func (self *_PkgScope) SetTrait(pub bool, node *ast.Trait) bool {
-	if self.traits.ContainKey(node.Name.Source()) {
-		return false
-	}
-	self.traits.Set(node.Name.Source(), pair.NewPair(pub, node))
-	return true
-}
-
-func (self *_PkgScope) getLocalTrait(name string) (pair.Pair[bool, *ast.Trait], bool) {
-	return self.traits.Get(name), self.traits.ContainKey(name)
-}
-
-func (self *_PkgScope) getTrait(name string) (*ast.Trait, bool) {
-	info, ok := self.getLocalTrait(name)
-	if ok {
-		return info.Second, true
-	}
-	for iter := self.links.Iterator(); iter.Next(); {
-		info, ok := iter.Value().getLocalTrait(name)
-		if ok && info.First {
-			return info.Second, true
-		}
-	}
-	return nil, false
-}
-
-func (self *_PkgScope) GetTrait(pkg, name string) (*ast.Trait, bool) {
-	if pkg == "" {
-		return self.getTrait(name)
-	}
-	pkgScope := self.externs.Get(pkg)
-	if pkgScope == nil {
-		return nil, false
-	}
-	info, ok := pkgScope.getLocalTrait(name)
-	if !ok || !info.First {
-		return nil, false
-	}
-	return info.Second, true
 }
 
 func (self *_PkgScope) DeclTypeAlias(name string, node *ast.TypeAlias) bool {

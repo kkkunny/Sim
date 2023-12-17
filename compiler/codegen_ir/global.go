@@ -34,6 +34,8 @@ func (self *CodeGenerator) codegenGlobalDecl(node hir.Global) {
 	case *hir.GenericFuncDef:
 		self.declGenericFuncDef(globalNode)
 	case *hir.StructDef:
+	case *hir.GenericStructDef:
+		// TODO
 	default:
 		panic("unreachable")
 	}
@@ -90,6 +92,8 @@ func (self *CodeGenerator) codegenGlobalDef(node hir.Global) {
 		self.defMultiGlobalVariable(globalNode)
 	case *hir.GenericFuncDef:
 		self.defGenericFuncDef(globalNode)
+	case *hir.GenericStructDef:
+		// TODO
 	default:
 		panic("unreachable")
 	}

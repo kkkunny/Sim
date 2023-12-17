@@ -10,7 +10,6 @@ import (
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/pair"
-	stlerror "github.com/kkkunny/stl/error"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
@@ -88,11 +87,6 @@ func (self *Analyser) declGenericStructDef(node *ast.GenericStructDef) {
 					errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 				}
 			}
-			traitNode, ok := self.pkgScope.GetTrait(pkgName, constraintNode.Name.Source())
-			if !ok{
-				errors.ThrowUnknownIdentifierError(constraintNode.Name.Position, constraintNode.Name)
-			}
-			genericParam.Constraint = util.Some(self.defTrait(genericParam, traitNode))
 		}
 		genericParams.Set(pn, genericParam)
 	}
@@ -158,38 +152,6 @@ func (self *Analyser) defGenericStructDef(node *ast.GenericStructDef) *hir.Gener
 	return st
 }
 
-func (self *Analyser) declTrait(node *ast.Trait) {
-	methodNameSet := hashset.NewHashSet[string]()
-	for _, pair := range node.Methods{
-		name := pair.First.Source()
-		if methodNameSet.Contain(name){
-			errors.ThrowIdentifierDuplicationError(pair.First.Position, pair.First)
-		}
-		methodNameSet.Add(name)
-	}
-	if !self.pkgScope.SetTrait(node.Public, node) {
-		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
-	}
-}
-
-func (self *Analyser) defTrait(selfType hir.Type, node *ast.Trait) *hir.TraitDef {
-	prevSelfType := self.selfType
-	self.selfType = selfType
-	defer func() {
-		self.selfType = prevSelfType
-	}()
-
-	methods := hashmap.NewHashMap[string, *hir.FuncType]()
-	for _, pair := range node.Methods{
-		methods.Set(pair.First.Source(), self.analyseFuncType(pair.Second))
-	}
-	return &hir.TraitDef{
-		Pkg: stlerror.MustWith(hir.NewPackage(node.Position().Reader.Path().Dir())),
-		Name: node.Name.Source(),
-		Methods: methods,
-	}
-}
-
 func (self *Analyser) defTypeAlias(name string) hir.Type {
 	res, ok := self.pkgScope.GetTypeAlias("", name)
 	if !ok{
@@ -229,7 +191,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declMultiGlobalVariable(globalNode)
 	case *ast.GenericFuncDef:
 		self.declGenericFuncDef(globalNode)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.Trait, *ast.GenericStructDef:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.GenericStructDef:
 	default:
 		panic("unreachable")
 	}
@@ -392,11 +354,6 @@ func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
 					errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 				}
 			}
-			traitNode, ok := self.pkgScope.GetTrait(pkgName, constraintNode.Name.Source())
-			if !ok{
-				errors.ThrowUnknownIdentifierError(constraintNode.Name.Position, constraintNode.Name)
-			}
-			genericParam.Constraint = util.Some(self.defTrait(genericParam, traitNode))
 		}
 		genericParams.Set(pn, genericParam)
 	}
@@ -446,7 +403,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defMultiGlobalVariable(globalNode)
 	case *ast.GenericFuncDef:
 		return self.defGenericFuncDef(globalNode)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.Trait, *ast.GenericStructDef:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.GenericStructDef:
 		return nil
 	default:
 		panic("unreachable")

@@ -8,8 +8,6 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
-
-	"github.com/kkkunny/Sim/util"
 )
 
 var (
@@ -596,7 +594,6 @@ func (self *RefType) HasDefault()bool{
 // GenericParam 泛型参数
 type GenericParam struct {
 	Name string
-	Constraint util.Option[*TraitDef]
 }
 
 // ReplaceGenericParam 替换类型中包含的泛型参数
@@ -660,9 +657,6 @@ func (self *GenericParam) AssignableTo(dst Type) bool {
 }
 
 func (self *GenericParam) HasDefault()bool{
-	if constraint, ok := self.Constraint.Value(); ok{
-		return constraint.Pkg == BuildInPackage && constraint.Name == "Default"
-	}
 	return false
 }
 

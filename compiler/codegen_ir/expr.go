@@ -194,8 +194,6 @@ func (self *CodeGenerator) codegenCall(node *hir.Call) mir.Value {
 			return self.codegenExpr(item, true)
 		})
 		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
-	}else if method, ok := node.Func.(*hir.TraitMethod); ok{
-		return self.codegenTraitMethodCall(method, node.Args)
 	} else{
 		f := self.codegenExpr(node.Func, true)
 		args := lo.Map(node.Args, func(item hir.Expr, index int) mir.Value {
@@ -257,11 +255,6 @@ func (self *CodeGenerator) codegenZero(tNode hir.Type) mir.Value {
 	case *hir.ArrayType, *hir.StructType, *hir.UnionType:
 		// TODO: 复杂类型default值
 		return mir.NewZero(self.codegenType(ttNode))
-	case *hir.GenericParam:
-		return self.codegenCall(&hir.Call{Func: &hir.TraitMethod{
-			Type: ttNode,
-			Name: "default",
-		}})
 	default:
 		panic("unreachable")
 	}
@@ -341,95 +334,4 @@ func (self *CodeGenerator) codegenCheckNull(node *hir.CheckNull) mir.Value {
 
 	ptr := self.codegenExpr(node.Value, true)
 	return self.builder.BuildCall(f, ptr)
-}
-
-func (self *CodeGenerator) codegenTraitMethodCall(node *hir.TraitMethod, args []hir.Expr)mir.Value{
-	autTypeNodeObj := self.genericParams.Get(node.Type)
-	switch autTypeNode:=autTypeNodeObj.(type) {
-	case *hir.StructType:
-		method := autTypeNode.GetImplMethod(node.Name, node.GetType().(*hir.FuncType))
-		f := self.values.Get(method)
-		var selfParam mir.Value
-		if selfNode, ok := node.Value.Value(); ok{
-			selfParam = self.codegenExpr(selfNode, true)
-		}else{
-			selfParam = mir.NewZero(self.codegenStructType(method.Scope))
-		}
-		args := lo.Map(args, func(item hir.Expr, index int) mir.Value {
-			return self.codegenExpr(item, true)
-		})
-		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
-	case *hir.SintType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.UintType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.FloatType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.ArrayType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.TupleType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.PtrType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.RefType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.UnionType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.BoolType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	case *hir.StringType:
-		switch node.Name {
-		case "default":
-			return self.codegenZero(autTypeNode)
-		default:
-			panic("unreachable")
-		}
-	default:
-		panic("unreachable")
-	}
 }

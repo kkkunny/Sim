@@ -76,14 +76,6 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		return true
 	})
 
-	// trait
-	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		if trait, ok := v.(*ast.Trait); ok {
-			self.declTrait(trait)
-		}
-		return true
-	})
-
 	// 类型
 	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {

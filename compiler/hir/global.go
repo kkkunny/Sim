@@ -34,16 +34,6 @@ func (self *StructDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *StructDef) Impl(t *TraitDef)bool{
-	for targetIter:=t.Methods.Iterator(); targetIter.Next(); {
-		target := targetIter.Value()
-		if self.GetImplMethod(target.First, target.Second) == nil{
-			return false
-		}
-	}
-	return true
-}
-
 func (self *StructDef) GetImplMethod(name string, ft *FuncType)*MethodDef{
 	for iter:=self.Methods.Values().Iterator(); iter.Next(); {
 		fun := iter.Value()
@@ -296,19 +286,4 @@ func (self *GenericStructDef) AddInstance(genericArg ...Type)*GenericStructInsta
 	}
 	self.Instances.Set(key, inst)
 	return inst
-}
-
-// TraitDef 特性定义
-type TraitDef struct {
-	Pkg Package
-	Name string
-	Methods hashmap.HashMap[string, *FuncType]
-}
-
-func (self *TraitDef) GetPackage()Package{
-	return self.Pkg
-}
-
-func DefaultTrait(t Type)*TraitDef {
-	return &TraitDef{Methods: hashmap.NewHashMapWith[string, *FuncType]("default", &FuncType{Ret: t})}
 }

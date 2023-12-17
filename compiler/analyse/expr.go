@@ -573,18 +573,6 @@ func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
 
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 		return nil
-	}else if gt, ok := from.GetType().(*hir.GenericParam); ok{
-		if constraint, ok := gt.Constraint.Value(); ok{
-			if method := constraint.Methods.Get(fieldName); method != nil{
-				return &hir.TraitMethod{
-					Type: gt,
-					Value: util.Some(from),
-					Name: fieldName,
-				}
-			}
-		}
-		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-		return nil
 	}else{
 		errors.ThrowNotStructError(node.From.Position(), from.GetType())
 		return nil
