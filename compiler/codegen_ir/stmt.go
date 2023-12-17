@@ -14,6 +14,8 @@ func (self *CodeGenerator) codegenStmt(node hir.Stmt) {
 		self.codegenReturn(stmtNode)
 	case *hir.VarDef:
 		self.codegenLocalVariable(stmtNode)
+	case *hir.MultiVarDef:
+		self.codegenMultiLocalVariable(stmtNode)
 	case *hir.IfElse:
 		self.codegenIfElse(stmtNode)
 	case hir.Expr:
@@ -66,6 +68,18 @@ func (self *CodeGenerator) codegenLocalVariable(node *hir.VarDef) mir.Value {
 	self.builder.BuildStore(value, ptr)
 	self.values.Set(node, ptr)
 	return ptr
+}
+
+func (self *CodeGenerator) codegenMultiLocalVariable(node *hir.MultiVarDef) mir.Value {
+	for i, varNode := range node.Vars{
+		ptr := self.builder.BuildAllocFromStack(self.codegenType(varNode.Type))
+		self.builder.BuildStore(self.codegenExtract(&hir.Extract{
+			From: node.Value,
+			Index: uint(i),
+		}, true), ptr)
+		self.values.Set(varNode, ptr)
+	}
+	return nil
 }
 
 func (self *CodeGenerator) codegenIfElse(node *hir.IfElse) {

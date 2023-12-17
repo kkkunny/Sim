@@ -174,7 +174,7 @@ func (self *GlobalVariable) Context()*Context{
 
 func (self *GlobalVariable) Define()string{
 	if self.value != nil{
-		return fmt.Sprintf("var %s %s = %s", self.t, self.Name(), self.value)
+		return fmt.Sprintf("var %s %s = %s", self.t, self.Name(), self.value.Name())
 	}else{
 		return fmt.Sprintf("var %s %s", self.t, self.Name())
 	}
