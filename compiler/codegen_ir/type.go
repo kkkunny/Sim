@@ -36,8 +36,6 @@ func (self *CodeGenerator) codegenType(node hir.Type) mir.Type {
 		return self.codegenPtrType(typeNode)
 	case *hir.RefType:
 		return self.codegenRefType(typeNode)
-	case *hir.GenericParam:
-		return self.codegenGenericParam(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -138,8 +136,4 @@ func (self *CodeGenerator) codegenPtrType(node *hir.PtrType) mir.PtrType {
 
 func (self *CodeGenerator) codegenRefType(node *hir.RefType) mir.PtrType {
 	return self.ctx.NewPtrType(self.codegenType(node.Elem))
-}
-
-func (self *CodeGenerator) codegenGenericParam(node *hir.GenericParam)mir.Type{
-	return self.codegenType(self.genericParams.Get(node))
 }

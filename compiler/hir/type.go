@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/hashmap"
-	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
 
@@ -33,6 +31,8 @@ var (
 	Bool = &BoolType{}
 
 	Str = &StringType{}
+
+	Self = &SelfType{}
 )
 
 // Type 类型
@@ -695,113 +695,30 @@ func (self *RefType) HasDefault()bool{
 	return true
 }
 
-func IsGenericParam(t Type)bool{
-	return stlbasic.Is[*GenericParam](GetInnerType(t))
+func IsSelfType(t Type)bool{
+	return stlbasic.Is[*SelfType](GetInnerType(t))
 }
 
-func AsGenericParam(t Type)*GenericParam{
-	return GetInnerType(t).(*GenericParam)
+func AsSelfType(t Type)*SelfType{
+	return GetInnerType(t).(*SelfType)
 }
 
-// GenericParam 泛型参数
-type GenericParam struct {
-	Name string
+// SelfType Self类型
+type SelfType struct{}
+
+func (*SelfType) String() string {
+	return "Self"
 }
 
-// ReplaceGenericParam 替换类型中包含的泛型参数
-func ReplaceGenericParam(t Type, table hashmap.HashMap[*GenericParam, Type])Type{
-	switch tt := t.(type) {
-	case *EmptyType, NumberType, *BoolType, *StringType, *StructType:
-		return tt
-	case *FuncType:
-		return &FuncType{
-			Ret: ReplaceGenericParam(tt.Ret, table),
-			Params: lo.Map(tt.Params, func(item Type, _ int) Type {
-				return ReplaceGenericParam(item, table)
-			}),
-		}
-	case *ArrayType:
-		return &ArrayType{
-			Size: tt.Size,
-			Elem: ReplaceGenericParam(tt.Elem, table),
-		}
-	case *TupleType:
-		return &TupleType{Elems: lo.Map(tt.Elems, func(item Type, _ int) Type {
-			return ReplaceGenericParam(item, table)
-		})}
-	case *PtrType:
-		return &PtrType{Elem: ReplaceGenericParam(tt.Elem, table)}
-	case *RefType:
-		return &RefType{Elem: ReplaceGenericParam(tt.Elem, table)}
-	case *UnionType:
-		return &UnionType{Elems: lo.Map(tt.Elems, func(item Type, _ int) Type {
-			return ReplaceGenericParam(item, table)
-		})}
-	case *GenericParam:
-		to := table.Get(tt)
-		if to == nil{
-			panic("unreachable")
-		}
-		return to
-	default:
-		panic("unreachable")
-	}
-}
-
-func (self *GenericParam) String() string {
-	return self.Name
-}
-
-func (self *GenericParam) Equal(dst Type) bool {
-	return self == dst
-}
-
-func (self *GenericParam) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *GenericParam) HasDefault()bool{
-	return false
-}
-
-// GenericStructInstance 泛型结构体实例
-type GenericStructInstance struct {
-	Define *GenericStructDef
-	Params []Type
-}
-
-func (self *GenericStructInstance) String() string {
-	params := stlslices.Map(self.Params, func(_ int, e Type) string {
-		return e.String()
-	})
-	return fmt.Sprintf("%s::%s<%s>", self.Define.Pkg, self.Define.Name, strings.Join(params, ", "))
-}
-
-func (self *GenericStructInstance) Equal(dst Type) bool {
+func (self *SelfType) Equal(dst Type) bool {
 	if self == dst{
 		return true
 	}
-	t, ok := dst.(*GenericStructInstance)
-	if !ok || self.Define != t.Define || len(self.Params) != len(t.Params) {
-		return false
-	}
-	for i, p := range self.Params{
-		if !p.Equal(t.Params[i]){
-			return false
-		}
-	}
-	return true
+	_, ok := dst.(*SelfType)
+	return ok
 }
 
-func (self *GenericStructInstance) AssignableTo(dst Type) bool {
+func (self *SelfType) AssignableTo(dst Type) bool {
 	if self.Equal(dst) {
 		return true
 	}
@@ -813,7 +730,6 @@ func (self *GenericStructInstance) AssignableTo(dst Type) bool {
 	return false
 }
 
-func (self *GenericStructInstance) HasDefault()bool{
-	// TODO: 泛型结构体实例默认值
+func (self *SelfType) HasDefault()bool{
 	return true
 }

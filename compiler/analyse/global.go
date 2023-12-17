@@ -3,7 +3,6 @@ package analyse
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/iterator"
@@ -70,39 +69,6 @@ func (self *Analyser) declStructDef(node *ast.StructDef) {
 	}
 }
 
-func (self *Analyser) declGenericStructDef(node *ast.GenericStructDef) {
-	genericParams := linkedhashmap.NewLinkedHashMap[string, *hir.GenericParam]()
-	for _, param := range node.GenericParams{
-		pn := param.First.Source()
-		if genericParams.ContainKey(pn){
-			errors.ThrowIdentifierDuplicationError(param.First.Position, param.First)
-		}
-		genericParam := &hir.GenericParam{Name: pn}
-
-		if constraintNode, ok := param.Second.Value(); ok{
-			var pkgName string
-			if pkgToken, ok := constraintNode.Pkg.Value(); ok {
-				pkgName = pkgToken.Source()
-				if !self.pkgScope.externs.ContainKey(pkgName) {
-					errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-				}
-			}
-		}
-		genericParams.Set(pn, genericParam)
-	}
-
-	st := &hir.GenericStructDef{
-		Pkg: self.pkgScope.pkg,
-		Public: node.Public,
-		Name:   node.Name.Source(),
-		GenericParams: genericParams,
-		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, hir.Type]](),
-	}
-	if !self.pkgScope.SetGenericStruct(st) {
-		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
-	}
-}
-
 func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
 	if !self.pkgScope.DeclTypeAlias(node.Name.Source(), node){
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
@@ -113,35 +79,6 @@ func (self *Analyser) defStructDef(node *ast.StructDef) *hir.StructDef {
 	st, ok := self.pkgScope.GetStruct("", node.Name.Source())
 	if !ok {
 		panic("unreachable")
-	}
-
-	for _, f := range node.Fields {
-		fn := f.B.Source()
-		ft := pair.NewPair(f.A, self.analyseType(f.C))
-		st.Fields.Set(fn, ft)
-	}
-	return st
-}
-
-func (self *Analyser) defGenericStructDef(node *ast.GenericStructDef) *hir.GenericStructDef {
-	st, ok := self.pkgScope.getLocalGenericStruct(node.Name.Source())
-	if !ok {
-		panic("unreachable")
-	}
-
-	for iter:=st.GenericParams.Iterator(); iter.Next(); {
-		if !self.pkgScope.typeAlias.ContainKey(iter.Value().First){
-			self.pkgScope.typeAlias.Set(iter.Value().First, pair.NewPair[bool, either.Either[*ast.TypeAlias, hir.Type]](false, either.Right[*ast.TypeAlias, hir.Type](iter.Value().Second)))
-			defer func() {
-				self.pkgScope.typeAlias.Remove(iter.Value().First)
-			}()
-		}else{
-			back := self.pkgScope.typeAlias.Get(iter.Value().First)
-			self.pkgScope.typeAlias.Set(iter.Value().First, pair.NewPair[bool, either.Either[*ast.TypeAlias, hir.Type]](false, either.Right[*ast.TypeAlias, hir.Type](iter.Value().Second)))
-			defer func() {
-				self.pkgScope.typeAlias.Set(iter.Value().First, back)
-			}()
-		}
 	}
 
 	for _, f := range node.Fields {
@@ -189,9 +126,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declSingleGlobalVariable(globalNode)
 	case *ast.MultipleVariableDef:
 		self.declMultiGlobalVariable(globalNode)
-	case *ast.GenericFuncDef:
-		self.declGenericFuncDef(globalNode)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.GenericStructDef:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 	default:
 		panic("unreachable")
 	}
@@ -330,67 +265,6 @@ func (self *Analyser) declMultiGlobalVariable(node *ast.MultipleVariableDef) {
 	}
 }
 
-func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
-	for _, attrObj := range node.Attrs {
-		switch attrObj.(type) {
-		default:
-			panic("unreachable")
-		}
-	}
-
-	genericParams := linkedhashmap.NewLinkedHashMap[string, *hir.GenericParam]()
-	for _, param := range node.GenericParams{
-		pn := param.First.Source()
-		if genericParams.ContainKey(pn){
-			errors.ThrowIdentifierDuplicationError(param.First.Position, param.First)
-		}
-		genericParam := &hir.GenericParam{Name: pn}
-
-		if constraintNode, ok := param.Second.Value(); ok{
-			var pkgName string
-			if pkgToken, ok := constraintNode.Pkg.Value(); ok {
-				pkgName = pkgToken.Source()
-				if !self.pkgScope.externs.ContainKey(pkgName) {
-					errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-				}
-			}
-		}
-		genericParams.Set(pn, genericParam)
-	}
-
-	f := &hir.GenericFuncDef{
-		Pkg: self.pkgScope.pkg,
-		Public:     node.Public,
-		Name:       node.Name.Source(),
-		GenericParams: genericParams,
-	}
-	scope := _NewFuncScope(self.pkgScope, f)
-	self.localScope = scope
-	self.genericFuncScope.Set(f, scope)
-	defer func() {
-		self.localScope = nil
-	}()
-
-	paramNameSet := hashset.NewHashSet[string]()
-	f.Params = lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
-		pn := paramNode.Name.Source()
-		if !paramNameSet.Add(pn) {
-			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
-		}
-		pt := self.analyseType(paramNode.Type)
-		return &hir.Param{
-			Mut:  paramNode.Mutable,
-			Type: pt,
-			Name: pn,
-		}
-	})
-	f.Ret = self.analyseOptionType(node.Ret)
-
-	if !self.pkgScope.SetGenericFunction(f.Name, f) {
-		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
-	}
-}
-
 func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
@@ -401,9 +275,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defSingleGlobalVariable(globalNode)
 	case *ast.MultipleVariableDef:
 		return self.defMultiGlobalVariable(globalNode)
-	case *ast.GenericFuncDef:
-		return self.defGenericFuncDef(globalNode)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.GenericStructDef:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 		return nil
 	default:
 		panic("unreachable")
@@ -519,35 +391,4 @@ func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) *hir
 		Vars: vars,
 		Value: value,
 	}
-}
-
-func (self *Analyser) defGenericFuncDef(node *ast.GenericFuncDef) *hir.GenericFuncDef {
-	f, ok := self.pkgScope.GetGenericFunction("", node.Name.Source())
-	if !ok {
-		panic("unreachable")
-	}
-
-	self.localScope = self.genericFuncScope.Get(f)
-	defer func() {
-		self.localScope = nil
-	}()
-
-	for i, p := range f.Params {
-		if !self.localScope.SetValue(p.Name, p) {
-			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
-		}
-	}
-
-	var jump hir.BlockEof
-	f.Body, jump = self.analyseBlock(node.Body, nil)
-	if jump != hir.BlockEofReturn {
-		if !f.Ret.Equal(hir.Empty) {
-			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
-		}
-		f.Body.Stmts.PushBack(&hir.Return{
-			Func:  f,
-			Value: util.None[hir.Expr](),
-		})
-	}
-	return f
 }

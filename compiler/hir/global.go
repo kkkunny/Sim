@@ -1,8 +1,6 @@
 package hir
 
 import (
-	"strings"
-
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
@@ -190,100 +188,4 @@ func (self *MethodDef) GetMethodType() *FuncType {
 		Ret:    self.Ret,
 		Params: params,
 	}
-}
-
-// GenericFuncDef 泛型函数定义
-type GenericFuncDef struct {
-	Pkg Package
-	Public     bool
-	Name       string
-	GenericParams linkedhashmap.LinkedHashMap[string, *GenericParam]
-	Params     []*Param
-	Ret        Type
-	Body       *Block
-
-	Instances hashmap.HashMap[string, *GenericFuncInstance]
-}
-
-func (self *GenericFuncDef) GetPackage()Package{
-	return self.Pkg
-}
-
-func (self *GenericFuncDef) GetPublic() bool {
-	return self.Public
-}
-
-func (self *GenericFuncDef) GetFuncType() *FuncType {
-	params := lo.Map(self.Params, func(item *Param, index int) Type {
-		return item.GetType()
-	})
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: params,
-	}
-}
-
-func (self *GenericFuncDef) AddInstance(genericArg ...Type)*GenericFuncInstance{
-	if uint(len(genericArg)) != self.GenericParams.Length(){
-		panic("unreachable")
-	}
-
-	typeNames := lo.Map(genericArg, func(item Type, _ int) string {
-		return item.String()
-	})
-	key := strings.Join(typeNames, ", ")
-
-	inst := self.Instances.Get(key)
-	if inst != nil{
-		return inst
-	}
-
-	inst = &GenericFuncInstance{
-		Define: self,
-		Params: genericArg,
-	}
-	self.Instances.Set(key, inst)
-	return inst
-}
-
-// GenericStructDef 泛型结构体定义
-type GenericStructDef struct {
-	Pkg Package
-	Public bool
-	Name   string
-	GenericParams linkedhashmap.LinkedHashMap[string, *GenericParam]
-	Fields linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]
-
-	Instances hashmap.HashMap[string, *GenericStructInstance]
-}
-
-func (self *GenericStructDef) GetPackage()Package{
-	return self.Pkg
-}
-
-func (self *GenericStructDef) GetPublic() bool {
-	return self.Public
-}
-
-func (self *GenericStructDef) AddInstance(genericArg ...Type)*GenericStructInstance{
-	if uint(len(genericArg)) != self.GenericParams.Length(){
-		panic("unreachable")
-	}
-
-	typeNames := lo.Map(genericArg, func(item Type, _ int) string {
-		return item.String()
-	})
-	key := strings.Join(typeNames, ", ")
-
-	inst := self.Instances.Get(key)
-	if inst != nil{
-		return inst
-	}
-
-	inst = &GenericStructInstance{
-		Define: self,
-		Params: genericArg,
-	}
-	self.Instances.Set(key, inst)
-	return inst
 }

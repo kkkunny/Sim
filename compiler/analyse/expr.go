@@ -341,27 +341,12 @@ func (self *Analyser) analyseIdent(node *ast.Ident) hir.Expr {
 			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		}
 	}
-	if len(node.GenericArgs) == 0{
-		// 普通标识符
-		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
-		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
-		}
-		return value
-	}else{
-		// 泛型函数
-		gf, ok := self.pkgScope.GetGenericFunction(pkgName, node.Name.Source())
-		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
-		}
-		if gf.GenericParams.Length() != uint(len(node.GenericArgs)){
-			errors.ThrowParameterNumberNotMatchError(node.Name.Position, gf.GenericParams.Length(), uint(len(node.GenericArgs)))
-		}
-		params := lo.Map(node.GenericArgs, func(item ast.Type, _ int) hir.Type {
-			return self.analyseType(item)
-		})
-		return gf.AddInstance(params...)
+	// 普通标识符
+	value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
+	if !ok {
+		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
+	return value
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {

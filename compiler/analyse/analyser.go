@@ -27,7 +27,6 @@ type Analyser struct {
 	selfType  hir.Type
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
-	genericFuncScope hashmap.HashMap[*hir.GenericFuncDef, *_FuncScope]
 }
 
 func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
@@ -41,7 +40,6 @@ func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
 		pkgs:     &pkgs,
 		pkgScope: _NewPkgScope(pkg),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
-		genericFuncScope: hashmap.NewHashMap[*hir.GenericFuncDef, *_FuncScope](),
 	}
 }
 
@@ -56,7 +54,6 @@ func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser 
 		pkgs:     parent.pkgs,
 		pkgScope: _NewPkgScope(pkg),
 		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
-		genericFuncScope: hashmap.NewHashMap[*hir.GenericFuncDef, *_FuncScope](),
 	}
 }
 
@@ -83,8 +80,6 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 			self.declStructDef(node)
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
-		case *ast.GenericStructDef:
-			self.declGenericStructDef(node)
 		}
 		return true
 	})
@@ -94,8 +89,6 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 			meanNodes.PushBack(self.defStructDef(node))
 		case *ast.TypeAlias:
 			self.defTypeAlias(node.Name.Source())
-		case *ast.GenericStructDef:
-			meanNodes.PushBack(self.defGenericStructDef(node))
 		}
 		return true
 	})

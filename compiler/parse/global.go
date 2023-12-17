@@ -55,9 +55,6 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
-	if self.nextIs(token.LT){
-		return self.parseGenericFuncDef(attrs, pub, begin, name)
-	}
 	self.expectNextIs(token.LPA)
 	params := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
 		mut := self.skipNextIs(token.MUT)
@@ -306,45 +303,5 @@ func (self *Parser) parseTypeAlias(attrs []ast.Attr, pub *token.Token) *ast.Type
 		Public: pub != nil,
 		Name:   name,
 		Type:   typ,
-	}
-}
-
-func (self *Parser) parseGenericFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position, name token.Token) *ast.GenericFuncDef {
-	expectAttrIn(attrs)
-
-	self.expectNextIs(token.LT)
-	genericParams := loopParseWithUtil(self, token.COM, token.GT, func() pair.Pair[token.Token, util.Option[*ast.IdentType]] {
-		name := self.expectNextIs(token.IDENT)
-		constraint := util.None[*ast.IdentType]()
-		if self.skipNextIs(token.COL){
-			constraint = util.Some[*ast.IdentType](self.parseIdentType())
-		}
-		return pair.NewPair(name, constraint)
-	})
-	self.expectNextIs(token.GT)
-	self.expectNextIs(token.LPA)
-	params := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
-		mut := self.skipNextIs(token.MUT)
-		pn := self.expectNextIs(token.IDENT)
-		self.expectNextIs(token.COL)
-		pt := self.parseType()
-		return ast.Param{
-			Mutable: mut,
-			Name:    pn,
-			Type:    pt,
-		}
-	})
-	self.expectNextIs(token.RPA)
-	ret := self.parseOptionType()
-	body := self.parseBlock()
-	return &ast.GenericFuncDef{
-		Attrs:  attrs,
-		Begin:  begin,
-		Public: pub != nil,
-		Name:   name,
-		GenericParams: genericParams,
-		Params: params,
-		Ret:    ret,
-		Body:   body,
 	}
 }

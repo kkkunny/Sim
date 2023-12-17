@@ -43,26 +43,15 @@ func (self *Parser) parseIdentType() *ast.IdentType {
 	pkg := util.None[token.Token]()
 	var name token.Token
 	pkgOrName := self.expectNextIs(token.IDENT)
-	var genericArgs []ast.Type
 	if self.skipNextIs(token.SCOPE) {
-		if !self.nextIs(token.LT){
-			pkg = util.Some(pkgOrName)
-			name = self.expectNextIs(token.IDENT)
-		}else{
-			name = pkgOrName
-		}
-		if self.skipNextIs(token.LT){
-			genericArgs = self.parseTypeList(token.GT)
-			self.expectNextIs(token.GT)
-		}
+		pkg = util.Some(pkgOrName)
+		name = self.expectNextIs(token.IDENT)
 	} else {
 		name = pkgOrName
 	}
 	return &ast.IdentType{
 		Pkg:  pkg,
 		Name: name,
-		GenericArgs: genericArgs,
-		End: self.curTok.Position,
 	}
 }
 

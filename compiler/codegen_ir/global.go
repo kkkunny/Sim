@@ -31,11 +31,7 @@ func (self *CodeGenerator) codegenGlobalDecl(node hir.Global) {
 		self.declGlobalVariable(globalNode)
 	case *hir.MultiVarDef:
 		self.declMultiGlobalVariable(globalNode)
-	case *hir.GenericFuncDef:
-		self.declGenericFuncDef(globalNode)
 	case *hir.StructDef:
-	case *hir.GenericStructDef:
-		// TODO
 	default:
 		panic("unreachable")
 	}
@@ -65,15 +61,6 @@ func (self *CodeGenerator) declMultiGlobalVariable(node *hir.MultiVarDef) {
 	}
 }
 
-func (self *CodeGenerator) declGenericFuncDef(node *hir.GenericFuncDef) {
-	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
-		inst := iter.Value()
-		ft := self.codegenFuncType(inst.GetType().(*hir.FuncType))
-		f := self.module.NewFunction("", ft)
-		self.values.Set(inst, f)
-	}
-}
-
 func (self *CodeGenerator) codegenGlobalDef(node hir.Global) {
 	switch globalNode := node.(type) {
 	case *hir.FuncDef:
@@ -90,10 +77,6 @@ func (self *CodeGenerator) codegenGlobalDef(node hir.Global) {
 		self.defGlobalVariable(globalNode)
 	case *hir.MultiVarDef:
 		self.defMultiGlobalVariable(globalNode)
-	case *hir.GenericFuncDef:
-		self.defGenericFuncDef(globalNode)
-	case *hir.GenericStructDef:
-		// TODO
 	default:
 		panic("unreachable")
 	}
@@ -146,27 +129,5 @@ func (self *CodeGenerator) defMultiGlobalVariable(node *hir.MultiVarDef) {
 		self.codegenUnTuple(node.Value, lo.Map(node.Vars, func(item *hir.VarDef, _ int) hir.Expr {
 			return item
 		}))
-	}
-}
-
-func (self *CodeGenerator) defGenericFuncDef(node *hir.GenericFuncDef) {
-	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
-		inst := iter.Value()
-		f := self.values.Get(inst).(*mir.Function)
-		self.builder.MoveTo(f.NewBlock())
-
-		var i int
-		for iter:=node.GenericParams.Values().Iterator(); iter.Next(); {
-			self.genericParams.Set(iter.Value(), inst.Params[i])
-			i++
-		}
-
-		for i, p := range f.Params() {
-			self.values.Set(node.Params[i], p)
-		}
-		block, _ := self.codegenBlock(node.Body, nil)
-		self.builder.BuildUnCondJump(block)
-
-		self.genericParams.Clear()
 	}
 }

@@ -3,7 +3,6 @@ package hir
 import (
 	"math/big"
 
-	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
 )
 
@@ -22,7 +21,7 @@ type Ident interface {
 
 // Integer 整数
 type Integer struct {
-	Type  IntType
+	Type  Type
 	Value *big.Int
 }
 
@@ -599,7 +598,7 @@ type Covert interface {
 // Num2Num 数字类型转数字类型
 type Num2Num struct {
 	From Expr
-	To   NumberType
+	To   Type
 }
 
 func (self *Num2Num) stmt() {}
@@ -905,30 +904,3 @@ func (self *Method) Mutable() bool {
 }
 
 func (*Method) ident() {}
-
-// GenericFuncInstance 泛型函数实例
-type GenericFuncInstance struct {
-	Define *GenericFuncDef
-	Params []Type
-}
-
-func (self *GenericFuncInstance) stmt() {}
-
-func (self *GenericFuncInstance) GetType() Type {
-	if self.Define.GenericParams.Length() != uint(len(self.Params)){
-		panic("unreachable")
-	}
-	table := hashmap.NewHashMapWithCapacity[*GenericParam, Type](self.Define.GenericParams.Length())
-	var i int
-	for iter:=self.Define.GenericParams.Values().Iterator(); iter.Next(); {
-		table.Set(iter.Value(), self.Params[i])
-		i++
-	}
-	return ReplaceGenericParam(self.Define.GetFuncType(), table)
-}
-
-func (self *GenericFuncInstance) Mutable() bool {
-	return false
-}
-
-func (*GenericFuncInstance) ident() {}

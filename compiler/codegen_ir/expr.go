@@ -173,7 +173,7 @@ func (self *CodeGenerator) codegenUnary(node hir.Unary, load bool) mir.Value {
 
 func (self *CodeGenerator) codegenIdent(node hir.Ident, load bool) mir.Value {
 	switch identNode := node.(type) {
-	case *hir.FuncDef,*hir.GenericFuncInstance:
+	case *hir.FuncDef:
 		return self.values.Get(identNode).(*mir.Function)
 	case *hir.Param, *hir.VarDef:
 		p := self.values.Get(identNode)
