@@ -147,7 +147,11 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, hir.NumberType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.PtrType, *hir.RefType:
+	case *hir.EmptyType, hir.NumberType, *hir.FuncType, *hir.BoolType, *hir.StringType:
+	case *hir.PtrType:
+		return self.checkTypeCircle(trace, typ.Elem)
+	case *hir.RefType:
+		return self.checkTypeCircle(trace, typ.Elem)
 	case *hir.ArrayType:
 		return self.checkTypeCircle(trace, typ.Elem)
 	case *hir.TupleType:
