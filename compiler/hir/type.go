@@ -43,6 +43,18 @@ type Type interface {
 	HasDefault()bool
 }
 
+func GetInnerType(t Type)Type{
+	return t
+}
+
+func IsEmptyType(t Type)bool{
+	return stlbasic.Is[*EmptyType](GetInnerType(t))
+}
+
+func AsEmptyType(t Type)*EmptyType{
+	return GetInnerType(t).(*EmptyType)
+}
+
 // EmptyType 空类型
 type EmptyType struct{}
 
@@ -66,16 +78,20 @@ func (*EmptyType) HasDefault()bool{
 	return false
 }
 
-// NumberType 数字型
-type NumberType interface {
-	Type
-	GetBits() uint
+func IsNumberType(t Type)bool{
+	return IsIntType(t) || IsFloatType(t)
 }
 
-// IntType 整型
-type IntType interface {
-	NumberType
-	HasSign() bool
+func IsIntType(t Type)bool{
+	return IsSintType(t) || IsUintType(t)
+}
+
+func IsSintType(t Type)bool{
+	return stlbasic.Is[*SintType](GetInnerType(t))
+}
+
+func AsSintType(t Type)*SintType{
+	return GetInnerType(t).(*SintType)
 }
 
 // SintType 有符号整型
@@ -125,6 +141,14 @@ func (*SintType) HasDefault()bool{
 	return true
 }
 
+func IsUintType(t Type)bool{
+	return stlbasic.Is[*UintType](GetInnerType(t))
+}
+
+func AsUintType(t Type)*UintType{
+	return GetInnerType(t).(*UintType)
+}
+
 // UintType 无符号整型
 type UintType struct {
 	Bits uint
@@ -172,6 +196,14 @@ func (*UintType) HasDefault()bool{
 	return true
 }
 
+func IsFloatType(t Type)bool{
+	return stlbasic.Is[*FloatType](GetInnerType(t))
+}
+
+func AsFloatType(t Type)*FloatType{
+	return GetInnerType(t).(*FloatType)
+}
+
 // FloatType 浮点型
 type FloatType struct {
 	Bits uint
@@ -210,6 +242,14 @@ func (self *FloatType) GetBits() uint {
 
 func (*FloatType) HasDefault()bool{
 	return true
+}
+
+func IsFuncType(t Type)bool{
+	return stlbasic.Is[*FuncType](GetInnerType(t))
+}
+
+func AsFuncType(t Type)*FuncType{
+	return GetInnerType(t).(*FuncType)
 }
 
 // FuncType 函数类型
@@ -258,6 +298,14 @@ func (*FuncType) HasDefault()bool{
 	return true
 }
 
+func IsBoolType(t Type)bool{
+	return stlbasic.Is[*BoolType](GetInnerType(t))
+}
+
+func AsBoolType(t Type)*BoolType{
+	return GetInnerType(t).(*BoolType)
+}
+
 // BoolType 布尔型
 type BoolType struct{}
 
@@ -287,6 +335,14 @@ func (self *BoolType) AssignableTo(dst Type) bool {
 
 func (*BoolType) HasDefault()bool{
 	return true
+}
+
+func IsArrayType(t Type)bool{
+	return stlbasic.Is[*ArrayType](GetInnerType(t))
+}
+
+func AsArrayType(t Type)*ArrayType{
+	return GetInnerType(t).(*ArrayType)
 }
 
 // ArrayType 数组型
@@ -324,6 +380,14 @@ func (self *ArrayType) AssignableTo(dst Type) bool {
 
 func (self *ArrayType) HasDefault()bool{
 	return self.Elem.HasDefault()
+}
+
+func IsTupleType(t Type)bool{
+	return stlbasic.Is[*TupleType](GetInnerType(t))
+}
+
+func AsTupleType(t Type)*TupleType{
+	return GetInnerType(t).(*TupleType)
 }
 
 // TupleType 元组型
@@ -375,6 +439,14 @@ func (self *TupleType) HasDefault()bool{
 	return true
 }
 
+func IsStructType(t Type)bool{
+	return stlbasic.Is[*StructType](GetInnerType(t))
+}
+
+func AsStructType(t Type)*StructType{
+	return GetInnerType(t).(*StructType)
+}
+
 type StructType = StructDef
 
 func (self *StructType) String() string {
@@ -414,6 +486,14 @@ func (self *StructType) HasDefault()bool{
 	return true
 }
 
+func IsStringType(t Type)bool{
+	return stlbasic.Is[*StringType](GetInnerType(t))
+}
+
+func AsStringType(t Type)*StringType{
+	return GetInnerType(t).(*StringType)
+}
+
 // StringType 字符串型
 type StringType struct{}
 
@@ -443,6 +523,14 @@ func (self *StringType) AssignableTo(dst Type) bool {
 
 func (self *StringType) HasDefault()bool{
 	return true
+}
+
+func IsUnionType(t Type)bool{
+	return stlbasic.Is[*UnionType](GetInnerType(t))
+}
+
+func AsUnionType(t Type)*UnionType{
+	return GetInnerType(t).(*UnionType)
 }
 
 // UnionType 联合类型
@@ -512,6 +600,14 @@ func (self *UnionType) HasDefault()bool{
 	return true
 }
 
+func IsPtrType(t Type)bool{
+	return stlbasic.Is[*PtrType](GetInnerType(t))
+}
+
+func AsPtrType(t Type)*PtrType{
+	return GetInnerType(t).(*PtrType)
+}
+
 // PtrType 指针类型
 type PtrType struct {
 	Elem Type
@@ -546,6 +642,14 @@ func (self *PtrType) AssignableTo(dst Type) bool {
 
 func (self *PtrType) HasDefault()bool{
 	return true
+}
+
+func IsRefType(t Type)bool{
+	return stlbasic.Is[*RefType](GetInnerType(t))
+}
+
+func AsRefType(t Type)*RefType{
+	return GetInnerType(t).(*RefType)
 }
 
 // RefType 引用类型
@@ -589,6 +693,14 @@ func (self *RefType) ToPtrType() *PtrType {
 
 func (self *RefType) HasDefault()bool{
 	return true
+}
+
+func IsGenericParam(t Type)bool{
+	return stlbasic.Is[*GenericParam](GetInnerType(t))
+}
+
+func AsGenericParam(t Type)*GenericParam{
+	return GetInnerType(t).(*GenericParam)
 }
 
 // GenericParam 泛型参数
