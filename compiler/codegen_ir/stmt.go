@@ -75,7 +75,7 @@ func (self *CodeGenerator) codegenIfElse(node *hir.IfElse) {
 	var endBlock *mir.Block
 	if node.HasElse() {
 		brenchEndBlocks = blocks
-		end := iterator.All(dynarray.NewDynArrayWith(brenchEndBlocks...), func(v *mir.Block) bool {
+		end := iterator.All[*mir.Block](dynarray.NewDynArrayWith(brenchEndBlocks...), func(v *mir.Block) bool {
 			return v.Terminated()
 		})
 		if end {

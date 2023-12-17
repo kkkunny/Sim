@@ -69,7 +69,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		hirs, _ := self.importPackage(hir.BuildInPackage, "", true)
 		meanNodes.Append(hirs)
 	}
-	iterator.Foreach(self.asts, func(v ast.Global) bool {
+	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		if im, ok := v.(*ast.Import); ok {
 			meanNodes.Append(self.analyseImport(im))
 		}
@@ -77,7 +77,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	})
 
 	// trait
-	iterator.Foreach(self.asts, func(v ast.Global) bool {
+	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		if trait, ok := v.(*ast.Trait); ok {
 			self.declTrait(trait)
 		}
@@ -85,7 +85,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	})
 
 	// 类型
-	iterator.Foreach(self.asts, func(v ast.Global) bool {
+	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
 			self.declTypeDef(node)
@@ -94,7 +94,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		}
 		return true
 	})
-	iterator.Foreach(self.asts, func(v ast.Global) bool {
+	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
 			meanNodes.PushBack(self.defTypeDef(node))
@@ -104,7 +104,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		return true
 	})
 	// 类型循环检测
-	iterator.Foreach(self.asts, func(v ast.Global) bool {
+	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		trace := hashset.NewHashSet[hir.Type]()
 		var circle bool
 		var name token.Token
@@ -124,11 +124,11 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	})
 
 	// 值
-	iterator.Foreach(self.asts, func(v ast.Global) bool {
+	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		self.analyseGlobalDecl(v)
 		return true
 	})
-	iterator.Foreach(self.asts, func(v ast.Global) bool {
+	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		if global := self.analyseGlobalDef(v); global != nil {
 			meanNodes.PushBack(global)
 		}
