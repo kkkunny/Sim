@@ -37,7 +37,7 @@ func (self *Integer) Mutable() bool {
 
 // Float 浮点数
 type Float struct {
-	Type  *FloatType
+	Type  Type
 	Value *big.Float
 }
 
@@ -769,7 +769,7 @@ func (self *String) Mutable() bool {
 
 // Union 联合
 type Union struct {
-	Type  *UnionType
+	Type  Type
 	Value Expr
 }
 

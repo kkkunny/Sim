@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/pair"
+	"github.com/kkkunny/stl/container/stack"
 	"github.com/samber/lo"
 )
 
@@ -31,19 +33,25 @@ var (
 	Bool = &BoolType{}
 
 	Str = &StringType{}
-
-	Self = &SelfType{}
 )
 
 // Type 类型
 type Type interface {
 	fmt.Stringer
 	Equal(dst Type) bool
-	AssignableTo(dst Type) bool
-	HasDefault()bool
 }
 
+var typeReplaceStack = stack.NewStack[pair.Pair[Type, Type]]()
+
 func GetInnerType(t Type)Type{
+	switch tt := t.(type) {
+	case *SelfType:
+		for iter:=typeReplaceStack.Iterator(); iter.Next(); {
+			if iter.Value().First == tt{
+				return iter.Value().Second
+			}
+		}
+	}
 	return t
 }
 
@@ -63,26 +71,16 @@ func (*EmptyType) String() string {
 }
 
 func (self *EmptyType) Equal(dst Type) bool {
-	if self == dst{
-		return true
-	}
-	_, ok := dst.(*EmptyType)
-	return ok
-}
-
-func (self *EmptyType) AssignableTo(dst Type) bool {
-	return false
-}
-
-func (*EmptyType) HasDefault()bool{
-	return false
+	return IsEmptyType(dst)
 }
 
 func IsNumberType(t Type)bool{
+	t = GetInnerType(t)
 	return IsIntType(t) || IsFloatType(t)
 }
 
 func IsIntType(t Type)bool{
+	t = GetInnerType(t)
 	return IsSintType(t) || IsUintType(t)
 }
 
@@ -117,30 +115,6 @@ func (self *SintType) Equal(dst Type) bool {
 	return self.Bits == t.Bits
 }
 
-func (self *SintType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *SintType) HasSign() bool {
-	return true
-}
-
-func (self *SintType) GetBits() uint {
-	return self.Bits
-}
-
-func (*SintType) HasDefault()bool{
-	return true
-}
-
 func IsUintType(t Type)bool{
 	return stlbasic.Is[*UintType](GetInnerType(t))
 }
@@ -172,30 +146,6 @@ func (self *UintType) Equal(dst Type) bool {
 	return self.Bits == t.Bits
 }
 
-func (self *UintType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *UintType) HasSign() bool {
-	return false
-}
-
-func (self *UintType) GetBits() uint {
-	return self.Bits
-}
-
-func (*UintType) HasDefault()bool{
-	return true
-}
-
 func IsFloatType(t Type)bool{
 	return stlbasic.Is[*FloatType](GetInnerType(t))
 }
@@ -222,26 +172,6 @@ func (self *FloatType) Equal(dst Type) bool {
 		return false
 	}
 	return self.Bits == t.Bits
-}
-
-func (self *FloatType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *FloatType) GetBits() uint {
-	return self.Bits
-}
-
-func (*FloatType) HasDefault()bool{
-	return true
 }
 
 func IsFuncType(t Type)bool{
@@ -282,22 +212,6 @@ func (self *FuncType) Equal(dst Type) bool {
 	return true
 }
 
-func (self *FuncType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (*FuncType) HasDefault()bool{
-	return true
-}
-
 func IsBoolType(t Type)bool{
 	return stlbasic.Is[*BoolType](GetInnerType(t))
 }
@@ -314,27 +228,7 @@ func (*BoolType) String() string {
 }
 
 func (self *BoolType) Equal(dst Type) bool {
-	if self == dst{
-		return true
-	}
-	_, ok := dst.(*BoolType)
-	return ok
-}
-
-func (self *BoolType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (*BoolType) HasDefault()bool{
-	return true
+	return IsBoolType(dst)
 }
 
 func IsArrayType(t Type)bool{
@@ -364,22 +258,6 @@ func (self *ArrayType) Equal(dst Type) bool {
 		return false
 	}
 	return self.Size == t.Size && self.Elem.Equal(t.Elem)
-}
-
-func (self *ArrayType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *ArrayType) HasDefault()bool{
-	return self.Elem.HasDefault()
 }
 
 func IsTupleType(t Type)bool{
@@ -418,27 +296,6 @@ func (self *TupleType) Equal(dst Type) bool {
 	return true
 }
 
-func (self *TupleType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *TupleType) HasDefault()bool{
-	for _, e := range self.Elems{
-		if !e.HasDefault(){
-			return false
-		}
-	}
-	return true
-}
-
 func IsStructType(t Type)bool{
 	return stlbasic.Is[*StructType](GetInnerType(t))
 }
@@ -464,28 +321,6 @@ func (self *StructType) Equal(dst Type) bool {
 	return self.Pkg==t.Pkg && self.Name==t.Name
 }
 
-func (self *StructType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *StructType) HasDefault()bool{
-	// TODO: 结构体默认值
-	for iter := self.Fields.Values().Iterator(); iter.Next(); {
-		if !iter.Value().Second.HasDefault(){
-			return false
-		}
-	}
-	return true
-}
-
 func IsStringType(t Type)bool{
 	return stlbasic.Is[*StringType](GetInnerType(t))
 }
@@ -502,27 +337,7 @@ func (*StringType) String() string {
 }
 
 func (self *StringType) Equal(dst Type) bool {
-	if self == dst{
-		return true
-	}
-	_, ok := dst.(*StringType)
-	return ok
-}
-
-func (self *StringType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *StringType) HasDefault()bool{
-	return true
+	return IsStringType(dst)
 }
 
 func IsUnionType(t Type)bool{
@@ -564,18 +379,6 @@ func (self *UnionType) Equal(dst Type) bool {
 	return true
 }
 
-func (self *UnionType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
 // Contain 是否包含类型
 func (self *UnionType) Contain(elem Type) bool {
 	return self.GetElemIndex(elem) >= 0
@@ -589,15 +392,6 @@ func (self *UnionType) GetElemIndex(elem Type) int {
 		}
 	}
 	return -1
-}
-
-func (self *UnionType) HasDefault()bool{
-	for _, e := range self.Elems {
-		if !e.HasDefault(){
-			return false
-		}
-	}
-	return true
 }
 
 func IsPtrType(t Type)bool{
@@ -628,22 +422,6 @@ func (self *PtrType) Equal(dst Type) bool {
 	return self.Elem.Equal(pt.Elem)
 }
 
-func (self *PtrType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
-func (self *PtrType) HasDefault()bool{
-	return true
-}
-
 func IsRefType(t Type)bool{
 	return stlbasic.Is[*RefType](GetInnerType(t))
 }
@@ -672,27 +450,8 @@ func (self *RefType) Equal(dst Type) bool {
 	return self.Elem.Equal(pt.Elem)
 }
 
-func (self *RefType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if self.ToPtrType().Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
-}
-
 func (self *RefType) ToPtrType() *PtrType {
 	return &PtrType{Elem: self.Elem}
-}
-
-func (self *RefType) HasDefault()bool{
-	return true
 }
 
 func IsSelfType(t Type)bool{
@@ -704,10 +463,12 @@ func AsSelfType(t Type)*SelfType{
 }
 
 // SelfType Self类型
-type SelfType struct{}
+type SelfType struct{
+	Self TypeDef
+}
 
-func (*SelfType) String() string {
-	return "Self"
+func (self *SelfType) String() string {
+	return self.Self.String()
 }
 
 func (self *SelfType) Equal(dst Type) bool {
@@ -718,18 +479,17 @@ func (self *SelfType) Equal(dst Type) bool {
 	return ok
 }
 
-func (self *SelfType) AssignableTo(dst Type) bool {
-	if self.Equal(dst) {
-		return true
-	}
-	if ut, ok := dst.(*UnionType); ok {
-		if ut.Contain(self) {
-			return true
-		}
-	}
-	return false
+// AliasType 别名类型
+type AliasType = TypeAliasDef
+
+func (self *AliasType) String() string {
+	return self.Target.String()
 }
 
-func (self *SelfType) HasDefault()bool{
-	return true
+func (self *AliasType) Equal(dst Type) bool {
+	if self == dst{
+		return true
+	}
+	_, ok := dst.(*AliasType)
+	return ok
 }

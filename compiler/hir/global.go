@@ -15,6 +15,13 @@ type Global interface {
 	GetPublic() bool
 }
 
+// TypeDef 类型定义
+type TypeDef interface {
+	Global
+	Type
+	GetName()string
+}
+
 // StructDef 结构体定义
 type StructDef struct {
 	Pkg Package
@@ -30,6 +37,10 @@ func (self *StructDef) GetPackage()Package{
 
 func (self *StructDef) GetPublic() bool {
 	return self.Public
+}
+
+func (self *StructDef) GetName()string{
+	return self.Name
 }
 
 func (self *StructDef) GetImplMethod(name string, ft *FuncType)*MethodDef{
@@ -59,6 +70,10 @@ func (self *VarDef) GetPackage()Package{
 
 func (self *VarDef) GetPublic() bool {
 	return self.Public
+}
+
+func (self *VarDef) GetName()string{
+	return self.Name
 }
 
 func (*VarDef) stmt() {}
@@ -118,6 +133,10 @@ func (self *FuncDef) GetPublic() bool {
 	return self.Public
 }
 
+func (self *FuncDef) GetName()string{
+	return self.Name
+}
+
 func (*FuncDef) stmt() {}
 
 func (self *FuncDef) GetFuncType() *FuncType {
@@ -160,6 +179,10 @@ func (self *MethodDef) GetPublic() bool {
 	return self.Public
 }
 
+func (self *MethodDef) GetName()string{
+	return self.Name
+}
+
 func (*MethodDef) stmt() {}
 
 func (self *MethodDef) GetFuncType() *FuncType {
@@ -188,4 +211,24 @@ func (self *MethodDef) GetMethodType() *FuncType {
 		Ret:    self.Ret,
 		Params: params,
 	}
+}
+
+// TypeAliasDef 类型别名定义
+type TypeAliasDef struct {
+	Pkg Package
+	Public bool
+	Name   string
+	Target Type
+}
+
+func (self *TypeAliasDef) GetPackage()Package{
+	return self.Pkg
+}
+
+func (self *TypeAliasDef) GetPublic() bool {
+	return self.Public
+}
+
+func (self *TypeAliasDef) GetName()string{
+	return self.Name
 }

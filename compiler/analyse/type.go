@@ -84,19 +84,10 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 		return hir.Bool
 	case "str":
 		return hir.Str
-	case "Self":
-		return hir.Self
 	default:
-		// 结构体
-		if st, ok := self.pkgScope.GetStruct(pkgName, name); ok {
-			return st
-		}
-		// 类型别名
-		if typeAlias, ok := self.pkgScope.GetTypeAlias(pkgName, name); ok {
-			if target, ok := typeAlias.Right(); ok{
-				return target
-			}
-			return self.defTypeAlias(name)
+		// 类型定义
+		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
+			return td
 		}
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		return nil
@@ -153,5 +144,5 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
 	if self.selfType == nil{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
-	return self.selfType
+	return &hir.SelfType{Self: self.selfType}
 }

@@ -64,22 +64,28 @@ func (self *Analyser) declStructDef(node *ast.StructDef) {
 		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, hir.Type]](),
 		Methods: hashmap.NewHashMap[string, *hir.MethodDef](),
 	}
-	if !self.pkgScope.SetStruct(st) {
+	if !self.pkgScope.SetTypeDef(st) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
 }
 
 func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
-	if !self.pkgScope.DeclTypeAlias(node.Name.Source(), node){
+	tad := &hir.TypeAliasDef{
+		Pkg: self.pkgScope.pkg,
+		Public: node.Public,
+		Name: node.Name.Source(),
+	}
+	if !self.pkgScope.SetTypeDef(tad) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
 }
 
 func (self *Analyser) defStructDef(node *ast.StructDef) *hir.StructDef {
-	st, ok := self.pkgScope.GetStruct("", node.Name.Source())
+	td, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
+	st := td.(*hir.StructDef)
 
 	for _, f := range node.Fields {
 		fn := f.B.Source()
@@ -89,31 +95,15 @@ func (self *Analyser) defStructDef(node *ast.StructDef) *hir.StructDef {
 	return st
 }
 
-func (self *Analyser) defTypeAlias(name string) hir.Type {
-	res, ok := self.pkgScope.GetTypeAlias("", name)
-	if !ok{
+func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
+	td, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
+	if !ok {
 		panic("unreachable")
 	}
-	if t, ok := res.Right(); ok{
-		return t
-	}
+	tad := td.(*hir.TypeAliasDef)
 
-	node, ok := res.Left()
-	if !ok{
-		panic("unreachable")
-	}
-
-	if self.typeAliasTrace.Contain(node){
-		errors.ThrowCircularReference(node.Name.Position, node.Name)
-	}
-	self.typeAliasTrace.Add(node)
-	defer func() {
-		self.typeAliasTrace.Remove(node)
-	}()
-
-	target := self.analyseType(node.Type)
-	self.pkgScope.DefTypeAlias(name, target)
-	return target
+	tad.Target = self.analyseType(node.Type)
+	return tad
 }
 
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {
@@ -192,15 +182,13 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		}
 	}
 
-	st, ok := self.pkgScope.GetStruct("", node.Scope.Source())
-	if !ok{
+	td, ok := self.pkgScope.getLocalTypeDef(node.Scope.Source())
+	if !ok || !stlbasic.Is[*hir.StructDef](td){
 		errors.ThrowUnknownIdentifierError(node.Scope.Position, node.Scope)
 	}
+	st := td.(*hir.StructDef)
 
-	self.selfType = st
-	defer func() {
-		self.selfType = nil
-	}()
+	defer self.setSelfType(st)()
 
 	paramNameSet := hashset.NewHashSetWith[string]()
 	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
@@ -307,7 +295,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 	body, jump := self.analyseBlock(node.Body.MustValue(), nil)
 	f.Body = util.Some(body)
 	if jump != hir.BlockEofReturn {
-		if !f.Ret.Equal(hir.Empty) {
+		if !hir.IsEmptyType(f.Ret) {
 			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
 		}
 		body.Stmts.PushBack(&hir.Return{
@@ -319,16 +307,16 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 }
 
 func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
-	st, ok := self.pkgScope.GetStruct("", node.Scope.Source())
-	if !ok{
-		errors.ThrowUnknownIdentifierError(node.Scope.Position, node.Scope)
-	}
+	td, _ := self.pkgScope.getLocalTypeDef(node.Scope.Source())
+	st := td.(*hir.StructDef)
 	f := st.Methods.Get(node.Name.Source())
 
-	self.localScope, self.selfValue, self.selfType = _NewFuncScope(self.pkgScope, f), f.SelfParam, st
+	self.localScope = _NewFuncScope(self.pkgScope, f)
 	defer func() {
-		self.localScope, self.selfValue, self.selfType = nil, nil, nil
+		self.localScope = nil
 	}()
+	defer self.setSelfType(st)()
+	defer self.setSelfValue(f.SelfParam)()
 
 	for i, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {
@@ -339,7 +327,7 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
 	var jump hir.BlockEof
 	f.Body, jump = self.analyseBlock(node.Body, nil)
 	if jump != hir.BlockEofReturn {
-		if !f.Ret.Equal(hir.Empty) {
+		if !hir.IsEmptyType(f.Ret) {
 			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
 		}
 		f.Body.Stmts.PushBack(&hir.Return{

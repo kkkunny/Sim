@@ -2,12 +2,15 @@ package analyse
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
+	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/parse"
+	"github.com/kkkunny/Sim/reader"
 )
 
 type importPackageErrorKind uint8
@@ -61,6 +64,120 @@ func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool
 	}
 	self.pkgs.Set(pkg, scope)
 	return hirs, importPackageErrorNone
+}
+
+func (self *Analyser) setSelfValue(v *hir.Param)(callback func()){
+	bk := self.selfValue
+	self.selfValue = v
+	return func() {
+		self.selfValue = bk
+	}
+}
+
+func (self *Analyser) setSelfType(td hir.TypeDef)(callback func()){
+	bk := self.selfType
+	self.selfType = td
+	return func() {
+		self.selfType = bk
+	}
+}
+
+// 获取类型默认值
+func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) hir.Expr{
+	if !self.isTypeHasDefault(t){
+		errors.ThrowCanNotGetDefault(pos, t)
+	}
+	return &hir.Default{Type: t}
+}
+
+// 类型是否有默认值
+func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
+	switch tt := t.(type) {
+	case *hir.EmptyType, *hir.RefType:
+		return false
+	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.PtrType:
+		return true
+	case *hir.ArrayType:
+		return self.isTypeHasDefault(tt.Elem)
+	case *hir.TupleType:
+		for _, e := range tt.Elems{
+			if !self.isTypeHasDefault(e){
+				return false
+			}
+		}
+		return true
+	case *hir.StructType:
+		for iter:=tt.Fields.Values().Iterator(); iter.Next(); {
+			if !self.isTypeHasDefault(iter.Value().Second){
+				return false
+			}
+		}
+		return true
+	case *hir.UnionType:
+		for _, e := range tt.Elems {
+			if !self.isTypeHasDefault(e){
+				return false
+			}
+		}
+		return true
+	case *hir.SelfType:
+		return self.isTypeHasDefault(tt.Self)
+	case *hir.AliasType:
+		return self.isTypeHasDefault(tt.Target)
+	default:
+		panic("unreachable")
+	}
+}
+
+// 检查类型是否循环
+// NOTE: 目前是最严格的实现，不准包含任何形式的自身
+func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
+	if trace.Contain(t){
+		return true
+	}
+	trace.Add(t)
+	defer func() {
+		trace.Remove(t)
+	}()
+
+	switch typ := t.(type) {
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType:
+	case *hir.PtrType:
+		return self.checkTypeCircle(trace, typ.Elem)
+	case *hir.RefType:
+		return self.checkTypeCircle(trace, typ.Elem)
+	case *hir.ArrayType:
+		return self.checkTypeCircle(trace, typ.Elem)
+	case *hir.TupleType:
+		for _, e := range typ.Elems{
+			if self.checkTypeCircle(trace, e){
+				return true
+			}
+		}
+	case *hir.StructType:
+		for iter:=typ.Fields.Iterator(); iter.Next(); {
+			if self.checkTypeCircle(trace, iter.Value().Second.Second){
+				return true
+			}
+		}
+	case *hir.UnionType:
+		for _, e := range typ.Elems {
+			if self.checkTypeCircle(trace, e){
+				return true
+			}
+		}
+	case *hir.SelfType:
+		if self.checkTypeCircle(trace, typ.Self){
+			return true
+		}
+	case *hir.AliasType:
+		if self.checkTypeCircle(trace, typ.Target){
+			return true
+		}
+	default:
+		panic("unreachable")
+	}
+	return false
 }
 
 // Analyse 语义分析
