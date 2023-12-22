@@ -8,74 +8,63 @@ import (
 	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *CodeGenerator) codegenType(node hir.Type) mir.Type {
-	switch typeNode := node.(type) {
+func (self *CodeGenerator) codegenType(ir hir.Type) mir.Type {
+	switch t := ir.(type) {
 	case *hir.EmptyType:
-		return self.codegenEmptyType(typeNode)
+		return self.codegenEmptyType()
 	case *hir.SintType:
-		return self.codegenSintType(typeNode)
+		return self.codegenSintType(t)
 	case *hir.UintType:
-		return self.codegenUintType(typeNode)
+		return self.codegenUintType(t)
 	case *hir.FloatType:
-		return self.codegenFloatType(typeNode)
+		return self.codegenFloatType(t)
 	case *hir.FuncType:
-		return self.codegenFuncType(typeNode)
+		return self.codegenFuncType(t)
 	case *hir.BoolType:
 		return self.codegenBoolType()
 	case *hir.ArrayType:
-		return self.codegenArrayType(typeNode)
+		return self.codegenArrayType(t)
 	case *hir.TupleType:
-		return self.codegenTupleType(typeNode)
+		return self.codegenTupleType(t)
 	case *hir.StructType:
-		return self.codegenStructType(typeNode)
+		return self.codegenStructType(t)
 	case *hir.StringType:
 		return self.codegenStringType()
 	case *hir.UnionType:
-		return self.codegenUnionType(typeNode)
+		return self.codegenUnionType(t)
 	case *hir.PtrType:
-		return self.codegenPtrType(typeNode)
+		return self.codegenPtrType(t)
 	case *hir.RefType:
-		return self.codegenRefType(typeNode)
-	case *hir.GenericParam:
-		return self.codegenGenericParam(typeNode)
+		return self.codegenRefType(t)
+	case *hir.SelfType:
+		return self.codegenSelfType(t)
+	case *hir.AliasType:
+		return self.codegenAliasType(t)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenEmptyType(_ *hir.EmptyType) mir.VoidType {
+func (self *CodeGenerator) codegenEmptyType() mir.VoidType {
 	return self.ctx.Void()
 }
 
-func (self *CodeGenerator) codegenSintType(node *hir.SintType) mir.SintType {
-	bits := node.GetBits()
-	if bits == 0{
+func (self *CodeGenerator) codegenSintType(ir *hir.SintType) mir.SintType {
+	if ir.Bits == 0{
 		return self.ctx.Isize()
 	}
-	return self.ctx.NewSintType(stlos.Size(bits))
+	return self.ctx.NewSintType(stlos.Size(ir.Bits))
 }
 
-func (self *CodeGenerator) codegenUintType(node *hir.UintType) mir.UintType {
-	bits := node.GetBits()
-	if bits == 0{
+func (self *CodeGenerator) codegenUintType(ir *hir.UintType) mir.UintType {
+	if ir.Bits == 0{
 		return self.ctx.Usize()
 	}
-	return self.ctx.NewUintType(stlos.Size(bits))
+	return self.ctx.NewUintType(stlos.Size(ir.Bits))
 }
 
-func (self *CodeGenerator) codegenIntType(node hir.IntType) mir.IntType {
-	switch intNode := node.(type) {
-	case *hir.SintType:
-		return self.codegenSintType(intNode)
-	case *hir.UintType:
-		return self.codegenUintType(intNode)
-	default:
-		panic("unreachable")
-	}
-}
-
-func (self *CodeGenerator) codegenFloatType(node *hir.FloatType) mir.FloatType {
-	switch node.Bits {
+func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) mir.FloatType {
+	switch ir.Bits {
 	case 32:
 		return self.ctx.F32()
 	case 64:
@@ -85,9 +74,9 @@ func (self *CodeGenerator) codegenFloatType(node *hir.FloatType) mir.FloatType {
 	}
 }
 
-func (self *CodeGenerator) codegenFuncType(node *hir.FuncType) mir.FuncType {
-	ret := self.codegenType(node.Ret)
-	params := lo.Map(node.Params, func(item hir.Type, index int) mir.Type {
+func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) mir.FuncType {
+	ret := self.codegenType(ir.Ret)
+	params := lo.Map(ir.Params, func(item hir.Type, index int) mir.Type {
 		return self.codegenType(item)
 	})
 	return self.ctx.NewFuncType(ret, params...)
@@ -97,19 +86,19 @@ func (self *CodeGenerator) codegenBoolType() mir.UintType {
 	return self.ctx.NewUintType(1)
 }
 
-func (self *CodeGenerator) codegenArrayType(node *hir.ArrayType) mir.ArrayType {
-	return self.ctx.NewArrayType(node.Size, self.codegenType(node.Elem))
+func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) mir.ArrayType {
+	return self.ctx.NewArrayType(ir.Size, self.codegenType(ir.Elem))
 }
 
-func (self *CodeGenerator) codegenTupleType(node *hir.TupleType) mir.StructType {
-	elems := lo.Map(node.Elems, func(item hir.Type, index int) mir.Type {
+func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) mir.StructType {
+	elems := lo.Map(ir.Elems, func(item hir.Type, index int) mir.Type {
 		return self.codegenType(item)
 	})
 	return self.ctx.NewStructType(elems...)
 }
 
-func (self *CodeGenerator) codegenStructType(node *hir.StructType) mir.StructType {
-	return self.structs.Get(node)
+func (self *CodeGenerator) codegenStructType(ir *hir.StructType) mir.StructType {
+	return self.structs.Get(ir)
 }
 
 func (self *CodeGenerator) codegenStringType() mir.StructType {
@@ -120,10 +109,10 @@ func (self *CodeGenerator) codegenStringType() mir.StructType {
 	return self.module.NewNamedStructType("str", self.ctx.NewPtrType(self.ctx.U8()), self.ctx.Usize())
 }
 
-func (self *CodeGenerator) codegenUnionType(node *hir.UnionType) mir.StructType {
+func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) mir.StructType {
 	var maxSizeType mir.Type
 	var maxSize stlos.Size
-	for _, e := range node.Elems{
+	for _, e := range ir.Elems{
 		et := self.codegenType(e)
 		if esize := et.Size(); esize > maxSize {
 			maxSizeType, maxSize = et, esize
@@ -132,14 +121,18 @@ func (self *CodeGenerator) codegenUnionType(node *hir.UnionType) mir.StructType 
 	return self.ctx.NewStructType(maxSizeType, self.ctx.U8())
 }
 
-func (self *CodeGenerator) codegenPtrType(node *hir.PtrType) mir.PtrType {
-	return self.ctx.NewPtrType(self.codegenType(node.Elem))
+func (self *CodeGenerator) codegenPtrType(ir *hir.PtrType) mir.PtrType {
+	return self.ctx.NewPtrType(self.codegenType(ir.Elem))
 }
 
-func (self *CodeGenerator) codegenRefType(node *hir.RefType) mir.PtrType {
-	return self.ctx.NewPtrType(self.codegenType(node.Elem))
+func (self *CodeGenerator) codegenRefType(ir *hir.RefType) mir.PtrType {
+	return self.ctx.NewPtrType(self.codegenType(ir.Elem))
+}
+func (self *CodeGenerator) codegenSelfType(ir *hir.SelfType)mir.Type{
+	return self.codegenType(ir.Self)
 }
 
-func (self *CodeGenerator) codegenGenericParam(node *hir.GenericParam)mir.Type{
-	return self.codegenType(self.genericParams.Get(node))
+func (self *CodeGenerator) codegenAliasType(ir *hir.AliasType)mir.Type{
+	// TODO: 处理类型循环
+	return self.codegenType(ir.Target)
 }

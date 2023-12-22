@@ -1,8 +1,6 @@
 package hir
 
 import (
-	"strings"
-
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
@@ -15,6 +13,13 @@ import (
 type Global interface {
 	GetPackage()Package
 	GetPublic() bool
+}
+
+// TypeDef 类型定义
+type TypeDef interface {
+	Global
+	Type
+	GetName()string
 }
 
 // StructDef 结构体定义
@@ -34,20 +39,14 @@ func (self *StructDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *StructDef) Impl(t *TraitDef)bool{
-	for targetIter:=t.Methods.Iterator(); targetIter.Next(); {
-		target := targetIter.Value()
-		if self.GetImplMethod(target.First, target.Second) == nil{
-			return false
-		}
-	}
-	return true
+func (self *StructDef) GetName()string{
+	return self.Name
 }
 
 func (self *StructDef) GetImplMethod(name string, ft *FuncType)*MethodDef{
 	for iter:=self.Methods.Values().Iterator(); iter.Next(); {
 		fun := iter.Value()
-		if fun.Name == name && fun.GetMethodType().Equal(ft){
+		if fun.Name == name && fun.GetMethodType().EqualTo(ft){
 			return fun
 		}
 	}
@@ -71,6 +70,10 @@ func (self *VarDef) GetPackage()Package{
 
 func (self *VarDef) GetPublic() bool {
 	return self.Public
+}
+
+func (self *VarDef) GetName()string{
+	return self.Name
 }
 
 func (*VarDef) stmt() {}
@@ -130,6 +133,10 @@ func (self *FuncDef) GetPublic() bool {
 	return self.Public
 }
 
+func (self *FuncDef) GetName()string{
+	return self.Name
+}
+
 func (*FuncDef) stmt() {}
 
 func (self *FuncDef) GetFuncType() *FuncType {
@@ -172,6 +179,10 @@ func (self *MethodDef) GetPublic() bool {
 	return self.Public
 }
 
+func (self *MethodDef) GetName()string{
+	return self.Name
+}
+
 func (*MethodDef) stmt() {}
 
 func (self *MethodDef) GetFuncType() *FuncType {
@@ -202,71 +213,22 @@ func (self *MethodDef) GetMethodType() *FuncType {
 	}
 }
 
-// GenericFuncDef 泛型函数定义
-type GenericFuncDef struct {
+// TypeAliasDef 类型别名定义
+type TypeAliasDef struct {
 	Pkg Package
-	Public     bool
-	Name       string
-	GenericParams linkedhashmap.LinkedHashMap[string, *GenericParam]
-	Params     []*Param
-	Ret        Type
-	Body       *Block
-
-	Instances hashmap.HashMap[string, *GenericFuncInstance]
+	Public bool
+	Name   string
+	Target Type
 }
 
-func (self *GenericFuncDef) GetPackage()Package{
+func (self *TypeAliasDef) GetPackage()Package{
 	return self.Pkg
 }
 
-func (self *GenericFuncDef) GetPublic() bool {
+func (self *TypeAliasDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *GenericFuncDef) GetFuncType() *FuncType {
-	params := lo.Map(self.Params, func(item *Param, index int) Type {
-		return item.GetType()
-	})
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: params,
-	}
-}
-
-func (self *GenericFuncDef) AddInstance(genericArg ...Type)*GenericFuncInstance{
-	if uint(len(genericArg)) != self.GenericParams.Length(){
-		panic("unreachable")
-	}
-
-	typeNames := lo.Map(genericArg, func(item Type, _ int) string {
-		return item.String()
-	})
-	key := strings.Join(typeNames, ", ")
-
-	inst := self.Instances.Get(key)
-	if inst != nil{
-		return inst
-	}
-
-	inst = &GenericFuncInstance{
-		Define: self,
-		Params: genericArg,
-	}
-	self.Instances.Set(key, inst)
-	return inst
-}
-
-// TraitDef 特性定义
-type TraitDef struct {
-	Pkg Package
-	Name string
-	Methods hashmap.HashMap[string, *FuncType]
-}
-
-func (self *TraitDef) GetPackage()Package{
-	return self.Pkg
-}
-
-func DefaultTrait(t Type)*TraitDef {
-	return &TraitDef{Methods: hashmap.NewHashMapWith[string, *FuncType]("default", &FuncType{Ret: t})}
+func (self *TypeAliasDef) GetName()string{
+	return self.Name
 }

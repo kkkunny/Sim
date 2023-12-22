@@ -23,8 +23,9 @@ type IdentType struct {
 func (self *IdentType) Position() reader.Position {
 	if pkg, ok := self.Pkg.Value(); ok {
 		return reader.MixPosition(pkg.Position, self.Name.Position)
+	}else{
+		return self.Name.Position
 	}
-	return self.Name.Position
 }
 
 func (self *IdentType) typ() {}

@@ -44,6 +44,13 @@ func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
 }
 
 func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
+	var pkgName string
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		pkgName = pkgToken.Source()
+		if !self.pkgScope.externs.ContainKey(pkgName) {
+			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+		}
+	}
 	switch name := node.Name.Source(); name {
 	case "isize":
 		return hir.Isize
@@ -55,8 +62,6 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 		return hir.I32
 	case "i64":
 		return hir.I64
-	case "i128":
-		return hir.I128
 	case "usize":
 		return hir.Usize
 	case "u8":
@@ -67,8 +72,6 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 		return hir.U32
 	case "u64":
 		return hir.U64
-	case "u128":
-		return hir.U128
 	case "f32":
 		return hir.F32
 	case "f64":
@@ -78,33 +81,9 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	case "str":
 		return hir.Str
 	default:
-		var pkgName string
-		if pkgToken, ok := node.Pkg.Value(); ok {
-			pkgName = pkgToken.Source()
-			if !self.pkgScope.externs.ContainKey(pkgName) {
-				errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-			}
-		}else{
-			// 泛型参数
-			if self.localScope != nil{
-				switch funDecl := self.localScope.GetFunc().(type){
-				case *hir.GenericFuncDef:
-					if gp := funDecl.GenericParams.Get(node.Name.Source()); gp != nil{
-						return gp
-					}
-				}
-			}
-		}
-		// 结构体
-		if st, ok := self.pkgScope.GetStruct(pkgName, name); ok {
-			return st
-		}
-		// 类型别名
-		if typeAlias, ok := self.pkgScope.GetTypeAlias(pkgName, name); ok {
-			if target, ok := typeAlias.Right(); ok{
-				return target
-			}
-			return self.defTypeAlias(name)
+		// 类型定义
+		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
+			return td
 		}
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		return nil
@@ -161,20 +140,5 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
 	if self.selfType == nil{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
-	return self.selfType
-}
-
-func (self *Analyser) analyseTraitType(selfType hir.Type, node *ast.IdentType) *hir.TraitDef {
-	var pkgName string
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.ContainKey(pkgName) {
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-		}
-	}
-	if traitNode, ok := self.pkgScope.GetTrait(pkgName, node.Name.Source()); ok {
-		return self.defTrait(selfType, traitNode)
-	}
-	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-	return nil
+	return &hir.SelfType{Self: self.selfType}
 }

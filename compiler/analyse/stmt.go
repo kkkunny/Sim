@@ -1,7 +1,6 @@
 package analyse
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/samber/lo"
 
@@ -77,7 +76,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 			Value: util.Some[hir.Expr](value),
 		}
 	} else {
-		if !ft.Ret.Equal(hir.Empty) {
+		if !ft.Ret.EqualTo(hir.Empty) {
 			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, hir.Empty)
 		}
 		return &hir.Return{
@@ -140,7 +139,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 		value = self.analyseExpr(&hir.TupleType{Elems: varTypes}, valueNode)
 		vt, ok := value.GetType().(*hir.TupleType)
 		if !ok{
-			errors.ThrowNotTupleError(valueNode.Position(), value.GetType())
+			errors.ThrowExpectTupleError(valueNode.Position(), value.GetType())
 		}else if len(vt.Elems) != len(vars){
 			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(vars)), uint(len(vt.Elems)))
 		}
@@ -216,11 +215,11 @@ func (self *Analyser) analyseContinue(node *ast.Continue) *hir.Continue {
 func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 	iterator := self.analyseExpr(nil, node.Iterator)
 	iterType := iterator.GetType()
-	if !stlbasic.Is[*hir.ArrayType](iterType) {
-		errors.ThrowNotArrayError(node.Iterator.Position(), iterType)
+	if !hir.IsArrayType(iterType) {
+		errors.ThrowExpectArrayError(node.Iterator.Position(), iterType)
 	}
 
-	et := iterType.(*hir.ArrayType).Elem
+	et := hir.AsArrayType(iterType).Elem
 	loop := &hir.For{
 		Iterator: iterator,
 		Cursor: &hir.VarDef{

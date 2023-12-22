@@ -34,7 +34,7 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseBool())
 	case token.IDENT:
 		ident := self.parseIdent()
-		if !canStruct || !self.nextIs(token.LBR) || len(ident.GenericArgs) > 0 {
+		if !canStruct || !self.nextIs(token.LBR) {
 			return util.Some[ast.Expr](ident)
 		}
 		return util.Some[ast.Expr](self.parseStruct(&ast.IdentType{
@@ -226,26 +226,15 @@ func (self *Parser) parseIdent() *ast.Ident {
 	pkg := util.None[token.Token]()
 	var name token.Token
 	pkgOrName := self.expectNextIs(token.IDENT)
-	var genericArgs []ast.Type
 	if self.skipNextIs(token.SCOPE) {
-		if !self.nextIs(token.LT){
-			pkg = util.Some(pkgOrName)
-			name = self.expectNextIs(token.IDENT)
-		}else{
-			name = pkgOrName
-		}
-		if self.skipNextIs(token.LT){
-			genericArgs = self.parseTypeList(token.GT)
-			self.expectNextIs(token.GT)
-		}
+		pkg = util.Some(pkgOrName)
+		name = self.expectNextIs(token.IDENT)
 	} else {
 		name = pkgOrName
 	}
 	return &ast.Ident{
 		Pkg:  pkg,
 		Name: name,
-		GenericArgs: genericArgs,
-		End: self.curTok.Position,
 	}
 }
 

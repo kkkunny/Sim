@@ -11,7 +11,7 @@ import (
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	means linkedlist.LinkedList[hir.Global]
+	irs linkedlist.LinkedList[hir.Global]
 
 	target  mir.Target
 	ctx     *mir.Context
@@ -22,25 +22,23 @@ type CodeGenerator struct {
 	loops   hashmap.HashMap[hir.Loop, loop]
 	strings hashmap.HashMap[string, *mir.Constant]
 	structs hashmap.HashMap[*hir.StructDef, mir.StructType]
-
-	genericParams hashmap.HashMap[*hir.GenericParam, hir.Type]
 }
 
-func New(target mir.Target, means linkedlist.LinkedList[hir.Global]) *CodeGenerator {
+func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {
 	ctx := mir.NewContext(target)
 	return &CodeGenerator{
-		means: means,
-		target:   target,
-		ctx:      ctx,
-		module:   ctx.NewModule(),
-		builder:  ctx.NewBuilder(),
+		irs:     irs,
+		target:  target,
+		ctx:     ctx,
+		module:  ctx.NewModule(),
+		builder: ctx.NewBuilder(),
 	}
 }
 
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() *mir.Module {
 	// 类型声明
-	iterator.Foreach[hir.Global](self.means, func(v hir.Global) bool {
+	iterator.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		st, ok := v.(*hir.StructDef)
 		if ok {
 			self.declStructDef(st)
@@ -48,12 +46,12 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		return true
 	})
 	// 值声明
-	iterator.Foreach[hir.Global](self.means, func(v hir.Global) bool {
+	iterator.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		self.codegenGlobalDecl(v)
 		return true
 	})
 	// 值定义
-	iterator.Foreach[hir.Global](self.means, func(v hir.Global) bool {
+	iterator.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		self.codegenGlobalDef(v)
 		return true
 	})
@@ -63,7 +61,7 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 	self.builder.BuildReturn()
 	// 主函数
 	var hasMain bool
-	iterator.Foreach[hir.Global](self.means, func(v hir.Global) bool {
+	iterator.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {
 			hasMain = true
 			f := self.values.Get(funcNode).(*mir.Function)
