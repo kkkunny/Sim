@@ -46,7 +46,7 @@ func (self *StructDef) GetName()string{
 func (self *StructDef) GetImplMethod(name string, ft *FuncType)*MethodDef{
 	for iter:=self.Methods.Values().Iterator(); iter.Next(); {
 		fun := iter.Value()
-		if fun.Name == name && fun.GetMethodType().Equal(ft){
+		if fun.Name == name && fun.GetMethodType().EqualTo(ft){
 			return fun
 		}
 	}

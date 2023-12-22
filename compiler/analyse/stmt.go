@@ -76,7 +76,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 			Value: util.Some[hir.Expr](value),
 		}
 	} else {
-		if !ft.Ret.Equal(hir.Empty) {
+		if !ft.Ret.EqualTo(hir.Empty) {
 			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, hir.Empty)
 		}
 		return &hir.Return{

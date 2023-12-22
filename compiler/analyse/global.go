@@ -160,7 +160,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		Ret:        self.analyseOptionType(node.Ret),
 		Body:       util.None[*hir.Block](),
 	}
-	if f.Name == "main" && !f.Ret.Equal(hir.U8) {
+	if f.Name == "main" && !f.Ret.EqualTo(hir.U8) {
 		pos := stlbasic.TernaryAction(node.Ret.IsNone(), func() reader.Position {
 			return node.Name.Position
 		}, func() reader.Position {

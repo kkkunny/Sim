@@ -130,7 +130,6 @@ func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
 }
 
 // 检查类型是否循环
-// NOTE: 目前是最严格的实现，不准包含任何形式的自身
 func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
 	if trace.Contain(t){
 		return true
@@ -141,11 +140,7 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType:
-	case *hir.PtrType:
-		return self.checkTypeCircle(trace, typ.Elem)
-	case *hir.RefType:
-		return self.checkTypeCircle(trace, typ.Elem)
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.PtrType, *hir.RefType:
 	case *hir.ArrayType:
 		return self.checkTypeCircle(trace, typ.Elem)
 	case *hir.TupleType:

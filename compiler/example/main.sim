@@ -1,7 +1,3 @@
-struct Result<T>{
-    data: T
-}
-
 func main()u8{
     return 1
 }

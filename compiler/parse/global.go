@@ -3,7 +3,6 @@ package parse
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
@@ -133,9 +132,6 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) ast.Globa
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
-	if self.nextIs(token.LT){
-		return self.parseGenericStructDef(attrs, pub, begin, name)
-	}
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
 		pub := self.skipNextIs(token.PUBLIC)
@@ -153,42 +149,6 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) ast.Globa
 		Begin:  begin,
 		Public: pub != nil,
 		Name:   name,
-		Fields: fields,
-		End:    end,
-	}
-}
-
-func (self *Parser) parseGenericStructDef(attrs []ast.Attr, pub *token.Token, begin reader.Position, name token.Token) *ast.GenericStructDef {
-	expectAttrIn(attrs)
-
-	self.expectNextIs(token.LT)
-	genericParams := loopParseWithUtil(self, token.COM, token.GT, func() pair.Pair[token.Token, util.Option[*ast.IdentType]] {
-		name := self.expectNextIs(token.IDENT)
-		constraint := util.None[*ast.IdentType]()
-		if self.skipNextIs(token.COL){
-			constraint = util.Some[*ast.IdentType](self.parseIdentType())
-		}
-		return pair.NewPair(name, constraint)
-	})
-	self.expectNextIs(token.GT)
-	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
-		pub := self.skipNextIs(token.PUBLIC)
-		fn := self.expectNextIs(token.IDENT)
-		self.expectNextIs(token.COL)
-		ft := self.parseType()
-		return lo.Tuple3[bool, token.Token, ast.Type]{
-			A: pub,
-			B: fn,
-			C: ft,
-		}
-	})
-	end := self.expectNextIs(token.RBR).Position
-	return &ast.GenericStructDef{
-		Begin:  begin,
-		Public: pub != nil,
-		Name:   name,
-		GenericParams: genericParams,
 		Fields: fields,
 		End:    end,
 	}

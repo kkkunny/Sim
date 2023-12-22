@@ -62,8 +62,6 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 		return hir.I32
 	case "i64":
 		return hir.I64
-	case "i128":
-		return hir.I128
 	case "usize":
 		return hir.Usize
 	case "u8":
@@ -74,8 +72,6 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 		return hir.U32
 	case "u64":
 		return hir.U64
-	case "u128":
-		return hir.U128
 	case "f32":
 		return hir.F32
 	case "f64":

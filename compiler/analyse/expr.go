@@ -135,7 +135,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 
 	switch node.Opera.Kind {
 	case token.ASS:
-		if lt.Equal(rt) {
+		if lt.EqualTo(rt) {
 			if !left.Mutable() {
 				errors.ThrowNotMutableError(node.Left.Position())
 			}
@@ -145,77 +145,77 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.AND:
-		if lt.Equal(rt) && hir.IsIntType(lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntAndInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.OR:
-		if lt.Equal(rt) && hir.IsIntType(lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntOrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.XOR:
-		if lt.Equal(rt) && hir.IsIntType(lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntXorInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHL:
-		if lt.Equal(rt) && hir.IsIntType(lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntShlInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHR:
-		if lt.Equal(rt) && hir.IsIntType(lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntShrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.ADD:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumAddNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SUB:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumSubNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.MUL:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumMulNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.DIV:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumDivNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.REM:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumRemNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.EQ:
-		if lt.Equal(rt) {
+		if lt.EqualTo(rt) {
 			if !hir.IsEmptyType(lt){
 				return &hir.Equal{
 					Left:  left,
@@ -231,42 +231,42 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.LT:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GT:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LE:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GE:
-		if lt.Equal(rt) && hir.IsNumberType(lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LAND:
-		if lt.Equal(rt) && hir.IsBoolType(lt) {
+		if lt.EqualTo(rt) && hir.IsBoolType(lt) {
 			return &hir.BoolAndBool{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LOR:
-		if lt.Equal(rt) && hir.IsBoolType(lt) {
+		if lt.EqualTo(rt) && hir.IsBoolType(lt) {
 			return &hir.BoolOrBool{
 				Left:  left,
 				Right: right,
@@ -423,7 +423,7 @@ func (self *Analyser) expectExpr(expect hir.Type, node ast.Expr) hir.Expr {
 // 自动类型转换
 func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, bool) {
 	vt := v.GetType()
-	if vt.Equal(expect) {
+	if vt.EqualTo(expect) {
 		return v, true
 	}
 
@@ -434,7 +434,7 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 			Type:  expect,
 			Value: v,
 		}, true
-	case hir.IsRefType(vt) && hir.AsRefType(vt).ToPtrType().Equal(expect):
+	case hir.IsRefType(vt) && hir.AsRefType(vt).ToPtrType().EqualTo(expect):
 		// *i8 -> *?i8
 		return &hir.WrapWithNull{Value: v}, true
 	default:
@@ -572,7 +572,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	vt := value.GetType()
 
 	switch {
-	case vt.Equal(target):
+	case vt.EqualTo(target):
 		return &hir.Boolean{Value: true}
 	case hir.IsUnionType(vt) && hir.AsUnionType(vt).GetElemIndex(target) >= 0:
 		return &hir.UnionTypeJudgment{
