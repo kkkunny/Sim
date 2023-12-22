@@ -582,7 +582,7 @@ type Call struct {
 func (self *Call) stmt() {}
 
 func (self *Call) GetType() Type {
-	return self.Func.GetType().(*FuncType).Ret
+	return AsFuncType(self.Func.GetType()).Ret
 }
 
 func (self *Call) Mutable() bool {
@@ -617,7 +617,7 @@ func (self *Num2Num) GetFrom() Expr {
 
 // Array 数组
 type Array struct {
-	Type  *ArrayType
+	Type  Type
 	Elems []Expr
 }
 
@@ -640,7 +640,7 @@ type Index struct {
 func (self *Index) stmt() {}
 
 func (self *Index) GetType() Type {
-	return self.From.GetType().(*ArrayType).Elem
+	return AsArrayType(self.From.GetType()).Elem
 }
 
 func (self *Index) Mutable() bool {
@@ -679,7 +679,7 @@ type Extract struct {
 func (self *Extract) stmt() {}
 
 func (self *Extract) GetType() Type {
-	return self.From.GetType().(*TupleType).Elems[self.Index]
+	return AsTupleType(self.From.GetType()).Elems[self.Index]
 }
 
 func (self *Extract) Mutable() bool {
@@ -707,7 +707,7 @@ func (*Param) ident() {}
 
 // Struct 结构体
 type Struct struct {
-	Type   *StructType
+	Type   Type
 	Fields []Expr
 }
 
@@ -745,7 +745,7 @@ type Field struct {
 func (self *Field) stmt() {}
 
 func (self *Field) GetType() Type {
-	return self.From.GetType().(*StructType).Fields.Values().Get(self.Index).Second
+	return AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Second
 }
 
 func (self *Field) Mutable() bool {
@@ -842,7 +842,7 @@ type GetValue struct {
 func (self *GetValue) stmt() {}
 
 func (self *GetValue) GetType() Type {
-	return self.Value.GetType().(*RefType).Elem
+	return AsRefType(self.Value.GetType()).Elem
 }
 
 func (self *GetValue) Mutable() bool {
@@ -861,7 +861,7 @@ type WrapWithNull struct {
 func (self *WrapWithNull) stmt() {}
 
 func (self *WrapWithNull) GetType() Type {
-	return self.Value.GetType().(*RefType).ToPtrType()
+	return AsRefType(self.Value.GetType()).ToPtrType()
 }
 
 func (self *WrapWithNull) Mutable() bool {
@@ -876,7 +876,7 @@ type CheckNull struct {
 func (self *CheckNull) stmt() {}
 
 func (self *CheckNull) GetType() Type {
-	return &RefType{Elem: self.Value.GetType().(*PtrType).Elem}
+	return &RefType{Elem: AsPtrType(self.Value.GetType()).Elem}
 }
 
 func (self *CheckNull) Mutable() bool {
@@ -892,7 +892,7 @@ type Method struct {
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*StructDef{
-	return self.Self.GetType().(*StructDef)
+	return AsStructType(self.Self.GetType())
 }
 
 func (self *Method) GetType() Type {

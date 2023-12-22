@@ -443,6 +443,7 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 }
 
 func (self *Analyser) analyseArray(node *ast.Array) *hir.Array {
+	// TODO: 数组类型别名
 	t := self.analyseArrayType(node.Type)
 	elems := make([]hir.Expr, len(node.Elems))
 	for i, en := range node.Elems {
