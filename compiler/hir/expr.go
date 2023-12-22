@@ -3,10 +3,7 @@ package hir
 import (
 	"math/big"
 
-	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
-
-	"github.com/kkkunny/Sim/util"
 )
 
 // Expr 表达式
@@ -24,7 +21,7 @@ type Ident interface {
 
 // Integer 整数
 type Integer struct {
-	Type  IntType
+	Type  Type
 	Value *big.Int
 }
 
@@ -40,7 +37,7 @@ func (self *Integer) Mutable() bool {
 
 // Float 浮点数
 type Float struct {
-	Type  *FloatType
+	Type  Type
 	Value *big.Float
 }
 
@@ -585,7 +582,7 @@ type Call struct {
 func (self *Call) stmt() {}
 
 func (self *Call) GetType() Type {
-	return self.Func.GetType().(*FuncType).Ret
+	return AsFuncType(self.Func.GetType()).Ret
 }
 
 func (self *Call) Mutable() bool {
@@ -601,7 +598,7 @@ type Covert interface {
 // Num2Num 数字类型转数字类型
 type Num2Num struct {
 	From Expr
-	To   NumberType
+	To   Type
 }
 
 func (self *Num2Num) stmt() {}
@@ -620,7 +617,7 @@ func (self *Num2Num) GetFrom() Expr {
 
 // Array 数组
 type Array struct {
-	Type  *ArrayType
+	Type  Type
 	Elems []Expr
 }
 
@@ -643,7 +640,7 @@ type Index struct {
 func (self *Index) stmt() {}
 
 func (self *Index) GetType() Type {
-	return self.From.GetType().(*ArrayType).Elem
+	return AsArrayType(self.From.GetType()).Elem
 }
 
 func (self *Index) Mutable() bool {
@@ -682,7 +679,7 @@ type Extract struct {
 func (self *Extract) stmt() {}
 
 func (self *Extract) GetType() Type {
-	return self.From.GetType().(*TupleType).Elems[self.Index]
+	return AsTupleType(self.From.GetType()).Elems[self.Index]
 }
 
 func (self *Extract) Mutable() bool {
@@ -710,7 +707,7 @@ func (*Param) ident() {}
 
 // Struct 结构体
 type Struct struct {
-	Type   *StructType
+	Type   Type
 	Fields []Expr
 }
 
@@ -748,7 +745,7 @@ type Field struct {
 func (self *Field) stmt() {}
 
 func (self *Field) GetType() Type {
-	return self.From.GetType().(*StructType).Fields.Values().Get(self.Index).Second
+	return AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Second
 }
 
 func (self *Field) Mutable() bool {
@@ -772,7 +769,7 @@ func (self *String) Mutable() bool {
 
 // Union 联合
 type Union struct {
-	Type  *UnionType
+	Type  Type
 	Value Expr
 }
 
@@ -845,7 +842,7 @@ type GetValue struct {
 func (self *GetValue) stmt() {}
 
 func (self *GetValue) GetType() Type {
-	return self.Value.GetType().(*RefType).Elem
+	return AsRefType(self.Value.GetType()).Elem
 }
 
 func (self *GetValue) Mutable() bool {
@@ -864,7 +861,7 @@ type WrapWithNull struct {
 func (self *WrapWithNull) stmt() {}
 
 func (self *WrapWithNull) GetType() Type {
-	return self.Value.GetType().(*RefType).ToPtrType()
+	return AsRefType(self.Value.GetType()).ToPtrType()
 }
 
 func (self *WrapWithNull) Mutable() bool {
@@ -879,7 +876,7 @@ type CheckNull struct {
 func (self *CheckNull) stmt() {}
 
 func (self *CheckNull) GetType() Type {
-	return &RefType{Elem: self.Value.GetType().(*PtrType).Elem}
+	return &RefType{Elem: AsPtrType(self.Value.GetType()).Elem}
 }
 
 func (self *CheckNull) Mutable() bool {
@@ -895,7 +892,7 @@ type Method struct {
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*StructDef{
-	return self.Self.GetType().(*StructDef)
+	return AsStructType(self.Self.GetType())
 }
 
 func (self *Method) GetType() Type {
@@ -907,56 +904,3 @@ func (self *Method) Mutable() bool {
 }
 
 func (*Method) ident() {}
-
-// GenericFuncInstance 泛型函数实例
-type GenericFuncInstance struct {
-	Define *GenericFuncDef
-	Params []Type
-}
-
-func (self *GenericFuncInstance) stmt() {}
-
-func (self *GenericFuncInstance) GetType() Type {
-	if self.Define.GenericParams.Length() != uint(len(self.Params)){
-		panic("unreachable")
-	}
-	table := hashmap.NewHashMapWithCapacity[*GenericParam, Type](self.Define.GenericParams.Length())
-	var i int
-	for iter:=self.Define.GenericParams.Values().Iterator(); iter.Next(); {
-		table.Set(iter.Value(), self.Params[i])
-		i++
-	}
-	return ReplaceGenericParam(self.Define.GetFuncType(), table)
-}
-
-func (self *GenericFuncInstance) Mutable() bool {
-	return false
-}
-
-func (*GenericFuncInstance) ident() {}
-
-// TraitMethod 特性方法
-type TraitMethod struct {
-	Type *GenericParam
-	Value util.Option[Expr]
-	Name string
-}
-
-func (self *TraitMethod) stmt() {}
-
-func (self *TraitMethod) GetType() Type {
-	constraint := self.Type.Constraint.MustValue()
-	for iter:=constraint.Methods.Iterator(); iter.Next(); {
-		data := iter.Value()
-		if data.First == self.Name{
-			return data.Second
-		}
-	}
-	panic("unreachable")
-}
-
-func (self *TraitMethod) Mutable() bool {
-	return false
-}
-
-func (*TraitMethod) ident() {}

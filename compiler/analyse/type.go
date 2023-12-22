@@ -51,77 +51,42 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		}
 	}
-	if len(node.GenericArgs) == 0{
-		switch name := node.Name.Source(); name {
-		case "isize":
-			return hir.Isize
-		case "i8":
-			return hir.I8
-		case "i16":
-			return hir.I16
-		case "i32":
-			return hir.I32
-		case "i64":
-			return hir.I64
-		case "i128":
-			return hir.I128
-		case "usize":
-			return hir.Usize
-		case "u8":
-			return hir.U8
-		case "u16":
-			return hir.U16
-		case "u32":
-			return hir.U32
-		case "u64":
-			return hir.U64
-		case "u128":
-			return hir.U128
-		case "f32":
-			return hir.F32
-		case "f64":
-			return hir.F64
-		case "bool":
-			return hir.Bool
-		case "str":
-			return hir.Str
-		default:
-			// 泛型参数
-			if node.Pkg.IsNone() && self.localScope != nil{
-				switch funDecl := self.localScope.GetFunc().(type){
-				case *hir.GenericFuncDef:
-					if gp := funDecl.GenericParams.Get(node.Name.Source()); gp != nil{
-						return gp
-					}
-				}
-			}
-			// 结构体
-			if st, ok := self.pkgScope.GetStruct(pkgName, name); ok {
-				return st
-			}
-			// 类型别名
-			if typeAlias, ok := self.pkgScope.GetTypeAlias(pkgName, name); ok {
-				if target, ok := typeAlias.Right(); ok{
-					return target
-				}
-				return self.defTypeAlias(name)
-			}
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-			return nil
+	switch name := node.Name.Source(); name {
+	case "isize":
+		return hir.Isize
+	case "i8":
+		return hir.I8
+	case "i16":
+		return hir.I16
+	case "i32":
+		return hir.I32
+	case "i64":
+		return hir.I64
+	case "usize":
+		return hir.Usize
+	case "u8":
+		return hir.U8
+	case "u16":
+		return hir.U16
+	case "u32":
+		return hir.U32
+	case "u64":
+		return hir.U64
+	case "f32":
+		return hir.F32
+	case "f64":
+		return hir.F64
+	case "bool":
+		return hir.Bool
+	case "str":
+		return hir.Str
+	default:
+		// 类型定义
+		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
+			return td
 		}
-	}else{
-		// 泛型结构体
-		gst, ok := self.pkgScope.GetGenericStruct(pkgName, node.Name.Source())
-		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
-		}
-		if gst.GenericParams.Length() != uint(len(node.GenericArgs)){
-			errors.ThrowParameterNumberNotMatchError(node.Name.Position, gst.GenericParams.Length(), uint(len(node.GenericArgs)))
-		}
-		params := lo.Map(node.GenericArgs, func(item ast.Type, _ int) hir.Type {
-			return self.analyseType(item)
-		})
-		return gst.AddInstance(params...)
+		errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+		return nil
 	}
 }
 
@@ -175,20 +140,5 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
 	if self.selfType == nil{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
-	return self.selfType
-}
-
-func (self *Analyser) analyseTraitType(selfType hir.Type, node *ast.IdentType) *hir.TraitDef {
-	var pkgName string
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.ContainKey(pkgName) {
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-		}
-	}
-	if traitNode, ok := self.pkgScope.GetTrait(pkgName, node.Name.Source()); ok {
-		return self.defTrait(selfType, traitNode)
-	}
-	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-	return nil
+	return &hir.SelfType{Self: self.selfType}
 }

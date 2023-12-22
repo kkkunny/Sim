@@ -24,10 +24,9 @@ type Analyser struct {
 	localScope _LocalScope
 
 	selfValue *hir.Param
-	selfType  hir.Type
+	selfType  hir.TypeDef
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
-	genericFuncScope hashmap.HashMap[*hir.GenericFuncDef, *_FuncScope]
 }
 
 func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
@@ -40,8 +39,6 @@ func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
 		asts:     asts,
 		pkgs:     &pkgs,
 		pkgScope: _NewPkgScope(pkg),
-		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
-		genericFuncScope: hashmap.NewHashMap[*hir.GenericFuncDef, *_FuncScope](),
 	}
 }
 
@@ -55,8 +52,6 @@ func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser 
 		asts:     asts,
 		pkgs:     parent.pkgs,
 		pkgScope: _NewPkgScope(pkg),
-		typeAliasTrace: hashset.NewHashSet[*ast.TypeAlias](),
-		genericFuncScope: hashmap.NewHashMap[*hir.GenericFuncDef, *_FuncScope](),
 	}
 }
 
@@ -76,14 +71,6 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		return true
 	})
 
-	// trait
-	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		if trait, ok := v.(*ast.Trait); ok {
-			self.declTrait(trait)
-		}
-		return true
-	})
-
 	// 类型
 	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
@@ -91,8 +78,6 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 			self.declStructDef(node)
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
-		case *ast.GenericStructDef:
-			self.declGenericStructDef(node)
 		}
 		return true
 	})
@@ -101,9 +86,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		case *ast.StructDef:
 			meanNodes.PushBack(self.defStructDef(node))
 		case *ast.TypeAlias:
-			self.defTypeAlias(node.Name.Source())
-		case *ast.GenericStructDef:
-			meanNodes.PushBack(self.defGenericStructDef(node))
+			meanNodes.PushBack(self.defTypeAlias(node))
 		}
 		return true
 	})
@@ -114,12 +97,11 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		var name token.Token
 		switch node := v.(type) {
 		case *ast.StructDef:
-			st, _ := self.pkgScope.GetStruct("", node.Name.Source())
+			st, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
 			circle, name = self.checkTypeCircle(&trace, st), node.Name
 		case *ast.TypeAlias:
-			data, _ := self.pkgScope.GetTypeAlias("", node.Name.Source())
-			alias, _ := data.Right()
-			circle, name = self.checkTypeCircle(&trace, alias), node.Name
+			tad, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
+			circle, name = self.checkTypeCircle(&trace, tad), node.Name
 		}
 		if circle{
 			errors.ThrowCircularReference(name.Position, name)
@@ -139,45 +121,4 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		return true
 	})
 	return meanNodes
-}
-
-func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
-	if trace.Contain(t){
-		return true
-	}
-	trace.Add(t)
-	defer func() {
-		trace.Remove(t)
-	}()
-
-	switch typ := t.(type) {
-	case *hir.EmptyType, hir.NumberType, *hir.FuncType, *hir.BoolType, *hir.StringType:
-	case *hir.PtrType:
-		return self.checkTypeCircle(trace, typ.Elem)
-	case *hir.RefType:
-		return self.checkTypeCircle(trace, typ.Elem)
-	case *hir.ArrayType:
-		return self.checkTypeCircle(trace, typ.Elem)
-	case *hir.TupleType:
-		for _, e := range typ.Elems{
-			if self.checkTypeCircle(trace, e){
-				return true
-			}
-		}
-	case *hir.StructType:
-		for iter:=typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeCircle(trace, iter.Value().Second.Second){
-				return true
-			}
-		}
-	case *hir.UnionType:
-		for _, e := range typ.Elems {
-			if self.checkTypeCircle(trace, e){
-				return true
-			}
-		}
-	default:
-		panic("unreachable")
-	}
-	return false
 }

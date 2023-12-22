@@ -1,7 +1,0 @@
-pub trait Default{
-    default: func()Self
-}
-
-pub trait Add{
-    operation_add: func(Self)Self
-}

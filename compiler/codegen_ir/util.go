@@ -14,19 +14,19 @@ import (
 )
 
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
-	switch meanType := t.(type) {
-	case hir.NumberType, *hir.BoolType:
+	switch irType := hir.FlattenType(t).(type) {
+	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType:
 		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
 	case *hir.FuncType, *hir.PtrType, *hir.RefType:
 		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
 	case *hir.ArrayType:
-		res := self.buildArrayEqual(meanType, l, r)
+		res := self.buildArrayEqual(irType, l, r)
 		if not {
 			res = self.builder.BuildNot(res)
 		}
 		return res
 	case *hir.TupleType, *hir.StructType:
-		res := self.buildStructEqual(meanType, l, r)
+		res := self.buildStructEqual(irType, l, r)
 		if not {
 			res = self.builder.BuildNot(res)
 		}
@@ -52,8 +52,8 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 	}
 }
 
-func (self *CodeGenerator) buildArrayEqual(meanType *hir.ArrayType, l, r mir.Value) mir.Value {
-	t := self.codegenArrayType(meanType)
+func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value) mir.Value {
+	t := self.codegenArrayType(irType)
 	if t.Length() == 0 {
 		return mir.Bool(self.ctx, true)
 	}
@@ -72,7 +72,7 @@ func (self *CodeGenerator) buildArrayEqual(meanType *hir.ArrayType, l, r mir.Val
 
 	// body
 	self.builder.MoveTo(bodyBlock)
-	cond = self.buildEqual(meanType.Elem, self.buildArrayIndex(l, index, false), self.buildArrayIndex(r, index, false), false)
+	cond = self.buildEqual(irType.Elem, self.buildArrayIndex(l, index, false), self.buildArrayIndex(r, index, false), false)
 	bodyEndBlock := self.builder.Current()
 	actionBlock := bodyEndBlock.Belong().NewBlock()
 	self.builder.BuildCondJump(cond, actionBlock, outBlock)
@@ -91,17 +91,17 @@ func (self *CodeGenerator) buildArrayEqual(meanType *hir.ArrayType, l, r mir.Val
 	)
 }
 
-func (self *CodeGenerator) buildStructEqual(meanType hir.Type, l, r mir.Value) mir.Value {
-	_, isTuple := meanType.(*hir.TupleType)
+func (self *CodeGenerator) buildStructEqual(irType hir.Type, l, r mir.Value) mir.Value {
+	_, isTuple := irType.(*hir.TupleType)
 	t := stlbasic.TernaryAction(isTuple, func() mir.StructType {
-		return self.codegenTupleType(meanType.(*hir.TupleType))
+		return self.codegenTupleType(irType.(*hir.TupleType))
 	}, func() mir.StructType {
-		return self.codegenStructType(meanType.(*hir.StructType))
+		return self.codegenStructType(irType.(*hir.StructType))
 	})
 	fields := stlbasic.TernaryAction(isTuple, func() dynarray.DynArray[hir.Type] {
-		return dynarray.NewDynArrayWith(meanType.(*hir.TupleType).Elems...)
+		return dynarray.NewDynArrayWith(irType.(*hir.TupleType).Elems...)
 	}, func() dynarray.DynArray[hir.Type] {
-		values := meanType.(*hir.StructType).Fields.Values()
+		values := irType.(*hir.StructType).Fields.Values()
 		res := dynarray.NewDynArrayWithLength[hir.Type](values.Length())
 		var i uint
 		for iter:=values.Iterator(); iter.Next(); {
