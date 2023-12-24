@@ -22,6 +22,7 @@ type CodeGenerator struct {
 	loops   hashmap.HashMap[hir.Loop, loop]
 	strings hashmap.HashMap[string, *mir.Constant]
 	structs hashmap.HashMap[*hir.StructDef, mir.StructType]
+	funcCache hashmap.HashMap[string, *mir.Function]
 }
 
 func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {

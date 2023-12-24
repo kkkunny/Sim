@@ -1,6 +1,8 @@
 package codegen_ir
 
 import (
+	"fmt"
+
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
@@ -45,8 +47,11 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 		}
 		return res
 	case *hir.UnionType:
-		// TODO: 联合类型比较
-		panic("unreachable")
+		res := self.buildUnionEqual(irType, l, r)
+		if not {
+			res = self.builder.BuildNot(res)
+		}
+		return res
 	default:
 		panic("unreachable")
 	}
@@ -143,6 +148,47 @@ func (self *CodeGenerator) buildStructEqual(irType hir.Type, l, r mir.Value) mir
 		phi.AddFroms(pair.NewPair[*mir.Block, mir.Value](iter.Value(), stlbasic.Ternary[mir.Value](iter.HasNext(), mir.Bool(self.ctx, false), nextBlocks.Back().First)))
 	}
 	return phi
+}
+
+func (self *CodeGenerator) buildUnionEqual(irType *hir.UnionType, l, r mir.Value) mir.Value {
+	key := fmt.Sprintf("equal:%s", irType.String())
+
+	var f *mir.Function
+	if !self.funcCache.ContainKey(key){
+		curBlock := self.builder.Current()
+		f = self.module.NewFunction("", self.ctx.NewFuncType(self.ctx.Bool(), l.Type(), r.Type()))
+		lp, rp := f.Params()[0], f.Params()[1]
+
+		self.builder.MoveTo(f.NewBlock())
+		lk, rk := self.buildStructIndex(lp, 1, false), self.buildStructIndex(rp, 1, false)
+		falseBlock, nextBlock := f.NewBlock(), f.NewBlock()
+		self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindNE, lk, rk), falseBlock, nextBlock)
+
+		self.builder.MoveTo(falseBlock)
+		self.builder.BuildReturn(mir.Bool(self.ctx, false))
+
+		self.builder.MoveTo(nextBlock)
+		lvp, rvp := self.buildStructIndex(lp, 0, true), self.buildStructIndex(rp, 0, true)
+		for i, elemIr := range irType.Elems{
+			if i < len(irType.Elems) - 1 {
+				var equalBlock *mir.Block
+				equalBlock, nextBlock = f.NewBlock(), f.NewBlock()
+				self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindEQ, lk, mir.NewInt(lk.Type().(mir.IntType), int64(i))), equalBlock, nextBlock)
+				self.builder.MoveTo(equalBlock)
+			}
+			lv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(lvp, self.ctx.NewPtrType(self.codegenType(elemIr))))
+			rv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(rvp, self.ctx.NewPtrType(self.codegenType(elemIr))))
+			self.builder.BuildReturn(self.buildEqual(elemIr, lv, rv, false))
+			if i < len(irType.Elems) - 1 {
+				self.builder.MoveTo(nextBlock)
+			}
+		}
+		self.builder.MoveTo(curBlock)
+	}else{
+		f = self.funcCache.Get(key)
+	}
+
+	return self.builder.BuildCall(f, l, r)
 }
 
 func (self *CodeGenerator) buildArrayIndex(array, i mir.Value, expectPtr ...bool)mir.Value{

@@ -154,6 +154,20 @@ func main()u8{
 `)
 }
 
+func TestUnionEq(t *testing.T) {
+	assertRetEqZero(t, `
+func main()u8{
+    let i:u8 = 1;
+    let j:<u8,i8> = i;
+    if j == j{
+        return 0
+    }else{
+        return 1
+    }
+}
+`)
+}
+
 func TestShl(t *testing.T) {
 	assertRetEqZero(t, `
 func main()u8{

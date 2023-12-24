@@ -1159,9 +1159,12 @@ type PtrToPtr struct {
 	to GenericPtrType
 }
 
-func (self *Builder) BuildPtrToPtr(v Value, to GenericPtrType)StmtValue{
+func (self *Builder) BuildPtrToPtr(v Value, to GenericPtrType)Value{
 	if !stlbasic.Is[GenericPtrType](v.Type()){
 		panic("unreachable")
+	}
+	if v.Type().Equal(to){
+		return v
 	}
 	stmt := &PtrToPtr{
 		b: self.cur,
