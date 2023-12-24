@@ -328,6 +328,8 @@ const (
 	FunctionAttributeInit FunctionAttribute = "init"  // init
 	FunctionAttributeFini FunctionAttribute = "fini"  // fini
 	FunctionAttributeNoReturn FunctionAttribute = "noreturn"  // 函数不会返回
+	FunctionAttributeInline FunctionAttribute = "inline"  // 内联
+	FunctionAttributeNoInline FunctionAttribute = "noinline"  // 禁用内联
 )
 
 func (self *Function) SetAttribute(attr ...FunctionAttribute){
@@ -337,8 +339,15 @@ func (self *Function) SetAttribute(attr ...FunctionAttribute){
 			if !self.t.Ret().Equal(self.ctx.Void()) || len(self.t.Params()) != 0{
 				panic("unreachable")
 			}
+		case FunctionAttributeInline:
+			if self.attrs.Contain(FunctionAttributeNoInline){
+				panic("unreachable")
+			}
+		case FunctionAttributeNoInline:
+			if self.attrs.Contain(FunctionAttributeInline){
+				panic("unreachable")
+			}
 		case FunctionAttributeNoReturn:
-
 		default:
 			panic("unreachable")
 		}

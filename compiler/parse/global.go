@@ -48,7 +48,7 @@ func (self *Parser) parseFuncOrMethodDef(attrs []ast.Attr, pub *token.Token) ast
 }
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) ast.Global {
-	expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn))
+	expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
 
 	if pub != nil {
 		begin = pub.Position
@@ -86,7 +86,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 }
 
 func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) *ast.MethodDef {
-	expectAttrIn(attrs, new(ast.NoReturn))
+	expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
 
 	if pub != nil {
 		begin = pub.Position

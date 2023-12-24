@@ -57,7 +57,6 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		return true
 	})
 	// 初始化函数
-	// FIXME: jit无法运行llvm.global_ctors
 	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
 	self.builder.BuildReturn()
 	// 主函数

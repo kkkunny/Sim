@@ -125,6 +125,7 @@ type FuncDef struct {
 	Body       util.Option[*Block]
 
 	NoReturn bool
+	InlineControl util.Option[bool]
 }
 
 func (self *FuncDef) GetPackage()Package{
@@ -173,6 +174,7 @@ type MethodDef struct {
 	Body       *Block
 
 	NoReturn bool
+	InlineControl util.Option[bool]
 }
 
 func (self *MethodDef) GetPackage()Package{

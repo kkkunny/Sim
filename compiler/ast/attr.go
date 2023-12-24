@@ -37,3 +37,29 @@ func (self *NoReturn) Position() reader.Position {
 func (self *NoReturn) AttrName() string {
 	return "noreturn"
 }
+
+type Inline struct {
+	Begin reader.Position
+	End   reader.Position
+}
+
+func (self *Inline) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *Inline) AttrName() string {
+	return "inline"
+}
+
+type NoInline struct {
+	Begin reader.Position
+	End   reader.Position
+}
+
+func (self *NoInline) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *NoInline) AttrName() string {
+	return "noinline"
+}

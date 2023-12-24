@@ -93,9 +93,9 @@ func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) hir.E
 // 类型是否有默认值
 func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
 	switch tt := t.(type) {
-	case *hir.EmptyType, *hir.RefType:
+	case *hir.EmptyType, *hir.RefType, *hir.FuncType:
 		return false
-	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.PtrType:
+	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType, *hir.PtrType:
 		return true
 	case *hir.ArrayType:
 		return self.isTypeHasDefault(tt.Elem)

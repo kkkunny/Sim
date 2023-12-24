@@ -136,6 +136,10 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 			f.ExternName = util.ParseEscapeCharacter(temp[1:len(temp)-1], `\"`, `"`)
 		case *ast.NoReturn:
 			f.NoReturn = true
+		case *ast.Inline:
+			f.InlineControl = util.Some[bool](true)
+		case *ast.NoInline:
+			f.InlineControl = util.Some[bool](false)
 		default:
 			panic("unreachable")
 		}
@@ -183,6 +187,10 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		switch attrObj.(type) {
 		case *ast.NoReturn:
 			f.NoReturn = true
+		case *ast.Inline:
+			f.InlineControl = util.Some[bool](true)
+		case *ast.NoInline:
+			f.InlineControl = util.Some[bool](false)
 		default:
 			panic("unreachable")
 		}

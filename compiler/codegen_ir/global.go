@@ -1,6 +1,7 @@
 package codegen_ir
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
@@ -43,6 +44,9 @@ func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 	if ir.NoReturn{
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
 	}
+	if inline, ok := ir.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
 	self.values.Set(ir, f)
 }
 
@@ -51,6 +55,9 @@ func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
 	f := self.module.NewFunction("", ft)
 	if ir.NoReturn{
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
 	}
 	self.values.Set(ir, f)
 }
