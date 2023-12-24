@@ -25,7 +25,12 @@ func New(lexer *lex.Lexer) *Parser {
 // 获取下一个token
 func (self *Parser) next() {
 	self.curTok = self.nextTok
-	self.nextTok = self.lexer.Scan()
+	for {
+		self.nextTok = self.lexer.Scan()
+		if !self.nextIs(token.COMMENT){
+			break
+		}
+	}
 }
 
 // 下一个token是否是

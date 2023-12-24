@@ -3,7 +3,6 @@ package reader
 import (
 	"errors"
 	"io"
-	"unicode/utf8"
 
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
@@ -52,21 +51,13 @@ func (self _IOReader) Path() stlos.FilePath {
 	return self.path
 }
 
-func (self *_IOReader) ReadRune() (rune, int, error) {
-	var buf []byte
-	for {
-		tmp := make([]byte, 1)
-		_, err := self.reader.Read(tmp)
-		if err != nil {
-			return utf8.RuneError, len(buf), err
-		}
-		buf = append(buf, tmp...)
-
-		if utf8.FullRune(buf) {
-			r, size := utf8.DecodeRune(buf)
-			return r, size, nil
-		}
+func (self *_IOReader) ReadByte() (byte, error) {
+	tmp := make([]byte, 1)
+	_, err := self.reader.Read(tmp)
+	if err != nil {
+		return 0, err
 	}
+	return tmp[0], nil
 }
 
 func (self *_IOReader) Seek(offset int64, whence int) (int64, error) {
@@ -85,7 +76,7 @@ func (self *_IOReader) Position() Position {
 	for rowOffset, rowLen := range self.rowLens {
 		if int64(cursor)-int64(rowLen) < 0 {
 			curRowOffset = uint(rowOffset)
-			curColOffset = uint(cursor)
+			curColOffset = cursor
 			break
 		} else {
 			cursor -= rowLen
@@ -94,8 +85,8 @@ func (self *_IOReader) Position() Position {
 
 	return Position{
 		Reader:      self,
-		BeginOffset: uint(offset),
-		EndOffset:   uint(offset),
+		BeginOffset: offset,
+		EndOffset:   offset,
 		BeginRow:    curRowOffset + 1,
 		BeginCol:    curColOffset + 1,
 		EndRow:      curRowOffset + 1,

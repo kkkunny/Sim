@@ -8,7 +8,7 @@ import (
 
 // Reader 读取器
 type Reader interface {
-	io.RuneReader
+	io.ByteReader
 	io.Seeker
 	Path() stlos.FilePath
 	Position() Position

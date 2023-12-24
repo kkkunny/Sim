@@ -12,6 +12,7 @@ const (
 	FLOAT
 	CHAR
 	STRING
+	COMMENT
 
 	ASS
 
@@ -87,6 +88,7 @@ var kindNames = [...]string{
 	FLOAT:    "float",
 	CHAR:     "char",
 	STRING:   "string",
+	COMMENT: "comment",
 	ASS:      "ass",
 	AND:      "and",
 	OR:       "or",

@@ -42,8 +42,7 @@ func (self Position) Text() string {
 
 	var buf strings.Builder
 	for i := 0; i < int(self.EndOffset-self.BeginOffset); i++ {
-		r, _ := stlerror.MustWith2(self.Reader.ReadRune())
-		buf.WriteRune(r)
+		buf.WriteByte(stlerror.MustWith(self.Reader.ReadByte()))
 	}
 	return buf.String()
 }
