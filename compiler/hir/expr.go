@@ -617,14 +617,16 @@ func (self *Num2Num) GetFrom() Expr {
 
 // Array 数组
 type Array struct {
-	Type  Type
 	Elems []Expr
 }
 
 func (self *Array) stmt() {}
 
 func (self *Array) GetType() Type {
-	return self.Type
+	return &ArrayType{
+		Size: uint(len(self.Elems)),
+		Elem: self.Elems[0].GetType(),
+	}
 }
 
 func (self *Array) Mutable() bool {

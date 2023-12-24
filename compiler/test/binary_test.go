@@ -101,8 +101,8 @@ func main()u8{
 func TestArrayEq(t *testing.T) {
 	assertRetEqZero(t, `
 func main()u8{
-	let a: [2]i32 = [2]i32{1, 2}
-	let b: [2]i32 = [2]i32{3, 2}
+	let a: [2]i32 = [1, 2]
+	let b: [2]i32 = [3, 2]
     if a == b{
         return 1
     }

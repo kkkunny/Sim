@@ -83,6 +83,11 @@ func ThrowExpectStructTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a struct type but there is type `%s`", t)
 }
 
+// ThrowExpectArrayTypeError 期待数组类型
+func ThrowExpectArrayTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a array type but there is type `%s`", t)
+}
+
 // ThrowExpectFunctionError 期待一个函数
 func ThrowExpectFunctionError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a function but there is type `%s`", t)

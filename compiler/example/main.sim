@@ -1,9 +1,6 @@
+type u8s = [2]u8
+
 func main()u8{
-    let i:u8 = 1;
-    let j:<u8,i8> = i;
-    if j == j{
-        return 0
-    }else{
-        return 1
-    }
+    let i: u8s = [1, 2];
+    return i[0]
 }

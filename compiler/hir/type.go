@@ -60,7 +60,7 @@ func AsEmptyType(t Type)*EmptyType{
 type EmptyType struct{}
 
 func (*EmptyType) String() string {
-	return "void"
+	return "empty"
 }
 
 func (self *EmptyType) EqualTo(dst Type) bool {

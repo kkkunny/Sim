@@ -239,12 +239,11 @@ func (self *Parser) parseIdent() *ast.Ident {
 }
 
 func (self *Parser) parseArray() *ast.Array {
-	at := self.parseArrayType()
-	self.expectNextIs(token.LBR)
-	elems := self.parseExprList(token.RBR)
-	end := self.expectNextIs(token.RBR).Position
+	begin := self.expectNextIs(token.LBA).Position
+	elems := self.parseExprList(token.RBA)
+	end := self.expectNextIs(token.RBA).Position
 	return &ast.Array{
-		Type:  at,
+		Begin: begin,
 		Elems: elems,
 		End:   end,
 	}

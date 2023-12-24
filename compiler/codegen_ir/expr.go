@@ -219,7 +219,7 @@ func (self *CodeGenerator) codegenArray(ir *hir.Array) mir.Value {
 	elems := lo.Map(ir.Elems, func(item hir.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.BuildPackArray(self.codegenType(ir.Type).(mir.ArrayType), elems...)
+	return self.builder.BuildPackArray(self.codegenType(ir.GetType()).(mir.ArrayType), elems...)
 }
 
 func (self *CodeGenerator) codegenIndex(ir *hir.Index, load bool) mir.Value {
@@ -250,17 +250,12 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 
 func (self *CodeGenerator) codegenZero(ir hir.Type) mir.Value {
 	switch t := ir.(type) {
-	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType, *hir.PtrType, *hir.RefType:
-		return mir.NewZero(self.codegenType(t))
-	case *hir.ArrayType, *hir.StructType, *hir.UnionType:
-		// TODO: 复杂类型default值
-		return mir.NewZero(self.codegenType(t))
 	case *hir.SelfType:
 		return self.codegenZero(t.Self)
 	case *hir.AliasType:
 		return self.codegenZero(t.Target)
 	default:
-		panic("unreachable")
+		return mir.NewZero(self.codegenType(t))
 	}
 }
 

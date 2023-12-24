@@ -144,13 +144,13 @@ func (self *Covert) expr() {}
 
 // Array 数组
 type Array struct {
-	Type  *ArrayType
+	Begin reader.Position
 	Elems []Expr
 	End   reader.Position
 }
 
 func (self *Array) Position() reader.Position {
-	return reader.MixPosition(self.Type.Position(), self.End)
+	return reader.MixPosition(self.Begin, self.End)
 }
 
 func (self *Array) stmt() {}

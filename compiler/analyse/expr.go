@@ -39,7 +39,7 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 	case *ast.Covert:
 		return self.analyseCovert(exprNode)
 	case *ast.Array:
-		return self.analyseArray(exprNode)
+		return self.analyseArray(expect, exprNode)
 	case *ast.Index:
 		return self.analyseIndex(exprNode)
 	case *ast.Extract:
@@ -442,17 +442,23 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 	}
 }
 
-func (self *Analyser) analyseArray(node *ast.Array) *hir.Array {
-	// TODO: 数组类型别名
-	t := self.analyseArrayType(node.Type)
+func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array {
+	var expectElem hir.Type
+	if expect != nil && hir.IsArrayType(expect){
+		expectElem = hir.AsArrayType(expect).Elem
+	}
+	if expectElem == nil && len(node.Elems) == 0{
+		errors.ThrowExpectArrayTypeError(node.Position(), hir.Empty)
+	}
 	elems := make([]hir.Expr, len(node.Elems))
-	for i, en := range node.Elems {
-		elems[i] = self.expectExpr(t.Elem, en)
+	for i, elemNode := range node.Elems {
+		elems[i] = stlbasic.TernaryAction(i==0, func() hir.Expr {
+			return self.analyseExpr(expectElem, elemNode)
+		}, func() hir.Expr {
+			return self.expectExpr(elems[0].GetType(), elemNode)
+		})
 	}
-	return &hir.Array{
-		Type:  t,
-		Elems: elems,
-	}
+	return &hir.Array{Elems: elems}
 }
 
 func (self *Analyser) analyseIndex(node *ast.Index) *hir.Index {

@@ -105,7 +105,6 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
 	if !ok {
 		panic("unreachable")
 	} else if !size.IsUint64() {
-		// FIXME: 数组最大容量
 		errors.ThrowIllegalInteger(node.Position(), node.Size)
 	}
 	elem := self.analyseType(node.Elem)
