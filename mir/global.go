@@ -327,6 +327,7 @@ type FunctionAttribute string
 const (
 	FunctionAttributeInit FunctionAttribute = "init"  // init
 	FunctionAttributeFini FunctionAttribute = "fini"  // fini
+	FunctionAttributeNoReturn FunctionAttribute = "noreturn"  // 函数不会返回
 )
 
 func (self *Function) SetAttribute(attr ...FunctionAttribute){
@@ -336,11 +337,17 @@ func (self *Function) SetAttribute(attr ...FunctionAttribute){
 			if !self.t.Ret().Equal(self.ctx.Void()) || len(self.t.Params()) != 0{
 				panic("unreachable")
 			}
+		case FunctionAttributeNoReturn:
+
 		default:
 			panic("unreachable")
 		}
 		self.attrs.Add(a)
 	}
+}
+
+func (self *Function) ContainAttribute(attr FunctionAttribute)bool{
+	return self.attrs.Contain(attr)
 }
 
 func (self *Function) Attributes()[]FunctionAttribute{

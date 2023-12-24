@@ -32,16 +32,18 @@ func expectAttrIn(attrs []ast.Attr, expectAttr ...ast.Attr) {
 	expectAttrTypes := lo.Map(expectAttr, func(item ast.Attr, _ int) reflect.Type {
 		return reflect.ValueOf(item).Type()
 	})
+loop:
 	for _, attr := range attrs {
 		if len(expectAttrTypes) == 0 {
 			errors.ThrowUnExpectAttr(attr.Position())
 		}
 		attrType := reflect.ValueOf(attr).Type()
 		for _, expectAttrType := range expectAttrTypes {
-			if !attrType.AssignableTo(expectAttrType) {
-				errors.ThrowUnExpectAttr(attr.Position())
+			if attrType.AssignableTo(expectAttrType) {
+				continue loop
 			}
 		}
+		errors.ThrowUnExpectAttr(attr.Position())
 	}
 }
 

@@ -123,6 +123,8 @@ type FuncDef struct {
 	Params     []*Param
 	Ret        Type
 	Body       util.Option[*Block]
+
+	NoReturn bool
 }
 
 func (self *FuncDef) GetPackage()Package{
@@ -169,6 +171,8 @@ type MethodDef struct {
 	Params     []*Param
 	Ret        Type
 	Body       *Block
+
+	NoReturn bool
 }
 
 func (self *MethodDef) GetPackage()Package{

@@ -1664,3 +1664,28 @@ func (self *PackStruct) Type()Type{
 func (self *PackStruct) Elems()[]Value{
 	return self.elems
 }
+
+// Unreachable 不可达代码
+type Unreachable struct {
+	b *Block
+}
+
+func NewUnreachable(b *Block)*Unreachable {
+	stmt := &Unreachable{b: b}
+	b.stmts.PushBack(stmt)
+	return stmt
+}
+
+func (self *Builder) BuildUnreachable()*Unreachable {
+	return NewUnreachable(self.cur)
+}
+
+func (self *Unreachable) Belong()*Block{
+	return self.b
+}
+
+func (self *Unreachable) Define()string{
+	return "unreachable"
+}
+
+func (*Unreachable)terminate(){}

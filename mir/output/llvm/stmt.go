@@ -31,6 +31,8 @@ func (self *LLVMOutputer) codegenStmt(ir mir.Stmt){
 		default:
 			self.builder.CreateRet(&value)
 		}
+	case *mir.Unreachable:
+		self.builder.CreateUnreachable()
 	case *mir.UnCondJump:
 		self.builder.CreateBr(self.blocks.Get(stmt.To()))
 	case *mir.CondJump:

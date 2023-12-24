@@ -14,6 +14,8 @@ func (self *Parser) parseAttrList() (attrs []ast.Attr) {
 		switch attrname.Source() {
 		case "extern":
 			attrs = append(attrs, self.parseExtern(begin))
+		case "noreturn":
+			attrs = append(attrs, self.parseNoReturn(begin))
 		default:
 			errors.ThrowIllegalAttr(self.nextTok.Position)
 			panic("unreachable")
@@ -31,5 +33,12 @@ func (self *Parser) parseExtern(begin reader.Position) *ast.Extern {
 		Begin: begin,
 		Name:  name,
 		End:   end,
+	}
+}
+
+func (self *Parser) parseNoReturn(begin reader.Position) *ast.NoReturn {
+	return &ast.NoReturn{
+		Begin: begin,
+		End:   self.curTok.Position,
 	}
 }

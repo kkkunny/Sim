@@ -123,23 +123,30 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 }
 
 func (self *Analyser) declFuncDef(node *ast.FuncDef) {
-	var externName string
+	f := &hir.FuncDef{
+		Pkg: self.pkgScope.pkg,
+		Public:     node.Public,
+		Name:       node.Name.Source(),
+		Body: util.None[*hir.Block](),
+	}
 	for _, attrObj := range node.Attrs {
 		switch attr := attrObj.(type) {
 		case *ast.Extern:
-			externName = attr.Name.Source()
-			externName = util.ParseEscapeCharacter(externName[1:len(externName)-1], `\"`, `"`)
+			temp := attr.Name.Source()
+			f.ExternName = util.ParseEscapeCharacter(temp[1:len(temp)-1], `\"`, `"`)
+		case *ast.NoReturn:
+			f.NoReturn = true
 		default:
 			panic("unreachable")
 		}
 	}
 
-	if node.Body.IsNone() && externName == "" {
+	if node.Body.IsNone() && f.ExternName == "" {
 		errors.ThrowExpectAttribute(node.Name.Position, new(ast.Extern))
 	}
 
 	paramNameSet := hashset.NewHashSet[string]()
-	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
+	f.Params = lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
 		pn := paramNode.Name.Source()
 		if !paramNameSet.Add(pn) {
 			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
@@ -151,15 +158,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 			Name: pn,
 		}
 	})
-	f := &hir.FuncDef{
-		Pkg: self.pkgScope.pkg,
-		Public:     node.Public,
-		ExternName: externName,
-		Name:       node.Name.Source(),
-		Params:     params,
-		Ret:        self.analyseOptionType(node.Ret),
-		Body:       util.None[*hir.Block](),
-	}
+	f.Ret = self.analyseOptionType(node.Ret)
 	if f.Name == "main" && !f.Ret.EqualTo(hir.U8) {
 		pos := stlbasic.TernaryAction(node.Ret.IsNone(), func() reader.Position {
 			return node.Name.Position
@@ -175,8 +174,15 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 }
 
 func (self *Analyser) declMethodDef(node *ast.MethodDef) {
+	f := &hir.MethodDef{
+		Pkg: self.pkgScope.pkg,
+		Public:    node.Public,
+		Name:      node.Name.Source(),
+	}
 	for _, attrObj := range node.Attrs {
 		switch attrObj.(type) {
+		case *ast.NoReturn:
+			f.NoReturn = true
 		default:
 			panic("unreachable")
 		}
@@ -186,12 +192,17 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 	if !ok || !stlbasic.Is[*hir.StructDef](td){
 		errors.ThrowUnknownIdentifierError(node.Scope.Position, node.Scope)
 	}
-	st := td.(*hir.StructDef)
+	f.Scope = td.(*hir.StructDef)
+	f.SelfParam = &hir.Param{
+		Mut:  node.ScopeMutable,
+		Type: f.Scope,
+		Name: token.SELFVALUE.String(),
+	}
 
-	defer self.setSelfType(st)()
+	defer self.setSelfType(f.Scope)()
 
 	paramNameSet := hashset.NewHashSetWith[string]()
-	params := lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
+	f.Params = lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
 		pn := paramNode.Name.Source()
 		if !paramNameSet.Add(pn) {
 			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
@@ -203,23 +214,11 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 			Name: pn,
 		}
 	})
-	f := &hir.MethodDef{
-		Pkg: self.pkgScope.pkg,
-		Public:    node.Public,
-		Scope:     st,
-		Name:      node.Name.Source(),
-		SelfParam: &hir.Param{
-			Mut:  node.ScopeMutable,
-			Type: st,
-			Name: token.SELFVALUE.String(),
-		},
-		Params:    params,
-		Ret:       self.analyseOptionType(node.Ret),
-	}
-	if st.Fields.ContainKey(f.Name) || st.Methods.ContainKey(f.Name) {
+	f.Ret = self.analyseOptionType(node.Ret)
+	if f.Scope.Fields.ContainKey(f.Name) || f.Scope.Methods.ContainKey(f.Name) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
-	st.Methods.Set(f.Name, f)
+	f.Scope.Methods.Set(f.Name, f)
 }
 
 func (self *Analyser) declSingleGlobalVariable(node *ast.SingleVariableDef) {

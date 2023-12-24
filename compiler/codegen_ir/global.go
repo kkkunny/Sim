@@ -40,12 +40,18 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 	ft := self.codegenType(ir.GetType()).(mir.FuncType)
 	f := self.module.NewFunction(ir.ExternName, ft)
+	if ir.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
 	self.values.Set(ir, f)
 }
 
 func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
 	ft := self.codegenType(ir.GetType()).(mir.FuncType)
 	f := self.module.NewFunction("", ft)
+	if ir.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
 	self.values.Set(ir, f)
 }
 

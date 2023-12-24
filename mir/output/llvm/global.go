@@ -68,6 +68,8 @@ func (self *LLVMOutputer) codegenDeclValue(ir mir.Global){
 				self.module.AddConstructor(65535, f)
 			case mir.FunctionAttributeFini:
 				self.module.AddDestructor(65535, f)
+			case mir.FunctionAttributeNoReturn:
+				f.AddAttribute(llvm.FuncAttributeNoReturn)
 			default:
 				panic("unreachable")
 			}
