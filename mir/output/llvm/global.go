@@ -74,6 +74,8 @@ func (self *LLVMOutputer) codegenDeclValue(ir mir.Global){
 				panic("unreachable")
 			}
 		}
+		f.AddAttribute(llvm.FuncAttributeInlineHint)
+		f.AddAttribute(llvm.FuncAttributeAllocKind, 1|16|32)
 		self.values.Set(global, f)
 	default:
 		panic("unreachable")
