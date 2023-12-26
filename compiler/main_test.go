@@ -8,17 +8,12 @@ import (
 	stltest "github.com/kkkunny/stl/test"
 
 	"github.com/kkkunny/Sim/codegen_ir"
+	"github.com/kkkunny/Sim/interpret"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/mir/output/llvm"
-	"github.com/kkkunny/Sim/output/jit"
 )
 
 func TestDebug(t *testing.T) {
-	mirModule := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), stlos.NewFilePath("example/main.sim")))
-	outputer := llvm.NewLLVMOutputer()
-	outputer.Codegen(mirModule)
-	llvmModule := outputer.Module()
-	stlerror.Must(llvmModule.Verify())
-	ret := stlerror.MustWith(jit.RunJit(llvmModule))
+	module := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), stlos.NewFilePath("example/main.sim")))
+	ret := stlerror.MustWith(interpret.Interpret(module))
 	stltest.AssertEq(t, ret, 0)
 }

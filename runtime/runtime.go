@@ -1,30 +1,21 @@
 package runtime
 
-// #include "runtime.h"
-import "C"
-import "fmt"
+import (
+	"fmt"
+)
 
-// StrEqStr 字符串比较
-var StrEqStr = C.sim_runtime_str_eq_str
-
-//export sim_runtime_str_eq_str
-func sim_runtime_str_eq_str(l, r Str) Bool {
+// SimRuntimeStrEqStr 字符串比较
+func SimRuntimeStrEqStr(l, r Str) Bool {
 	return NewBool(l.Value() == r.Value())
 }
 
-// Debug 输出字符串
-var Debug = C.sim_runtime_debug
-
-//export sim_runtime_debug
-func sim_runtime_debug(s Str) {
+// SimRuntimeDebug 输出字符串
+func SimRuntimeDebug(s Str) {
 	fmt.Println(s)
 }
 
-// CheckNull 检查空指针
-var CheckNull = C.sim_runtime_check_null
-
-//export sim_runtime_check_null
-func sim_runtime_check_null(p Ptr) Ptr {
+// SimRuntimeCheckNull 检查空指针
+func SimRuntimeCheckNull(p Ptr) Ptr {
 	if p == nil {
 		panic("空指针")
 	}

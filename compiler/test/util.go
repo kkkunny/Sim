@@ -9,12 +9,10 @@ import (
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/codegen_ir"
-	_ "github.com/kkkunny/Sim/config"
+	"github.com/kkkunny/Sim/interpret"
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/mir/output/llvm"
-	"github.com/kkkunny/Sim/mir/pass/module"
-	"github.com/kkkunny/Sim/output/jit"
+	modulePass "github.com/kkkunny/Sim/mir/pass/module"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/util"
@@ -27,12 +25,10 @@ func assertRetEq(t *testing.T, code string, expect uint8, skips ...uint) {
 	}
 	path := stlerror.MustWith(stlos.NewFilePath(stlerror.MustWith(util.GetFileName(skip+1))).Abs())
 	r := stlerror.MustWith(reader.NewReaderFromString(path, code))
-	mirModule := codegen_ir.New(mir.DefaultTarget(), analyse.New(parse.New(lex.New(r)).Parse()).Analyse()).Codegen()
-	module.Run(mirModule, module.DeadCodeElimination)
-	outputer := llvm.NewLLVMOutputer()
-	outputer.Codegen(mirModule)
-	llvmModule := outputer.Module()
-	stltest.AssertEq(t, stlerror.MustWith(jit.RunJit(llvmModule)), expect)
+	module := codegen_ir.New(mir.DefaultTarget(), analyse.New(parse.New(lex.New(r)).Parse()).Analyse()).Codegen()
+	modulePass.Run(module, modulePass.DeadCodeElimination)
+	ret := stlerror.MustWith(interpret.Interpret(module))
+	stltest.AssertEq(t, ret, expect)
 }
 
 func assertRetEqZero(t *testing.T, code string) {

@@ -1,10 +1,10 @@
 module github.com/kkkunny/Sim/mir
 
-go 1.21.5
+go 1.21.3
 
 require (
-	github.com/kkkunny/go-llvm v0.0.0-20231224092457-368a55719db6
-	github.com/kkkunny/stl v0.0.0-20231213142909-ea2e4638d64f
+	github.com/kkkunny/go-llvm v0.0.0-20231226053828-5e68e03a58bc
+	github.com/kkkunny/stl v0.0.0-20231217074218-d2b06d39d4d9
 	github.com/samber/lo v1.39.0
 )
 
