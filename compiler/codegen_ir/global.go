@@ -2,6 +2,7 @@ package codegen_ir
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
@@ -164,12 +165,14 @@ func (self *CodeGenerator) defGenericFuncDef(ir *hir.GenericFuncInst, f *mir.Fun
 	for i, p := range f.Params() {
 		self.values.Set(ir.Define.Params[i], p)
 	}
+	var maps hashmap.HashMap[*hir.GenericIdentType, hir.Type]
 	var i int
 	for iter:=ir.Define.GenericParams.Iterator(); iter.Next(); {
-		self.genericIdentMap.Set(iter.Value().Second, ir.Params[i])
+		maps.Set(iter.Value().Second, ir.Params[i])
 		i++
 	}
-	defer self.genericIdentMap.Clear()
+	self.genericIdentMapStack.Push(maps)
+	defer self.genericIdentMapStack.Pop()
 	block, _ := self.codegenBlock(ir.Define.Body, nil)
 	self.builder.BuildUnCondJump(block)
 }

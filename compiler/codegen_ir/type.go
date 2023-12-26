@@ -140,5 +140,5 @@ func (self *CodeGenerator) codegenAliasType(ir *hir.AliasType)mir.Type{
 }
 
 func (self *CodeGenerator) codegenGenericIdentType(ir *hir.GenericIdentType)mir.Type{
-	return self.codegenType(self.genericIdentMap.Get(ir))
+	return self.codegenType(self.genericIdentMapStack.Peek().Get(ir))
 }

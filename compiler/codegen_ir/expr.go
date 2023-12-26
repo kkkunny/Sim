@@ -348,7 +348,7 @@ func (self *CodeGenerator) codegenGenericFuncInst(ir *hir.GenericFuncInst)mir.Va
 		self.builder.MoveTo(cur)
 	}()
 
-	key := fmt.Sprintf("generic_func<%s>", strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
+	key := fmt.Sprintf("generic_func(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
 		return self.codegenType(e).String()
 	}), ","))
 	if f := self.funcCache.Get(key); f != nil{

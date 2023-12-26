@@ -1,8 +1,7 @@
-func get<T>(x: T)T{
+func get<T, F>(x: T, y: F)T{
     return x
 }
 
 func main()u8{
-    get::<u8>(1)
-    return get::<u8>(1)
+    return get::<u8, i8>(0, 1)
 }
