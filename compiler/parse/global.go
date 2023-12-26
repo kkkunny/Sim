@@ -135,6 +135,9 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) ast.Globa
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
+	if self.nextIs(token.LT){
+		return self.parseGenericStructDef(attrs, begin, pub!=nil, name)
+	}
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
 		pub := self.skipNextIs(token.PUBLIC)
@@ -301,5 +304,36 @@ func (self *Parser) parseGenericFuncDef(attrs []ast.Attr, begin reader.Position,
 		Params: params,
 		Ret:    ret,
 		Body:   body,
+	}
+}
+
+func (self *Parser) parseGenericStructDef(attrs []ast.Attr, begin reader.Position, pub bool, name token.Token) *ast.GenericStructDef {
+	expectAttrIn(attrs)
+
+	self.expectNextIs(token.LT)
+	genericParams := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
+		return self.expectNextIs(token.IDENT)
+	})
+	self.expectNextIs(token.GT)
+	self.expectNextIs(token.LBR)
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
+		pub := self.skipNextIs(token.PUBLIC)
+		fn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		ft := self.parseType()
+		return lo.Tuple3[bool, token.Token, ast.Type]{
+			A: pub,
+			B: fn,
+			C: ft,
+		}
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.GenericStructDef{
+		Begin:  begin,
+		Public: pub,
+		Name:   name,
+		GenericParams: genericParams,
+		Fields: fields,
+		End:    end,
 	}
 }

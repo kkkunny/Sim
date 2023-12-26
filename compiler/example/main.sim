@@ -1,7 +1,9 @@
-func get<T, F>(x: T, y: F)T{
-    return x
+struct pair<T, F>{
+    F: T,
+    S: F
 }
 
 func main()u8{
-    return get::<u8, i8>(0, 1)
+    let a = pair::<u8, u16>{F: 1, S: 2}
+    return a.F
 }
