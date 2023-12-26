@@ -15,30 +15,6 @@ type Global interface {
 	global()
 }
 
-// FuncDef 函数定义
-type FuncDef struct {
-	Attrs    []Attr
-	Begin    reader.Position
-	Public   bool
-	Name     token.Token
-	Params   []Param
-	ParamEnd reader.Position
-	Ret      util.Option[Type]
-	Body     util.Option[*Block]
-}
-
-func (self *FuncDef) Position() reader.Position {
-	if b, ok := self.Body.Value(); ok {
-		return reader.MixPosition(self.Begin, b.Position())
-	} else if r, ok := self.Ret.Value(); ok {
-		return reader.MixPosition(self.Begin, r.Position())
-	} else {
-		return reader.MixPosition(self.Begin, self.ParamEnd)
-	}
-}
-
-func (*FuncDef) global() {}
-
 // StructDef 结构体定义
 type StructDef struct {
 	Begin  reader.Position
@@ -152,6 +128,30 @@ func (self *TypeAlias) Position() reader.Position {
 
 func (*TypeAlias) global() {}
 
+// FuncDef 函数定义
+type FuncDef struct {
+	Attrs    []Attr
+	Begin    reader.Position
+	Public   bool
+	Name     token.Token
+	Params   []Param
+	ParamEnd reader.Position
+	Ret      util.Option[Type]
+	Body     util.Option[*Block]
+}
+
+func (self *FuncDef) Position() reader.Position {
+	if b, ok := self.Body.Value(); ok {
+		return reader.MixPosition(self.Begin, b.Position())
+	} else if r, ok := self.Ret.Value(); ok {
+		return reader.MixPosition(self.Begin, r.Position())
+	} else {
+		return reader.MixPosition(self.Begin, self.ParamEnd)
+	}
+}
+
+func (*FuncDef) global() {}
+
 // MethodDef 方法定义
 type MethodDef struct {
 	Attrs    []Attr
@@ -171,3 +171,21 @@ func (self *MethodDef) Position() reader.Position {
 }
 
 func (*MethodDef) global() {}
+
+// GenericFuncDef 泛型函数定义
+type GenericFuncDef struct {
+	Attrs    []Attr
+	Begin    reader.Position
+	Public   bool
+	Name     token.Token
+	GenericParams []token.Token
+	Params   []Param
+	Ret      util.Option[Type]
+	Body     *Block
+}
+
+func (self *GenericFuncDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*GenericFuncDef) global() {}
