@@ -136,10 +136,6 @@ func (self *FuncDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *FuncDef) GetName()string{
-	return self.Name
-}
-
 func (*FuncDef) stmt() {}
 
 func (self *FuncDef) GetFuncType() *FuncType {
@@ -183,10 +179,6 @@ func (self *MethodDef) GetPackage()Package{
 
 func (self *MethodDef) GetPublic() bool {
 	return self.Public
-}
-
-func (self *MethodDef) GetName()string{
-	return self.Name
 }
 
 func (*MethodDef) stmt() {}
@@ -237,4 +229,35 @@ func (self *TypeAliasDef) GetPublic() bool {
 
 func (self *TypeAliasDef) GetName()string{
 	return self.Name
+}
+
+// GenericFuncDef 泛型函数定义
+type GenericFuncDef struct {
+	Pkg Package
+	Public     bool
+	Name       string
+	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
+	Params     []*Param
+	Ret        Type
+	Body       *Block
+
+	NoReturn bool
+	InlineControl util.Option[bool]
+}
+
+func (self *GenericFuncDef) GetFuncType() *FuncType {
+	return &FuncType{
+		Ret:    self.Ret,
+		Params: lo.Map(self.Params, func(item *Param, index int) Type {
+			return item.GetType()
+		}),
+	}
+}
+
+func (self *GenericFuncDef) GetPackage()Package{
+	return self.Pkg
+}
+
+func (self *GenericFuncDef) GetPublic() bool {
+	return self.Public
 }

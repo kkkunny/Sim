@@ -5,6 +5,9 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/pair"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
 
@@ -447,4 +450,62 @@ func (self *AliasType) String() string {
 
 func (self *AliasType) EqualTo(dst Type) bool {
 	return self.Target.EqualTo(dst)
+}
+
+// ReplaceAllGenericIdent 替换所有泛型标识符类型
+func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Type)Type{
+	switch tt := t.(type) {
+	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *SelfType:
+		return tt
+	case *PtrType:
+		return &PtrType{Elem: ReplaceAllGenericIdent(maps, tt.Elem)}
+	case *RefType:
+		return &RefType{Elem: ReplaceAllGenericIdent(maps, tt.Elem)}
+	case *FuncType:
+		return &FuncType{
+			Ret: ReplaceAllGenericIdent(maps, tt.Ret),
+			Params: stlslices.Map(tt.Params, func(_ int, e Type) Type {
+				return ReplaceAllGenericIdent(maps, e)
+			}),
+		}
+	case *ArrayType:
+		return &ArrayType{
+			Size: tt.Size,
+			Elem: ReplaceAllGenericIdent(maps, tt.Elem),
+		}
+	case *TupleType:
+		return &TupleType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return ReplaceAllGenericIdent(maps, e)
+		})}
+	case *StructType:
+		return &TupleType{Elems: stlslices.Map(tt.Fields.Values().ToSlice(), func(_ int, e pair.Pair[bool, Type]) Type {
+			return ReplaceAllGenericIdent(maps, e.Second)
+		})}
+	case *UnionType:
+		return &UnionType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return ReplaceAllGenericIdent(maps, e)
+		})}
+	case *GenericIdentType:
+		return maps.Get(tt)
+	default:
+		panic("unreachable")
+	}
+}
+
+// GenericIdentType 泛型标识符类型
+type GenericIdentType struct {
+	Belong *GenericFuncDef
+	Name string
+}
+
+func (self *GenericIdentType) String() string {
+	return self.Name
+}
+
+func (self *GenericIdentType) EqualTo(dst Type) bool {
+	dstType, ok := FlattenType(dst).(*GenericIdentType)
+	if !ok{
+		return false
+	}
+	return self.Belong == dstType.Belong && self.Name == dstType.Name
 }

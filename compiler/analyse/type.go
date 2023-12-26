@@ -81,6 +81,12 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	case "str":
 		return hir.Str
 	default:
+		// 泛型标识符类型
+		if pkgName == ""{
+			if to := self.genericIdentMap.Get(name); to != nil {
+				return to
+			}
+		}
 		// 类型定义
 		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
 			return td

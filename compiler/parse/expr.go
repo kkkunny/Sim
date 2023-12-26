@@ -228,18 +228,22 @@ func (self *Parser) parseIdent() *ast.Ident {
 	pkgOrName := self.expectNextIs(token.IDENT)
 	var genericArgs []ast.Type
 	if self.skipNextIs(token.SCOPE) {
-		if self.skipNextIs(token.LT){
+		if !self.skipNextIs(token.LT){
+			pkg = util.Some(pkgOrName)
+			name = self.expectNextIs(token.IDENT)
+			if self.skipNextIs(token.SCOPE){
+				self.expectNextIs(token.LT)
+				genericArgs = loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {
+					return self.parseType()
+				})
+				self.expectNextIs(token.GT)
+			}
+		}else{
+			name = pkgOrName
 			genericArgs = loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {
 				return self.parseType()
 			})
 			self.expectNextIs(token.GT)
-			if self.skipNextIs(token.SCOPE){
-				pkg = util.Some(pkgOrName)
-				name = self.expectNextIs(token.IDENT)
-			}
-		}else{
-			pkg = util.Some(pkgOrName)
-			name = self.expectNextIs(token.IDENT)
 		}
 	} else {
 		name = pkgOrName
