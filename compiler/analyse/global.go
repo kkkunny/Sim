@@ -80,6 +80,33 @@ func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
 	}
 }
 
+func (self *Analyser) declGenericStructDef(node *ast.GenericStructDef) {
+	st := &hir.GenericStructDef{
+		Pkg: self.pkgScope.pkg,
+		Public: node.Public,
+		Name:   node.Name.Source(),
+		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, hir.Type]](),
+	}
+
+	for _, p := range node.GenericParams{
+		name := p.Source()
+		if st.GenericParams.ContainKey(name){
+			errors.ThrowIdentifierDuplicationError(p.Position, p)
+		}
+		pt := &hir.GenericIdentType{
+			Belong: st,
+			Name: name,
+		}
+		st.GenericParams.Set(name, pt)
+		self.genericIdentMap.Set(name, pt)
+	}
+	defer self.genericIdentMap.Clear()
+
+	if !self.pkgScope.SetGenericStructDef(st) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+}
+
 func (self *Analyser) defStructDef(node *ast.StructDef) *hir.StructDef {
 	td, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
 	if !ok {
@@ -106,6 +133,27 @@ func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
 	return tad
 }
 
+func (self *Analyser) defGenericStructDef(node *ast.GenericStructDef) *hir.GenericStructDef {
+	st, ok := self.pkgScope.getLocalGenericStructDef(node.Name.Source())
+	if !ok {
+		panic("unreachable")
+	}
+
+	for iter:=st.GenericParams.Iterator(); iter.Next(); {
+		self.genericIdentMap.Set(iter.Value().First, iter.Value().Second)
+	}
+	defer func() {
+		self.genericIdentMap.Clear()
+	}()
+
+	for _, f := range node.Fields {
+		fn := f.B.Source()
+		ft := pair.NewPair(f.A, self.analyseType(f.C))
+		st.Fields.Set(fn, ft)
+	}
+	return st
+}
+
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
@@ -118,7 +166,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declMultiGlobalVariable(globalNode)
 	case *ast.GenericFuncDef:
 		self.declGenericFuncDef(globalNode)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.GenericStructDef:
 	default:
 		panic("unreachable")
 	}
@@ -327,7 +375,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defMultiGlobalVariable(globalNode)
 	case *ast.GenericFuncDef:
 		return self.defGenericFuncDef(globalNode)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.GenericStructDef:
 		return nil
 	default:
 		panic("unreachable")

@@ -22,6 +22,7 @@ type _PkgScope struct {
 	valueDefs hashmap.HashMap[string, hir.Ident]
 	typeDefs  hashmap.HashMap[string, hir.TypeDef]
 	genericFuncDefs hashmap.HashMap[string, *hir.GenericFuncDef]
+	genericStructDefs hashmap.HashMap[string, *hir.GenericStructDef]
 }
 
 func _NewPkgScope(pkg hir.Package) *_PkgScope {
@@ -32,6 +33,7 @@ func _NewPkgScope(pkg hir.Package) *_PkgScope {
 		valueDefs: hashmap.NewHashMap[string, hir.Ident](),
 		typeDefs:  hashmap.NewHashMap[string, hir.TypeDef](),
 		genericFuncDefs: hashmap.NewHashMap[string, *hir.GenericFuncDef](),
+		genericStructDefs: hashmap.NewHashMap[string, *hir.GenericStructDef](),
 	}
 }
 
@@ -81,6 +83,9 @@ func (self *_PkgScope) GetValue(pkg, name string) (hir.Ident, bool) {
 
 func (self *_PkgScope) SetTypeDef(td hir.TypeDef) bool {
 	if _, ok := self.getTypeDef(td.GetName()); ok {
+		return false
+	}
+	if _, ok := self.getGenericStructDef(td.GetName()); ok {
 		return false
 	}
 	self.typeDefs.Set(td.GetName(), td)
@@ -158,6 +163,50 @@ func (self *_PkgScope) GetGenericFuncDef(pkg, name string) (*hir.GenericFuncDef,
 		return nil, false
 	}
 	def, ok := pkgScope.getLocalGenericFuncDef(name)
+	if !ok || !def.GetPublic() {
+		return nil, false
+	}
+	return def, true
+}
+
+func (self *_PkgScope) SetGenericStructDef(def *hir.GenericStructDef) bool {
+	if _, ok := self.getTypeDef(def.Name); ok {
+		return false
+	}
+	if _, ok := self.getGenericStructDef(def.Name); ok {
+		return false
+	}
+	self.genericStructDefs.Set(def.Name, def)
+	return true
+}
+
+func (self *_PkgScope) getLocalGenericStructDef(name string) (*hir.GenericStructDef, bool) {
+	return self.genericStructDefs.Get(name), self.genericStructDefs.ContainKey(name)
+}
+
+func (self *_PkgScope) getGenericStructDef(name string) (*hir.GenericStructDef, bool) {
+	def, ok := self.getLocalGenericStructDef(name)
+	if ok {
+		return def, true
+	}
+	for iter := self.links.Iterator(); iter.Next(); {
+		def, ok := iter.Value().getLocalGenericStructDef(name)
+		if ok && def.GetPublic() {
+			return def, true
+		}
+	}
+	return nil, false
+}
+
+func (self *_PkgScope) GetGenericStructDef(pkg, name string) (*hir.GenericStructDef, bool) {
+	if pkg == "" {
+		return self.getGenericStructDef(name)
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		return nil, false
+	}
+	def, ok := pkgScope.getLocalGenericStructDef(name)
 	if !ok || !def.GetPublic() {
 		return nil, false
 	}

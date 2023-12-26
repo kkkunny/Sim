@@ -231,6 +231,11 @@ func (self *TypeAliasDef) GetName()string{
 	return self.Name
 }
 
+type GlobalGenericDef interface {
+	Global
+	GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]
+}
+
 // GenericFuncDef 泛型函数定义
 type GenericFuncDef struct {
 	Pkg Package
@@ -260,4 +265,29 @@ func (self *GenericFuncDef) GetPackage()Package{
 
 func (self *GenericFuncDef) GetPublic() bool {
 	return self.Public
+}
+
+func (self *GenericFuncDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
+	return self.GenericParams
+}
+
+// GenericStructDef 泛型结构体定义
+type GenericStructDef struct {
+	Pkg Package
+	Public bool
+	Name   string
+	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
+	Fields linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]
+}
+
+func (self *GenericStructDef) GetPackage()Package{
+	return self.Pkg
+}
+
+func (self *GenericStructDef) GetPublic() bool {
+	return self.Public
+}
+
+func (self *GenericStructDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
+	return self.GenericParams
 }

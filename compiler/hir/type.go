@@ -6,6 +6,8 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/iterator"
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
@@ -46,6 +48,19 @@ func FlattenType(t Type)Type{
 		return FlattenType(tt.Self)
 	case *AliasType:
 		return FlattenType(tt.Target)
+	case *GenericStructInst:
+		return tt.StructType()
+	default:
+		return tt
+	}
+}
+
+func flattenTypeNotWithGeneric(t Type)Type{
+	switch tt := t.(type) {
+	case *SelfType:
+		return flattenTypeNotWithGeneric(tt.Self)
+	case *AliasType:
+		return flattenTypeNotWithGeneric(tt.Target)
 	default:
 		return tt
 	}
@@ -478,15 +493,29 @@ func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Typ
 			return ReplaceAllGenericIdent(maps, e)
 		})}
 	case *StructType:
-		return &TupleType{Elems: stlslices.Map(tt.Fields.Values().ToSlice(), func(_ int, e pair.Pair[bool, Type]) Type {
-			return ReplaceAllGenericIdent(maps, e.Second)
-		})}
+		fields := iterator.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](tt.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
+			return pair.NewPair[string, pair.Pair[bool, Type]](e.First, pair.NewPair[bool, Type](e.Second.First, ReplaceAllGenericIdent(maps, e.Second.Second)))
+		})
+		return &StructType{
+			Pkg: tt.Pkg,
+			Public: tt.Public,
+			Name: tt.Name,
+			Fields: fields,
+			Methods: tt.Methods,
+		}
 	case *UnionType:
 		return &UnionType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
 			return ReplaceAllGenericIdent(maps, e)
 		})}
 	case *GenericIdentType:
 		return maps.Get(tt)
+	case *GenericStructInst:
+		return &GenericStructInst{
+			Define: tt.Define,
+			Params: stlslices.Map(tt.Params, func(i int, e Type) Type {
+				return ReplaceAllGenericIdent(maps, e)
+			}),
+		}
 	default:
 		panic("unreachable")
 	}
@@ -494,7 +523,7 @@ func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Typ
 
 // GenericIdentType 泛型标识符类型
 type GenericIdentType struct {
-	Belong *GenericFuncDef
+	Belong GlobalGenericDef
 	Name string
 }
 
@@ -508,4 +537,51 @@ func (self *GenericIdentType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Belong == dstType.Belong && self.Name == dstType.Name
+}
+
+// GenericStructInst 泛型结构体实例
+type GenericStructInst struct {
+	Define *GenericStructDef
+	Params []Type
+}
+
+func (self *GenericStructInst) String() string {
+	return fmt.Sprintf("%s::%s::<%s>", self.Define.Pkg, self.Define.Name, strings.Join(stlslices.Map(self.Params, func(i int, e Type) string {
+		return e.String()
+	}), ", "))
+}
+
+func (self *GenericStructInst) EqualTo(dst Type) bool {
+	dstType, ok := flattenTypeNotWithGeneric(dst).(*GenericStructInst)
+	if !ok{
+		return false
+	}
+	if self.Define != dstType.Define{
+		return false
+	}
+	for i, p := range self.Params{
+		if !p.EqualTo(dstType.Params[i]){
+			return false
+		}
+	}
+	return true
+}
+
+func (self *GenericStructInst) StructType()*StructType{
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
+	var i int
+	for iter:=self.Define.GenericParams.Iterator(); iter.Next(); {
+		maps.Set(iter.Value().Second, self.Params[i])
+		i++
+	}
+	fields := iterator.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](self.Define.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
+		return pair.NewPair[string, pair.Pair[bool, Type]](e.First, pair.NewPair[bool, Type](e.Second.First, ReplaceAllGenericIdent(maps, e.Second.Second)))
+	})
+	st := &StructType{
+		Pkg: self.Define.Pkg,
+		Public: self.Define.Public,
+		Name: self.String(),
+		Fields: fields,
+	}
+	return st
 }
