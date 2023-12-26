@@ -470,7 +470,7 @@ func (self *AliasType) EqualTo(dst Type) bool {
 // ReplaceAllGenericIdent 替换所有泛型标识符类型
 func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Type)Type{
 	switch tt := t.(type) {
-	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *SelfType:
+	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *SelfType, *BoolType:
 		return tt
 	case *PtrType:
 		return &PtrType{Elem: ReplaceAllGenericIdent(maps, tt.Elem)}
@@ -568,6 +568,9 @@ func (self *GenericStructInst) EqualTo(dst Type) bool {
 }
 
 func (self *GenericStructInst) StructType()*StructType{
+	name := fmt.Sprintf("%s::<%s>", self.Define.Name, strings.Join(stlslices.Map(self.Params, func(i int, e Type) string {
+		return e.String()
+	}), ", "))
 	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
 	var i int
 	for iter:=self.Define.GenericParams.Iterator(); iter.Next(); {
@@ -580,7 +583,7 @@ func (self *GenericStructInst) StructType()*StructType{
 	st := &StructType{
 		Pkg: self.Define.Pkg,
 		Public: self.Define.Public,
-		Name: self.String(),
+		Name: name,
 		Fields: fields,
 	}
 	return st

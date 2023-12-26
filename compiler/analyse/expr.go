@@ -550,7 +550,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 	}
 
 	return &hir.Struct{
-		Type:   st,
+		Type:   stObj,
 		Fields: fields,
 	}
 }
