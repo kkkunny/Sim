@@ -23,6 +23,20 @@ func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
 	st.SetElems(fields...)
 }
 
+func (self *CodeGenerator) declGenericStructDef(ir *hir.GenericStructInst) mir.StructType {
+	return self.module.NewNamedStructType("")
+}
+
+func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir.StructType) {
+	stIr := ir.StructType()
+	fields := make([]mir.Type, stIr.Fields.Length())
+	var i int
+	for iter := stIr.Fields.Values().Iterator(); iter.Next(); i++ {
+		fields[i] = self.codegenType(iter.Value().Second)
+	}
+	st.SetElems(fields...)
+}
+
 func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 	switch global := ir.(type) {
 	case *hir.FuncDef:
@@ -33,7 +47,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef:
+	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef:
 	default:
 		panic("unreachable")
 	}
@@ -104,7 +118,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		self.defGlobalVariable(global)
 	case *hir.MultiVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.GenericFuncDef:
+	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef:
 	default:
 		panic("unreachable")
 	}

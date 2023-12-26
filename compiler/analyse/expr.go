@@ -533,7 +533,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 	for _, nf := range node.Fields {
 		fn := nf.First.Source()
 		if !fieldNames.Contain(fn) {
-			errors.ThrowIdentifierDuplicationError(nf.First.Position, nf.First)
+			errors.ThrowUnknownIdentifierError(nf.First.Position, nf.First)
 		}
 		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Second, nf.Second)
 	}
@@ -550,7 +550,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 	}
 
 	return &hir.Struct{
-		Type:   st,
+		Type:   stObj,
 		Fields: fields,
 	}
 }

@@ -1581,7 +1581,7 @@ func (self *PackArray) Define()string{
 	elems := lo.Map(self.elems, func(item Value, _ int) string {
 		return item.Name()
 	})
-	return fmt.Sprintf("%s %s = unpack (%s)", self.t, self.Name(), strings.Join(elems, ","))
+	return fmt.Sprintf("%s %s = pack (%s)", self.t, self.Name(), strings.Join(elems, ","))
 }
 
 func (self *PackArray) setIndex(i uint){
@@ -1646,7 +1646,7 @@ func (self *PackStruct) Define()string{
 	elems := lo.Map(self.elems, func(item Value, _ int) string {
 		return item.Name()
 	})
-	return fmt.Sprintf("%s %s = unpack {%s}", self.t, self.Name(), strings.Join(elems, ","))
+	return fmt.Sprintf("%s %s = pack {%s}", self.t, self.Name(), strings.Join(elems, ","))
 }
 
 func (self *PackStruct) setIndex(i uint){

@@ -189,3 +189,19 @@ func (self *GenericFuncDef) Position() reader.Position {
 }
 
 func (*GenericFuncDef) global() {}
+
+// GenericStructDef 泛型结构体定义
+type GenericStructDef struct {
+	Begin  reader.Position
+	Public bool
+	Name   token.Token
+	GenericParams []token.Token
+	Fields []lo.Tuple3[bool, token.Token, Type]
+	End    reader.Position
+}
+
+func (self *GenericStructDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (*GenericStructDef) global() {}

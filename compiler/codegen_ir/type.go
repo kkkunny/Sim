@@ -1,7 +1,11 @@
 package codegen_ir
 
 import (
+	"fmt"
+	"strings"
+
 	stlos "github.com/kkkunny/stl/os"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
@@ -42,6 +46,8 @@ func (self *CodeGenerator) codegenType(ir hir.Type) mir.Type {
 		return self.codegenAliasType(t)
 	case *hir.GenericIdentType:
 		return self.codegenGenericIdentType(t)
+	case *hir.GenericStructInst:
+		return self.codegenGenericStructInst(t)
 	default:
 		panic("unreachable")
 	}
@@ -141,4 +147,18 @@ func (self *CodeGenerator) codegenAliasType(ir *hir.AliasType)mir.Type{
 
 func (self *CodeGenerator) codegenGenericIdentType(ir *hir.GenericIdentType)mir.Type{
 	return self.codegenType(self.genericIdentMapStack.Peek().Get(ir))
+}
+
+func (self *CodeGenerator) codegenGenericStructInst(ir *hir.GenericStructInst)mir.StructType{
+	key := fmt.Sprintf("generic_struct(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
+		return self.codegenType(e).String()
+	}), ","))
+	if st := self.structCache.Get(key); st != nil{
+		return st
+	}
+
+	st := self.declGenericStructDef(ir)
+	self.structCache.Set(key, st)
+	self.defGenericStructDef(ir, st)
+	return st
 }
