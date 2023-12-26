@@ -32,7 +32,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.StructDef, *hir.TypeAliasDef:
+	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef:
 	default:
 		panic("unreachable")
 	}
@@ -74,6 +74,19 @@ func (self *CodeGenerator) declMultiGlobalVariable(ir *hir.MultiVarDef) {
 	}
 }
 
+func (self *CodeGenerator) declGenericFuncDef(ir *hir.GenericFuncInst) *mir.Function {
+	ft := self.codegenType(ir.GetType()).(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Define.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
+	return f
+}
+
 func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 	switch global := ir.(type) {
 	case *hir.FuncDef:
@@ -90,8 +103,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		self.defGlobalVariable(global)
 	case *hir.MultiVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef:
-
+	case *hir.TypeAliasDef, *hir.GenericFuncDef:
 	default:
 		panic("unreachable")
 	}
@@ -145,4 +157,19 @@ func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiVarDef) {
 			return item
 		}))
 	}
+}
+
+func (self *CodeGenerator) defGenericFuncDef(ir *hir.GenericFuncInst, f *mir.Function) {
+	self.builder.MoveTo(f.NewBlock())
+	for i, p := range f.Params() {
+		self.values.Set(ir.Define.Params[i], p)
+	}
+	var i int
+	for iter:=ir.Define.GenericParams.Iterator(); iter.Next(); {
+		self.genericIdentMap.Set(iter.Value().Second, ir.Params[i])
+		i++
+	}
+	defer self.genericIdentMap.Clear()
+	block, _ := self.codegenBlock(ir.Define.Body, nil)
+	self.builder.BuildUnCondJump(block)
 }

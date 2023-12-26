@@ -1,7 +1,11 @@
 package codegen_ir
 
 import (
+	"fmt"
+	"strings"
+
 	stlbasic "github.com/kkkunny/stl/basic"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
@@ -181,6 +185,8 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 			return p
 		}
 		return self.builder.BuildLoad(p)
+	case *hir.GenericFuncInst:
+		return self.codegenGenericFuncInst(identNode)
 	default:
 		panic("unreachable")
 	}
@@ -334,4 +340,23 @@ func (self *CodeGenerator) codegenCheckNull(ir *hir.CheckNull) mir.Value {
 
 	ptr := self.codegenExpr(ir.Value, true)
 	return self.builder.BuildCall(f, ptr)
+}
+
+func (self *CodeGenerator) codegenGenericFuncInst(ir *hir.GenericFuncInst)mir.Value{
+	cur := self.builder.Current()
+	defer func() {
+		self.builder.MoveTo(cur)
+	}()
+
+	key := fmt.Sprintf("generic_func<%s>", strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
+		return self.codegenType(e).String()
+	}), ","))
+	if f := self.funcCache.Get(key); f != nil{
+		return f
+	}
+
+	f := self.declGenericFuncDef(ir)
+	self.funcCache.Set(key, f)
+	self.defGenericFuncDef(ir, f)
+	return f
 }

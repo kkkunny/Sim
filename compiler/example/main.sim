@@ -3,5 +3,6 @@ func get<T>(x: T)T{
 }
 
 func main()u8{
+    get::<u8>(1)
     return get::<u8>(1)
 }
