@@ -116,6 +116,8 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declSingleGlobalVariable(globalNode)
 	case *ast.MultipleVariableDef:
 		self.declMultiGlobalVariable(globalNode)
+	case *ast.GenericFuncDef:
+		self.declGenericFuncDef(globalNode)
 	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 	default:
 		panic("unreachable")
@@ -260,6 +262,59 @@ func (self *Analyser) declMultiGlobalVariable(node *ast.MultipleVariableDef) {
 	}
 }
 
+func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
+	f := &hir.GenericFuncDef{
+		Pkg: self.pkgScope.pkg,
+		Public:     node.Public,
+		Name:       node.Name.Source(),
+	}
+	for _, attrObj := range node.Attrs {
+		switch attrObj.(type) {
+		case *ast.NoReturn:
+			f.NoReturn = true
+		case *ast.Inline:
+			f.InlineControl = util.Some[bool](true)
+		case *ast.NoInline:
+			f.InlineControl = util.Some[bool](false)
+		default:
+			panic("unreachable")
+		}
+	}
+
+	for _, p := range node.GenericParams{
+		name := p.Source()
+		if f.GenericParams.ContainKey(name){
+			errors.ThrowIdentifierDuplicationError(p.Position, p)
+		}
+		pt := &hir.GenericIdentType{
+			Belong: f,
+			Name: name,
+		}
+		f.GenericParams.Set(name, pt)
+		self.genericIdentMap.Set(name, pt)
+	}
+	defer self.genericIdentMap.Clear()
+
+	paramNameSet := hashset.NewHashSet[string]()
+	f.Params = lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
+		pn := paramNode.Name.Source()
+		if !paramNameSet.Add(pn) {
+			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
+		}
+		pt := self.analyseType(paramNode.Type)
+		return &hir.Param{
+			Mut:  paramNode.Mutable,
+			Type: pt,
+			Name: pn,
+		}
+	})
+	f.Ret = self.analyseOptionType(node.Ret)
+
+	if !self.pkgScope.SetGenericFuncDef(f) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+}
+
 func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
@@ -270,6 +325,8 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defSingleGlobalVariable(globalNode)
 	case *ast.MultipleVariableDef:
 		return self.defMultiGlobalVariable(globalNode)
+	case *ast.GenericFuncDef:
+		return self.defGenericFuncDef(globalNode)
 	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 		return nil
 	default:
@@ -278,7 +335,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 }
 
 func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
-	value, ok := self.pkgScope.GetValue("", node.Name.Source())
+	value, ok := self.pkgScope.getLocalValue(node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
@@ -386,4 +443,39 @@ func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) *hir
 		Vars: vars,
 		Value: value,
 	}
+}
+
+func (self *Analyser) defGenericFuncDef(node *ast.GenericFuncDef) *hir.GenericFuncDef {
+	f, ok := self.pkgScope.getLocalGenericFuncDef(node.Name.Source())
+	if !ok {
+		panic("unreachable")
+	}
+
+	for iter:=f.GenericParams.Iterator(); iter.Next(); {
+		self.genericIdentMap.Set(iter.Value().First, iter.Value().Second)
+	}
+	self.localScope = _NewFuncScope(self.pkgScope, f)
+	defer func() {
+		self.genericIdentMap.Clear()
+		self.localScope = nil
+	}()
+
+	for i, p := range f.Params {
+		if !self.localScope.SetValue(p.Name, p) {
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
+		}
+	}
+
+	var jump hir.BlockEof
+	f.Body, jump = self.analyseBlock(node.Body, nil)
+	if jump != hir.BlockEofReturn {
+		if !hir.IsEmptyType(f.Ret) {
+			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
+		}
+		f.Body.Stmts.PushBack(&hir.Return{
+			Func:  f,
+			Value: util.None[hir.Expr](),
+		})
+	}
+	return f
 }

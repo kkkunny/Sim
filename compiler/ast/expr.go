@@ -99,13 +99,15 @@ func (self *Boolean) expr() {}
 type Ident struct {
 	Pkg  util.Option[token.Token]
 	Name token.Token
+	GenericArgs []Type
+	End reader.Position
 }
 
 func (self *Ident) Position() reader.Position {
 	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.Name.Position)
+		return reader.MixPosition(pkg.Position, self.End)
 	}else{
-		return self.Name.Position
+		return reader.MixPosition(self.Name.Position, self.End)
 	}
 }
 

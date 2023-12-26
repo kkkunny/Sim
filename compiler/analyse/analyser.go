@@ -27,6 +27,7 @@ type Analyser struct {
 	selfType  hir.TypeDef
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
+	genericIdentMap hashmap.HashMap[string, *hir.GenericIdentType]
 }
 
 func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {

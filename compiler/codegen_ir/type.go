@@ -40,6 +40,8 @@ func (self *CodeGenerator) codegenType(ir hir.Type) mir.Type {
 		return self.codegenSelfType(t)
 	case *hir.AliasType:
 		return self.codegenAliasType(t)
+	case *hir.GenericIdentType:
+		return self.codegenGenericIdentType(t)
 	default:
 		panic("unreachable")
 	}
@@ -135,4 +137,8 @@ func (self *CodeGenerator) codegenSelfType(ir *hir.SelfType)mir.Type{
 func (self *CodeGenerator) codegenAliasType(ir *hir.AliasType)mir.Type{
 	// TODO: 处理类型循环
 	return self.codegenType(ir.Target)
+}
+
+func (self *CodeGenerator) codegenGenericIdentType(ir *hir.GenericIdentType)mir.Type{
+	return self.codegenType(self.genericIdentMapStack.Peek().Get(ir))
 }

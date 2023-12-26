@@ -3,6 +3,7 @@ package hir
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
 )
 
@@ -906,3 +907,27 @@ func (self *Method) Mutable() bool {
 }
 
 func (*Method) ident() {}
+
+// GenericFuncInst 泛型函数实例
+type GenericFuncInst struct {
+	Define *GenericFuncDef
+	Params []Type
+}
+
+func (self *GenericFuncInst) stmt() {}
+
+func (self *GenericFuncInst) GetType() Type {
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](self.Define.GenericParams.Capacity())
+	var i int
+	for iter:=self.Define.GenericParams.Iterator(); iter.Next(); {
+		maps.Set(iter.Value().Second, self.Params[i])
+		i++
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetFuncType())
+}
+
+func (self *GenericFuncInst) Mutable() bool {
+	return false
+}
+
+func (*GenericFuncInst) ident() {}

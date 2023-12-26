@@ -7,11 +7,13 @@ import (
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/iterator"
 	stlerror "github.com/kkkunny/stl/error"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
@@ -334,12 +336,30 @@ func (self *Analyser) analyseIdent(node *ast.Ident) hir.Expr {
 			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
 		}
 	}
-	// 普通标识符
-	value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
-	if !ok {
-		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+	if len(node.GenericArgs) == 0{
+		// 普通标识符
+		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
+		if !ok {
+			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+		}
+		return value
+	}else{
+		// 泛型实例化
+		f, ok := self.pkgScope.GetGenericFuncDef(pkgName, node.Name.Source())
+		if !ok{
+			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+		}
+		if f.GenericParams.Length() != uint(len(node.GenericArgs)){
+			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(node.GenericArgs[0].Position(), node.GenericArgs[len(node.GenericArgs)-1].Position()), f.GenericParams.Length(), uint(len(node.GenericArgs)))
+		}
+		params := stlslices.Map(node.GenericArgs, func(_ int, e ast.Type) hir.Type {
+			return self.analyseType(e)
+		})
+		return &hir.GenericFuncInst{
+			Define: f,
+			Params: params,
+		}
 	}
-	return value
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
