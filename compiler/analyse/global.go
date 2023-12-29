@@ -5,7 +5,7 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
-	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/pair"
@@ -32,7 +32,7 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.
 	}
 
 	// 包地址
-	paths := stliter.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
+	paths := iterator.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
 		return v.Source()
 	}).ToSlice()
 	pkg, err := hir.OfficialPackage.GetSon(paths...)

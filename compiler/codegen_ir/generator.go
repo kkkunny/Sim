@@ -2,7 +2,7 @@ package codegen_ir
 
 import (
 	"github.com/kkkunny/stl/container/hashmap"
-	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/iterator"
 	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/hir"
@@ -39,7 +39,7 @@ func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerato
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() *mir.Module {
 	// 类型声明
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
+	iterator.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		st, ok := v.(*hir.StructDef)
 		if ok {
 			self.declStructDef(st)
@@ -47,12 +47,12 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		return true
 	})
 	// 值声明
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
+	iterator.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		self.codegenGlobalDecl(v)
 		return true
 	})
 	// 值定义
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
+	iterator.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		self.codegenGlobalDef(v)
 		return true
 	})
@@ -61,7 +61,7 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 	self.builder.BuildReturn()
 	// 主函数
 	var hasMain bool
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
+	iterator.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {
 			hasMain = true
 			f := self.values.Get(funcNode).(*mir.Function)

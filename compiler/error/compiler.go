@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/kkkunny/stl/container/dynarray"
-	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/iterator"
 
 	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/hir"
@@ -170,7 +170,7 @@ func ThrowIllegalType(pos reader.Position) {
 
 // ThrowInvalidPackage 无效包
 func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Token]) {
-	pathStrs := stliter.Map[token.Token, string, dynarray.DynArray[string]](paths, func(v token.Token) string {
+	pathStrs := iterator.Map[token.Token, string, dynarray.DynArray[string]](paths, func(v token.Token) string {
 		return v.Source()
 	})
 	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs.ToSlice(), "."))
