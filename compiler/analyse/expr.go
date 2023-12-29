@@ -5,7 +5,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashset"
-	"github.com/kkkunny/stl/container/iterator"
+	stliter "github.com/kkkunny/stl/container/iter"
 	stlerror "github.com/kkkunny/stl/error"
 	"github.com/samber/lo"
 
@@ -507,7 +507,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
 	st := hir.AsStructType(stObj)
-	fieldNames := iterator.Map[string, string, hashset.HashSet[string]](st.Fields.Keys(), func(s string) string {return s})
+	fieldNames := stliter.Map[string, string, hashset.HashSet[string]](st.Fields.Keys(), func(s string) string {return s})
 
 	existedFields := make(map[string]hir.Expr)
 	for _, nf := range node.Fields {

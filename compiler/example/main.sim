@@ -1,5 +1,6 @@
+let i: isize = 10
+
 func main()u8{
-    let v: u8 = 1
-    let vp: *?u8 = &v
-    return *vp! - 1
+    let i: u8 = 10;
+    return i
 }
