@@ -7,7 +7,7 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/kkkunny/stl/container/iterator"
+	stliter "github.com/kkkunny/stl/container/iter"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
@@ -17,7 +17,7 @@ import (
 
 func main() {
 	means := stlerror.MustWith(analyse.Analyse(stlos.NewFilePath(os.Args[1])))
-	iterator.Foreach(means, func(v hir.Global) bool {
+	stliter.Foreach(means, func(v hir.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())
 		return true
 	})

@@ -15,3 +15,14 @@ type Param struct {
 	Name    token.Token
 	Type    Type
 }
+
+type GenericNameDef struct {
+	Name token.Token
+	ParamBegin reader.Position
+	Params []token.Token
+	ParamEnd reader.Position
+}
+
+func (self GenericNameDef) Position() reader.Position{
+	return reader.MixPosition(self.Name.Position, self.ParamEnd)
+}
