@@ -1,18 +1,13 @@
-struct either<T, F>{
-    isLeft: bool,
-    Left: T,
-    Right: F
-}
-
 struct pair<T, F>{
-    Value: either::<T, F>,
+    F: T,
+    S: F,
 }
 
-func new_pair<T, F>(x: T, y: F)pair::<T, F>{
-    return pair::<T, F>{Value: either::<T, F>{isLeft: true, Left: x, Right: y}}
+func (pair<T, F>) first()T{
+    return self.F
 }
 
 func main()u8{
-    let a = new_pair::<u8, i16>(1, 2)
-    return a.Value.Left - 1
+    let a = pair::<u8, u8>{F: 1, S: 2}
+    return a.first()
 }
