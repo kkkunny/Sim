@@ -55,17 +55,6 @@ func FlattenType(t Type)Type{
 	}
 }
 
-func flattenTypeNotWithGeneric(t Type)Type{
-	switch tt := t.(type) {
-	case *SelfType:
-		return flattenTypeNotWithGeneric(tt.Self)
-	case *AliasType:
-		return flattenTypeNotWithGeneric(tt.Target)
-	default:
-		return tt
-	}
-}
-
 func IsEmptyType(t Type)bool{
 	return stlbasic.Is[*EmptyType](FlattenType(t))
 }
@@ -552,19 +541,7 @@ func (self *GenericStructInst) String() string {
 }
 
 func (self *GenericStructInst) EqualTo(dst Type) bool {
-	dstType, ok := flattenTypeNotWithGeneric(dst).(*GenericStructInst)
-	if !ok{
-		return false
-	}
-	if self.Define != dstType.Define{
-		return false
-	}
-	for i, p := range self.Params{
-		if !p.EqualTo(dstType.Params[i]){
-			return false
-		}
-	}
-	return true
+	return self.StructType().EqualTo(dst)
 }
 
 func (self *GenericStructInst) StructType()*StructType{
