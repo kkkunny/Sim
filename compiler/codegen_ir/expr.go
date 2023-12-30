@@ -62,6 +62,9 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 	case *hir.MethodDef:
 		// TODO: 闭包
 		panic("unreachable")
+	case *hir.GenericStructMethodInst:
+		// TODO: 闭包
+		panic("unreachable")
 	default:
 		panic("unreachable")
 	}
@@ -195,6 +198,13 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	if method, ok := ir.Func.(*hir.Method); ok{
 		f := self.values.Get(method.Define)
+		selfParam := self.codegenExpr(method.Self, true)
+		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
+			return self.codegenExpr(item, true)
+		})
+		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
+	}else if method, ok := ir.Func.(*hir.GenericStructMethodInst); ok{
+		f := self.codegenGenericStructMethodInst(method)
 		selfParam := self.codegenExpr(method.Self, true)
 		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
 			return self.codegenExpr(item, true)
@@ -358,5 +368,24 @@ func (self *CodeGenerator) codegenGenericFuncInst(ir *hir.GenericFuncInst)mir.Va
 	f := self.declGenericFuncDef(ir)
 	self.funcCache.Set(key, f)
 	self.defGenericFuncDef(ir, f)
+	return f
+}
+
+func (self *CodeGenerator) codegenGenericStructMethodInst(ir *hir.GenericStructMethodInst)*mir.Function{
+	cur := self.builder.Current()
+	defer func() {
+		self.builder.MoveTo(cur)
+	}()
+
+	key := fmt.Sprintf("(%p<%s>)generic_method(%p)", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetGenericParams(), func(i int, e hir.Type) string {
+		return self.codegenType(e).String()
+	}), ","), ir.Define)
+	if f := self.funcCache.Get(key); f != nil{
+		return f
+	}
+
+	f := self.declGenericStructMethodDef(ir)
+	self.funcCache.Set(key, f)
+	self.defGenericStructMethodDef(ir, f)
 	return f
 }

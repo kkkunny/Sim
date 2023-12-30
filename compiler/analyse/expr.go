@@ -564,10 +564,17 @@ func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
 	st := hir.AsStructType(from.GetType())
 
 	// 方法
-	if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.pkg){
-		return &hir.Method{
-			Self:   from,
-			Define: method,
+	if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
+		if method, ok := methodObj.(*hir.MethodDef); ok{
+			return &hir.Method{
+				Self:   from,
+				Define: method,
+			}
+		}else{
+			return &hir.GenericStructMethodInst{
+				Self:   from,
+				Define: methodObj.(*hir.GenericStructMethodDef),
+			}
 		}
 	}
 

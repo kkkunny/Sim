@@ -47,6 +47,20 @@ loop:
 	}
 }
 
+func (self *Parser) parseGenericNameDef(name token.Token, )ast.GenericNameDef{
+	begin := self.expectNextIs(token.LT).Position
+	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
+		return self.expectNextIs(token.IDENT)
+	})
+	end := self.expectNextIs(token.GT).Position
+	return ast.GenericNameDef{
+		Name: name,
+		ParamBegin: begin,
+		Params: params,
+		ParamEnd: end,
+	}
+}
+
 // 语法解析目标文件
 func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 	_, r, err := reader.NewReaderFromFile(path)

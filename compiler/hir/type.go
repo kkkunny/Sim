@@ -534,20 +534,28 @@ type GenericStructInst struct {
 	Params []Type
 }
 
+func (self *GenericStructInst) GetPackage()Package{
+	return self.Define.GetPackage()
+}
+func (self *GenericStructInst) GetPublic() bool{
+	return self.Define.GetPublic()
+}
+
 func (self *GenericStructInst) String() string {
-	return fmt.Sprintf("%s::%s::<%s>", self.Define.Pkg, self.Define.Name, strings.Join(stlslices.Map(self.Params, func(i int, e Type) string {
-		return e.String()
-	}), ", "))
+	return fmt.Sprintf("%s::%s", self.Define.Pkg, self.GetName())
 }
 
 func (self *GenericStructInst) EqualTo(dst Type) bool {
 	return self.StructType().EqualTo(dst)
 }
 
-func (self *GenericStructInst) StructType()*StructType{
-	name := fmt.Sprintf("%s::<%s>", self.Define.Name, strings.Join(stlslices.Map(self.Params, func(i int, e Type) string {
+func (self *GenericStructInst) GetName()string{
+	return fmt.Sprintf("%s::<%s>", self.Define.Name, strings.Join(stlslices.Map(self.Params, func(i int, e Type) string {
 		return e.String()
 	}), ", "))
+}
+
+func (self *GenericStructInst) StructType()*StructType{
 	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
 	var i int
 	for iter:=self.Define.GenericParams.Iterator(); iter.Next(); {
@@ -557,11 +565,16 @@ func (self *GenericStructInst) StructType()*StructType{
 	fields := stliter.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](self.Define.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
 		return pair.NewPair[string, pair.Pair[bool, Type]](e.First, pair.NewPair[bool, Type](e.Second.First, ReplaceAllGenericIdent(maps, e.Second.Second)))
 	})
+	methods := stliter.Map[pair.Pair[string, *GenericStructMethodDef], pair.Pair[string, GlobalMethod], hashmap.HashMap[string, GlobalMethod]](self.Define.Methods, func(e pair.Pair[string, *GenericStructMethodDef]) pair.Pair[string, GlobalMethod] {
+		return pair.NewPair[string, GlobalMethod](e.First, e.Second)
+	})
 	st := &StructType{
 		Pkg: self.Define.Pkg,
 		Public: self.Define.Public,
-		Name: name,
+		Name: self.GetName(),
 		Fields: fields,
+		Methods: methods,
+		genericParams: self.Params,
 	}
 	return st
 }

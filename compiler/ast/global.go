@@ -161,7 +161,6 @@ type MethodDef struct {
 	Scope token.Token
 	Name     token.Token
 	Params   []Param
-	ParamEnd reader.Position
 	Ret      util.Option[Type]
 	Body     *Block
 }
@@ -177,8 +176,7 @@ type GenericFuncDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
-	Name     token.Token
-	GenericParams []token.Token
+	Name     GenericNameDef
 	Params   []Param
 	Ret      util.Option[Type]
 	Body     *Block
@@ -194,8 +192,7 @@ func (*GenericFuncDef) global() {}
 type GenericStructDef struct {
 	Begin  reader.Position
 	Public bool
-	Name   token.Token
-	GenericParams []token.Token
+	Name   GenericNameDef
 	Fields []lo.Tuple3[bool, token.Token, Type]
 	End    reader.Position
 }
@@ -205,3 +202,22 @@ func (self *GenericStructDef) Position() reader.Position {
 }
 
 func (*GenericStructDef) global() {}
+
+// GenericStructMethodDef 泛型结构体方法定义
+type GenericStructMethodDef struct {
+	Attrs    []Attr
+	Begin    reader.Position
+	Public   bool
+	ScopeMutable bool
+	Scope GenericNameDef
+	Name     token.Token
+	Params   []Param
+	Ret      util.Option[Type]
+	Body     *Block
+}
+
+func (self *GenericStructMethodDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*GenericStructMethodDef) global() {}

@@ -47,7 +47,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef:
+	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef:
 	default:
 		panic("unreachable")
 	}
@@ -102,6 +102,19 @@ func (self *CodeGenerator) declGenericFuncDef(ir *hir.GenericFuncInst) *mir.Func
 	return f
 }
 
+func (self *CodeGenerator) declGenericStructMethodDef(ir *hir.GenericStructMethodInst) *mir.Function {
+	ft := self.codegenType(ir.GetFuncType()).(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Define.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
+	return f
+}
+
 func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 	switch global := ir.(type) {
 	case *hir.FuncDef:
@@ -118,7 +131,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		self.defGlobalVariable(global)
 	case *hir.MultiVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef:
+	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef:
 	default:
 		panic("unreachable")
 	}
@@ -179,11 +192,28 @@ func (self *CodeGenerator) defGenericFuncDef(ir *hir.GenericFuncInst, f *mir.Fun
 	for i, p := range f.Params() {
 		self.values.Set(ir.Define.Params[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, hir.Type]
+	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
 	var i int
 	for iter:=ir.Define.GenericParams.Iterator(); iter.Next(); {
-		maps.Set(iter.Value().Second, ir.Params[i])
+		maps.Set(iter.Value().Second, self.codegenType(ir.Params[i]))
 		i++
+	}
+	self.genericIdentMapStack.Push(maps)
+	defer self.genericIdentMapStack.Pop()
+	block, _ := self.codegenBlock(ir.Define.Body, nil)
+	self.builder.BuildUnCondJump(block)
+}
+
+func (self *CodeGenerator) defGenericStructMethodDef(ir *hir.GenericStructMethodInst, f *mir.Function) {
+	self.builder.MoveTo(f.NewBlock())
+	paramNodes := append([]*hir.Param{ir.Define.SelfParam}, ir.Define.Params...)
+	for i, p := range f.Params() {
+		self.values.Set(paramNodes[i], p)
+	}
+	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
+	genericParams := ir.GetGenericParams()
+	for i, iter:=0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.codegenType(genericParams[i]))
 	}
 	self.genericIdentMapStack.Push(maps)
 	defer self.genericIdentMapStack.Pop()
