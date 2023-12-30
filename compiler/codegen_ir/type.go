@@ -146,7 +146,7 @@ func (self *CodeGenerator) codegenAliasType(ir *hir.AliasType)mir.Type{
 }
 
 func (self *CodeGenerator) codegenGenericIdentType(ir *hir.GenericIdentType)mir.Type{
-	return self.codegenType(self.genericIdentMapStack.Peek().Get(ir))
+	return self.genericIdentMapStack.Peek().Get(ir)
 }
 
 func (self *CodeGenerator) codegenGenericStructInst(ir *hir.GenericStructInst)mir.StructType{

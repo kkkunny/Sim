@@ -18,5 +18,5 @@ func (pair<T, F>) first2()T{
 
 func main()u8{
     let a = pair::<u8, u8>{F: 1, S: 2}
-    return a.first()
+    return a.first() - 1
 }
