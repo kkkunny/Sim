@@ -1,0 +1,9 @@
+func main()u8{
+    if false{
+        return 1
+    }else if true{
+		return 0
+	}else{
+		return 1
+	}
+}

@@ -2,7 +2,7 @@ package codegen_ir
 
 import (
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/iterator"
+	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
@@ -89,7 +89,7 @@ func (self *CodeGenerator) codegenIfElse(ir *hir.IfElse) {
 	var endBlock *mir.Block
 	if ir.HasElse() {
 		brenchEndBlocks = blocks
-		end := iterator.All[*mir.Block](dynarray.NewDynArrayWith(brenchEndBlocks...), func(v *mir.Block) bool {
+		end := stliter.All[*mir.Block](dynarray.NewDynArrayWith(brenchEndBlocks...), func(v *mir.Block) bool {
 			return v.Terminated()
 		})
 		if end {

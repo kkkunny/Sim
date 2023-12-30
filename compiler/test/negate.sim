@@ -1,0 +1,3 @@
+func main()u8{
+    return (- 1 + 1) as i32 as u8
+}

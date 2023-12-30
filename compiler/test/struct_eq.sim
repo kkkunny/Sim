@@ -1,0 +1,12 @@
+struct A{
+	f1: i32,
+	f2: i32
+}
+
+func main()u8{
+	let a: A = A{f1: 1, f2: 2}
+    if a != a{
+        return 1
+    }
+    return 0
+}

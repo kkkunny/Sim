@@ -6,7 +6,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
-	"github.com/kkkunny/stl/container/iterator"
+	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
@@ -493,7 +493,7 @@ func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Typ
 			return ReplaceAllGenericIdent(maps, e)
 		})}
 	case *StructType:
-		fields := iterator.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](tt.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
+		fields := stliter.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](tt.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
 			return pair.NewPair[string, pair.Pair[bool, Type]](e.First, pair.NewPair[bool, Type](e.Second.First, ReplaceAllGenericIdent(maps, e.Second.Second)))
 		})
 		return &StructType{
@@ -577,7 +577,7 @@ func (self *GenericStructInst) StructType()*StructType{
 		maps.Set(iter.Value().Second, self.Params[i])
 		i++
 	}
-	fields := iterator.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](self.Define.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
+	fields := stliter.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](self.Define.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
 		return pair.NewPair[string, pair.Pair[bool, Type]](e.First, pair.NewPair[bool, Type](e.Second.First, ReplaceAllGenericIdent(maps, e.Second.Second)))
 	})
 	st := &StructType{

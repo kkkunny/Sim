@@ -3,7 +3,7 @@ package analyse
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/hashset"
-	"github.com/kkkunny/stl/container/iterator"
+	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlerror "github.com/kkkunny/stl/error"
 
@@ -65,7 +65,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		hirs, _ := self.importPackage(hir.BuildInPackage, "", true)
 		meanNodes.Append(hirs)
 	}
-	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
+	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		if im, ok := v.(*ast.Import); ok {
 			meanNodes.Append(self.analyseImport(im))
 		}
@@ -73,7 +73,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	})
 
 	// 类型
-	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
+	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
 			self.declStructDef(node)
@@ -84,7 +84,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		}
 		return true
 	})
-	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
+	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
 			meanNodes.PushBack(self.defStructDef(node))
@@ -96,7 +96,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		return true
 	})
 	// 类型循环检测
-	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
+	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		trace := hashset.NewHashSet[hir.Type]()
 		var circle bool
 		var name token.Token
@@ -115,11 +115,11 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	})
 
 	// 值
-	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
+	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		self.analyseGlobalDecl(v)
 		return true
 	})
-	iterator.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
+	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		if global := self.analyseGlobalDef(v); global != nil {
 			meanNodes.PushBack(global)
 		}

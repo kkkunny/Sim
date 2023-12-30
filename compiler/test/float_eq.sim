@@ -1,0 +1,7 @@
+func main()u8{
+    let i: f64 = 1.2
+    if i==2.2{
+        return 1
+    }
+    return 0
+}
