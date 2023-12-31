@@ -102,6 +102,9 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 	}
 	self.expectNextIs(token.RPA)
 	name := self.expectNextIs(token.IDENT)
+	if self.nextIs(token.LT){
+		return self.parseGenericMethodDef(attrs, begin, pub!=nil, mut, scope, name)
+	}
 	self.expectNextIs(token.LPA)
 	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
 		mut := self.skipNextIs(token.MUT)
@@ -356,6 +359,36 @@ func (self *Parser) parseGenericStructMethodDef(attrs []ast.Attr, begin reader.P
 		Public: pub,
 		ScopeMutable: mut,
 		Scope: genericScope,
+		Name:   name,
+		Params: args,
+		Ret:    ret,
+		Body:   body,
+	}
+}
+
+func (self *Parser) parseGenericMethodDef(attrs []ast.Attr, begin reader.Position, pub bool, mut bool, scope token.Token, nameTok token.Token) *ast.GenericMethodDef {
+	name := self.parseGenericNameDef(nameTok)
+	self.expectNextIs(token.LPA)
+	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
+		mut := self.skipNextIs(token.MUT)
+		pn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		pt := self.parseType()
+		return ast.Param{
+			Mutable: mut,
+			Name:    pn,
+			Type:    pt,
+		}
+	})
+	self.expectNextIs(token.RPA)
+	ret := self.parseOptionType()
+	body := self.parseBlock()
+	return &ast.GenericMethodDef{
+		Attrs:  attrs,
+		Begin:  begin,
+		Public: pub,
+		ScopeMutable: mut,
+		Scope: scope,
 		Name:   name,
 		Params: args,
 		Ret:    ret,

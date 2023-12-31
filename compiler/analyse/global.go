@@ -86,7 +86,7 @@ func (self *Analyser) declGenericStructDef(node *ast.GenericStructDef) {
 		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, hir.Type]](),
 	}
 
-	for _, p := range node.Name.Params{
+	for _, p := range node.Name.Params.Data{
 		name := p.Source()
 		if st.GenericParams.ContainKey(name){
 			errors.ThrowIdentifierDuplicationError(p.Position, p)
@@ -329,7 +329,7 @@ func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
 		}
 	}
 
-	for _, p := range node.Name.Params{
+	for _, p := range node.Name.Params.Data{
 		name := p.Source()
 		if f.GenericParams.ContainKey(name){
 			errors.ThrowIdentifierDuplicationError(p.Position, p)
@@ -386,13 +386,13 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.GenericStructMethodDe
 	f.Scope, ok = self.pkgScope.getLocalGenericStructDef(node.Scope.Name.Source())
 	if !ok{
 		errors.ThrowUnknownIdentifierError(node.Scope.Name.Position, node.Scope.Name)
-	}else if f.Scope.GenericParams.Length() != uint(len(node.Scope.Params)){
-		errors.ThrowParameterNumberNotMatchError(node.Scope.Position(), f.Scope.GenericParams.Length(), uint(len(node.Scope.Params)))
+	}else if f.Scope.GenericParams.Length() != uint(len(node.Scope.Params.Data)){
+		errors.ThrowParameterNumberNotMatchError(node.Scope.Position(), f.Scope.GenericParams.Length(), uint(len(node.Scope.Params.Data)))
 	}
 
 	scopeGenericParams := f.Scope.GenericParams.Values().ToSlice()
 	scopeGenericParamSet := hashset.NewHashSetWithCapacity[string](uint(len(scopeGenericParams)))
-	for i, p := range node.Scope.Params{
+	for i, p := range node.Scope.Params.Data{
 		name := p.Source()
 		if !scopeGenericParamSet.Add(name){
 			errors.ThrowIdentifierDuplicationError(p.Position, p)
@@ -602,7 +602,7 @@ func (self *Analyser) defGenericStructMethodDef(node *ast.GenericStructMethodDef
 
 	var i int
 	for iter:=f.Scope.GenericParams.Iterator(); iter.Next(); i++{
-		self.genericIdentMap.Set(node.Scope.Params[i].Source(), iter.Value().Second)
+		self.genericIdentMap.Set(node.Scope.Params.Data[i].Source(), iter.Value().Second)
 	}
 	self.localScope = _NewFuncScope(self.pkgScope, f)
 	defer func() {
