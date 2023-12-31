@@ -12,3 +12,5 @@ pub type unsigned_long = u64
 
 pub type float = f32
 pub type double = f64
+
+pub type string = *?char

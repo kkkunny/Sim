@@ -1,12 +1,11 @@
-struct value<T> {
-    v: T
-}
-
-func (value<T>) get<F>(v: F)F{
-    return v
-}
+import std::io
 
 func main()u8{
-    let v = value::<u8>{v: 0}
-    return v.get::<u8>(0)
+    let res = io::println("123")
+    if res.is_ok(){
+        debug("ok")
+    }else if res.is_err(){
+        debug("error")
+    }
+    return 0
 }

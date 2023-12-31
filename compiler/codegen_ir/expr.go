@@ -237,6 +237,12 @@ func (self *CodeGenerator) codegenCovert(ir hir.Covert) mir.Value {
 	switch ir.(type) {
 	case *hir.Num2Num:
 		return self.builder.BuildNumberCovert(from, to.(mir.NumberType))
+	case *hir.Pointer2Pointer:
+		return self.builder.BuildPtrToPtr(from, to.(mir.PtrType))
+	case *hir.Pointer2Usize:
+		return self.builder.BuildPtrToUint(from, to.(mir.UintType))
+	case *hir.Usize2Pointer:
+		return self.builder.BuildUintToPtr(from, to.(mir.GenericPtrType))
 	default:
 		panic("unreachable")
 	}

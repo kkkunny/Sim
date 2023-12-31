@@ -424,6 +424,23 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 			Type:  tt,
 			Value: from,
 		}
+	case hir.IsPointer(ft) && hir.IsPointer(tt):
+		// *u8 | *?u8 | func() -> *u8 | *?u8 | func()
+		return &hir.Pointer2Pointer{
+			From: from,
+			To:   tt,
+		}
+	case hir.IsPointer(ft) && tt.EqualTo(hir.Usize):
+		// *u8 | *?u8 | func() -> usize
+		return &hir.Pointer2Usize{
+			From: from,
+		}
+	case ft.EqualTo(hir.Usize) && hir.IsPointer(tt):
+		// usize -> *u8 | *?u8 | func()
+		return &hir.Usize2Pointer{
+			From: from,
+			To: tt,
+		}
 	default:
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
 		return nil

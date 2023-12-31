@@ -376,6 +376,11 @@ func (self *UnionType) GetElemIndex(elem Type) int {
 	return -1
 }
 
+func IsPointer(t Type)bool{
+	t = FlattenType(t)
+	return IsPtrType(t) || IsRefType(t) || IsFuncType(t)
+}
+
 func IsPtrType(t Type)bool{
 	return stlbasic.Is[*PtrType](FlattenType(t))
 }

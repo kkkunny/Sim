@@ -608,11 +608,70 @@ func (self *Num2Num) GetType() Type {
 	return self.To
 }
 
-func (self *Num2Num) Mutable() bool {
-	return self.From.Mutable()
+func (*Num2Num) Mutable() bool {
+	return false
 }
 
 func (self *Num2Num) GetFrom() Expr {
+	return self.From
+}
+
+// Pointer2Pointer 指针转指针
+type Pointer2Pointer struct {
+	From Expr
+	To   Type
+}
+
+func (self *Pointer2Pointer) stmt() {}
+
+func (self *Pointer2Pointer) GetType() Type {
+	return self.To
+}
+
+func (self *Pointer2Pointer) Mutable() bool {
+	return self.From.Mutable()
+}
+
+func (self *Pointer2Pointer) GetFrom() Expr {
+	return self.From
+}
+
+// Pointer2Usize 指针转usize
+type Pointer2Usize struct {
+	From Expr
+}
+
+func (self *Pointer2Usize) stmt() {}
+
+func (self *Pointer2Usize) GetType() Type {
+	return Usize
+}
+
+func (*Pointer2Usize) Mutable() bool {
+	return false
+}
+
+func (self *Pointer2Usize) GetFrom() Expr {
+	return self.From
+}
+
+// Usize2Pointer usize转指针
+type Usize2Pointer struct {
+	From Expr
+	To Type
+}
+
+func (self *Usize2Pointer) stmt() {}
+
+func (self *Usize2Pointer) GetType() Type {
+	return self.To
+}
+
+func (self *Usize2Pointer) Mutable() bool {
+	return self.From.Mutable()
+}
+
+func (self *Usize2Pointer) GetFrom() Expr {
 	return self.From
 }
 
