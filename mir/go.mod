@@ -4,7 +4,7 @@ go 1.21.3
 
 require (
 	github.com/kkkunny/go-llvm v0.0.0-20231226053828-5e68e03a58bc
-	github.com/kkkunny/stl v0.0.0-20231229044215-d1a263149937
+	github.com/kkkunny/stl v0.0.0-20231230131202-cd8f29ededa2
 	github.com/samber/lo v1.39.0
 )
 

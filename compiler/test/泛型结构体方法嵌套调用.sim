@@ -1,0 +1,22 @@
+struct pair<T, F>{
+    F: T,
+    S: F,
+}
+
+func (pair<T, F>) only_first()T{
+    return self.F
+}
+
+func (pair<T, F>) first()T{
+    return self.first2()
+}
+
+func (pair<T, F>) first2()T{
+    let a = pair::<T, F>{F: self.F, S: self.S}
+    return a.only_first()
+}
+
+func main()u8{
+    let a = pair::<u8, u8>{F: 1, S: 2}
+    return a.first() - 1
+}

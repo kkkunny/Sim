@@ -1,0 +1,13 @@
+struct pair<T, F>{
+    F: T,
+    S: F,
+}
+
+func (pair<T, F>) first()T{
+    return self.F
+}
+
+func main()u8{
+    let a = pair::<u8, u8>{F: 1, S: 2}
+    return a.first() - 1
+}

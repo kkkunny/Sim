@@ -145,7 +145,7 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 				Index: index,
 			})
 		} else {
-			index := self.expectNextIs(token.IDENT)
+			index := self.parseGenericName(self.expectNextIs(token.IDENT), true)
 			front = util.Some[ast.Expr](&ast.Field{
 				From:  fv,
 				Index: index,
@@ -223,14 +223,15 @@ func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) util.Optio
 }
 
 func (self *Parser) parseIdent() *ast.Ident {
-	pkg := util.None[token.Token]()
-	var name token.Token
+	var pkg util.Option[token.Token]
+	var name ast.GenericName
 	pkgOrName := self.expectNextIs(token.IDENT)
-	if self.skipNextIs(token.SCOPE) {
-		pkg = util.Some(pkgOrName)
-		name = self.expectNextIs(token.IDENT)
+	if !self.skipNextIs(token.SCOPE) {
+		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName, true)
+	} else if !self.nextIs(token.LT){
+		pkg, name = util.Some(pkgOrName), self.parseGenericName(self.expectNextIs(token.IDENT))
 	} else {
-		name = pkgOrName
+		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName)
 	}
 	return &ast.Ident{
 		Pkg:  pkg,
@@ -247,12 +248,6 @@ func (self *Parser) parseArray() *ast.Array {
 		Elems: elems,
 		End:   end,
 	}
-}
-
-func (self *Parser) parseExprList(end token.Kind) (res []ast.Expr) {
-	return loopParseWithUtil(self, token.COM, end, func() ast.Expr {
-		return self.mustExpr(self.parseOptionExpr(true))
-	})
 }
 
 func (self *Parser) parseStruct(st *ast.IdentType) *ast.Struct {

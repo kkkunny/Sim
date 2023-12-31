@@ -48,12 +48,15 @@ func (self *Parser) parseFuncOrMethodDef(attrs []ast.Attr, pub *token.Token) ast
 }
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) ast.Global {
-	expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
-
 	if pub != nil {
 		begin = pub.Position
 	}
-	name := self.expectNextIs(token.IDENT)
+	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
+	if name.Params.IsNone(){
+		expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
+	}else{
+		expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
+	}
 	self.expectNextIs(token.LPA)
 	params := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
 		mut := self.skipNextIs(token.MUT)
@@ -68,7 +71,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 	})
 	paramEnd := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
-	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
+	body := stlbasic.TernaryAction(name.Params.IsSome() || self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
 	}, func() util.Option[*ast.Block] {
 		return util.None[*ast.Block]()
@@ -85,7 +88,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 	}
 }
 
-func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) *ast.MethodDef {
+func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) ast.Global {
 	expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
 
 	if pub != nil {
@@ -93,9 +96,9 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 	}
 	self.expectNextIs(token.LPA)
 	mut := self.skipNextIs(token.MUT)
-	scope := self.expectNextIs(token.IDENT)
+	scope := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
 	self.expectNextIs(token.RPA)
-	name := self.expectNextIs(token.IDENT)
+	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
 	self.expectNextIs(token.LPA)
 	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
 		mut := self.skipNextIs(token.MUT)
@@ -131,7 +134,7 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) ast.Globa
 	if pub != nil {
 		begin = pub.Position
 	}
-	name := self.expectNextIs(token.IDENT)
+	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
 		pub := self.skipNextIs(token.PUBLIC)
@@ -208,7 +211,7 @@ func (self *Parser) parseMultipleVariable(begin reader.Position, attrs []ast.Att
 		varDef := self.parseVarDef(global)
 		anyNoType = anyNoType || varDef.Type.IsNone()
 		return varDef
-	})
+	}, true)
 	self.expectNextIs(token.RPA)
 	value := util.None[ast.Expr]()
 	if self.nextIs(token.ASS) || anyNoType {

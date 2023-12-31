@@ -15,35 +15,11 @@ type Global interface {
 	global()
 }
 
-// FuncDef 函数定义
-type FuncDef struct {
-	Attrs    []Attr
-	Begin    reader.Position
-	Public   bool
-	Name     token.Token
-	Params   []Param
-	ParamEnd reader.Position
-	Ret      util.Option[Type]
-	Body     util.Option[*Block]
-}
-
-func (self *FuncDef) Position() reader.Position {
-	if b, ok := self.Body.Value(); ok {
-		return reader.MixPosition(self.Begin, b.Position())
-	} else if r, ok := self.Ret.Value(); ok {
-		return reader.MixPosition(self.Begin, r.Position())
-	} else {
-		return reader.MixPosition(self.Begin, self.ParamEnd)
-	}
-}
-
-func (*FuncDef) global() {}
-
 // StructDef 结构体定义
 type StructDef struct {
 	Begin  reader.Position
 	Public bool
-	Name   token.Token
+	Name   GenericNameDef
 	Fields []lo.Tuple3[bool, token.Token, Type]
 	End    reader.Position
 }
@@ -152,16 +128,39 @@ func (self *TypeAlias) Position() reader.Position {
 
 func (*TypeAlias) global() {}
 
+// FuncDef 函数定义
+type FuncDef struct {
+	Attrs    []Attr
+	Begin    reader.Position
+	Public   bool
+	Name     GenericNameDef
+	Params   []Param
+	ParamEnd reader.Position
+	Ret      util.Option[Type]
+	Body     util.Option[*Block]
+}
+
+func (self *FuncDef) Position() reader.Position {
+	if b, ok := self.Body.Value(); ok {
+		return reader.MixPosition(self.Begin, b.Position())
+	} else if r, ok := self.Ret.Value(); ok {
+		return reader.MixPosition(self.Begin, r.Position())
+	} else {
+		return reader.MixPosition(self.Begin, self.ParamEnd)
+	}
+}
+
+func (*FuncDef) global() {}
+
 // MethodDef 方法定义
 type MethodDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
 	ScopeMutable bool
-	Scope token.Token
-	Name     token.Token
+	Scope GenericNameDef
+	Name     GenericNameDef
 	Params   []Param
-	ParamEnd reader.Position
 	Ret      util.Option[Type]
 	Body     *Block
 }

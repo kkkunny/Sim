@@ -1,0 +1,14 @@
+struct either<T, F>{
+    isLeft: bool,
+    Left: T,
+    Right: F
+}
+
+struct pair<T, F>{
+    Value: either::<T, F>,
+}
+
+func main()u8{
+    let a = pair::<u8, u16>{Value: either::<u8, u16>{isLeft: true, Left: 1, Right: 2}}
+    return a.Value.Left - 1
+}

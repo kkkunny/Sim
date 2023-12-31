@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/stack"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
@@ -21,8 +22,10 @@ type CodeGenerator struct {
 	values  hashmap.HashMap[hir.Expr, mir.Value]
 	loops   hashmap.HashMap[hir.Loop, loop]
 	strings hashmap.HashMap[string, *mir.Constant]
-	structs hashmap.HashMap[*hir.StructDef, mir.StructType]
+	structs hashmap.HashMap[string, mir.StructType]
 	funcCache hashmap.HashMap[string, *mir.Function]
+	genericIdentMapStack stack.Stack[hashmap.HashMap[*hir.GenericIdentType, mir.Type]]
+	structCache hashmap.HashMap[string, mir.StructType]
 }
 
 func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {
