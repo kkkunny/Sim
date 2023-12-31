@@ -214,6 +214,13 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 			return self.codegenExpr(item, true)
 		})
 		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
+	}  else if method, ok := ir.Func.(*hir.GenericStructGenericMethodInst); ok{
+		f := self.codegenGenericStructGenericMethodInst(method)
+		selfParam := self.codegenExpr(method.Self, true)
+		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
+			return self.codegenExpr(item, true)
+		})
+		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
 	} else{
 		f := self.codegenExpr(ir.Func, true)
 		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
@@ -410,5 +417,26 @@ func (self *CodeGenerator) codegenGenericMethodInst(ir *hir.GenericMethodInst)*m
 	f := self.declGenericMethodDef(ir)
 	self.funcCache.Set(key, f)
 	self.defGenericMethodDef(ir, f)
+	return f
+}
+
+func (self *CodeGenerator) codegenGenericStructGenericMethodInst(ir *hir.GenericStructGenericMethodInst)*mir.Function{
+	cur := self.builder.Current()
+	defer func() {
+		self.builder.MoveTo(cur)
+	}()
+
+	key := fmt.Sprintf("(%p<%s>)generic_method(%p)<%s>", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetScopeGenericParams(), func(i int, e hir.Type) string {
+		return self.codegenType(e).String()
+	}), ","), ir.Define, strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
+		return self.codegenType(e).String()
+	}), ","))
+	if f := self.funcCache.Get(key); f != nil{
+		return f
+	}
+
+	f := self.declGenericStructGenericMethodDef(ir)
+	self.funcCache.Set(key, f)
+	self.defGenericStructGenericMethodDef(ir, f)
 	return f
 }

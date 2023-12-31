@@ -128,6 +128,19 @@ func (self *CodeGenerator) declGenericMethodDef(ir *hir.GenericMethodInst) *mir.
 	return f
 }
 
+func (self *CodeGenerator) declGenericStructGenericMethodDef(ir *hir.GenericStructGenericMethodInst) *mir.Function {
+	ft := self.codegenType(ir.GetFuncType()).(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Define.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
+	return f
+}
+
 func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 	switch global := ir.(type) {
 	case *hir.FuncDef:
@@ -243,6 +256,26 @@ func (self *CodeGenerator) defGenericMethodDef(ir *hir.GenericMethodInst, f *mir
 	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
 	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
 		maps.Set(iter.Value().Second, self.codegenType(ir.Params[i]))
+	}
+	self.genericIdentMapStack.Push(maps)
+	defer self.genericIdentMapStack.Pop()
+	block, _ := self.codegenBlock(ir.Define.Body, nil)
+	self.builder.BuildUnCondJump(block)
+}
+
+func (self *CodeGenerator) defGenericStructGenericMethodDef(ir *hir.GenericStructGenericMethodInst, f *mir.Function) {
+	self.builder.MoveTo(f.NewBlock())
+	paramNodes := append([]*hir.Param{ir.Define.SelfParam}, ir.Define.Params...)
+	for i, p := range f.Params() {
+		self.values.Set(paramNodes[i], p)
+	}
+	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
+	genericParams := ir.GetGenericParams()
+	for i, iter:=0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.codegenType(genericParams[i]))
+	}
+	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.codegenType(genericParams[i+int(ir.Define.Scope.GenericParams.Length())]))
 	}
 	self.genericIdentMapStack.Push(maps)
 	defer self.genericIdentMapStack.Pop()

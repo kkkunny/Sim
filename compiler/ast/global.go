@@ -210,7 +210,7 @@ type GenericStructMethodDef struct {
 	Public   bool
 	ScopeMutable bool
 	Scope GenericNameDef
-	Name     token.Token
+	Name     GenericNameDef
 	Params   []Param
 	Ret      util.Option[Type]
 	Body     *Block

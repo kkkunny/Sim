@@ -579,6 +579,18 @@ func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
 					Define: method,
 					Params: params,
 				}
+			case *hir.GenericStructMethodDef:
+				if method.GenericParams.Length() != uint(len(genericParams.Data)){
+					errors.ThrowParameterNumberNotMatchError(genericParams.Position(), method.GenericParams.Length(), uint(len(genericParams.Data)))
+				}
+				params := stlslices.Map(genericParams.Data, func(_ int, e ast.Type) hir.Type {
+					return self.analyseType(e)
+				})
+				return &hir.GenericStructGenericMethodInst{
+					Self:   from,
+					Define: method,
+					Params: params,
+				}
 			default:
 				panic("unreachable")
 			}
