@@ -10,11 +10,11 @@ import (
 )
 
 func (self *CodeGenerator) declStructDef(ir *hir.StructDef) {
-	self.structs.Set(ir, self.module.NewNamedStructType(""))
+	self.structs.Set(ir.String(), self.module.NewNamedStructType(""))
 }
 
 func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
-	st := self.structs.Get(ir)
+	st := self.structs.Get(ir.String())
 	fields := make([]mir.Type, ir.Fields.Length())
 	var i int
 	for iter := ir.Fields.Values().Iterator(); iter.Next(); i++ {
@@ -47,7 +47,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef:
+	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
 	default:
 		panic("unreachable")
 	}
@@ -115,6 +115,19 @@ func (self *CodeGenerator) declGenericStructMethodDef(ir *hir.GenericStructMetho
 	return f
 }
 
+func (self *CodeGenerator) declGenericMethodDef(ir *hir.GenericMethodInst) *mir.Function {
+	ft := self.codegenType(ir.GetFuncType()).(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Define.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
+	return f
+}
+
 func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 	switch global := ir.(type) {
 	case *hir.FuncDef:
@@ -131,7 +144,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		self.defGlobalVariable(global)
 	case *hir.MultiVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef:
+	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
 	default:
 		panic("unreachable")
 	}
@@ -214,6 +227,22 @@ func (self *CodeGenerator) defGenericStructMethodDef(ir *hir.GenericStructMethod
 	genericParams := ir.GetGenericParams()
 	for i, iter:=0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
 		maps.Set(iter.Value().Second, self.codegenType(genericParams[i]))
+	}
+	self.genericIdentMapStack.Push(maps)
+	defer self.genericIdentMapStack.Pop()
+	block, _ := self.codegenBlock(ir.Define.Body, nil)
+	self.builder.BuildUnCondJump(block)
+}
+
+func (self *CodeGenerator) defGenericMethodDef(ir *hir.GenericMethodInst, f *mir.Function) {
+	self.builder.MoveTo(f.NewBlock())
+	paramNodes := append([]*hir.Param{ir.Define.SelfParam}, ir.Define.Params...)
+	for i, p := range f.Params() {
+		self.values.Set(paramNodes[i], p)
+	}
+	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
+	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.codegenType(ir.Params[i]))
 	}
 	self.genericIdentMapStack.Push(maps)
 	defer self.genericIdentMapStack.Pop()
