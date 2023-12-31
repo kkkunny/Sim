@@ -13,7 +13,6 @@ import (
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
@@ -333,26 +332,26 @@ func (self *Analyser) analyseIdent(node *ast.Ident) hir.Expr {
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()
 		if !self.pkgScope.externs.ContainKey(pkgName) {
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
 		}
 	}
-	if len(node.GenericArgs) == 0{
+	if genericArgs, ok := node.Name.Params.Value(); !ok{
 		// 普通标识符
-		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
+		value, ok := self.localScope.GetValue(pkgName, node.Name.Name.Source())
 		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+			errors.ThrowUnknownIdentifierError(node.Name.Position(), node.Name.Name)
 		}
 		return value
 	}else{
 		// 泛型实例化
-		f, ok := self.pkgScope.GetGenericFuncDef(pkgName, node.Name.Source())
+		f, ok := self.pkgScope.GetGenericFuncDef(pkgName, node.Name.Name.Source())
 		if !ok{
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+			errors.ThrowUnknownIdentifierError(node.Name.Name.Position, node.Name.Name)
 		}
-		if f.GenericParams.Length() != uint(len(node.GenericArgs)){
-			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(node.GenericArgs[0].Position(), node.GenericArgs[len(node.GenericArgs)-1].Position()), f.GenericParams.Length(), uint(len(node.GenericArgs)))
+		if f.GenericParams.Length() != uint(len(genericArgs.Data)){
+			errors.ThrowParameterNumberNotMatchError(genericArgs.Position(), f.GenericParams.Length(), uint(len(genericArgs.Data)))
 		}
-		params := stlslices.Map(node.GenericArgs, func(_ int, e ast.Type) hir.Type {
+		params := stlslices.Map(genericArgs.Data, func(_ int, e ast.Type) hir.Type {
 			return self.analyseType(e)
 		})
 		return &hir.GenericFuncInst{

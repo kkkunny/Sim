@@ -17,17 +17,14 @@ type Type interface {
 // IdentType 标识符类型
 type IdentType struct {
 	Pkg  util.Option[token.Token]
-	Name token.Token
-	GenericArgs []Type
-	End reader.Position
+	Name GenericName
 }
 
 func (self *IdentType) Position() reader.Position {
 	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.End)
-	}else{
-		return reader.MixPosition(self.Name.Position, self.End)
+		return reader.MixPosition(pkg.Position, self.Name.Position())
 	}
+	return self.Name.Position()
 }
 
 func (self *IdentType) typ() {}

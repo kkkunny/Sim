@@ -8,11 +8,9 @@ import (
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/reader"
-
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/util"
 )
 
@@ -52,11 +50,11 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()
 		if !self.pkgScope.externs.ContainKey(pkgName) {
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
 		}
 	}
-	if len(node.GenericArgs) == 0{
-		switch name := node.Name.Source(); name {
+	if genericArgs, ok := node.Name.Params.Value(); !ok{
+		switch name := node.Name.Name.Source(); name {
 		case "isize":
 			return hir.Isize
 		case "i8":
@@ -99,11 +97,11 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 		}
 	}else{
 		// 泛型结构体
-		if st, ok := self.pkgScope.GetGenericStructDef(pkgName, node.Name.Source()); ok{
-			if st.GenericParams.Length() != uint(len(node.GenericArgs)){
-				errors.ThrowParameterNumberNotMatchError(reader.MixPosition(node.GenericArgs[0].Position(), node.GenericArgs[len(node.GenericArgs)-1].Position()), st.GenericParams.Length(), uint(len(node.GenericArgs)))
+		if st, ok := self.pkgScope.GetGenericStructDef(pkgName, node.Name.Name.Source()); ok{
+			if st.GenericParams.Length() != uint(len(genericArgs.Data)){
+				errors.ThrowParameterNumberNotMatchError(genericArgs.Position(), st.GenericParams.Length(), uint(len(genericArgs.Data)))
 			}
-			params := stlslices.Map(node.GenericArgs, func(_ int, e ast.Type) hir.Type {
+			params := stlslices.Map(genericArgs.Data, func(_ int, e ast.Type) hir.Type {
 				return self.analyseType(e)
 			})
 			instType := &hir.GenericStructInst{
@@ -112,13 +110,13 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 			}
 
 			if self.checkTypeCircle(stlbasic.Ptr(hashset.NewHashSet[hir.Type]()), instType){
-				errors.ThrowCircularReference(node.Position(), node.Name)
+				errors.ThrowCircularReference(node.Name.Position(), node.Name.Name)
 			}
 
 			return instType
 		}
 	}
-	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
+	errors.ThrowUnknownIdentifierError(node.Name.Name.Position, node.Name.Name)
 	return nil
 }
 

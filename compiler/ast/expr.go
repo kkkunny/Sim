@@ -98,17 +98,14 @@ func (self *Boolean) expr() {}
 // Ident 标识符
 type Ident struct {
 	Pkg  util.Option[token.Token]
-	Name token.Token
-	GenericArgs []Type
-	End reader.Position
+	Name GenericName
 }
 
 func (self *Ident) Position() reader.Position {
 	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.End)
-	}else{
-		return reader.MixPosition(self.Name.Position, self.End)
+		return reader.MixPosition(pkg.Position, self.Name.Position())
 	}
+	return self.Name.Position()
 }
 
 func (self *Ident) stmt() {}

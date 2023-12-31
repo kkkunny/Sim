@@ -18,8 +18,9 @@ import (
 	"github.com/kkkunny/Sim/util"
 )
 
-func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T) (res []T) {
-	for self.skipSEM(); !self.nextIs(end); self.skipSEM() {
+func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T, atLeastOne ...bool) (res []T) {
+	atLeastOneVal := len(atLeastOne) > 0 && atLeastOne[0]
+	for self.skipSEM(); (len(res) == 0 && atLeastOneVal) || !self.nextIs(end); self.skipSEM() {
 		res = append(res, f())
 		if !self.skipNextIs(sem) {
 			break
@@ -27,6 +28,18 @@ func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T) (re
 	}
 	self.skipSEM()
 	return res
+}
+
+func (self *Parser) parseExprList(end token.Kind, atLeaseOne ...bool) (res []ast.Expr) {
+	return loopParseWithUtil(self, token.COM, end, func() ast.Expr {
+		return self.mustExpr(self.parseOptionExpr(true))
+	}, atLeaseOne...)
+}
+
+func (self *Parser) parseTypeList(end token.Kind, atLeastOne ...bool) (res []ast.Type) {
+	return loopParseWithUtil(self, token.COM, end, func() ast.Type {
+		return self.parseType()
+	}, atLeastOne...)
 }
 
 func expectAttrIn(attrs []ast.Attr, expectAttr ...ast.Attr) {
@@ -53,9 +66,7 @@ func (self *Parser) parseGenericNameDef(name token.Token)ast.GenericNameDef{
 		return ast.GenericNameDef{Name: name}
 	}
 	begin := self.curTok.Position
-	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
-		return self.expectNextIs(token.IDENT)
-	})
+	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {return self.expectNextIs(token.IDENT)}, true)
 	end := self.expectNextIs(token.GT).Position
 	return ast.GenericNameDef{
 		Name: name,
@@ -67,14 +78,14 @@ func (self *Parser) parseGenericNameDef(name token.Token)ast.GenericNameDef{
 	}
 }
 
-func (self *Parser) parseGenericName(name token.Token)ast.GenericName{
-	if !self.skipNextIs(token.SCOPE){
+func (self *Parser) parseGenericName(name token.Token, expectScope ...bool)ast.GenericName{
+	if len(expectScope) > 0 && expectScope[0] && !self.skipNextIs(token.SCOPE){
+		return ast.GenericName{Name: name}
+	}else if (len(expectScope) == 0 || !expectScope[0]) && !self.nextIs(token.LT){
 		return ast.GenericName{Name: name}
 	}
 	begin := self.expectNextIs(token.LT).Position
-	params := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {
-		return self.parseType()
-	})
+	params := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {return self.parseType()}, true)
 	end := self.expectNextIs(token.GT).Position
 	return ast.GenericName{
 		Name: name,

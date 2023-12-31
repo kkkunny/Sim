@@ -211,7 +211,7 @@ func (self *Parser) parseMultipleVariable(begin reader.Position, attrs []ast.Att
 		varDef := self.parseVarDef(global)
 		anyNoType = anyNoType || varDef.Type.IsNone()
 		return varDef
-	})
+	}, true)
 	self.expectNextIs(token.RPA)
 	value := util.None[ast.Expr]()
 	if self.nextIs(token.ASS) || anyNoType {
