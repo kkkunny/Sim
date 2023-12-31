@@ -1,12 +1,12 @@
-struct Byte {
-    v: u8
+struct value<T> {
+    v: T
 }
 
-func (Byte) get<T>(v: T)T{
+func (value<T>) get<F>(v: F)F{
     return v
 }
 
 func main()u8{
-    let b = Byte{v: 0}
-    return b.get::<u8>(0)
+    let v = value::<u8>{v: 0}
+    return v.get::<u8>(0)
 }
