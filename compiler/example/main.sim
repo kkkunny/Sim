@@ -1,12 +1,12 @@
-struct byte {
+struct Byte {
     v: u8
 }
 
-func (byte) get<T>(v: T)T{
+func (Byte) get<T>(v: T)T{
     return v
 }
 
 func main()u8{
-    let b = byte{v: 0}
+    let b = Byte{v: 0}
     return b.get::<u8>(0)
 }

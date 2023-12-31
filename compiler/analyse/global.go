@@ -166,6 +166,8 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declGenericFuncDef(globalNode)
 	case *ast.GenericStructMethodDef:
 		self.declGenericStructMethodDef(globalNode)
+	case *ast.GenericMethodDef:
+		self.declGenericMethodDef(globalNode)
 	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.GenericStructDef:
 	default:
 		panic("unreachable")
@@ -330,16 +332,16 @@ func (self *Analyser) declGenericFuncDef(node *ast.GenericFuncDef) {
 	}
 
 	for _, p := range node.Name.Params.Data{
-		name := p.Source()
-		if f.GenericParams.ContainKey(name){
+		pn := p.Source()
+		if f.GenericParams.ContainKey(pn){
 			errors.ThrowIdentifierDuplicationError(p.Position, p)
 		}
 		pt := &hir.GenericIdentType{
 			Belong: f,
-			Name: name,
+			Name: pn,
 		}
-		f.GenericParams.Set(name, pt)
-		self.genericIdentMap.Set(name, pt)
+		f.GenericParams.Set(pn, pt)
+		self.genericIdentMap.Set(pn, pt)
 	}
 	defer self.genericIdentMap.Clear()
 
@@ -393,11 +395,11 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.GenericStructMethodDe
 	scopeGenericParams := f.Scope.GenericParams.Values().ToSlice()
 	scopeGenericParamSet := hashset.NewHashSetWithCapacity[string](uint(len(scopeGenericParams)))
 	for i, p := range node.Scope.Params.Data{
-		name := p.Source()
-		if !scopeGenericParamSet.Add(name){
+		pn := p.Source()
+		if !scopeGenericParamSet.Add(pn){
 			errors.ThrowIdentifierDuplicationError(p.Position, p)
 		}
-		self.genericIdentMap.Set(name, scopeGenericParams[i])
+		self.genericIdentMap.Set(pn, scopeGenericParams[i])
 	}
 	defer self.genericIdentMap.Clear()
 
@@ -429,6 +431,74 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.GenericStructMethodDe
 	f.Scope.Methods.Set(f.Name, f)
 }
 
+func (self *Analyser) declGenericMethodDef(node *ast.GenericMethodDef) {
+	f := &hir.GenericMethodDef{
+		Pkg: self.pkgScope.pkg,
+		Public:    node.Public,
+		Name:      node.Name.Name.Source(),
+	}
+	for _, attrObj := range node.Attrs {
+		switch attrObj.(type) {
+		case *ast.NoReturn:
+			f.NoReturn = true
+		case *ast.Inline:
+			f.InlineControl = util.Some[bool](true)
+		case *ast.NoInline:
+			f.InlineControl = util.Some[bool](false)
+		default:
+			panic("unreachable")
+		}
+	}
+
+	var ok bool
+	td, ok := self.pkgScope.getLocalTypeDef(node.Scope.Source())
+	if !ok || !stlbasic.Is[*hir.StructDef](td){
+		errors.ThrowUnknownIdentifierError(node.Scope.Position, node.Scope)
+	}
+	f.Scope = td.(*hir.StructDef)
+
+	for _, p := range node.Name.Params.Data{
+		pn := p.Source()
+		if f.GenericParams.ContainKey(pn){
+			errors.ThrowIdentifierDuplicationError(p.Position, p)
+		}
+		pt := &hir.GenericIdentType{
+			Belong: f,
+			Name: pn,
+		}
+		f.GenericParams.Set(pn, pt)
+		self.genericIdentMap.Set(pn, pt)
+	}
+	defer self.genericIdentMap.Clear()
+
+	f.SelfParam = &hir.Param{
+		Mut:  node.ScopeMutable,
+		Type: f.Scope,
+		Name: token.SELFVALUE.String(),
+	}
+
+	defer self.setSelfType(f.Scope)()
+
+	paramNameSet := hashset.NewHashSetWith[string]()
+	f.Params = lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
+		pn := paramNode.Name.Source()
+		if !paramNameSet.Add(pn) {
+			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
+		}
+		pt := self.analyseType(paramNode.Type)
+		return &hir.Param{
+			Mut:  paramNode.Mutable,
+			Type: pt,
+			Name: pn,
+		}
+	})
+	f.Ret = self.analyseOptionType(node.Ret)
+	if f.Scope.Fields.ContainKey(f.Name) || f.Scope.Methods.ContainKey(f.Name) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Name.Position, node.Name.Name)
+	}
+	f.Scope.Methods.Set(f.Name, f)
+}
+
 func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 	switch globalNode := node.(type) {
 	case *ast.FuncDef:
@@ -443,6 +513,8 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defGenericFuncDef(globalNode)
 	case *ast.GenericStructMethodDef:
 		return self.defGenericStructMethodDef(globalNode)
+	case *ast.GenericMethodDef:
+		return self.defGenericMethodDef(globalNode)
 	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.GenericStructDef:
 		return nil
 	default:
@@ -600,8 +672,7 @@ func (self *Analyser) defGenericStructMethodDef(node *ast.GenericStructMethodDef
 	st, _ := self.pkgScope.getLocalGenericStructDef(node.Scope.Name.Source())
 	f := st.Methods.Get(node.Name.Source())
 
-	var i int
-	for iter:=f.Scope.GenericParams.Iterator(); iter.Next(); i++{
+	for i, iter:=0, f.Scope.GenericParams.Iterator(); iter.Next(); i++{
 		self.genericIdentMap.Set(node.Scope.Params.Data[i].Source(), iter.Value().Second)
 	}
 	self.localScope = _NewFuncScope(self.pkgScope, f)
@@ -623,6 +694,42 @@ func (self *Analyser) defGenericStructMethodDef(node *ast.GenericStructMethodDef
 	if jump != hir.BlockEofReturn {
 		if !hir.IsEmptyType(f.Ret) {
 			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
+		}
+		f.Body.Stmts.PushBack(&hir.Return{
+			Func:  f,
+			Value: util.None[hir.Expr](),
+		})
+	}
+	return f
+}
+
+func (self *Analyser) defGenericMethodDef(node *ast.GenericMethodDef) *hir.GenericMethodDef {
+	td, _ := self.pkgScope.getLocalTypeDef(node.Scope.Source())
+	st := td.(*hir.StructDef)
+	f := st.Methods.Get(node.Name.Name.Source()).(*hir.GenericMethodDef)
+
+	for i, iter:=0, f.GenericParams.Iterator(); iter.Next(); i++{
+		self.genericIdentMap.Set(node.Name.Params.Data[i].Source(), iter.Value().Second)
+	}
+	self.localScope = _NewFuncScope(self.pkgScope, f)
+	defer func() {
+		self.genericIdentMap.Clear()
+		self.localScope = nil
+	}()
+	defer self.setSelfType(f.Scope)()
+	defer self.setSelfValue(f.SelfParam)()
+
+	for i, p := range f.Params {
+		if !self.localScope.SetValue(p.Name, p) {
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
+		}
+	}
+
+	var jump hir.BlockEof
+	f.Body, jump = self.analyseBlock(node.Body, nil)
+	if jump != hir.BlockEofReturn {
+		if !hir.IsEmptyType(f.Ret) {
+			errors.ThrowMissingReturnValueError(node.Name.Name.Position, f.Ret)
 		}
 		f.Body.Stmts.PushBack(&hir.Return{
 			Func:  f,
