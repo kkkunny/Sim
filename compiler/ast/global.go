@@ -210,7 +210,7 @@ type GenericStructMethodDef struct {
 	Public   bool
 	ScopeMutable bool
 	Scope GenericNameDef
-	Name     token.Token
+	Name     GenericNameDef
 	Params   []Param
 	Ret      util.Option[Type]
 	Body     *Block
@@ -240,22 +240,3 @@ func (self *GenericMethodDef) Position() reader.Position {
 }
 
 func (*GenericMethodDef) global() {}
-
-// GenericStructGenericMethodDef 泛型结构体泛型方法定义
-type GenericStructGenericMethodDef struct {
-	Attrs    []Attr
-	Begin    reader.Position
-	Public   bool
-	ScopeMutable bool
-	Scope GenericNameDef
-	Name     GenericNameDef
-	Params   []Param
-	Ret      util.Option[Type]
-	Body     *Block
-}
-
-func (self *GenericStructGenericMethodDef) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Body.Position())
-}
-
-func (*GenericStructGenericMethodDef) global() {}

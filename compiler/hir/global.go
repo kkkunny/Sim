@@ -295,6 +295,7 @@ type GenericStructMethodDef struct {
 	Public     bool
 	Scope *GenericStructDef
 	Name       string
+	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
 	SelfParam *Param
 	Params     []*Param
 	Ret        Type
@@ -339,8 +340,14 @@ func (self *GenericStructMethodDef) GetMethodType() *FuncType {
 	}
 }
 
-func (self *GenericStructMethodDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
-	return self.Scope.GetGenericParams()
+func (self *GenericStructMethodDef) GetGenericParams()(res linkedhashmap.LinkedHashMap[string, *GenericIdentType]){
+	for iter:=self.Scope.GetGenericParams().Iterator(); iter.Next(); {
+		res.Set(iter.Value().First, iter.Value().Second)
+	}
+	for iter:=self.GenericParams.Iterator(); iter.Next(); {
+		res.Set(iter.Value().First, iter.Value().Second)
+	}
+	return res
 }
 
 // GenericMethodDef 泛型方法定义

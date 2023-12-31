@@ -1,0 +1,12 @@
+struct value<T> {
+    v: T
+}
+
+func (value<T>) get<F>(v: F)F{
+    return v
+}
+
+func main()u8{
+    let v = value::<u8>{v: 0}
+    return v.get::<u8>(0)
+}

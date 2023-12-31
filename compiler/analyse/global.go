@@ -369,7 +369,7 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.GenericStructMethodDe
 	f := &hir.GenericStructMethodDef{
 		Pkg: self.pkgScope.pkg,
 		Public:    node.Public,
-		Name:      node.Name.Source(),
+		Name:      node.Name.Name.Source(),
 	}
 	for _, attrObj := range node.Attrs {
 		switch attrObj.(type) {
@@ -401,6 +401,18 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.GenericStructMethodDe
 		}
 		self.genericIdentMap.Set(pn, scopeGenericParams[i])
 	}
+	for _, p := range node.Name.Params.Data{
+		pn := p.Source()
+		if scopeGenericParamSet.Contain(pn) || f.GenericParams.ContainKey(pn){
+			errors.ThrowIdentifierDuplicationError(p.Position, p)
+		}
+		pt := &hir.GenericIdentType{
+			Belong: f,
+			Name: pn,
+		}
+		f.GenericParams.Set(pn, pt)
+		self.genericIdentMap.Set(pn, pt)
+	}
 	defer self.genericIdentMap.Clear()
 
 	f.SelfParam = &hir.Param{
@@ -426,7 +438,7 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.GenericStructMethodDe
 	})
 	f.Ret = self.analyseOptionType(node.Ret)
 	if f.Scope.Fields.ContainKey(f.Name) || f.Scope.Methods.ContainKey(f.Name) {
-		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+		errors.ThrowIdentifierDuplicationError(node.Name.Name.Position, node.Name.Name)
 	}
 	f.Scope.Methods.Set(f.Name, f)
 }
@@ -670,10 +682,13 @@ func (self *Analyser) defGenericFuncDef(node *ast.GenericFuncDef) *hir.GenericFu
 
 func (self *Analyser) defGenericStructMethodDef(node *ast.GenericStructMethodDef) *hir.GenericStructMethodDef {
 	st, _ := self.pkgScope.getLocalGenericStructDef(node.Scope.Name.Source())
-	f := st.Methods.Get(node.Name.Source())
+	f := st.Methods.Get(node.Name.Name.Source())
 
 	for i, iter:=0, f.Scope.GenericParams.Iterator(); iter.Next(); i++{
 		self.genericIdentMap.Set(node.Scope.Params.Data[i].Source(), iter.Value().Second)
+	}
+	for i, iter:=0, f.GenericParams.Iterator(); iter.Next(); i++{
+		self.genericIdentMap.Set(node.Name.Params.Data[i].Source(), iter.Value().Second)
 	}
 	self.localScope = _NewFuncScope(self.pkgScope, f)
 	defer func() {
@@ -693,7 +708,7 @@ func (self *Analyser) defGenericStructMethodDef(node *ast.GenericStructMethodDef
 	f.Body, jump = self.analyseBlock(node.Body, nil)
 	if jump != hir.BlockEofReturn {
 		if !hir.IsEmptyType(f.Ret) {
-			errors.ThrowMissingReturnValueError(node.Name.Position, f.Ret)
+			errors.ThrowMissingReturnValueError(node.Name.Name.Position, f.Ret)
 		}
 		f.Body.Stmts.PushBack(&hir.Return{
 			Func:  f,
