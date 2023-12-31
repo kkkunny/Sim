@@ -221,3 +221,22 @@ func (self *GenericStructMethodDef) Position() reader.Position {
 }
 
 func (*GenericStructMethodDef) global() {}
+
+// GenericMethodDef 泛型方法定义
+type GenericMethodDef struct {
+	Attrs    []Attr
+	Begin    reader.Position
+	Public   bool
+	ScopeMutable bool
+	Scope token.Token
+	Name     GenericNameDef
+	Params   []Param
+	Ret      util.Option[Type]
+	Body     *Block
+}
+
+func (self *GenericMethodDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (*GenericMethodDef) global() {}

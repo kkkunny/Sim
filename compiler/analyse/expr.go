@@ -557,40 +557,65 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 
 func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
 	from := self.analyseExpr(nil, node.From)
-	fieldName := node.Index.Source()
+	fieldName := node.Index.Name.Source()
 	if !hir.IsStructType(from.GetType()){
 		errors.ThrowExpectStructError(node.From.Position(), from.GetType())
 	}
 	st := hir.AsStructType(from.GetType())
 
-	// 方法
-	if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
-		if method, ok := methodObj.(*hir.MethodDef); ok{
-			return &hir.Method{
-				Self:   from,
-				Define: method,
+	if genericParams, ok := node.Index.Params.Value(); ok{
+		// 泛型方法
+		if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
+			switch method := methodObj.(type) {
+			case *hir.GenericMethodDef:
+				if method.GenericParams.Length() != uint(len(genericParams.Data)){
+					errors.ThrowParameterNumberNotMatchError(genericParams.Position(), method.GenericParams.Length(), uint(len(genericParams.Data)))
+				}
+				params := stlslices.Map(genericParams.Data, func(_ int, e ast.Type) hir.Type {
+					return self.analyseType(e)
+				})
+				return &hir.GenericMethodInst{
+					Self:   from,
+					Define: method,
+					Params: params,
+				}
+			default:
+				panic("unreachable")
 			}
-		}else{
-			return &hir.GenericStructMethodInst{
-				Self:   from,
-				Define: methodObj.(*hir.GenericStructMethodDef),
+		}
+	}else{
+		// 方法 or 泛型结构体方法
+		if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
+			switch method := methodObj.(type) {
+			case *hir.MethodDef:
+				return &hir.Method{
+					Self:   from,
+					Define: method,
+				}
+			case *hir.GenericStructMethodDef:
+				return &hir.GenericStructMethodInst{
+					Self:   from,
+					Define: method,
+				}
+			default:
+				panic("unreachable")
+			}
+		}
+
+		// 字段
+		var i int
+		for iter := st.Fields.Iterator(); iter.Next(); i++ {
+			field := iter.Value()
+			if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.pkg) {
+				return &hir.Field{
+					From:  from,
+					Index: uint(i),
+				}
 			}
 		}
 	}
 
-	// 字段
-	var i int
-	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		field := iter.Value()
-		if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.pkg) {
-			return &hir.Field{
-				From:  from,
-				Index: uint(i),
-			}
-		}
-	}
-
-	errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+	errors.ThrowUnknownIdentifierError(node.Index.Name.Position, node.Index.Name)
 	return nil
 }
 

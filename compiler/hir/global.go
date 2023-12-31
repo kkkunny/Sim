@@ -289,7 +289,7 @@ func (self *GenericStructDef) GetGenericParams()linkedhashmap.LinkedHashMap[stri
 	return self.GenericParams
 }
 
-// GenericStructMethodDef 泛型机构提方法定义
+// GenericStructMethodDef 泛型结构体方法定义
 type GenericStructMethodDef struct {
 	Pkg Package
 	Public     bool
@@ -341,4 +341,50 @@ func (self *GenericStructMethodDef) GetMethodType() *FuncType {
 
 func (self *GenericStructMethodDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
 	return self.Scope.GetGenericParams()
+}
+
+// GenericMethodDef 泛型方法定义
+type GenericMethodDef struct {
+	Pkg Package
+	Public     bool
+	Scope *StructDef
+	Name       string
+	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
+	SelfParam *Param
+	Params     []*Param
+	Ret        Type
+	Body       *Block
+
+	NoReturn bool
+	InlineControl util.Option[bool]
+}
+
+func (self *GenericMethodDef) GetPackage()Package{
+	return self.Pkg
+}
+
+func (self *GenericMethodDef) GetPublic() bool {
+	return self.Public
+}
+
+func (self *GenericMethodDef) GetFuncType() *FuncType {
+	return &FuncType{
+		Ret:    self.Ret,
+		Params: append([]Type{self.Scope}, lo.Map(self.Params, func(item *Param, index int) Type {
+			return item.GetType()
+		})...),
+	}
+}
+
+func (self *GenericMethodDef) GetMethodType() *FuncType {
+	return &FuncType{
+		Ret:    self.Ret,
+		Params: lo.Map(self.Params, func(item *Param, index int) Type {
+			return item.GetType()
+		}),
+	}
+}
+
+func (self *GenericMethodDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
+	return self.GenericParams
 }

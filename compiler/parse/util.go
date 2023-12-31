@@ -15,6 +15,7 @@ import (
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
 func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T) (res []T) {
@@ -47,7 +48,7 @@ loop:
 	}
 }
 
-func (self *Parser) parseGenericNameDef(name token.Token, )ast.GenericNameDef{
+func (self *Parser) parseGenericNameDef(name token.Token)ast.GenericNameDef{
 	begin := self.expectNextIs(token.LT).Position
 	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
 		return self.expectNextIs(token.IDENT)
@@ -55,9 +56,30 @@ func (self *Parser) parseGenericNameDef(name token.Token, )ast.GenericNameDef{
 	end := self.expectNextIs(token.GT).Position
 	return ast.GenericNameDef{
 		Name: name,
-		ParamBegin: begin,
-		Params: params,
-		ParamEnd: end,
+		Params: ast.List[token.Token]{
+			Begin: begin,
+			Data: params,
+			End: end,
+		},
+	}
+}
+
+func (self *Parser) parseGenericName(name token.Token)ast.GenericName{
+	if !self.skipNextIs(token.SCOPE){
+		return ast.GenericName{Name: name}
+	}
+	begin := self.expectNextIs(token.LT).Position
+	params := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {
+		return self.parseType()
+	})
+	end := self.expectNextIs(token.GT).Position
+	return ast.GenericName{
+		Name: name,
+		Params: util.Some(ast.List[ast.Type]{
+			Begin: begin,
+			Data: params,
+			End: end,
+		}),
 	}
 }
 

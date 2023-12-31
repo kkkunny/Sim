@@ -106,7 +106,7 @@ func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) mir.StructType {
 }
 
 func (self *CodeGenerator) codegenStructType(ir *hir.StructType) mir.StructType {
-	return self.structs.Get(ir)
+	return self.structs.Get(ir.String())
 }
 
 func (self *CodeGenerator) codegenStringType() mir.StructType {

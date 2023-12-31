@@ -973,3 +973,42 @@ func (self *GenericStructMethodInst) GetMethodType() Type {
 	}
 	return ReplaceAllGenericIdent(maps, self.Define.GetMethodType())
 }
+
+// GenericMethodInst 泛型方法实例
+type GenericMethodInst struct {
+	Self   Expr
+	Define *GenericMethodDef
+	Params []Type
+}
+
+func (self *GenericMethodInst) stmt() {}
+
+func (self *GenericMethodInst) GetScope()*StructDef{
+	return AsStructType(self.Self.GetType())
+}
+
+func (self *GenericMethodInst) GetType() Type {
+	return self.GetMethodType()
+}
+
+func (self *GenericMethodInst) Mutable() bool {
+	return false
+}
+
+func (*GenericMethodInst) ident() {}
+
+func (self *GenericMethodInst) GetFuncType() Type {
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
+	for i, iter:=0, self.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.Params[i])
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetFuncType())
+}
+
+func (self *GenericMethodInst) GetMethodType() Type {
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
+	for i, iter:=0, self.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.Params[i])
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetMethodType())
+}
