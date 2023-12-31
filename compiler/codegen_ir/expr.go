@@ -59,7 +59,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenWrapWithNull(expr, load)
 	case *hir.CheckNull:
 		return self.codegenCheckNull(expr)
-	case *hir.MethodDef, *hir.GenericStructMethodInst, *hir.GenericMethodInst:
+	case *hir.MethodDef, *hir.GenericStructMethodInst, *hir.GenericMethodInst, *hir.GenericStructGenericMethodInst:
 		// TODO: 闭包
 		panic("unreachable")
 	default:

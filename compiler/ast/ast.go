@@ -29,11 +29,14 @@ func (self List[T]) Position() reader.Position{
 
 type GenericNameDef struct {
 	Name token.Token
-	Params List[token.Token]
+	Params util.Option[List[token.Token]]
 }
 
 func (self GenericNameDef) Position() reader.Position{
-	return reader.MixPosition(self.Name.Position, self.Params.Position())
+	if params, ok := self.Params.Value(); ok{
+		return reader.MixPosition(self.Name.Position, params.Position())
+	}
+	return self.Name.Position
 }
 
 type GenericName struct {

@@ -3,6 +3,8 @@ package analyse
 import (
 	"math/big"
 
+	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashset"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
@@ -104,10 +106,16 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 			params := stlslices.Map(node.GenericArgs, func(_ int, e ast.Type) hir.Type {
 				return self.analyseType(e)
 			})
-			return &hir.GenericStructInst{
+			instType := &hir.GenericStructInst{
 				Define: st,
 				Params: params,
 			}
+
+			if self.checkTypeCircle(stlbasic.Ptr(hashset.NewHashSet[hir.Type]()), instType){
+				errors.ThrowCircularReference(node.Position(), node.Name)
+			}
+
+			return instType
 		}
 	}
 	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)

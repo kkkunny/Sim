@@ -49,18 +49,21 @@ loop:
 }
 
 func (self *Parser) parseGenericNameDef(name token.Token)ast.GenericNameDef{
-	begin := self.expectNextIs(token.LT).Position
+	if !self.skipNextIs(token.LT){
+		return ast.GenericNameDef{Name: name}
+	}
+	begin := self.curTok.Position
 	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
 		return self.expectNextIs(token.IDENT)
 	})
 	end := self.expectNextIs(token.GT).Position
 	return ast.GenericNameDef{
 		Name: name,
-		Params: ast.List[token.Token]{
+		Params: util.Some(ast.List[token.Token]{
 			Begin: begin,
 			Data: params,
 			End: end,
-		},
+		}),
 	}
 }
 

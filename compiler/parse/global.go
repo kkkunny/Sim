@@ -48,14 +48,14 @@ func (self *Parser) parseFuncOrMethodDef(attrs []ast.Attr, pub *token.Token) ast
 }
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) ast.Global {
-	expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
-
 	if pub != nil {
 		begin = pub.Position
 	}
-	name := self.expectNextIs(token.IDENT)
-	if self.nextIs(token.LT){
-		return self.parseGenericFuncDef(attrs, begin, pub!=nil, name)
+	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
+	if name.Params.IsNone(){
+		expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
+	}else{
+		expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
 	}
 	self.expectNextIs(token.LPA)
 	params := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
@@ -71,7 +71,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 	})
 	paramEnd := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
-	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
+	body := stlbasic.TernaryAction(name.Params.IsSome() || self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
 	}, func() util.Option[*ast.Block] {
 		return util.None[*ast.Block]()
@@ -96,15 +96,9 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 	}
 	self.expectNextIs(token.LPA)
 	mut := self.skipNextIs(token.MUT)
-	scope := self.expectNextIs(token.IDENT)
-	if self.nextIs(token.LT){
-		return self.parseGenericStructMethodDef(attrs, begin, pub!=nil, mut, scope)
-	}
+	scope := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
 	self.expectNextIs(token.RPA)
-	name := self.expectNextIs(token.IDENT)
-	if self.nextIs(token.LT){
-		return self.parseGenericMethodDef(attrs, begin, pub!=nil, mut, scope, name)
-	}
+	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
 	self.expectNextIs(token.LPA)
 	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
 		mut := self.skipNextIs(token.MUT)
@@ -140,10 +134,7 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) ast.Globa
 	if pub != nil {
 		begin = pub.Position
 	}
-	name := self.expectNextIs(token.IDENT)
-	if self.nextIs(token.LT){
-		return self.parseGenericStructDef(attrs, begin, pub!=nil, name)
-	}
+	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
 		pub := self.skipNextIs(token.PUBLIC)
@@ -275,136 +266,5 @@ func (self *Parser) parseTypeAlias(attrs []ast.Attr, pub *token.Token) *ast.Type
 		Public: pub != nil,
 		Name:   name,
 		Type:   typ,
-	}
-}
-
-func (self *Parser) parseGenericFuncDef(attrs []ast.Attr, begin reader.Position, pub bool, name token.Token) *ast.GenericFuncDef {
-	expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
-
-	genericName := self.parseGenericNameDef(name)
-	self.expectNextIs(token.LPA)
-	params := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
-		mut := self.skipNextIs(token.MUT)
-		pn := self.expectNextIs(token.IDENT)
-		self.expectNextIs(token.COL)
-		pt := self.parseType()
-		return ast.Param{
-			Mutable: mut,
-			Name:    pn,
-			Type:    pt,
-		}
-	})
-	self.expectNextIs(token.RPA)
-	ret := self.parseOptionType()
-	body := self.parseBlock()
-	return &ast.GenericFuncDef{
-		Attrs:  attrs,
-		Begin:  begin,
-		Public: pub,
-		Name:   genericName,
-		Params: params,
-		Ret:    ret,
-		Body:   body,
-	}
-}
-
-func (self *Parser) parseGenericStructDef(attrs []ast.Attr, begin reader.Position, pub bool, name token.Token) *ast.GenericStructDef {
-	expectAttrIn(attrs)
-
-	genericName := self.parseGenericNameDef(name)
-	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.COM, token.RBR, func() lo.Tuple3[bool, token.Token, ast.Type] {
-		pub := self.skipNextIs(token.PUBLIC)
-		fn := self.expectNextIs(token.IDENT)
-		self.expectNextIs(token.COL)
-		ft := self.parseType()
-		return lo.Tuple3[bool, token.Token, ast.Type]{
-			A: pub,
-			B: fn,
-			C: ft,
-		}
-	})
-	end := self.expectNextIs(token.RBR).Position
-	return &ast.GenericStructDef{
-		Begin:  begin,
-		Public: pub,
-		Name:   genericName,
-		Fields: fields,
-		End:    end,
-	}
-}
-
-func (self *Parser) parseGenericStructMethodDef(attrs []ast.Attr, begin reader.Position, pub bool, mut bool, scopeTok token.Token) ast.Global {
-	scope := self.parseGenericNameDef(scopeTok)
-	self.expectNextIs(token.RPA)
-	nameTok := self.expectNextIs(token.IDENT)
-	var name ast.GenericNameDef
-	if self.nextIs(token.LT){
-		name = self.parseGenericNameDef(nameTok)
-	}else{
-		name = ast.GenericNameDef{
-			Name: nameTok,
-			Params: ast.List[token.Token]{
-				Begin: nameTok.Position,
-				Data: nil,
-				End: nameTok.Position,
-			},
-		}
-	}
-	self.expectNextIs(token.LPA)
-	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
-		mut := self.skipNextIs(token.MUT)
-		pn := self.expectNextIs(token.IDENT)
-		self.expectNextIs(token.COL)
-		pt := self.parseType()
-		return ast.Param{
-			Mutable: mut,
-			Name:    pn,
-			Type:    pt,
-		}
-	})
-	self.expectNextIs(token.RPA)
-	ret := self.parseOptionType()
-	body := self.parseBlock()
-	return &ast.GenericStructMethodDef{
-		Attrs:  attrs,
-		Begin:  begin,
-		Public: pub,
-		ScopeMutable: mut,
-		Scope: scope,
-		Name:   name,
-		Params: args,
-		Ret:    ret,
-		Body:   body,
-	}
-}
-
-func (self *Parser) parseGenericMethodDef(attrs []ast.Attr, begin reader.Position, pub bool, mut bool, scope token.Token, nameTok token.Token) *ast.GenericMethodDef {
-	name := self.parseGenericNameDef(nameTok)
-	self.expectNextIs(token.LPA)
-	args := loopParseWithUtil(self, token.COM, token.RPA, func() ast.Param {
-		mut := self.skipNextIs(token.MUT)
-		pn := self.expectNextIs(token.IDENT)
-		self.expectNextIs(token.COL)
-		pt := self.parseType()
-		return ast.Param{
-			Mutable: mut,
-			Name:    pn,
-			Type:    pt,
-		}
-	})
-	self.expectNextIs(token.RPA)
-	ret := self.parseOptionType()
-	body := self.parseBlock()
-	return &ast.GenericMethodDef{
-		Attrs:  attrs,
-		Begin:  begin,
-		Public: pub,
-		ScopeMutable: mut,
-		Scope: scope,
-		Name:   name,
-		Params: args,
-		Ret:    ret,
-		Body:   body,
 	}
 }

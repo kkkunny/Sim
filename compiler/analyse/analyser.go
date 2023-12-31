@@ -76,22 +76,26 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
-			self.declStructDef(node)
+			if node.Name.Params.IsNone(){
+				self.declStructDef(node)
+			}else{
+				self.declGenericStructDef(node)
+			}
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
-		case *ast.GenericStructDef:
-			self.declGenericStructDef(node)
 		}
 		return true
 	})
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
-			meanNodes.PushBack(self.defStructDef(node))
+			if node.Name.Params.IsNone(){
+				meanNodes.PushBack(self.defStructDef(node))
+			}else{
+				meanNodes.PushBack(self.defGenericStructDef(node))
+			}
 		case *ast.TypeAlias:
 			meanNodes.PushBack(self.defTypeAlias(node))
-		case *ast.GenericStructDef:
-			meanNodes.PushBack(self.defGenericStructDef(node))
 		}
 		return true
 	})
@@ -102,8 +106,10 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		var name token.Token
 		switch node := v.(type) {
 		case *ast.StructDef:
-			st, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
-			circle, name = self.checkTypeCircle(&trace, st), node.Name
+			if node.Name.Params.IsNone(){
+				st, _ := self.pkgScope.getLocalTypeDef(node.Name.Name.Source())
+				circle, name = self.checkTypeCircle(&trace, st), node.Name.Name
+			}
 		case *ast.TypeAlias:
 			tad, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
 			circle, name = self.checkTypeCircle(&trace, tad), node.Name
