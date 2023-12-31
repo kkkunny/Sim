@@ -1,8 +1,8 @@
 import std::io
 
 func main()u8{
-    if !false{
-        io::println("true")
+    for s in ["1", "2"]{
+        io::println(s)
     }
     return 0
 }

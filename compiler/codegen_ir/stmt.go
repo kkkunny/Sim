@@ -216,20 +216,21 @@ func (self *CodeGenerator) codegenFor(ir *hir.For) {
 
 		// cond
 		self.builder.MoveTo(condBlock)
+		index := self.builder.BuildLoad(indexPtr)
 		self.builder.BuildCondJump(
-			self.builder.BuildCmp(mir.CmpKindLT, self.builder.BuildLoad(indexPtr), mir.NewInt(indexPtr.ElemType().(mir.IntType), int64(size))),
+			self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewInt(indexPtr.ElemType().(mir.IntType), int64(size))),
 			entry,
 			outBlock,
 		)
 
 		// action
 		self.builder.MoveTo(actionBlock)
-		self.builder.BuildStore(self.builder.BuildAdd(self.builder.BuildLoad(indexPtr), mir.NewInt(indexPtr.ElemType().(mir.IntType), 1)), indexPtr)
+		self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewInt(indexPtr.ElemType().(mir.IntType), 1)), indexPtr)
 		self.builder.BuildUnCondJump(condBlock)
 
 		// body
 		self.builder.MoveTo(entry)
-		self.builder.BuildStore(self.buildArrayIndex(iter, self.builder.BuildLoad(indexPtr), false), cursorPtr)
+		self.builder.BuildStore(self.buildArrayIndex(iter, index, false), cursorPtr)
 
 		self.loops.Set(ir, &forRange{
 			Action: actionBlock,

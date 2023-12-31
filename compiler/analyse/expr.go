@@ -474,8 +474,10 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 
 func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array {
 	var expectArray *hir.ArrayType
+	var expectElem hir.Type
 	if expect != nil && hir.IsArrayType(expect){
 		expectArray = hir.AsArrayType(expect)
+		expectElem = expectArray.Elem
 	}
 	if expectArray == nil && len(node.Elems) == 0{
 		errors.ThrowExpectArrayTypeError(node.Position(), hir.Empty)
@@ -483,7 +485,7 @@ func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array 
 	elems := make([]hir.Expr, len(node.Elems))
 	for i, elemNode := range node.Elems {
 		elems[i] = stlbasic.TernaryAction(i==0, func() hir.Expr {
-			return self.analyseExpr(expectArray.Elem, elemNode)
+			return self.analyseExpr(expectElem, elemNode)
 		}, func() hir.Expr {
 			return self.expectExpr(elems[0].GetType(), elemNode)
 		})
