@@ -57,8 +57,6 @@ const (
 	_KeywordBegin
 	FUNC
 	RETURN
-	TRUE
-	FALSE
 	AS
 	STRUCT
 	LET
@@ -124,8 +122,6 @@ var kindNames = [...]string{
 	QUE:      "que",
 	FUNC:     "func",
 	RETURN:   "return",
-	TRUE:     "true",
-	FALSE:    "false",
 	AS:       "as",
 	STRUCT:   "struct",
 	LET:      "let",

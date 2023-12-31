@@ -25,8 +25,6 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseChar(expect, exprNode)
 	case *ast.Float:
 		return self.analyseFloat(expect, exprNode)
-	case *ast.Boolean:
-		return self.analyseBool(exprNode)
 	case *ast.Binary:
 		return self.analyseBinary(expect, exprNode)
 	case *ast.Unary:
@@ -122,10 +120,6 @@ func (self *Analyser) analyseFloat(expect hir.Type, node *ast.Float) *hir.Float 
 		Type:  expect,
 		Value: value,
 	}
-}
-
-func (self *Analyser) analyseBool(node *ast.Boolean) *hir.Boolean {
-	return &hir.Boolean{Value: node.Value.Is(token.TRUE)}
 }
 
 func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binary {

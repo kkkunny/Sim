@@ -30,8 +30,6 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseChar())
 	case token.FLOAT:
 		return util.Some[ast.Expr](self.parseFloat())
-	case token.TRUE, token.FALSE:
-		return util.Some[ast.Expr](self.parseBool())
 	case token.IDENT:
 		ident := self.parseIdent()
 		if !canStruct || !self.nextIs(token.LBR) {
@@ -74,16 +72,6 @@ func (self *Parser) parseFloat() *ast.Float {
 
 func (self *Parser) parseNull() *ast.Null {
 	return &ast.Null{Token: self.expectNextIs(token.NULL)}
-}
-
-func (self *Parser) parseBool() *ast.Boolean {
-	var value token.Token
-	if self.skipNextIs(token.TRUE) {
-		value = self.curTok
-	} else {
-		value = self.expectNextIs(token.FALSE)
-	}
-	return &ast.Boolean{Value: value}
 }
 
 func (self *Parser) parseTuple() *ast.Tuple {

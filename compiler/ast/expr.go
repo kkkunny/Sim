@@ -82,19 +82,6 @@ func (self *Unary) stmt() {}
 
 func (self *Unary) expr() {}
 
-// Boolean 布尔值
-type Boolean struct {
-	Value token.Token
-}
-
-func (self *Boolean) Position() reader.Position {
-	return self.Value.Position
-}
-
-func (self *Boolean) stmt() {}
-
-func (self *Boolean) expr() {}
-
 // Ident 标识符
 type Ident struct {
 	Pkg  util.Option[token.Token]

@@ -14,6 +14,8 @@ pub type f32 = f32
 pub type f64 = f64
 
 pub type bool = bool
+pub let true: bool = 1 == 1
+pub let false: bool = 1 != 1
 
 pub type str = str
 
