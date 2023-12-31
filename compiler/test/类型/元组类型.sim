@@ -1,0 +1,5 @@
+func main()u8{
+    let v1: (u8, u8) = (1, 2)
+    let v2: () = ()
+    return 0
+}

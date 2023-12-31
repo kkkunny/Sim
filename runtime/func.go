@@ -21,9 +21,4 @@ var RuntimeFuncList = [...]RuntimeFunction{
 		Name: "sim_runtime_check_null",
 		To: SimRuntimeCheckNull,
 	},
-	// c
-	{
-		Name: "exit",
-		To: Exit,
-	},
 }

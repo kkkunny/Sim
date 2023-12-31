@@ -1,0 +1,4 @@
+func main()u8{
+    let v: f32 = 2.2
+    return (2.2 % 0.2) as u8
+}

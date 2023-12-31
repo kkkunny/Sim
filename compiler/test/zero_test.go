@@ -14,27 +14,30 @@ import (
 	"github.com/kkkunny/Sim/mir"
 )
 
-func TestExitWithZero(t *testing.T) {
-	testdir := stlos.NewFilePath(".")
-	infos, err := os.ReadDir(testdir.String())
+func runPath(t *testing.T, path stlos.FilePath){
+	infos, err := os.ReadDir(path.String())
 	if err != nil{
 		t.Fatal(err)
 	}
 	for _, info := range infos{
-		if info.IsDir() || filepath.Ext(info.Name()) != ".sim"{
-			continue
+		if info.IsDir(){
+			runPath(t, path.Join(info.Name()))
+		}else if filepath.Ext(info.Name()) == ".sim"{
+			t.Run(strings.TrimSuffix(info.Name(), ".sim"), func(t *testing.T) {
+				module, err := codegen_ir.CodegenIr(mir.DefaultTarget(), path.Join(info.Name()))
+				if err != nil{
+					t.Fatal(err)
+				}
+				ret, err := interpret.Interpret(module)
+				if err != nil{
+					t.Fatal(err)
+				}
+				stltest.AssertEq(t, ret, 0)
+			})
 		}
-		path := testdir.Join(info.Name())
-		t.Run(strings.TrimSuffix(info.Name(), ".sim"), func(t *testing.T) {
-			module, err := codegen_ir.CodegenIr(mir.DefaultTarget(), path)
-			if err != nil{
-				t.Fatal(err)
-			}
-			ret, err := interpret.Interpret(module)
-			if err != nil{
-				t.Fatal(err)
-			}
-			stltest.AssertEq(t, ret, 0)
-		})
 	}
+}
+
+func TestExitWithZero(t *testing.T) {
+	runPath(t, stlos.NewFilePath("."))
 }

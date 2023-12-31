@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
 
@@ -60,6 +61,10 @@ func (self *Sint)IntValue()int64{
 	return self.value
 }
 
+func (self *Sint) ReadRefValues()[]Value{
+	return nil
+}
+
 // Uint 无符号整数
 type Uint struct {
 	t UintType
@@ -100,6 +105,10 @@ func (self *Uint)FloatValue()float64{
 }
 func (self *Uint)IntValue()int64{
 	return int64(self.value)
+}
+
+func (self *Uint) ReadRefValues()[]Value{
+	return nil
 }
 
 func NewInt(t IntType, value int64)Int{
@@ -144,6 +153,10 @@ func (self *Float)FloatValue()float64{
 	return self.value
 }
 
+func (self *Float) ReadRefValues()[]Value{
+	return nil
+}
+
 func NewNumber(t NumberType, value float64)Number{
 	switch tt := t.(type) {
 	case IntType:
@@ -178,6 +191,10 @@ func (self *EmptyArray) IsZero()bool{
 
 func (*EmptyArray)constant(){}
 
+func (self *EmptyArray) ReadRefValues()[]Value{
+	return nil
+}
+
 // EmptyStruct 空结构体
 type EmptyStruct struct {
 	t StructType
@@ -200,6 +217,10 @@ func (self *EmptyStruct) IsZero()bool{
 }
 
 func (*EmptyStruct)constant(){}
+
+func (self *EmptyStruct) ReadRefValues()[]Value{
+	return nil
+}
 
 // EmptyFunc 空函数
 type EmptyFunc struct {
@@ -224,6 +245,10 @@ func (self *EmptyFunc) IsZero()bool{
 
 func (*EmptyFunc)constant(){}
 
+func (self *EmptyFunc) ReadRefValues()[]Value{
+	return nil
+}
+
 // EmptyPtr 空指针
 type EmptyPtr struct {
 	t PtrType
@@ -246,6 +271,10 @@ func (self *EmptyPtr) IsZero()bool{
 }
 
 func (*EmptyPtr)constant(){}
+
+func (self *EmptyPtr) ReadRefValues()[]Value{
+	return nil
+}
 
 // NewZero 零值
 func NewZero(t Type)Const{
@@ -330,6 +359,12 @@ func (self *Array) Elems()[]Const{
 
 func (*Array)constant(){}
 
+func (self *Array) ReadRefValues()[]Value{
+	return stlslices.Map(self.elems, func(_ int, e Const) Value {
+		return e
+	})
+}
+
 // Struct 结构体
 type Struct struct {
 	t StructType
@@ -383,6 +418,12 @@ func (self *Struct) Elems()[]Const{
 }
 
 func (*Struct)constant(){}
+
+func (self *Struct) ReadRefValues()[]Value{
+	return stlslices.Map(self.elems, func(_ int, e Const) Value {
+		return e
+	})
+}
 
 // ConstArrayIndex 数组索引
 type ConstArrayIndex struct {
@@ -440,6 +481,10 @@ func (self *ConstArrayIndex) Index()Const{
 	return self.index
 }
 
+func (self *ConstArrayIndex) ReadRefValues()[]Value{
+	return []Value{self.v}
+}
+
 // ConstStructIndex 结构体索引
 type ConstStructIndex struct {
 	i uint
@@ -495,4 +540,8 @@ func (self *ConstStructIndex) Struct()Const{
 
 func (self *ConstStructIndex) Index()uint64{
 	return self.index
+}
+
+func (self *ConstStructIndex) ReadRefValues()[]Value{
+	return []Value{self.v}
 }

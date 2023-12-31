@@ -1,7 +1,0 @@
-func test()[2]u8{
-    return [1, 2]
-}
-
-func main()u8{
-    return test()[0] - 1
-}

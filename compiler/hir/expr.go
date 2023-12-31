@@ -677,16 +677,14 @@ func (self *Usize2Pointer) GetFrom() Expr {
 
 // Array 数组
 type Array struct {
+	Type Type
 	Elems []Expr
 }
 
 func (self *Array) stmt() {}
 
 func (self *Array) GetType() Type {
-	return &ArrayType{
-		Size: uint(len(self.Elems)),
-		Elem: self.Elems[0].GetType(),
-	}
+	return self.Type
 }
 
 func (self *Array) Mutable() bool {

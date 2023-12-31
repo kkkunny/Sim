@@ -1,0 +1,4 @@
+func main()u8{
+    let v = 1
+    return (v * 10 / 11) as u8
+}

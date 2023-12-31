@@ -17,6 +17,8 @@ type Global interface {
 	RealName()string
 	Define()string
 	setIndex(i uint) uint
+	ReadRefValues()[]Value
+	WriteRefValues()[]Value
 }
 
 // NamedStruct 带名字结构体
@@ -114,6 +116,20 @@ func (self *NamedStruct) Define()string{
 	return fmt.Sprintf("type %s = {%s}", self.Name(), strings.Join(elems, ","))
 }
 
+func (self *NamedStruct) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *NamedStruct) WriteRefValues()[]Value{
+	return nil
+}
+
+// GlobalValue 全局值
+type GlobalValue interface {
+	Global
+	Value
+}
+
 // GlobalVariable 全局变量
 type GlobalVariable struct {
 	ctx *Context
@@ -194,6 +210,17 @@ func (self *GlobalVariable) Type()Type{
 
 func (self *GlobalVariable) ValueType()Type{
 	return self.t
+}
+
+func (self *GlobalVariable) ReadRefValues()[]Value{
+	if self.value == nil{
+		return nil
+	}
+	return []Value{self.value}
+}
+
+func (self *GlobalVariable) WriteRefValues()[]Value{
+	return nil
 }
 
 // Function 函数
@@ -363,6 +390,19 @@ func (self *Function) Attributes()[]FunctionAttribute{
 	return self.attrs.ToSlice().ToSlice()
 }
 
+func (self *Function) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *Function) WriteRefValues()[]Value{
+	return nil
+}
+
+// IsStartFunction 是否是入口函数
+func (self *Function) IsStartFunction()bool{
+	return self.name == "main" || self.attrs.Contain(FunctionAttributeInit) || self.attrs.Contain(FunctionAttributeFini)
+}
+
 // Constant 常量
 type Constant struct {
 	ctx *Context
@@ -442,4 +482,15 @@ func (*Constant) constant(){}
 
 func (self *Constant) ValueType()Type{
 	return self.value.Type()
+}
+
+func (self *Constant) ReadRefValues()[]Value{
+	if self.value == nil{
+		return nil
+	}
+	return []Value{self.value}
+}
+
+func (self *Constant) WriteRefValues()[]Value{
+	return nil
 }

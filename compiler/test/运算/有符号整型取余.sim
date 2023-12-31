@@ -1,0 +1,4 @@
+func main()u8{
+    let v = 2
+    return (v % 2) as u8
+}

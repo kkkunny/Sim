@@ -479,22 +479,30 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 }
 
 func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array {
-	var expectElem hir.Type
+	var expectArray *hir.ArrayType
 	if expect != nil && hir.IsArrayType(expect){
-		expectElem = hir.AsArrayType(expect).Elem
+		expectArray = hir.AsArrayType(expect)
 	}
-	if expectElem == nil && len(node.Elems) == 0{
+	if expectArray == nil && len(node.Elems) == 0{
 		errors.ThrowExpectArrayTypeError(node.Position(), hir.Empty)
 	}
 	elems := make([]hir.Expr, len(node.Elems))
 	for i, elemNode := range node.Elems {
 		elems[i] = stlbasic.TernaryAction(i==0, func() hir.Expr {
-			return self.analyseExpr(expectElem, elemNode)
+			return self.analyseExpr(expectArray.Elem, elemNode)
 		}, func() hir.Expr {
 			return self.expectExpr(elems[0].GetType(), elemNode)
 		})
 	}
-	return &hir.Array{Elems: elems}
+	return &hir.Array{
+		Type: stlbasic.TernaryAction(len(elems)!=0, func() hir.Type {
+			return &hir.ArrayType{
+				Size: uint(len(elems)),
+				Elem: elems[0].GetType(),
+			}
+		}, func() hir.Type {return expectArray}),
+		Elems: elems,
+	}
 }
 
 func (self *Analyser) analyseIndex(node *ast.Index) *hir.Index {

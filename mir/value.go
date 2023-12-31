@@ -5,6 +5,7 @@ import "fmt"
 type Value interface {
 	Name()string
 	Type()Type
+	ReadRefValues()[]Value
 }
 
 // Param 参数
@@ -34,4 +35,8 @@ func (self *Param) Name()string{
 
 func (self *Param) Define()string{
 	return fmt.Sprintf("%s %s", self.ValueType(), self.Name())
+}
+
+func (self *Param) ReadRefValues()[]Value{
+	return nil
 }

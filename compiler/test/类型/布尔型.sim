@@ -1,0 +1,4 @@
+func main()u8{
+    let v: bool = true
+    return 0
+}

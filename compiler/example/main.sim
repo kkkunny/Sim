@@ -1,11 +1,8 @@
-import std::io
-
 func main()u8{
-    let res = io::println("123")
-    if res.is_ok(){
-        debug("ok")
-    }else if res.is_err(){
-        debug("error")
+    let s1: str = "123"
+    let s2: str = "234"
+    if s1 == s2{
+        return 1
     }
     return 0
 }
