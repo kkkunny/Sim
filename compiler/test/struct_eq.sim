@@ -1,6 +1,6 @@
 struct A{
-	f1: i32,
-	f2: i32
+	pub f1: i32,
+	pub f2: i32
 }
 
 func main()u8{

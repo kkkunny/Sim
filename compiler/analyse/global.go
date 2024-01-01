@@ -162,7 +162,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 			self.declGenericFuncDef(global)
 		}
 	case *ast.MethodDef:
-		if global.Scope.Params.IsNone(){
+		if global.SelfType.Params.IsNone(){
 			if global.Name.Params.IsNone(){
 				self.declMethodDef(global)
 			}else{
@@ -255,13 +255,13 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		}
 	}
 
-	td, ok := self.pkgScope.getLocalTypeDef(node.Scope.Name.Source())
+	td, ok := self.pkgScope.getLocalTypeDef(node.SelfType.Name.Source())
 	if !ok || !stlbasic.Is[*hir.StructDef](td){
-		errors.ThrowUnknownIdentifierError(node.Scope.Name.Position, node.Scope.Name)
+		errors.ThrowUnknownIdentifierError(node.SelfType.Name.Position, node.SelfType.Name)
 	}
 	f.Scope = td.(*hir.StructDef)
 	f.SelfParam = &hir.Param{
-		Mut:  node.ScopeMutable,
+		Mut:  node.SelfMut,
 		Type: f.Scope,
 		Name: token.SELFVALUE.String(),
 	}
@@ -392,16 +392,16 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.MethodDef) {
 	}
 
 	var ok bool
-	f.Scope, ok = self.pkgScope.getLocalGenericStructDef(node.Scope.Name.Source())
+	f.Scope, ok = self.pkgScope.getLocalGenericStructDef(node.SelfType.Name.Source())
 	if !ok{
-		errors.ThrowUnknownIdentifierError(node.Scope.Name.Position, node.Scope.Name)
-	}else if f.Scope.GenericParams.Length() != uint(len(node.Scope.Params.MustValue().Data)){
-		errors.ThrowParameterNumberNotMatchError(node.Scope.Position(), f.Scope.GenericParams.Length(), uint(len(node.Scope.Params.MustValue().Data)))
+		errors.ThrowUnknownIdentifierError(node.SelfType.Name.Position, node.SelfType.Name)
+	}else if f.Scope.GenericParams.Length() != uint(len(node.SelfType.Params.MustValue().Data)){
+		errors.ThrowParameterNumberNotMatchError(node.SelfType.Position(), f.Scope.GenericParams.Length(), uint(len(node.SelfType.Params.MustValue().Data)))
 	}
 
 	scopeGenericParams := f.Scope.GenericParams.Values().ToSlice()
 	scopeGenericParamSet := hashset.NewHashSetWithCapacity[string](uint(len(scopeGenericParams)))
-	for i, p := range node.Scope.Params.MustValue().Data{
+	for i, p := range node.SelfType.Params.MustValue().Data{
 		pn := p.Source()
 		if !scopeGenericParamSet.Add(pn){
 			errors.ThrowIdentifierDuplicationError(p.Position, p)
@@ -425,7 +425,7 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.MethodDef) {
 	defer self.genericIdentMap.Clear()
 
 	f.SelfParam = &hir.Param{
-		Mut:  node.ScopeMutable,
+		Mut:  node.SelfMut,
 		Type: f.GetSelfType(),
 		Name: token.SELFVALUE.String(),
 	}
@@ -472,9 +472,9 @@ func (self *Analyser) declGenericMethodDef(node *ast.MethodDef) {
 	}
 
 	var ok bool
-	td, ok := self.pkgScope.getLocalTypeDef(node.Scope.Name.Source())
+	td, ok := self.pkgScope.getLocalTypeDef(node.SelfType.Name.Source())
 	if !ok || !stlbasic.Is[*hir.StructDef](td){
-		errors.ThrowUnknownIdentifierError(node.Scope.Position(), node.Scope.Name)
+		errors.ThrowUnknownIdentifierError(node.SelfType.Position(), node.SelfType.Name)
 	}
 	f.Scope = td.(*hir.StructDef)
 
@@ -493,7 +493,7 @@ func (self *Analyser) declGenericMethodDef(node *ast.MethodDef) {
 	defer self.genericIdentMap.Clear()
 
 	f.SelfParam = &hir.Param{
-		Mut:  node.ScopeMutable,
+		Mut:  node.SelfMut,
 		Type: f.Scope,
 		Name: token.SELFVALUE.String(),
 	}
@@ -529,7 +529,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 			return self.defGenericFuncDef(global)
 		}
 	case *ast.MethodDef:
-		if global.Scope.Params.IsNone(){
+		if global.SelfType.Params.IsNone(){
 			if global.Name.Params.IsNone(){
 				return self.defMethodDef(global)
 			}else{
@@ -586,7 +586,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 }
 
 func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
-	td, _ := self.pkgScope.getLocalTypeDef(node.Scope.Name.Source())
+	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.Name.Source())
 	st := td.(*hir.StructDef)
 	f := st.Methods.Get(node.Name.Name.Source()).(*hir.MethodDef)
 
@@ -696,11 +696,11 @@ func (self *Analyser) defGenericFuncDef(node *ast.FuncDef) *hir.GenericFuncDef {
 }
 
 func (self *Analyser) defGenericStructMethodDef(node *ast.MethodDef) *hir.GenericStructMethodDef {
-	st, _ := self.pkgScope.getLocalGenericStructDef(node.Scope.Name.Source())
+	st, _ := self.pkgScope.getLocalGenericStructDef(node.SelfType.Name.Source())
 	f := st.Methods.Get(node.Name.Name.Source())
 
 	for i, iter:=0, f.Scope.GenericParams.Iterator(); iter.Next(); i++{
-		self.genericIdentMap.Set(node.Scope.Params.MustValue().Data[i].Source(), iter.Value().Second)
+		self.genericIdentMap.Set(node.SelfType.Params.MustValue().Data[i].Source(), iter.Value().Second)
 	}
 	for i, iter:=0, f.GenericParams.Iterator(); iter.Next(); i++{
 		self.genericIdentMap.Set(node.Name.Params.MustValue().Data[i].Source(), iter.Value().Second)
@@ -734,7 +734,7 @@ func (self *Analyser) defGenericStructMethodDef(node *ast.MethodDef) *hir.Generi
 }
 
 func (self *Analyser) defGenericMethodDef(node *ast.MethodDef) *hir.GenericMethodDef {
-	td, _ := self.pkgScope.getLocalTypeDef(node.Scope.Name.Source())
+	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.Name.Source())
 	st := td.(*hir.StructDef)
 	f := st.Methods.Get(node.Name.Name.Source()).(*hir.GenericMethodDef)
 

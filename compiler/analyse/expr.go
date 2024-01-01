@@ -4,8 +4,6 @@ import (
 	"math/big"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/hashset"
-	stliter "github.com/kkkunny/stl/container/iter"
 	stlerror "github.com/kkkunny/stl/error"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
@@ -547,12 +545,12 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
 	st := hir.AsStructType(stObj)
-	fieldNames := stliter.Map[string, string, hashset.HashSet[string]](st.Fields.Keys(), func(s string) string {return s})
+	internal := self.localScope!=nil&&self.localScope.IsInStructScope(st)
 
 	existedFields := make(map[string]hir.Expr)
 	for _, nf := range node.Fields {
 		fn := nf.First.Source()
-		if !fieldNames.Contain(fn) {
+		if !st.Fields.ContainKey(fn) || (!internal && !st.Fields.Get(fn).Public) {
 			errors.ThrowUnknownIdentifierError(nf.First.Position, nf.First)
 		}
 		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.Second)
@@ -582,7 +580,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 		errors.ThrowExpectStructError(node.From.Position(), from.GetType())
 	}
 	st := hir.AsStructType(from.GetType())
-	internal := self.localScope.IsInStructScope(st)
+	internal := self.localScope!=nil&&self.localScope.IsInStructScope(st)
 
 	if genericParams, ok := node.Index.Params.Value(); ok{
 		// 泛型方法

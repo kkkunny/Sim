@@ -1,8 +1,8 @@
 struct value<T> {
-    v: T
+    pub v: T
 }
 
-func (value<T>) get<F>(v: F)F{
+func (self: value<T>) get<F>(v: F)F{
     return v
 }
 

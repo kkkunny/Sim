@@ -2,7 +2,7 @@ struct a{
     pub v: u8
 }
 
-func (mut a) b(){
+func (mut self: a) b(){
     self.v = 2
 }
 

@@ -1,8 +1,8 @@
 struct T{
-    data: u8
+    pub data: u8
 }
 
-func (mut T) get_data()u8{
+func (mut self: T) get_data()u8{
     let self2: Self = self
     return self2.data
 }

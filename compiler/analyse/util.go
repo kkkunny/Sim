@@ -124,6 +124,10 @@ func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
 		return self.isTypeHasDefault(tt.Self)
 	case *hir.AliasType:
 		return self.isTypeHasDefault(tt.Target)
+	case *hir.GenericIdentType:
+		return false
+	case *hir.GenericStructInst:
+		return self.isTypeHasDefault(tt.StructType())
 	default:
 		panic("unreachable")
 	}

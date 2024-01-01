@@ -1,5 +1,5 @@
 struct a{
-    v: u8
+    pub v: u8
 }
 
 struct b{}

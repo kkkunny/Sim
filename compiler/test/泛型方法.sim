@@ -1,8 +1,8 @@
 struct Byte {
-    v: u8
+    pub v: u8
 }
 
-func (Byte) get<T>(v: T)T{
+func (self: Byte) get<T>(v: T)T{
     return v
 }
 

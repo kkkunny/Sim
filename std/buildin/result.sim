@@ -2,18 +2,10 @@ pub struct Result<T, E>{
     data: <T, E>
 }
 
-pub func Ok<T, E>(v: T)Result::<T, E>{
-    return Result::<T, E>{data: v}
-}
-
-pub func Err<T, E>(v: E)Result::<T, E>{
-    return Result::<T, E>{data: v}
-}
-
-pub func (Result<T, E>) is_ok()bool{
+pub func (self: Result<T, E>) is_ok()bool{
     return self.data is T
 }
 
-pub func (Result<T, E>) is_err()bool{
+pub func (self: Result<T, E>) is_err()bool{
     return self.data is E
 }
