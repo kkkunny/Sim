@@ -798,6 +798,7 @@ func (self *Default) Mutable() bool {
 
 // GetField 取字段
 type GetField struct {
+	Internal bool
 	From  Expr
 	Index uint
 }
@@ -809,6 +810,9 @@ func (self *GetField) GetType() Type {
 }
 
 func (self *GetField) Mutable() bool {
+	if self.Internal{
+		return true
+	}
 	return self.From.Mutable() && AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Mutable
 }
 

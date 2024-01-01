@@ -612,6 +612,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 			field := iter.Value()
 			if field.First == fieldName && (field.Second.Public || self.pkgScope.pkg.Equal(st.Pkg)) {
 				return &hir.GetField{
+					Internal: self.pkgScope.pkg.Equal(st.Pkg),
 					From:  from,
 					Index: uint(i),
 				}
