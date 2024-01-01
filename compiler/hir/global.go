@@ -3,7 +3,6 @@ package hir
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashmap"
-	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
@@ -23,12 +22,25 @@ type TypeDef interface {
 	GetName()string
 }
 
+// GlobalStruct 全局结构体
+type GlobalStruct interface {
+	Global
+	GetName()string
+	globalStruct()
+}
+
+type Field struct {
+	Public bool
+	Mutable bool
+	Type Type
+}
+
 // StructDef 结构体定义
 type StructDef struct {
 	Pkg Package
 	Public bool
 	Name   string
-	Fields linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]
+	Fields linkedhashmap.LinkedHashMap[string, Field]
 	Methods hashmap.HashMap[string, GlobalMethod]
 
 	genericParams []Type  // 泛型结构体实例化时使用，为泛型结构体方法实例化提供泛型参数
@@ -45,6 +57,8 @@ func (self *StructDef) GetPublic() bool {
 func (self *StructDef) GetName()string{
 	return self.Name
 }
+
+func (*StructDef) globalStruct(){}
 
 // VarDef 变量定义
 type VarDef struct {
@@ -273,7 +287,7 @@ type GenericStructDef struct {
 	Public bool
 	Name   string
 	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
-	Fields linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]
+	Fields linkedhashmap.LinkedHashMap[string, Field]
 	Methods hashmap.HashMap[string, *GenericStructMethodDef]
 }
 
@@ -285,9 +299,15 @@ func (self *GenericStructDef) GetPublic() bool {
 	return self.Public
 }
 
+func (self *GenericStructDef) GetName()string{
+	return self.Name
+}
+
 func (self *GenericStructDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
 	return self.GenericParams
 }
+
+func (*GenericStructDef) globalStruct(){}
 
 // GenericStructMethodDef 泛型结构体方法定义
 type GenericStructMethodDef struct {

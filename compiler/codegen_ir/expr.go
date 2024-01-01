@@ -45,7 +45,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenZero(expr.GetType())
 	case *hir.Struct:
 		return self.codegenStruct(expr)
-	case *hir.Field:
+	case *hir.GetField:
 		return self.codegenField(expr, load)
 	case *hir.String:
 		return self.codegenString(expr)
@@ -299,7 +299,7 @@ func (self *CodeGenerator) codegenStruct(ir *hir.Struct) mir.Value {
 	return self.builder.BuildPackStruct(self.codegenType(ir.Type).(mir.StructType), fields...)
 }
 
-func (self *CodeGenerator) codegenField(ir *hir.Field, load bool) mir.Value {
+func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) mir.Value {
 	from := self.codegenExpr(ir.From, false)
 	ptr := self.buildStructIndex(from, uint64(ir.Index))
 	if load && (stlbasic.Is[*mir.StructIndex](ptr) && ptr.(*mir.StructIndex).IsPtr()){

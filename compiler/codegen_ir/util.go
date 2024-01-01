@@ -110,7 +110,7 @@ func (self *CodeGenerator) buildStructEqual(irType hir.Type, l, r mir.Value) mir
 		res := dynarray.NewDynArrayWithLength[hir.Type](values.Length())
 		var i uint
 		for iter:=values.Iterator(); iter.Next(); {
-			res.Set(i, iter.Value().Second)
+			res.Set(i, iter.Value().Type)
 			i++
 		}
 		return res

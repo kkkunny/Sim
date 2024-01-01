@@ -1,11 +1,11 @@
 struct either<T, F>{
-    isLeft: bool,
-    Left: T,
-    Right: F
+    pub isLeft: bool,
+    pub Left: T,
+    pub Right: F
 }
 
 struct pair<T, F>{
-    Value: either::<T, F>,
+    pub Value: either::<T, F>,
 }
 
 func main()u8{

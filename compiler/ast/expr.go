@@ -201,19 +201,19 @@ func (self *Struct) stmt() {}
 
 func (self *Struct) expr() {}
 
-// Field 取字段
-type Field struct {
+// GetField 取字段
+type GetField struct {
 	From  Expr
 	Index GenericName
 }
 
-func (self *Field) Position() reader.Position {
+func (self *GetField) Position() reader.Position {
 	return reader.MixPosition(self.From.Position(), self.Index.Position())
 }
 
-func (self *Field) stmt() {}
+func (self *GetField) stmt() {}
 
-func (self *Field) expr() {}
+func (self *GetField) expr() {}
 
 // String 字符串
 type String struct {

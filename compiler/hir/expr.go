@@ -796,20 +796,24 @@ func (self *Default) Mutable() bool {
 	return false
 }
 
-// Field 字段
-type Field struct {
+// GetField 取字段
+type GetField struct {
+	Internal bool
 	From  Expr
 	Index uint
 }
 
-func (self *Field) stmt() {}
+func (self *GetField) stmt() {}
 
-func (self *Field) GetType() Type {
-	return AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Second
+func (self *GetField) GetType() Type {
+	return AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Type
 }
 
-func (self *Field) Mutable() bool {
-	return self.From.Mutable()
+func (self *GetField) Mutable() bool {
+	if self.Internal{
+		return self.From.Mutable()
+	}
+	return self.From.Mutable() && AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Mutable
 }
 
 // String 字符串

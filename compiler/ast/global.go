@@ -20,7 +20,7 @@ type StructDef struct {
 	Begin  reader.Position
 	Public bool
 	Name   GenericNameDef
-	Fields []lo.Tuple3[bool, token.Token, Type]
+	Fields []Field
 	End    reader.Position
 }
 

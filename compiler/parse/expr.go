@@ -134,7 +134,7 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 			})
 		} else {
 			index := self.parseGenericName(self.expectNextIs(token.IDENT), true)
-			front = util.Some[ast.Expr](&ast.Field{
+			front = util.Some[ast.Expr](&ast.GetField{
 				From:  fv,
 				Index: index,
 			})

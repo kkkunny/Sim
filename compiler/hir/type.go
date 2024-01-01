@@ -487,8 +487,9 @@ func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Typ
 			return ReplaceAllGenericIdent(maps, e)
 		})}
 	case *StructType:
-		fields := stliter.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](tt.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
-			return pair.NewPair[string, pair.Pair[bool, Type]](e.First, pair.NewPair[bool, Type](e.Second.First, ReplaceAllGenericIdent(maps, e.Second.Second)))
+		fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
+			e.Second.Type = ReplaceAllGenericIdent(maps, e.Second.Type)
+			return pair.NewPair[string, Field](e.First, e.Second)
 		})
 		return &StructType{
 			Pkg: tt.Pkg,
@@ -567,8 +568,9 @@ func (self *GenericStructInst) StructType()*StructType{
 		maps.Set(iter.Value().Second, self.Params[i])
 		i++
 	}
-	fields := stliter.Map[pair.Pair[string, pair.Pair[bool, Type]], pair.Pair[string, pair.Pair[bool, Type]], linkedhashmap.LinkedHashMap[string, pair.Pair[bool, Type]]](self.Define.Fields, func(e pair.Pair[string, pair.Pair[bool, Type]]) pair.Pair[string, pair.Pair[bool, Type]] {
-		return pair.NewPair[string, pair.Pair[bool, Type]](e.First, pair.NewPair[bool, Type](e.Second.First, ReplaceAllGenericIdent(maps, e.Second.Second)))
+	fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](self.Define.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
+		e.Second.Type = ReplaceAllGenericIdent(maps, e.Second.Type)
+		return pair.NewPair[string, Field](e.First, e.Second)
 	})
 	methods := stliter.Map[pair.Pair[string, *GenericStructMethodDef], pair.Pair[string, GlobalMethod], hashmap.HashMap[string, GlobalMethod]](self.Define.Methods, func(e pair.Pair[string, *GenericStructMethodDef]) pair.Pair[string, GlobalMethod] {
 		return pair.NewPair[string, GlobalMethod](e.First, e.Second)

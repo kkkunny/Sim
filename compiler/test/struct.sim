@@ -1,5 +1,5 @@
 struct T{
-    data: u8
+    pub data: u8
 }
 
 func get()T{

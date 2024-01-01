@@ -17,6 +17,13 @@ type Param struct {
 	Type    Type
 }
 
+type Field struct {
+	Public bool
+	Mutable bool
+	Name    token.Token
+	Type    Type
+}
+
 type List[T any] struct {
 	Begin reader.Position
 	Data  []T

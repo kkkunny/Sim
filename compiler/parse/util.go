@@ -42,6 +42,36 @@ func (self *Parser) parseTypeList(end token.Kind, atLeastOne ...bool) (res []ast
 	}, atLeastOne...)
 }
 
+func (self *Parser) parseParamList(end token.Kind) (res []ast.Param) {
+	return loopParseWithUtil(self, token.COM, end, func() ast.Param {
+		mut := self.skipNextIs(token.MUT)
+		pn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		pt := self.parseType()
+		return ast.Param{
+			Mutable: mut,
+			Name:    pn,
+			Type:    pt,
+		}
+	})
+}
+
+func (self *Parser) parseFieldList(end token.Kind) (res []ast.Field) {
+	return loopParseWithUtil(self, token.COM, end, func() ast.Field {
+		pub := self.skipNextIs(token.PUBLIC)
+		mut := self.skipNextIs(token.MUT)
+		pn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		pt := self.parseType()
+		return ast.Field{
+			Public: pub,
+			Mutable: mut,
+			Name:    pn,
+			Type:    pt,
+		}
+	})
+}
+
 func expectAttrIn(attrs []ast.Attr, expectAttr ...ast.Attr) {
 	expectAttrTypes := lo.Map(expectAttr, func(item ast.Attr, _ int) reflect.Type {
 		return reflect.ValueOf(item).Type()

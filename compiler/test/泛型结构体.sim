@@ -1,6 +1,6 @@
 struct pair<T, F>{
-    F: T,
-    S: F
+    pub F: T,
+    pub S: F
 }
 
 func main()u8{

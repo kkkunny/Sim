@@ -45,8 +45,8 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseExtract(expect, exprNode)
 	case *ast.Struct:
 		return self.analyseStruct(exprNode)
-	case *ast.Field:
-		return self.analyseField(exprNode)
+	case *ast.GetField:
+		return self.analyseGetField(exprNode)
 	case *ast.String:
 		return self.analyseString(exprNode)
 	case *ast.Judgment:
@@ -555,13 +555,13 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 		if !fieldNames.Contain(fn) {
 			errors.ThrowUnknownIdentifierError(nf.First.Position, nf.First)
 		}
-		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Second, nf.Second)
+		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.Second)
 	}
 
 	fields := make([]hir.Expr, st.Fields.Length())
 	var i int
 	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		fn, ft := iter.Value().First, iter.Value().Second.Second
+		fn, ft := iter.Value().First, iter.Value().Second.Type
 		if fv, ok := existedFields[fn]; ok {
 			fields[i] = fv
 		} else {
@@ -575,13 +575,14 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 	}
 }
 
-func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
+func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 	from := self.analyseExpr(nil, node.From)
 	fieldName := node.Index.Name.Source()
 	if !hir.IsStructType(from.GetType()){
 		errors.ThrowExpectStructError(node.From.Position(), from.GetType())
 	}
 	st := hir.AsStructType(from.GetType())
+	internal := self.localScope.IsInStructScope(st)
 
 	if genericParams, ok := node.Index.Params.Value(); ok{
 		// 泛型方法
@@ -635,11 +636,11 @@ func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
 		}
 
 		// 字段
-		var i int
-		for iter := st.Fields.Iterator(); iter.Next(); i++ {
+		for i, iter := 0, st.Fields.Iterator(); iter.Next(); i++ {
 			field := iter.Value()
-			if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.pkg) {
-				return &hir.Field{
+			if field.First == fieldName && (internal || field.Second.Public) {
+				return &hir.GetField{
+					Internal: internal,
 					From:  from,
 					Index: uint(i),
 				}

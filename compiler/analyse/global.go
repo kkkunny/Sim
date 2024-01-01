@@ -5,9 +5,7 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/hashset"
 	stliter "github.com/kkkunny/stl/container/iter"
-	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
-	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
@@ -60,7 +58,6 @@ func (self *Analyser) declStructDef(node *ast.StructDef) {
 		Pkg: self.pkgScope.pkg,
 		Public: node.Public,
 		Name:   node.Name.Name.Source(),
-		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, hir.Type]](),
 	}
 
 	if !self.pkgScope.SetTypeDef(st) {
@@ -84,7 +81,6 @@ func (self *Analyser) declGenericStructDef(node *ast.StructDef) {
 		Pkg: self.pkgScope.pkg,
 		Public: node.Public,
 		Name:   node.Name.Name.Source(),
-		Fields: linkedhashmap.NewLinkedHashMap[string, pair.Pair[bool, hir.Type]](),
 	}
 
 	for _, p := range node.Name.Params.MustValue().Data{
@@ -114,9 +110,11 @@ func (self *Analyser) defStructDef(node *ast.StructDef) *hir.StructDef {
 	st := td.(*hir.StructDef)
 
 	for _, f := range node.Fields {
-		fn := f.B.Source()
-		ft := pair.NewPair(f.A, self.analyseType(f.C))
-		st.Fields.Set(fn, ft)
+		st.Fields.Set(f.Name.Source(), hir.Field{
+			Public: f.Public,
+			Mutable: f.Mutable,
+			Type: self.analyseType(f.Type),
+		})
 	}
 	return st
 }
@@ -146,9 +144,11 @@ func (self *Analyser) defGenericStructDef(node *ast.StructDef) *hir.GenericStruc
 	}()
 
 	for _, f := range node.Fields {
-		fn := f.B.Source()
-		ft := pair.NewPair(f.A, self.analyseType(f.C))
-		st.Fields.Set(fn, ft)
+		st.Fields.Set(f.Name.Source(), hir.Field{
+			Public: f.Public,
+			Mutable: f.Mutable,
+			Type: self.analyseType(f.Type),
+		})
 	}
 	return st
 }

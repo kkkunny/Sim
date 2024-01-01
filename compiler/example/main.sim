@@ -1,8 +1,13 @@
-import std::io
+struct a{
+    pub v: u8
+}
+
+func (mut a) b(){
+    self.v = 2
+}
 
 func main()u8{
-    for s in ["1", "2"]{
-        io::println(s)
-    }
-    return 0
+    let mut a = a{v: 1}
+    a.b()
+    return a.v
 }

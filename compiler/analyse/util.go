@@ -108,7 +108,7 @@ func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
 		return true
 	case *hir.StructType:
 		for iter:=tt.Fields.Values().Iterator(); iter.Next(); {
-			if !self.isTypeHasDefault(iter.Value().Second){
+			if !self.isTypeHasDefault(iter.Value().Type){
 				return false
 			}
 		}
@@ -151,7 +151,7 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 		}
 	case *hir.StructType:
 		for iter:=typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeCircle(trace, iter.Value().Second.Second){
+			if self.checkTypeCircle(trace, iter.Value().Second.Type){
 				return true
 			}
 		}

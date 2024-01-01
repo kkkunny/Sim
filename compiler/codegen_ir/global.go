@@ -18,7 +18,7 @@ func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
 	fields := make([]mir.Type, ir.Fields.Length())
 	var i int
 	for iter := ir.Fields.Values().Iterator(); iter.Next(); i++ {
-		fields[i] = self.codegenType(iter.Value().Second)
+		fields[i] = self.codegenType(iter.Value().Type)
 	}
 	st.SetElems(fields...)
 }
@@ -32,7 +32,7 @@ func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir
 	fields := make([]mir.Type, stIr.Fields.Length())
 	var i int
 	for iter := stIr.Fields.Values().Iterator(); iter.Next(); i++ {
-		fields[i] = self.codegenType(iter.Value().Second)
+		fields[i] = self.codegenType(iter.Value().Type)
 	}
 	st.SetElems(fields...)
 }
