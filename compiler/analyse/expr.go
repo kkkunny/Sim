@@ -520,12 +520,11 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
 	st := hir.AsStructType(stObj)
-	internal := self.isInDstStructScope(st)
 
 	existedFields := make(map[string]hir.Expr)
 	for _, nf := range node.Fields {
 		fn := nf.First.Source()
-		if !st.Fields.ContainKey(fn) || (!internal && !st.Fields.Get(fn).Public) {
+		if !st.Fields.ContainKey(fn) || (!self.pkgScope.pkg.Equal(st.Pkg) && !st.Fields.Get(fn).Public) {
 			errors.ThrowUnknownIdentifierError(nf.First.Position, nf.First)
 		}
 		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.Second)
@@ -556,7 +555,6 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 		errors.ThrowExpectStructError(node.From.Position(), from.GetType())
 	}
 	st := hir.AsStructType(from.GetType())
-	internal := self.isInDstStructScope(st)
 
 	if genericParams, ok := node.Index.Params.Value(); ok{
 		// 泛型方法
@@ -612,9 +610,8 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 		// 字段
 		for i, iter := 0, st.Fields.Iterator(); iter.Next(); i++ {
 			field := iter.Value()
-			if field.First == fieldName && (internal || field.Second.Public) {
+			if field.First == fieldName && (field.Second.Public || self.pkgScope.pkg.Equal(st.Pkg)) {
 				return &hir.GetField{
-					Internal: internal,
 					From:  from,
 					Index: uint(i),
 				}
