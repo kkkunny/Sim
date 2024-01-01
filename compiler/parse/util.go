@@ -127,6 +127,23 @@ func (self *Parser) parseGenericName(name token.Token, expectScope ...bool)ast.G
 	}
 }
 
+func (self *Parser) parseIdent() *ast.Ident {
+	var pkg util.Option[token.Token]
+	var name ast.GenericName
+	pkgOrName := self.expectNextIs(token.IDENT)
+	if !self.skipNextIs(token.SCOPE) {
+		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName, true)
+	} else if !self.nextIs(token.LT){
+		pkg, name = util.Some(pkgOrName), self.parseGenericName(self.expectNextIs(token.IDENT))
+	} else {
+		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName)
+	}
+	return &ast.Ident{
+		Pkg:  pkg,
+		Name: name,
+	}
+}
+
 // 语法解析目标文件
 func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 	_, r, err := reader.NewReaderFromFile(path)

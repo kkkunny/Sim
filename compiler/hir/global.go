@@ -116,9 +116,14 @@ func (self *MultiVarDef) GetPublic() bool {
 
 func (*MultiVarDef) stmt() {}
 
-type GlobalFunc interface {
+type GlobalFuncOrMethod interface {
 	Global
 	GetFuncType()*FuncType
+}
+
+type GlobalFunc interface {
+	GlobalFuncOrMethod
+	globalFunc()
 }
 
 // FuncDef 函数定义
@@ -164,6 +169,8 @@ func (self *FuncDef) Mutable() bool {
 }
 
 func (*FuncDef) ident() {}
+
+func (*FuncDef) globalFunc(){}
 
 type GlobalMethod interface {
 	Global
@@ -280,6 +287,8 @@ func (self *GenericFuncDef) GetFuncType() *FuncType {
 func (self *GenericFuncDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
 	return self.GenericParams
 }
+
+func (*GenericFuncDef) globalFunc(){}
 
 // GenericStructDef 泛型结构体定义
 type GenericStructDef struct {

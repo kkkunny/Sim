@@ -1,9 +1,6 @@
 package analyse
 
 import (
-	"strings"
-
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashset"
 
@@ -222,21 +219,19 @@ type _LocalScope interface {
 	GetParent() _Scope
 	GetFuncScope() *_FuncScope
 	GetPkgScope() *_PkgScope
-	GetFunc() hir.GlobalFunc
+	GetFunc() hir.GlobalFuncOrMethod
 	SetLoop(loop hir.Loop)
 	GetLoop() hir.Loop
-	GetStructScope()hir.GlobalStruct
-	IsInStructScope(st *hir.StructType)bool
 }
 
 // 函数作用域
 type _FuncScope struct {
 	_BlockScope
 	parent *_PkgScope
-	def    hir.GlobalFunc
+	def    hir.GlobalFuncOrMethod
 }
 
-func _NewFuncScope(p *_PkgScope, def hir.GlobalFunc) *_FuncScope {
+func _NewFuncScope(p *_PkgScope, def hir.GlobalFuncOrMethod) *_FuncScope {
 	self := &_FuncScope{
 		parent: p,
 		def:    def,
@@ -271,34 +266,8 @@ func (self *_FuncScope) GetPkgScope() *_PkgScope {
 	return self.parent
 }
 
-func (self *_FuncScope) GetFunc() hir.GlobalFunc {
+func (self *_FuncScope) GetFunc() hir.GlobalFuncOrMethod {
 	return self.def
-}
-
-func (self *_FuncScope) GetStructScope()hir.GlobalStruct{
-	switch f := self.GetFunc().(type) {
-	case *hir.MethodDef:
-		return f.Scope
-	case *hir.GenericMethodDef:
-		return f.Scope
-	case *hir.GenericStructMethodDef:
-		return f.Scope
-	default:
-		return nil
-	}
-}
-
-func (self *_FuncScope) IsInStructScope(st *hir.StructType)bool{
-	stScope := self.GetStructScope()
-	if stScope == nil{
-		return false
-	}
-	stName := stlbasic.TernaryAction(!strings.Contains(st.GetName(), "::"), func() string {
-		return st.GetName()
-	}, func() string {
-		return strings.Split(st.GetName(), "::")[0]
-	})
-	return stScope.GetPackage().Equal(st.GetPackage()) && stScope.GetName() == stName
 }
 
 // 代码块作用域
@@ -342,7 +311,7 @@ func (self *_BlockScope) GetPkgScope() *_PkgScope {
 	return self.parent.GetPkgScope()
 }
 
-func (self *_BlockScope) GetFunc() hir.GlobalFunc {
+func (self *_BlockScope) GetFunc() hir.GlobalFuncOrMethod {
 	return self.parent.GetFunc()
 }
 
@@ -358,12 +327,4 @@ func (self *_BlockScope) GetLoop() hir.Loop {
 		return self.parent.GetLoop()
 	}
 	return nil
-}
-
-func (self *_BlockScope) GetStructScope()hir.GlobalStruct{
-	return self.GetFuncScope().GetStructScope()
-}
-
-func (self *_BlockScope) IsInStructScope(st *hir.StructType)bool{
-	return self.GetFuncScope().IsInStructScope(st)
 }

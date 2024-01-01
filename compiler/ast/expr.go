@@ -5,7 +5,6 @@ import (
 
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
 )
 
 // Expr 表达式
@@ -82,22 +81,16 @@ func (self *Unary) stmt() {}
 
 func (self *Unary) expr() {}
 
-// Ident 标识符
-type Ident struct {
-	Pkg  util.Option[token.Token]
-	Name GenericName
+// IdentExpr 标识符表达式
+type IdentExpr Ident
+
+func (self *IdentExpr) Position() reader.Position {
+	return (*Ident)(self).Position()
 }
 
-func (self *Ident) Position() reader.Position {
-	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.Name.Position())
-	}
-	return self.Name.Position()
-}
+func (self *IdentExpr) stmt() {}
 
-func (self *Ident) stmt() {}
-
-func (self *Ident) expr() {}
+func (self *IdentExpr) expr() {}
 
 // Call 调用
 type Call struct {

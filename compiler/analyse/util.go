@@ -1,16 +1,22 @@
 package analyse
 
 import (
+	"strings"
+
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
+	stlslices "github.com/kkkunny/stl/slices"
 
+	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/parse"
 	"github.com/kkkunny/Sim/reader"
+	"github.com/kkkunny/Sim/util"
 )
 
 type importPackageErrorKind uint8
@@ -177,6 +183,130 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 		panic("unreachable")
 	}
 	return false
+}
+
+func (self *Analyser) isInDstStructScope(st *hir.StructType)bool{
+	if self.selfType == nil{
+		return false
+	}
+	selfName := stlbasic.TernaryAction(!strings.Contains(self.selfType.GetName(), "::"), func() string {
+		return self.selfType.GetName()
+	}, func() string {
+		return strings.Split(self.selfType.GetName(), "::")[0]
+	})
+	stName := stlbasic.TernaryAction(!strings.Contains(st.GetName(), "::"), func() string {
+		return st.GetName()
+	}, func() string {
+		return strings.Split(st.GetName(), "::")[0]
+	})
+	return self.selfType.GetPackage().Equal(st.GetPackage()) && selfName == stName
+}
+
+func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[either.Either[hir.Expr, hir.Type]] {
+	var pkgName string
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		pkgName = pkgToken.Source()
+		if !self.pkgScope.externs.ContainKey(pkgName) {
+			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
+		}
+	}
+
+	if genericArgs, ok := node.Name.Params.Value(); !ok{
+		if len(flag) == 0 || !flag[0]{
+			// 类型
+			switch name := node.Name.Name.Source(); name {
+			case "isize":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.Isize))
+			case "i8":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.I8))
+			case "i16":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.I16))
+			case "i32":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.I32))
+			case "i64":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.I64))
+			case "usize":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.Usize))
+			case "u8":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.U8))
+			case "u16":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.U16))
+			case "u32":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.U32))
+			case "u64":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.U64))
+			case "f32":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.F32))
+			case "f64":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.F64))
+			case "bool":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.Bool))
+			case "str":
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.Str))
+			default:
+				// 泛型标识符类型
+				if pkgName == ""{
+					if to := self.genericIdentMap.Get(name); to != nil {
+						return util.Some(either.Right[hir.Expr, hir.Type](to))
+					}
+				}
+				// 类型定义
+				if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
+					return util.Some(either.Right[hir.Expr, hir.Type](td))
+				}
+			}
+		}
+
+		if len(flag) == 0 || flag[0]{
+			// 表达式
+			// 标识符表达式
+			value, ok := self.localScope.GetValue(pkgName, node.Name.Name.Source())
+			if ok {
+				return util.Some(either.Left[hir.Expr, hir.Type](value))
+			}
+		}
+	}else{
+		if len(flag) == 0 || !flag[0]{
+			// 泛型结构体
+			if st, ok := self.pkgScope.GetGenericStructDef(pkgName, node.Name.Name.Source()); ok{
+				if st.GenericParams.Length() != uint(len(genericArgs.Data)){
+					errors.ThrowParameterNumberNotMatchError(genericArgs.Position(), st.GenericParams.Length(), uint(len(genericArgs.Data)))
+				}
+				params := stlslices.Map(genericArgs.Data, func(_ int, e ast.Type) hir.Type {
+					return self.analyseType(e)
+				})
+				instType := &hir.GenericStructInst{
+					Define: st,
+					Params: params,
+				}
+
+				if self.checkTypeCircle(stlbasic.Ptr(hashset.NewHashSet[hir.Type]()), instType){
+					errors.ThrowCircularReference(node.Name.Position(), node.Name.Name)
+				}
+
+				return util.Some(either.Right[hir.Expr, hir.Type](instType))
+			}
+		}
+
+		if len(flag) == 0 || flag[0]{
+			// 表达式
+			// 泛型标识符表达式实例化
+			f, ok := self.pkgScope.GetGenericFuncDef(pkgName, node.Name.Name.Source())
+			if ok{
+				if f.GenericParams.Length() != uint(len(genericArgs.Data)){
+					errors.ThrowParameterNumberNotMatchError(genericArgs.Position(), f.GenericParams.Length(), uint(len(genericArgs.Data)))
+				}
+				params := stlslices.Map(genericArgs.Data, func(_ int, e ast.Type) hir.Type {
+					return self.analyseType(e)
+				})
+				return util.Some(either.Left[hir.Expr, hir.Type](&hir.GenericFuncInst{
+					Define: f,
+					Params: params,
+				}))
+			}
+		}
+	}
+	return util.None[either.Either[hir.Expr, hir.Type]]()
 }
 
 // Analyse 语义分析

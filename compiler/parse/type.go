@@ -13,7 +13,7 @@ import (
 func (self *Parser) parseOptionType() util.Option[ast.Type] {
 	switch self.nextTok.Kind {
 	case token.IDENT:
-		return util.Some[ast.Type](self.parseIdentType())
+		return util.Some[ast.Type]((*ast.IdentType)(self.parseIdent()))
 	case token.FUNC:
 		return util.Some[ast.Type](self.parseFuncType())
 	case token.LBA:
@@ -37,23 +37,6 @@ func (self *Parser) parseType() ast.Type {
 		errors.ThrowIllegalType(self.nextTok.Position)
 	}
 	return t
-}
-
-func (self *Parser) parseIdentType() *ast.IdentType {
-	var pkg util.Option[token.Token]
-	var name ast.GenericName
-	pkgOrName := self.expectNextIs(token.IDENT)
-	if !self.skipNextIs(token.SCOPE) {
-		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName, true)
-	} else if !self.nextIs(token.LT){
-		pkg, name = util.Some(pkgOrName), self.parseGenericName(self.expectNextIs(token.IDENT))
-	} else {
-		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName)
-	}
-	return &ast.IdentType{
-		Pkg:  pkg,
-		Name: name,
-	}
 }
 
 func (self *Parser) parseFuncType() *ast.FuncType {

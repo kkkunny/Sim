@@ -27,8 +27,8 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseBinary(expect, exprNode)
 	case *ast.Unary:
 		return self.analyseUnary(expect, exprNode)
-	case *ast.Ident:
-		return self.analyseIdent(exprNode)
+	case *ast.IdentExpr:
+		return self.analyseIdentExpr(exprNode)
 	case *ast.Call:
 		return self.analyseCall(exprNode)
 	case *ast.Tuple:
@@ -319,38 +319,13 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 	}
 }
 
-func (self *Analyser) analyseIdent(node *ast.Ident) hir.Expr {
-	var pkgName string
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.ContainKey(pkgName) {
-			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
-		}
+func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Expr {
+	expr := self.analyseIdent((*ast.Ident)(node), true)
+	if expr.IsNone(){
+		errors.ThrowUnknownIdentifierError(node.Name.Position(), node.Name.Name)
 	}
-	if genericArgs, ok := node.Name.Params.Value(); !ok{
-		// 普通标识符
-		value, ok := self.localScope.GetValue(pkgName, node.Name.Name.Source())
-		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position(), node.Name.Name)
-		}
-		return value
-	}else{
-		// 泛型实例化
-		f, ok := self.pkgScope.GetGenericFuncDef(pkgName, node.Name.Name.Source())
-		if !ok{
-			errors.ThrowUnknownIdentifierError(node.Name.Name.Position, node.Name.Name)
-		}
-		if f.GenericParams.Length() != uint(len(genericArgs.Data)){
-			errors.ThrowParameterNumberNotMatchError(genericArgs.Position(), f.GenericParams.Length(), uint(len(genericArgs.Data)))
-		}
-		params := stlslices.Map(genericArgs.Data, func(_ int, e ast.Type) hir.Type {
-			return self.analyseType(e)
-		})
-		return &hir.GenericFuncInst{
-			Define: f,
-			Params: params,
-		}
-	}
+	value, _ := expr.MustValue().Left()
+	return value
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
@@ -545,7 +520,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
 	st := hir.AsStructType(stObj)
-	internal := self.localScope!=nil&&self.localScope.IsInStructScope(st)
+	internal := self.isInDstStructScope(st)
 
 	existedFields := make(map[string]hir.Expr)
 	for _, nf := range node.Fields {
@@ -574,13 +549,14 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 }
 
 func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
-	from := self.analyseExpr(nil, node.From)
 	fieldName := node.Index.Name.Source()
+
+	from := self.analyseExpr(nil, node.From)
 	if !hir.IsStructType(from.GetType()){
 		errors.ThrowExpectStructError(node.From.Position(), from.GetType())
 	}
 	st := hir.AsStructType(from.GetType())
-	internal := self.localScope!=nil&&self.localScope.IsInStructScope(st)
+	internal := self.isInDstStructScope(st)
 
 	if genericParams, ok := node.Index.Params.Value(); ok{
 		// 泛型方法
@@ -615,7 +591,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 			}
 		}
 	}else{
-		// 方法 or 泛型结构体方法
+		// 方法 or 泛型方法
 		if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
 			switch method := methodObj.(type) {
 			case *hir.MethodDef:
