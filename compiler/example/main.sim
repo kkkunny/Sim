@@ -1,6 +1,14 @@
-import std::os
+type a = <i8>
+type b = <i16, a>
 
 func main(){
-    os::exit(1)
-    return
+    let av: a = 1 as i8
+    let bv: b = 2 as i8
+    let bv2: b = av
+    if bv is i8{
+        debug(1)
+    }
+    if bv2 is a{
+        debug(2)
+    }
 }

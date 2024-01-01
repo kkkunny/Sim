@@ -385,7 +385,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 			From: from,
 			To:   tt,
 		}
-	case hir.IsUnionType(ft) && hir.AsUnionType(ft).GetElemIndex(tt) >= 0:
+	case hir.IsUnionType(ft) && hir.AsUnionType(ft).Contain(tt):
 		// <i8,u8> -> i8
 		return &hir.UnUnion{
 			Type:  tt,
@@ -638,7 +638,10 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	switch {
 	case vt.EqualTo(target):
 		return &hir.Boolean{Value: true}
-	case hir.IsUnionType(vt) && hir.AsUnionType(vt).GetElemIndex(target) >= 0:
+	case hir.IsUnionType(vt) && hir.AsUnionType(vt).Contain(target):
+		if hir.IsUnionType(target){
+			return &hir.Boolean{Value: true}
+		}
 		return &hir.UnionTypeJudgment{
 			Value: value,
 			Type:  target,
