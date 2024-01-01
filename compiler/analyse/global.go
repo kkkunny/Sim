@@ -222,14 +222,8 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		}
 	})
 	f.Ret = self.analyseOptionType(node.Ret)
-	if f.Name == "main" && !f.Ret.EqualTo(hir.U8) {
-		pos := stlbasic.TernaryAction(node.Ret.IsNone(), func() reader.Position {
-			return node.Name.Name.Position
-		}, func() reader.Position {
-			ret, _ := node.Ret.Value()
-			return ret.Position()
-		})
-		errors.ThrowTypeMismatchError(pos, f.Ret, hir.U8)
+	if f.Name == "main" && !f.GetType().EqualTo(&hir.FuncType{Ret: hir.Empty}) {
+		errors.ThrowTypeMismatchError(node.Name.Position(), f.GetType(), &hir.FuncType{Ret: hir.Empty})
 	}
 	if !self.pkgScope.SetValue(f.Name, f) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Name.Position, node.Name.Name)
@@ -571,17 +565,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 		}
 	}
 
-	body, jump := self.analyseBlock(node.Body.MustValue(), nil)
-	f.Body = util.Some(body)
-	if jump != hir.BlockEofReturn {
-		if !hir.IsEmptyType(f.Ret) {
-			errors.ThrowMissingReturnValueError(node.Name.Name.Position, f.Ret)
-		}
-		body.Stmts.PushBack(&hir.Return{
-			Func:  f,
-			Value: util.None[hir.Expr](),
-		})
-	}
+	f.Body = util.Some(self.analyseFuncBody(node.Body.MustValue()))
 	return f
 }
 
@@ -603,17 +587,7 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
 		}
 	}
 
-	var jump hir.BlockEof
-	f.Body, jump = self.analyseBlock(node.Body, nil)
-	if jump != hir.BlockEofReturn {
-		if !hir.IsEmptyType(f.Ret) {
-			errors.ThrowMissingReturnValueError(node.Name.Position(), f.Ret)
-		}
-		f.Body.Stmts.PushBack(&hir.Return{
-			Func:  f,
-			Value: util.None[hir.Expr](),
-		})
-	}
+	f.Body = self.analyseFuncBody(node.Body)
 	return f
 }
 
@@ -681,17 +655,7 @@ func (self *Analyser) defGenericFuncDef(node *ast.FuncDef) *hir.GenericFuncDef {
 		}
 	}
 
-	var jump hir.BlockEof
-	f.Body, jump = self.analyseBlock(node.Body.MustValue(), nil)
-	if jump != hir.BlockEofReturn {
-		if !hir.IsEmptyType(f.Ret) {
-			errors.ThrowMissingReturnValueError(node.Name.Name.Position, f.Ret)
-		}
-		f.Body.Stmts.PushBack(&hir.Return{
-			Func:  f,
-			Value: util.None[hir.Expr](),
-		})
-	}
+	f.Body = self.analyseFuncBody(node.Body.MustValue())
 	return f
 }
 
@@ -719,17 +683,7 @@ func (self *Analyser) defGenericStructMethodDef(node *ast.MethodDef) *hir.Generi
 		}
 	}
 
-	var jump hir.BlockEof
-	f.Body, jump = self.analyseBlock(node.Body, nil)
-	if jump != hir.BlockEofReturn {
-		if !hir.IsEmptyType(f.Ret) {
-			errors.ThrowMissingReturnValueError(node.Name.Name.Position, f.Ret)
-		}
-		f.Body.Stmts.PushBack(&hir.Return{
-			Func:  f,
-			Value: util.None[hir.Expr](),
-		})
-	}
+	f.Body = self.analyseFuncBody(node.Body)
 	return f
 }
 
@@ -755,16 +709,6 @@ func (self *Analyser) defGenericMethodDef(node *ast.MethodDef) *hir.GenericMetho
 		}
 	}
 
-	var jump hir.BlockEof
-	f.Body, jump = self.analyseBlock(node.Body, nil)
-	if jump != hir.BlockEofReturn {
-		if !hir.IsEmptyType(f.Ret) {
-			errors.ThrowMissingReturnValueError(node.Name.Name.Position, f.Ret)
-		}
-		f.Body.Stmts.PushBack(&hir.Return{
-			Func:  f,
-			Value: util.None[hir.Expr](),
-		})
-	}
+	f.Body = self.analyseFuncBody(node.Body)
 	return f
 }

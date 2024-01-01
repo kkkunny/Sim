@@ -1,7 +1,0 @@
-func main()u8{
-    let i: u8 = 10
-    if !i == 245{
-        return 0
-    }
-    return 1
-}

@@ -2,8 +2,8 @@ func add(x: u8, y: u8)u8{
     return x + y
 }
 
-func main()u8{
+func main(){
     let v1: func(u8, u8)u8 = add
     let v2: u8 = v1(1, 2)
-    return 0
+    return
 }

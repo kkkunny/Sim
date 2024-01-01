@@ -1,4 +1,0 @@
-func main()u8{
-	let v: byte = 1
-    return v - 1
-}

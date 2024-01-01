@@ -1,13 +1,6 @@
-struct a{
-    pub v: u8
-}
+import std::os
 
-func (mut self: a) b(){
-    self.v = 2
-}
-
-func main()u8{
-    let mut a = a{v: 1}
-    a.b()
-    return a.v
+func main(){
+    os::exit(1)
+    return
 }

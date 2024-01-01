@@ -1,9 +1,0 @@
-struct pair<T, F>{
-    pub F: T,
-    pub S: F
-}
-
-func main()u8{
-    let a = pair::<u8, u16>{F: 0, S: 1}
-    return a.F
-}

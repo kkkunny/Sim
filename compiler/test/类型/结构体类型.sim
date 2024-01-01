@@ -4,8 +4,8 @@ struct a{
 
 struct b{}
 
-func main()u8{
+func main(){
     let v1: a = a{v: 1}
     let v2: b = b{}
-    return 0
+    return
 }

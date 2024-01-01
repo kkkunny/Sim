@@ -1,5 +1,5 @@
-func main()u8{
+func main(){
     let v1: [2]i32 = [1, 2]
     let v2: [0]i32 = []
-    return 0
+    return
 }

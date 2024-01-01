@@ -1,5 +1,5 @@
-func main()u8{
+func main(){
     let v1: f32 = 0.1
     let v2: f64 = 0.005
-    return 0
+    return
 }

@@ -309,6 +309,22 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 	return util.None[either.Either[hir.Expr, hir.Type]]()
 }
 
+func (self *Analyser) analyseFuncBody(node *ast.Block)*hir.Block{
+	fn := self.localScope.GetFunc()
+	body, jump := self.analyseBlock(node, nil)
+	if jump != hir.BlockEofReturn {
+		retType := fn.GetFuncType().Ret
+		if !hir.IsEmptyType(retType) {
+			errors.ThrowMissingReturnValueError(node.Position(), retType)
+		}
+		body.Stmts.PushBack(&hir.Return{
+			Func:  fn,
+			Value: util.None[hir.Expr](),
+		})
+	}
+	return body
+}
+
 // Analyse 语义分析
 func Analyse(path stlos.FilePath) (linkedlist.LinkedList[hir.Global], stlerror.Error) {
 	asts, err := parse.Parse(path)

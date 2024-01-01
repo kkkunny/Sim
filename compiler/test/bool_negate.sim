@@ -1,6 +1,0 @@
-func main()u8{
-    if !true{
-		return 1
-	}
-	return 0
-}

@@ -1,7 +1,0 @@
-func get<T, F>(x: T, y: F)T{
-    return x
-}
-
-func main()u8{
-    return get::<u8, i8>(0, 1)
-}
