@@ -31,7 +31,7 @@ func (*Block) stmt() {}
 
 // Return 函数返回
 type Return struct {
-	Func  GlobalFunc
+	Func  GlobalFuncOrMethod
 	Value util.Option[Expr]
 }
 

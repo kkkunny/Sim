@@ -57,3 +57,16 @@ func (self GenericName) Position() reader.Position{
 	}
 	return self.Name.Position
 }
+
+// Ident 标识符
+type Ident struct {
+	Pkg  util.Option[token.Token]
+	Name GenericName
+}
+
+func (self *Ident) Position() reader.Position {
+	if pkg, ok := self.Pkg.Value(); ok {
+		return reader.MixPosition(pkg.Position, self.Name.Position())
+	}
+	return self.Name.Position()
+}

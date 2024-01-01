@@ -31,14 +31,11 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 	case token.FLOAT:
 		return util.Some[ast.Expr](self.parseFloat())
 	case token.IDENT:
-		ident := self.parseIdent()
+		ident := (*ast.IdentExpr)(self.parseIdent())
 		if !canStruct || !self.nextIs(token.LBR) {
 			return util.Some[ast.Expr](ident)
 		}
-		return util.Some[ast.Expr](self.parseStruct(&ast.IdentType{
-			Pkg:  ident.Pkg,
-			Name: ident.Name,
-		}))
+		return util.Some[ast.Expr](self.parseStruct((*ast.IdentType)(ident)))
 	case token.LPA:
 		return util.Some[ast.Expr](self.parseTuple())
 	case token.LBA:
@@ -208,23 +205,6 @@ func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) util.Optio
 		}
 	}
 	return util.Some(left)
-}
-
-func (self *Parser) parseIdent() *ast.Ident {
-	var pkg util.Option[token.Token]
-	var name ast.GenericName
-	pkgOrName := self.expectNextIs(token.IDENT)
-	if !self.skipNextIs(token.SCOPE) {
-		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName, true)
-	} else if !self.nextIs(token.LT){
-		pkg, name = util.Some(pkgOrName), self.parseGenericName(self.expectNextIs(token.IDENT))
-	} else {
-		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName)
-	}
-	return &ast.Ident{
-		Pkg:  pkg,
-		Name: name,
-	}
 }
 
 func (self *Parser) parseArray() *ast.Array {
