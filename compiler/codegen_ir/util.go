@@ -58,7 +58,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 }
 
 func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value) mir.Value {
-	t := self.codegenArrayType(irType)
+	t := self.codegenTypeOnly(irType).(mir.ArrayType)
 	if t.Length() == 0 {
 		return mir.Bool(self.ctx, true)
 	}
@@ -99,9 +99,9 @@ func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value
 func (self *CodeGenerator) buildStructEqual(irType hir.Type, l, r mir.Value) mir.Value {
 	_, isTuple := irType.(*hir.TupleType)
 	t := stlbasic.TernaryAction(isTuple, func() mir.StructType {
-		return self.codegenTupleType(irType.(*hir.TupleType))
+		return self.codegenTypeOnly(irType).(mir.StructType)
 	}, func() mir.StructType {
-		return self.codegenStructType(irType.(*hir.StructType))
+		return self.codegenTypeOnly(irType).(mir.StructType)
 	})
 	fields := stlbasic.TernaryAction(isTuple, func() dynarray.DynArray[hir.Type] {
 		return dynarray.NewDynArrayWith(irType.(*hir.TupleType).Elems...)
@@ -176,8 +176,8 @@ func (self *CodeGenerator) buildUnionEqual(irType *hir.UnionType, l, r mir.Value
 				self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindEQ, lk, mir.NewInt(lk.Type().(mir.IntType), int64(i))), equalBlock, nextBlock)
 				self.builder.MoveTo(equalBlock)
 			}
-			lv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(lvp, self.ctx.NewPtrType(self.codegenType(elemIr))))
-			rv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(rvp, self.ctx.NewPtrType(self.codegenType(elemIr))))
+			lv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(lvp, self.ctx.NewPtrType(self.codegenTypeOnly(elemIr))))
+			rv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(rvp, self.ctx.NewPtrType(self.codegenTypeOnly(elemIr))))
 			self.builder.BuildReturn(self.buildEqual(elemIr, lv, rv, false))
 			if i < len(irType.Elems) - 1 {
 				self.builder.MoveTo(nextBlock)
@@ -246,6 +246,11 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 		initFn.NewBlock()
 	}
 	return initFn
+}
+
+func (self *CodeGenerator) codegenTypeOnly(ir hir.Type)mir.Type{
+	t, _ := self.codegenType(ir)
+	return t
 }
 
 // CodegenIr 中间代码生成

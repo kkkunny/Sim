@@ -1122,3 +1122,43 @@ func (self *GenericStructGenericMethodInst) GetMethodType() Type {
 	}
 	return ReplaceAllGenericIdent(maps, self.Define.GetMethodType())
 }
+
+// ShrinkUnion 缩小联合
+type ShrinkUnion struct {
+	Type  Type
+	Value Expr
+}
+
+func (self *ShrinkUnion) stmt() {}
+
+func (self *ShrinkUnion) GetType() Type {
+	return self.Type
+}
+
+func (self *ShrinkUnion) Mutable() bool {
+	return false
+}
+
+func (self *ShrinkUnion) GetFrom() Expr{
+	return self.Value
+}
+
+// ExpandUnion 扩大联合
+type ExpandUnion struct {
+	Type  Type
+	Value Expr
+}
+
+func (self *ExpandUnion) stmt() {}
+
+func (self *ExpandUnion) GetType() Type {
+	return self.Type
+}
+
+func (self *ExpandUnion) Mutable() bool {
+	return false
+}
+
+func (self *ExpandUnion) GetFrom() Expr{
+	return self.Value
+}

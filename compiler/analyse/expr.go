@@ -386,10 +386,18 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 			To:   tt,
 		}
 	case hir.IsUnionType(ft) && hir.AsUnionType(ft).Contain(tt):
-		// <i8,u8> -> i8
-		return &hir.UnUnion{
-			Type:  tt,
-			Value: from,
+		if hir.IsUnionType(tt){
+			// <i8,u8> -> <i8>
+			return &hir.ShrinkUnion{
+				Type:  tt,
+				Value: from,
+			}
+		}else{
+			// <i8,u8> -> i8
+			return &hir.UnUnion{
+				Type:  tt,
+				Value: from,
+			}
 		}
 	case hir.IsPointer(ft) && hir.IsPointer(tt):
 		// *u8 | *?u8 | func() -> *u8 | *?u8 | func()
@@ -432,11 +440,19 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 
 	switch {
 	case hir.IsUnionType(expect) && hir.AsUnionType(expect).Contain(vt):
-		// i8 -> <i8,u8>
-		return &hir.Union{
-			Type:  expect,
-			Value: v,
-		}, true
+		if hir.IsUnionType(vt){
+			// <i8> -> <i8,u8>
+			return &hir.ExpandUnion{
+				Type:  expect,
+				Value: v,
+			}, true
+		}else{
+			// i8 -> <i8,u8>
+			return &hir.Union{
+				Type:  expect,
+				Value: v,
+			}, true
+		}
 	case hir.IsRefType(vt) && hir.AsRefType(vt).ToPtrType().EqualTo(expect):
 		// *i8 -> *?i8
 		return &hir.WrapWithNull{Value: v}, true

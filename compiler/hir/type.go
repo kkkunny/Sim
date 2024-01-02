@@ -295,6 +295,9 @@ func AsStructType(t Type)*StructType{
 type StructType = StructDef
 
 func (self *StructType) String() string {
+	if self.Pkg.Equal(BuildInPackage){
+		return self.Name
+	}
 	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
 }
 
@@ -471,7 +474,10 @@ func (self *SelfType) EqualTo(dst Type) bool {
 type AliasType = TypeAliasDef
 
 func (self *AliasType) String() string {
-	return self.Name
+	if self.Pkg.Equal(BuildInPackage){
+		return self.Name
+	}
+	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
 }
 
 func (self *AliasType) EqualTo(dst Type) bool {
@@ -565,6 +571,9 @@ func (self *GenericStructInst) GetPublic() bool{
 }
 
 func (self *GenericStructInst) String() string {
+	if self.Define.Pkg.Equal(BuildInPackage){
+		return self.GetName()
+	}
 	return fmt.Sprintf("%s::%s", self.Define.Pkg, self.GetName())
 }
 

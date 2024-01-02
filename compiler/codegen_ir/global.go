@@ -3,36 +3,40 @@ package codegen_ir
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) declStructDef(ir *hir.StructDef) {
-	self.structs.Set(ir.String(), self.module.NewNamedStructType(""))
+	self.structs.Set(ir.String(), pair.NewPair[mir.StructType, *types.StructType](self.module.NewNamedStructType(""), types.NewStructType(ir.Pkg.String(), ir.Name)))
 }
 
 func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
-	st := self.structs.Get(ir.String())
-	fields := make([]mir.Type, ir.Fields.Length())
-	var i int
-	for iter := ir.Fields.Values().Iterator(); iter.Next(); i++ {
-		fields[i] = self.codegenType(iter.Value().Type)
+	stPair := self.structs.Get(ir.String())
+	fields, fieldRts := make([]mir.Type, ir.Fields.Length()), make([]types.Field, ir.Fields.Length())
+	for i, iter := 0, ir.Fields.Values().Iterator(); iter.Next(); i++ {
+		f, fRt := self.codegenType(iter.Value().Type)
+		fields[i], fieldRts[i] = f, types.NewField(fRt, ir.Name)
 	}
-	st.SetElems(fields...)
+	stPair.First.SetElems(fields...)
+	stPair.Second.Fields = fieldRts
 }
 
-func (self *CodeGenerator) declGenericStructDef(ir *hir.GenericStructInst) mir.StructType {
-	return self.module.NewNamedStructType("")
+func (self *CodeGenerator) declGenericStructDef(ir *hir.GenericStructInst) (mir.StructType, *types.StructType) {
+	return self.module.NewNamedStructType(""), types.NewStructType(ir.Define.Pkg.String(), ir.Define.GetName())
 }
 
 func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir.StructType) {
 	stIr := ir.StructType()
 	fields := make([]mir.Type, stIr.Fields.Length())
-	var i int
-	for iter := stIr.Fields.Values().Iterator(); iter.Next(); i++ {
-		fields[i] = self.codegenType(iter.Value().Type)
+	fieldRts := make([]types.Field, stIr.Fields.Length())
+	for i, iter := 0, stIr.Fields.Iterator(); iter.Next(); i++ {
+		f, fRt := self.codegenType(iter.Value().Second.Type)
+		fields[i], fieldRts[i] = f, types.NewField(fRt, iter.Value().First)
 	}
 	st.SetElems(fields...)
 }
@@ -54,7 +58,8 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 }
 
 func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
-	ft := self.codegenType(ir.GetType()).(mir.FuncType)
+	ftObj, _ := self.codegenType(ir.GetType())
+	ft := ftObj.(mir.FuncType)
 	f := self.module.NewFunction(ir.ExternName, ft)
 	if ir.NoReturn{
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
@@ -66,7 +71,8 @@ func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 }
 
 func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
-	ft := self.codegenType(ir.GetType()).(mir.FuncType)
+	ftObj, _ := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
 	f := self.module.NewFunction("", ft)
 	if ir.NoReturn{
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
@@ -78,8 +84,8 @@ func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
 }
 
 func (self *CodeGenerator) declGlobalVariable(ir *hir.VarDef) {
-	t := self.codegenType(ir.Type)
-	v := self.module.NewGlobalVariable("", t, mir.NewZero(self.codegenType(ir.GetType())))
+	t, _ := self.codegenType(ir.Type)
+	v := self.module.NewGlobalVariable("", t, mir.NewZero(t))
 	self.values.Set(ir, v)
 }
 
@@ -90,7 +96,8 @@ func (self *CodeGenerator) declMultiGlobalVariable(ir *hir.MultiVarDef) {
 }
 
 func (self *CodeGenerator) declGenericFuncDef(ir *hir.GenericFuncInst) *mir.Function {
-	ft := self.codegenType(ir.GetType()).(mir.FuncType)
+	ftObj, _ := self.codegenType(ir.GetType())
+	ft := ftObj.(mir.FuncType)
 	f := self.module.NewFunction("", ft)
 	if ir.Define.NoReturn{
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
@@ -103,7 +110,8 @@ func (self *CodeGenerator) declGenericFuncDef(ir *hir.GenericFuncInst) *mir.Func
 }
 
 func (self *CodeGenerator) declGenericStructMethodDef(ir *hir.GenericStructMethodInst) *mir.Function {
-	ft := self.codegenType(ir.GetFuncType()).(mir.FuncType)
+	ftObj, _ := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
 	f := self.module.NewFunction("", ft)
 	if ir.Define.NoReturn{
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
@@ -116,7 +124,8 @@ func (self *CodeGenerator) declGenericStructMethodDef(ir *hir.GenericStructMetho
 }
 
 func (self *CodeGenerator) declGenericMethodDef(ir *hir.GenericMethodInst) *mir.Function {
-	ft := self.codegenType(ir.GetFuncType()).(mir.FuncType)
+	ftObj, _ := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
 	f := self.module.NewFunction("", ft)
 	if ir.Define.NoReturn{
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
@@ -129,7 +138,8 @@ func (self *CodeGenerator) declGenericMethodDef(ir *hir.GenericMethodInst) *mir.
 }
 
 func (self *CodeGenerator) declGenericStructGenericMethodDef(ir *hir.GenericStructGenericMethodInst) *mir.Function {
-	ft := self.codegenType(ir.GetFuncType()).(mir.FuncType)
+	ftObj, _ := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
 	f := self.module.NewFunction("", ft)
 	if ir.Define.NoReturn{
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
@@ -218,11 +228,9 @@ func (self *CodeGenerator) defGenericFuncDef(ir *hir.GenericFuncInst, f *mir.Fun
 	for i, p := range f.Params() {
 		self.values.Set(ir.Define.Params[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
-	var i int
-	for iter:=ir.Define.GenericParams.Iterator(); iter.Next(); {
-		maps.Set(iter.Value().Second, self.codegenType(ir.Params[i]))
-		i++
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
+	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(ir.Params[i])))
 	}
 	self.genericIdentMapStack.Push(maps)
 	defer self.genericIdentMapStack.Pop()
@@ -236,10 +244,10 @@ func (self *CodeGenerator) defGenericStructMethodDef(ir *hir.GenericStructMethod
 	for i, p := range f.Params() {
 		self.values.Set(paramNodes[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
 	genericParams := ir.GetGenericParams()
 	for i, iter:=0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
-		maps.Set(iter.Value().Second, self.codegenType(genericParams[i]))
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i])))
 	}
 	self.genericIdentMapStack.Push(maps)
 	defer self.genericIdentMapStack.Pop()
@@ -253,9 +261,9 @@ func (self *CodeGenerator) defGenericMethodDef(ir *hir.GenericMethodInst, f *mir
 	for i, p := range f.Params() {
 		self.values.Set(paramNodes[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
 	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
-		maps.Set(iter.Value().Second, self.codegenType(ir.Params[i]))
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(ir.Params[i])))
 	}
 	self.genericIdentMapStack.Push(maps)
 	defer self.genericIdentMapStack.Pop()
@@ -269,13 +277,13 @@ func (self *CodeGenerator) defGenericStructGenericMethodDef(ir *hir.GenericStruc
 	for i, p := range f.Params() {
 		self.values.Set(paramNodes[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, mir.Type]
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
 	genericParams := ir.GetGenericParams()
 	for i, iter:=0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
-		maps.Set(iter.Value().Second, self.codegenType(genericParams[i]))
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i])))
 	}
 	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
-		maps.Set(iter.Value().Second, self.codegenType(genericParams[i+int(ir.Define.Scope.GenericParams.Length())]))
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i+int(ir.Define.Scope.GenericParams.Length())])))
 	}
 	self.genericIdentMapStack.Push(maps)
 	defer self.genericIdentMapStack.Pop()
