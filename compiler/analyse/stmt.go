@@ -1,8 +1,8 @@
 package analyse
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 
@@ -16,8 +16,10 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
 	case *ast.Return:
 		ret := self.analyseReturn(stmtNode)
 		return ret, hir.BlockEofReturn
-	case *ast.Variable:
-		return self.analyseLocalVariable(stmtNode), hir.BlockEofNone
+	case *ast.SingleVariableDef:
+		return self.analyseSingleLocalVariable(stmtNode), hir.BlockEofNone
+	case *ast.MultipleVariableDef:
+		return self.analyseLocalMultiVariable(stmtNode), hir.BlockEofNone
 	case *ast.Block:
 		return self.analyseBlock(stmtNode, nil)
 	case *ast.IfElse:
@@ -74,7 +76,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 			Value: util.Some[hir.Expr](value),
 		}
 	} else {
-		if !ft.Ret.Equal(hir.Empty) {
+		if !ft.Ret.EqualTo(hir.Empty) {
 			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, hir.Empty)
 		}
 		return &hir.Return{
@@ -84,16 +86,17 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 	}
 }
 
-func (self *Analyser) analyseLocalVariable(node *ast.Variable) *hir.Variable {
-	v := &hir.Variable{
-		Mut:  node.Mutable,
-		Name: node.Name.Source(),
+func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *hir.VarDef {
+	v := &hir.VarDef{
+		Pkg: self.pkgScope.pkg,
+		Mut:  node.Var.Mutable,
+		Name: node.Var.Name.Source(),
 	}
 	if !self.localScope.SetValue(v.Name, v) {
-		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
+		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
 
-	if typeNode, ok := node.Type.Value(); ok{
+	if typeNode, ok := node.Var.Type.Value(); ok{
 		v.Type = self.analyseType(typeNode)
 		if valueNode, ok := node.Value.Value(); ok{
 			v.Value = self.expectExpr(v.Type, valueNode)
@@ -105,6 +108,54 @@ func (self *Analyser) analyseLocalVariable(node *ast.Variable) *hir.Variable {
 		v.Type = v.Value.GetType()
 	}
 	return v
+}
+
+func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *hir.MultiVarDef {
+	allHaveType := true
+	vars := lo.Map(node.Vars, func(item ast.VarDef, _ int) *hir.VarDef {
+		v := &hir.VarDef{
+			Pkg: self.pkgScope.pkg,
+			Mut:  item.Mutable,
+			Name: item.Name.Source(),
+		}
+		if typeNode, ok := item.Type.Value(); ok{
+			v.Type = self.analyseType(typeNode)
+		}else{
+			allHaveType = false
+		}
+		if !self.localScope.SetValue(v.Name, v) {
+			errors.ThrowIdentifierDuplicationError(item.Name.Position, item.Name)
+		}
+		return v
+	})
+	varTypes := lo.Map(vars, func(item *hir.VarDef, _ int) hir.Type {
+		return item.GetType()
+	})
+
+	var value hir.Expr
+	if valueNode, ok := node.Value.Value(); ok && allHaveType{
+		value = self.expectExpr(&hir.TupleType{Elems: varTypes}, valueNode)
+	}else if ok{
+		value = self.analyseExpr(&hir.TupleType{Elems: varTypes}, valueNode)
+		vt, ok := value.GetType().(*hir.TupleType)
+		if !ok{
+			errors.ThrowExpectTupleError(valueNode.Position(), value.GetType())
+		}else if len(vt.Elems) != len(vars){
+			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(vars)), uint(len(vt.Elems)))
+		}
+		for i, v := range vars{
+			v.Type = vt.Elems[i]
+		}
+	}else{
+		elems := lo.Map(vars, func(item *hir.VarDef, i int) hir.Expr {
+			return self.getTypeDefaultValue(node.Vars[i].Type.MustValue().Position(), item.GetType())
+		})
+		value = &hir.Tuple{Elems: elems}
+	}
+	return &hir.MultiVarDef{
+		Vars: vars,
+		Value: value,
+	}
 }
 
 func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof) {
@@ -164,18 +215,18 @@ func (self *Analyser) analyseContinue(node *ast.Continue) *hir.Continue {
 func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 	iterator := self.analyseExpr(nil, node.Iterator)
 	iterType := iterator.GetType()
-	if !stlbasic.Is[*hir.ArrayType](iterType) {
-		errors.ThrowNotArrayError(node.Iterator.Position(), iterType)
+	if !hir.IsArrayType(iterType) {
+		errors.ThrowExpectArrayError(node.Iterator.Position(), iterType)
 	}
 
-	et := iterType.(*hir.ArrayType).Elem
+	et := hir.AsArrayType(iterType).Elem
 	loop := &hir.For{
 		Iterator: iterator,
-		Cursor: &hir.Variable{
+		Cursor: &hir.VarDef{
 			Mut:   node.CursorMut,
 			Type:  et,
 			Name:  node.Cursor.Source(),
-			Value: &hir.Zero{Type: et},
+			Value: &hir.Default{Type: et},
 		},
 	}
 	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {

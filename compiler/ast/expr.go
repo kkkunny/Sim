@@ -5,7 +5,6 @@ import (
 
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
 )
 
 // Expr 表达式
@@ -82,38 +81,16 @@ func (self *Unary) stmt() {}
 
 func (self *Unary) expr() {}
 
-// Boolean 布尔值
-type Boolean struct {
-	Value token.Token
+// IdentExpr 标识符表达式
+type IdentExpr Ident
+
+func (self *IdentExpr) Position() reader.Position {
+	return (*Ident)(self).Position()
 }
 
-func (self *Boolean) Position() reader.Position {
-	return self.Value.Position
-}
+func (self *IdentExpr) stmt() {}
 
-func (self *Boolean) stmt() {}
-
-func (self *Boolean) expr() {}
-
-// Ident 标识符
-type Ident struct {
-	Pkg  util.Option[token.Token]
-	Name token.Token
-	GenericArgs []Type
-	End reader.Position
-}
-
-func (self *Ident) Position() reader.Position {
-	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.End)
-	}else{
-		return reader.MixPosition(self.Name.Position, self.End)
-	}
-}
-
-func (self *Ident) stmt() {}
-
-func (self *Ident) expr() {}
+func (self *IdentExpr) expr() {}
 
 // Call 调用
 type Call struct {
@@ -146,13 +123,13 @@ func (self *Covert) expr() {}
 
 // Array 数组
 type Array struct {
-	Type  *ArrayType
+	Begin reader.Position
 	Elems []Expr
 	End   reader.Position
 }
 
 func (self *Array) Position() reader.Position {
-	return reader.MixPosition(self.Type.Position(), self.End)
+	return reader.MixPosition(self.Begin, self.End)
 }
 
 func (self *Array) stmt() {}
@@ -217,19 +194,19 @@ func (self *Struct) stmt() {}
 
 func (self *Struct) expr() {}
 
-// Field 取字段
-type Field struct {
+// GetField 取字段
+type GetField struct {
 	From  Expr
-	Index token.Token
+	Index GenericName
 }
 
-func (self *Field) Position() reader.Position {
-	return reader.MixPosition(self.From.Position(), self.Index.Position)
+func (self *GetField) Position() reader.Position {
+	return reader.MixPosition(self.From.Position(), self.Index.Position())
 }
 
-func (self *Field) stmt() {}
+func (self *GetField) stmt() {}
 
-func (self *Field) expr() {}
+func (self *GetField) expr() {}
 
 // String 字符串
 type String struct {

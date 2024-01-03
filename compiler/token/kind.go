@@ -12,6 +12,7 @@ const (
 	FLOAT
 	CHAR
 	STRING
+	COMMENT
 
 	ASS
 
@@ -56,8 +57,6 @@ const (
 	_KeywordBegin
 	FUNC
 	RETURN
-	TRUE
-	FALSE
 	AS
 	STRUCT
 	LET
@@ -76,7 +75,6 @@ const (
 	TYPE
 	SELFVALUE
 	SELFTYPE
-	TRAIT
 	_KeywordEnd
 )
 
@@ -88,6 +86,7 @@ var kindNames = [...]string{
 	FLOAT:    "float",
 	CHAR:     "char",
 	STRING:   "string",
+	COMMENT: "comment",
 	ASS:      "ass",
 	AND:      "and",
 	OR:       "or",
@@ -123,8 +122,6 @@ var kindNames = [...]string{
 	QUE:      "que",
 	FUNC:     "func",
 	RETURN:   "return",
-	TRUE:     "true",
-	FALSE:    "false",
 	AS:       "as",
 	STRUCT:   "struct",
 	LET:      "let",
@@ -143,7 +140,6 @@ var kindNames = [...]string{
 	TYPE:     "type",
 	SELFVALUE: "self",
 	SELFTYPE:  "Self",
-	TRAIT: "trait",
 }
 
 // Lookup 区分标识符和关键字

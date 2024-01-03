@@ -8,6 +8,7 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/pair"
 	stlbits "github.com/kkkunny/stl/math/bits"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
 
@@ -15,6 +16,8 @@ import (
 type Stmt interface {
 	Define()string
 	Belong()*Block
+	ReadRefValues()[]Value
+	WriteRefValues()[]Value
 }
 
 type StmtValue interface {
@@ -63,6 +66,14 @@ func (self *AllocFromStack) ElemType()Type{
 	return self.t
 }
 
+func (self *AllocFromStack) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *AllocFromStack) WriteRefValues()[]Value{
+	return nil
+}
+
 // AllocFromHeap 从堆上分配内存
 type AllocFromHeap struct {
 	b *Block
@@ -103,6 +114,14 @@ func (self *AllocFromHeap) ElemType()Type{
 	return self.t
 }
 
+func (self *AllocFromHeap) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *AllocFromHeap) WriteRefValues()[]Value{
+	return nil
+}
+
 // Store 赋值
 type Store struct {
 	b *Block
@@ -136,6 +155,14 @@ func (self *Store) From()Value{
 
 func (self *Store) To()Value{
 	return self.to
+}
+
+func (self *Store) ReadRefValues()[]Value{
+	return []Value{self.from}
+}
+
+func (self *Store) WriteRefValues()[]Value{
+	return []Value{self.to}
 }
 
 // Load 载入
@@ -179,6 +206,14 @@ func (self *Load) Type()Type{
 
 func (self *Load) From()Value{
 	return self.from
+}
+
+func (self *Load) ReadRefValues()[]Value{
+	return []Value{self.from}
+}
+
+func (self *Load) WriteRefValues()[]Value{
+	return nil
 }
 
 // And 且
@@ -234,6 +269,14 @@ func (self *And) Right()Value{
 	return self.r
 }
 
+func (self *And) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *And) WriteRefValues()[]Value{
+	return nil
+}
+
 // Or 或
 type Or struct {
 	b *Block
@@ -285,6 +328,14 @@ func (self *Or) Left()Value{
 
 func (self *Or) Right()Value{
 	return self.r
+}
+
+func (self *Or) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Or) WriteRefValues()[]Value{
+	return nil
 }
 
 // Xor 异或
@@ -340,6 +391,14 @@ func (self *Xor) Right()Value{
 	return self.r
 }
 
+func (self *Xor) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Xor) WriteRefValues()[]Value{
+	return nil
+}
+
 // Shl 左移
 type Shl struct {
 	b *Block
@@ -391,6 +450,14 @@ func (self *Shl) Left()Value{
 
 func (self *Shl) Right()Value{
 	return self.r
+}
+
+func (self *Shl) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Shl) WriteRefValues()[]Value{
+	return nil
 }
 
 // Shr 右移
@@ -446,6 +513,14 @@ func (self *Shr) Right()Value{
 	return self.r
 }
 
+func (self *Shr) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Shr) WriteRefValues()[]Value{
+	return nil
+}
+
 // Not 非
 
 type Not struct {
@@ -495,6 +570,14 @@ func (self *Not) Type()Type{
 
 func (self *Not) Value()Value{
 	return self.v
+}
+
+func (self *Not) ReadRefValues()[]Value{
+	return []Value{self.v}
+}
+
+func (self *Not) WriteRefValues()[]Value{
+	return nil
 }
 
 // Add 加
@@ -550,6 +633,14 @@ func (self *Add) Right()Value{
 	return self.r
 }
 
+func (self *Add) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Add) WriteRefValues()[]Value{
+	return nil
+}
+
 // Sub 减
 type Sub struct {
 	b *Block
@@ -601,6 +692,14 @@ func (self *Sub) Left()Value{
 
 func (self *Sub) Right()Value{
 	return self.r
+}
+
+func (self *Sub) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Sub) WriteRefValues()[]Value{
+	return nil
 }
 
 // Mul 乘
@@ -656,6 +755,14 @@ func (self *Mul) Right()Value{
 	return self.r
 }
 
+func (self *Mul) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Mul) WriteRefValues()[]Value{
+	return nil
+}
+
 // Div 除
 type Div struct {
 	b *Block
@@ -709,6 +816,14 @@ func (self *Div) Right()Value{
 	return self.r
 }
 
+func (self *Div) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Div) WriteRefValues()[]Value{
+	return nil
+}
+
 // Rem 取余
 type Rem struct {
 	b *Block
@@ -760,6 +875,14 @@ func (self *Rem) Left()Value{
 
 func (self *Rem) Right()Value{
 	return self.r
+}
+
+func (self *Rem) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Rem) WriteRefValues()[]Value{
+	return nil
 }
 
 func (self *Builder) BuildNeg(v Value)Value{
@@ -875,6 +998,14 @@ func (self *Cmp) Right()Value{
 	return self.r
 }
 
+func (self *Cmp) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *Cmp) WriteRefValues()[]Value{
+	return nil
+}
+
 type PtrEqualKind uint8
 
 const (
@@ -951,6 +1082,14 @@ func (self *PtrEqual) Right()Value{
 	return self.r
 }
 
+func (self *PtrEqual) ReadRefValues()[]Value{
+	return []Value{self.l, self.r}
+}
+
+func (self *PtrEqual) WriteRefValues()[]Value{
+	return nil
+}
+
 // Call 调用
 
 type Call struct {
@@ -1010,6 +1149,14 @@ func (self *Call) Args()[]Value{
 	return self.args
 }
 
+func (self *Call) ReadRefValues()[]Value{
+	return append([]Value{self.f}, self.args...)
+}
+
+func (self *Call) WriteRefValues()[]Value{
+	return nil
+}
+
 // NumberCovert 数字转换
 type NumberCovert struct {
 	b *Block
@@ -1061,6 +1208,14 @@ func (self *NumberCovert) From()Value{
 	return self.v
 }
 
+func (self *NumberCovert) ReadRefValues()[]Value{
+	return []Value{self.v}
+}
+
+func (self *NumberCovert) WriteRefValues()[]Value{
+	return nil
+}
+
 // PtrToUint 指针转uint
 type PtrToUint struct {
 	b *Block
@@ -1104,6 +1259,14 @@ func (self *PtrToUint) Type()Type{
 
 func (self *PtrToUint) From()Value{
 	return self.v
+}
+
+func (self *PtrToUint) ReadRefValues()[]Value{
+	return []Value{self.v}
+}
+
+func (self *PtrToUint) WriteRefValues()[]Value{
+	return nil
 }
 
 // UintToPtr uint转指针
@@ -1151,6 +1314,14 @@ func (self *UintToPtr) From()Value{
 	return self.v
 }
 
+func (self *UintToPtr) ReadRefValues()[]Value{
+	return []Value{self.v}
+}
+
+func (self *UintToPtr) WriteRefValues()[]Value{
+	return nil
+}
+
 // PtrToPtr 指针转指针
 type PtrToPtr struct {
 	b *Block
@@ -1159,9 +1330,12 @@ type PtrToPtr struct {
 	to GenericPtrType
 }
 
-func (self *Builder) BuildPtrToPtr(v Value, to GenericPtrType)StmtValue{
+func (self *Builder) BuildPtrToPtr(v Value, to GenericPtrType)Value{
 	if !stlbasic.Is[GenericPtrType](v.Type()){
 		panic("unreachable")
+	}
+	if v.Type().Equal(to){
+		return v
 	}
 	stmt := &PtrToPtr{
 		b: self.cur,
@@ -1194,6 +1368,14 @@ func (self *PtrToPtr) Type()Type{
 
 func (self *PtrToPtr) From()Value{
 	return self.v
+}
+
+func (self *PtrToPtr) ReadRefValues()[]Value{
+	return []Value{self.v}
+}
+
+func (self *PtrToPtr) WriteRefValues()[]Value{
+	return nil
 }
 
 // ArrayIndex 数组索引
@@ -1260,6 +1442,14 @@ func (self *ArrayIndex) Array()Value{
 
 func (self *ArrayIndex) Index()Value{
 	return self.index
+}
+
+func (self *ArrayIndex) ReadRefValues()[]Value{
+	return []Value{self.v}
+}
+
+func (self *ArrayIndex) WriteRefValues()[]Value{
+	return nil
 }
 
 // StructIndex 结构体索引
@@ -1329,6 +1519,14 @@ func (self *StructIndex) Index()uint64{
 	return self.index
 }
 
+func (self *StructIndex) ReadRefValues()[]Value{
+	return []Value{self.v}
+}
+
+func (self *StructIndex) WriteRefValues()[]Value{
+	return nil
+}
+
 type Terminating interface {
 	Stmt
 	terminate()
@@ -1375,6 +1573,17 @@ func (self *Return) Value()(Value, bool){
 
 func (*Return)terminate(){}
 
+func (self *Return) ReadRefValues()[]Value{
+	if self.v == nil{
+		return nil
+	}
+	return []Value{self.v}
+}
+
+func (self *Return) WriteRefValues()[]Value{
+	return nil
+}
+
 type Jump interface {
 	Terminating
 	Targets()[]*Block
@@ -1405,6 +1614,14 @@ func (self *UnCondJump) Define()string{
 
 func (self *UnCondJump) To()*Block{
 	return self.to
+}
+
+func (self *UnCondJump) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *UnCondJump) WriteRefValues()[]Value{
+	return nil
 }
 
 func (*UnCondJump)terminate(){}
@@ -1470,6 +1687,14 @@ func (self *CondJump) Targets()[]*Block{
 	return []*Block{self.trueTo, self.falseTo}
 }
 
+func (self *CondJump) ReadRefValues()[]Value{
+	return []Value{self.cond}
+}
+
+func (self *CondJump) WriteRefValues()[]Value{
+	return nil
+}
+
 // Phi 跳转收拢
 type Phi struct {
 	b *Block
@@ -1532,6 +1757,16 @@ func (self *Phi) Froms()[]pair.Pair[*Block, Value]{
 	return self.froms
 }
 
+func (self *Phi) ReadRefValues()[]Value{
+	return stlslices.Map(self.froms, func(_ int, e pair.Pair[*Block, Value]) Value {
+		return e.Second
+	})
+}
+
+func (self *Phi) WriteRefValues()[]Value{
+	return nil
+}
+
 // PackArray 打包数组
 type PackArray struct {
 	b *Block
@@ -1578,7 +1813,7 @@ func (self *PackArray) Define()string{
 	elems := lo.Map(self.elems, func(item Value, _ int) string {
 		return item.Name()
 	})
-	return fmt.Sprintf("%s %s = unpack (%s)", self.t, self.Name(), strings.Join(elems, ","))
+	return fmt.Sprintf("%s %s = pack (%s)", self.t, self.Name(), strings.Join(elems, ","))
 }
 
 func (self *PackArray) setIndex(i uint){
@@ -1595,6 +1830,14 @@ func (self *PackArray) Type()Type{
 
 func (self *PackArray) Elems()[]Value{
 	return self.elems
+}
+
+func (self *PackArray) ReadRefValues()[]Value{
+	return self.elems
+}
+
+func (self *PackArray) WriteRefValues()[]Value{
+	return nil
 }
 
 // PackStruct 打包结构体
@@ -1643,7 +1886,7 @@ func (self *PackStruct) Define()string{
 	elems := lo.Map(self.elems, func(item Value, _ int) string {
 		return item.Name()
 	})
-	return fmt.Sprintf("%s %s = unpack {%s}", self.t, self.Name(), strings.Join(elems, ","))
+	return fmt.Sprintf("%s %s = pack {%s}", self.t, self.Name(), strings.Join(elems, ","))
 }
 
 func (self *PackStruct) setIndex(i uint){
@@ -1660,4 +1903,45 @@ func (self *PackStruct) Type()Type{
 
 func (self *PackStruct) Elems()[]Value{
 	return self.elems
+}
+
+func (self *PackStruct) ReadRefValues()[]Value{
+	return self.elems
+}
+
+func (self *PackStruct) WriteRefValues()[]Value{
+	return nil
+}
+
+// Unreachable 不可达代码
+type Unreachable struct {
+	b *Block
+}
+
+func NewUnreachable(b *Block)*Unreachable {
+	stmt := &Unreachable{b: b}
+	b.stmts.PushBack(stmt)
+	return stmt
+}
+
+func (self *Builder) BuildUnreachable()*Unreachable {
+	return NewUnreachable(self.cur)
+}
+
+func (self *Unreachable) Belong()*Block{
+	return self.b
+}
+
+func (self *Unreachable) Define()string{
+	return "unreachable"
+}
+
+func (*Unreachable)terminate(){}
+
+func (self *Unreachable) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *Unreachable) WriteRefValues()[]Value{
+	return nil
 }

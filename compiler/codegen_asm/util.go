@@ -26,7 +26,7 @@ func (self *tempFile) Close()error{
 }
 
 // CodegenAsm 汇编代码生成
-func CodegenAsm(target mir.Target, path string) (io.ReadCloser, stlerror.Error) {
+func CodegenAsm(target mir.Target, path stlos.FilePath) (io.ReadCloser, stlerror.Error) {
 	irModule, err := codegen_ir.CodegenIr(target, path)
 	if err != nil{
 		return nil, err

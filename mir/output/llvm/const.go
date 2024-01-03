@@ -64,7 +64,7 @@ func (self *LLVMOutputer) codegenArray(ir *mir.Array)llvm.Constant{
 	elems := lo.Map(ir.Elems(), func(item mir.Const, _ int) llvm.Constant {
 		return self.codegenConst(item)
 	})
-	return self.ctx.ConstArray(self.codegenArrayType(ir.Type().(mir.ArrayType)), elems...)
+	return self.ctx.ConstArray(self.codegenArrayType(ir.Type().(mir.ArrayType)).Element(), elems...)
 }
 
 func (self *LLVMOutputer) codegenStruct(ir *mir.Struct)llvm.Constant{

@@ -23,18 +23,18 @@ func New(r reader.Reader) *Lexer {
 }
 
 // 下一个字符
-func (self *Lexer) next() rune {
-	r, _, err := stlerror.ErrorWith2(self.reader.ReadRune())
+func (self *Lexer) next() byte {
+	b, err := stlerror.ErrorWith(self.reader.ReadByte())
 	if err != nil && errors.Is(err, io.EOF) {
 		return 0
 	} else if err != nil {
 		panic(err)
 	}
-	return r
+	return b
 }
 
 // 提前获取下一个字符
-func (self Lexer) peek(skip ...uint) rune {
+func (self Lexer) peek(skip ...uint) byte {
 	defer self.reader.Seek(int64(self.reader.Offset()), io.SeekStart)
 
 	offset := 1
@@ -42,36 +42,36 @@ func (self Lexer) peek(skip ...uint) rune {
 		offset += int(skip[0])
 	}
 
-	var ch rune
+	var b byte
 	for i := 0; i < offset; i++ {
-		ch = self.next()
+		b = self.next()
 	}
-	return ch
+	return b
 }
 
 // 跳过空白
 func (self *Lexer) skipWhite() {
-	for ch := self.peek(); ch == ' ' || ch == '\r' || ch == '\t'; ch = self.peek() {
+	for b := self.peek(); b == ' ' || b == '\r' || b == '\t'; b = self.peek() {
 		_ = self.next()
 	}
 }
 
 // 扫描标识符
-func (self *Lexer) scanIdent(ch rune) token.Kind {
+func (self *Lexer) scanIdent(b byte) token.Kind {
 	var buf strings.Builder
-	buf.WriteRune(ch)
-	for ch = self.peek(); ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9'); ch = self.peek() {
-		buf.WriteRune(self.next())
+	buf.WriteByte(b)
+	for b = self.peek(); b == '_' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9'); b = self.peek() {
+		buf.WriteByte(self.next())
 	}
 	return token.Lookup(buf.String())
 }
 
 // 扫描数字
-func (self *Lexer) scanNumber(ch rune) token.Kind {
+func (self *Lexer) scanNumber(b byte) token.Kind {
 	var point bool
-	for ch = self.peek(); ch == '.' || (ch >= '0' && ch <= '9'); ch = self.peek() {
-		if ch == '.' {
-			if ch2 := self.peek(1); !(ch2 >= '0' && ch2 <= '9') || point {
+	for b = self.peek(); b == '.' || (b >= '0' && b <= '9'); b = self.peek() {
+		if b == '.' {
+			if b2 := self.peek(1); !(b2 >= '0' && b2 <= '9') || point {
 				break
 			} else {
 				point = true
@@ -87,15 +87,15 @@ func (self *Lexer) scanNumber(ch rune) token.Kind {
 }
 
 // 扫描字符
-func (self *Lexer) scanChar(ch rune) token.Kind {
+func (self *Lexer) scanChar(b byte) token.Kind {
 	var buf strings.Builder
-	prevChar := ch
-	for ch = self.peek(); ch != '\'' || prevChar == '\\'; ch, prevChar = self.peek(), ch {
-		if ch == 0 {
+	prevChar := b
+	for b = self.peek(); b != '\'' || prevChar == '\\'; b, prevChar = self.peek(), b {
+		if b == 0 {
 			return token.ILLEGAL
 		}
 		self.next()
-		buf.WriteRune(ch)
+		buf.WriteByte(b)
 	}
 	self.next()
 
@@ -107,10 +107,10 @@ func (self *Lexer) scanChar(ch rune) token.Kind {
 }
 
 // 扫描字符串
-func (self *Lexer) scanString(ch rune) token.Kind {
-	prevChar := ch
-	for ch = self.peek(); ch != '"' || prevChar == '\\'; ch, prevChar = self.peek(), ch {
-		if ch == 0 {
+func (self *Lexer) scanString(b byte) token.Kind {
+	prevChar := b
+	for b = self.peek(); b != '"' || prevChar == '\\'; b, prevChar = self.peek(), b {
+		if b == 0 {
 			return token.ILLEGAL
 		}
 		self.next()
@@ -119,41 +119,49 @@ func (self *Lexer) scanString(ch rune) token.Kind {
 	return token.STRING
 }
 
+// 扫描数字
+func (self *Lexer) scanComment() token.Kind {
+	for b := self.peek(); b != '\n' && b != 0; b = self.peek() {
+		self.next()
+	}
+	return token.COMMENT
+}
+
 func (self *Lexer) Scan() token.Token {
 	self.skipWhite()
 
 	begin := self.reader.Position()
-	ch := self.next()
+	b := self.next()
 
 	var kind token.Kind
 	switch {
-	case ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'):
-		kind = self.scanIdent(ch)
-	case ch >= '0' && ch <= '9':
-		kind = self.scanNumber(ch)
-	case ch == '\'':
-		kind = self.scanChar(ch)
-	case ch == '"':
-		kind = self.scanString(ch)
+	case b == '_' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z'):
+		kind = self.scanIdent(b)
+	case b >= '0' && b <= '9':
+		kind = self.scanNumber(b)
+	case b == '\'':
+		kind = self.scanChar(b)
+	case b == '"':
+		kind = self.scanString(b)
 	default:
-		switch ch {
+		switch b {
 		case 0:
 			kind = token.EOF
 		case '=':
 			kind = token.ASS
-			if nextCh := self.peek(); nextCh == '=' {
+			if nb := self.peek(); nb == '=' {
 				self.next()
 				kind = token.EQ
 			}
 		case '&':
 			kind = token.AND
-			if nextCh := self.peek(); nextCh == '&' {
+			if nb := self.peek(); nb == '&' {
 				self.next()
 				kind = token.LAND
 			}
 		case '|':
 			kind = token.OR
-			if nextCh := self.peek(); nextCh == '|' {
+			if nb := self.peek(); nb == '|' {
 				self.next()
 				kind = token.LOR
 			}
@@ -161,7 +169,7 @@ func (self *Lexer) Scan() token.Token {
 			kind = token.XOR
 		case '!':
 			kind = token.NOT
-			if nextCh := self.peek(); nextCh == '=' {
+			if nb := self.peek(); nb == '=' {
 				self.next()
 				kind = token.NE
 			}
@@ -173,23 +181,27 @@ func (self *Lexer) Scan() token.Token {
 			kind = token.MUL
 		case '/':
 			kind = token.DIV
+			if nb := self.peek(); nb == '/' {
+				self.next()
+				kind = self.scanComment()
+			}
 		case '%':
 			kind = token.REM
 		case '<':
 			kind = token.LT
-			if nextCh := self.peek(); nextCh == '=' {
+			if nb := self.peek(); nb == '=' {
 				self.next()
 				kind = token.LE
-			} else if nextCh == '<' {
+			} else if nb == '<' {
 				self.next()
 				kind = token.SHL
 			}
 		case '>':
 			kind = token.GT
-			if nextCh := self.peek(); nextCh == '=' {
+			if nb := self.peek(); nb == '=' {
 				self.next()
 				kind = token.GE
-			} else if nextCh == '>' {
+			} else if nb == '>' {
 				self.next()
 				kind = token.SHR
 			}
@@ -213,7 +225,7 @@ func (self *Lexer) Scan() token.Token {
 			kind = token.DOT
 		case ':':
 			kind = token.COL
-			if nextCh := self.peek(); nextCh == ':' {
+			if nb := self.peek(); nb == ':' {
 				self.next()
 				kind = token.SCOPE
 			}

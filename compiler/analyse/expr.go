@@ -4,15 +4,13 @@ import (
 	"math/big"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/hashset"
 	stlerror "github.com/kkkunny/stl/error"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
-
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/reader"
 
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
 )
@@ -25,14 +23,12 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseChar(expect, exprNode)
 	case *ast.Float:
 		return self.analyseFloat(expect, exprNode)
-	case *ast.Boolean:
-		return self.analyseBool(exprNode)
 	case *ast.Binary:
 		return self.analyseBinary(expect, exprNode)
 	case *ast.Unary:
 		return self.analyseUnary(expect, exprNode)
-	case *ast.Ident:
-		return self.analyseIdent(exprNode)
+	case *ast.IdentExpr:
+		return self.analyseIdentExpr(exprNode)
 	case *ast.Call:
 		return self.analyseCall(exprNode)
 	case *ast.Tuple:
@@ -40,15 +36,15 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 	case *ast.Covert:
 		return self.analyseCovert(exprNode)
 	case *ast.Array:
-		return self.analyseArray(exprNode)
+		return self.analyseArray(expect, exprNode)
 	case *ast.Index:
 		return self.analyseIndex(exprNode)
 	case *ast.Extract:
 		return self.analyseExtract(expect, exprNode)
 	case *ast.Struct:
 		return self.analyseStruct(exprNode)
-	case *ast.Field:
-		return self.analyseField(exprNode)
+	case *ast.GetField:
+		return self.analyseGetField(exprNode)
 	case *ast.String:
 		return self.analyseString(exprNode)
 	case *ast.Judgment:
@@ -65,23 +61,23 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 }
 
 func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.Expr {
-	if expect == nil || !stlbasic.Is[hir.NumberType](expect) {
+	if expect == nil || !hir.IsNumberType(expect) {
 		expect = hir.Isize
 	}
-	switch t := expect.(type) {
-	case hir.IntType:
+	switch {
+	case hir.IsIntType(expect):
 		value, ok := big.NewInt(0).SetString(node.Value.Source(), 10)
 		if !ok {
 			panic("unreachable")
 		}
 		return &hir.Integer{
-			Type:  t,
+			Type:  expect,
 			Value: value,
 		}
-	case *hir.FloatType:
+	case hir.IsFloatType(expect):
 		value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
 		return &hir.Float{
-			Type:  t,
+			Type:  expect,
 			Value: value,
 		}
 	default:
@@ -90,22 +86,22 @@ func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.Exp
 }
 
 func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.Expr {
-	if expect == nil || !stlbasic.Is[hir.NumberType](expect) {
+	if expect == nil || !hir.IsNumberType(expect) {
 		expect = hir.I32
 	}
 	s := node.Value.Source()
 	char := util.ParseEscapeCharacter(s[1:len(s)-1], `\'`, `'`)[0]
-	switch t := expect.(type) {
-	case hir.IntType:
+	switch {
+	case hir.IsIntType(expect):
 		value := big.NewInt(int64(char))
 		return &hir.Integer{
-			Type:  t,
+			Type:  expect,
 			Value: value,
 		}
-	case *hir.FloatType:
+	case hir.IsFloatType(expect):
 		value := big.NewFloat(float64(char))
 		return &hir.Float{
-			Type:  t,
+			Type:  expect,
 			Value: value,
 		}
 	default:
@@ -114,18 +110,14 @@ func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.Expr {
 }
 
 func (self *Analyser) analyseFloat(expect hir.Type, node *ast.Float) *hir.Float {
-	if expect == nil || !stlbasic.Is[*hir.FloatType](expect) {
+	if expect == nil || !hir.IsFloatType(expect) {
 		expect = hir.F64
 	}
 	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
 	return &hir.Float{
-		Type:  expect.(*hir.FloatType),
+		Type:  expect,
 		Value: value,
 	}
-}
-
-func (self *Analyser) analyseBool(node *ast.Boolean) *hir.Boolean {
-	return &hir.Boolean{Value: node.Value.Is(token.TRUE)}
 }
 
 func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binary {
@@ -136,7 +128,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 
 	switch node.Opera.Kind {
 	case token.ASS:
-		if lt.Equal(rt) {
+		if lt.EqualTo(rt) {
 			if !left.Mutable() {
 				errors.ThrowNotMutableError(node.Left.Position())
 			}
@@ -146,222 +138,128 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.AND:
-		if lt.Equal(rt) && stlbasic.Is[hir.IntType](lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntAndInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.OR:
-		if lt.Equal(rt) && stlbasic.Is[hir.IntType](lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntOrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.XOR:
-		if lt.Equal(rt) && stlbasic.Is[hir.IntType](lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntXorInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHL:
-		if lt.Equal(rt) && stlbasic.Is[hir.IntType](lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntShlInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHR:
-		if lt.Equal(rt) && stlbasic.Is[hir.IntType](lt) {
+		if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntShrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.ADD:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumAddNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SUB:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumSubNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.MUL:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumMulNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.DIV:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumDivNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.REM:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumRemNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.EQ:
-		if lt.Equal(rt) {
-			switch {
-			case stlbasic.Is[hir.NumberType](lt):
-				return &hir.NumEqNum{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.BoolType](lt):
-				return &hir.BoolEqBool{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.FuncType](lt):
-				return &hir.FuncEqFunc{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.ArrayType](lt):
-				return &hir.ArrayEqArray{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.TupleType](lt):
-				return &hir.TupleEqTuple{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StructType](lt):
-				return &hir.StructEqStruct{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StringType](lt):
-				return &hir.StringEqString{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.UnionType](lt):
-				return &hir.UnionEqUnion{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StringType](lt):
-				return &hir.StringEqString{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.UnionType](lt):
-				return &hir.UnionEqUnion{
+		if lt.EqualTo(rt) {
+			if !hir.IsEmptyType(lt){
+				return &hir.Equal{
 					Left:  left,
 					Right: right,
 				}
 			}
 		}
 	case token.NE:
-		if lt.Equal(rt) {
-			switch {
-			case stlbasic.Is[hir.NumberType](lt):
-				return &hir.NumNeNum{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.BoolType](lt):
-				return &hir.BoolNeBool{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.FuncType](lt):
-				return &hir.FuncNeFunc{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.ArrayType](lt):
-				return &hir.ArrayNeArray{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.TupleType](lt):
-				return &hir.TupleNeTuple{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StructType](lt):
-				return &hir.StructNeStruct{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StringType](lt):
-				return &hir.StringNeString{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.UnionType](lt):
-				return &hir.UnionNeUnion{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.StringType](lt):
-				return &hir.StringNeString{
-					Left:  left,
-					Right: right,
-				}
-			case stlbasic.Is[*hir.UnionType](lt):
-				return &hir.UnionNeUnion{
-					Left:  left,
-					Right: right,
-				}
+		if !hir.IsEmptyType(lt){
+			return &hir.NotEqual{
+				Left:  left,
+				Right: right,
 			}
 		}
 	case token.LT:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GT:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LE:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GE:
-		if lt.Equal(rt) && stlbasic.Is[hir.NumberType](lt) {
+		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LAND:
-		if lt.Equal(rt) && stlbasic.Is[*hir.BoolType](lt) {
+		if lt.EqualTo(rt) && hir.IsBoolType(lt) {
 			return &hir.BoolAndBool{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LOR:
-		if lt.Equal(rt) && stlbasic.Is[*hir.BoolType](lt) {
+		if lt.EqualTo(rt) && hir.IsBoolType(lt) {
 			return &hir.BoolOrBool{
 				Left:  left,
 				Right: right,
@@ -380,7 +278,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 	case token.SUB:
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
-		if stlbasic.Is[*hir.SintType](vt) || stlbasic.Is[*hir.FloatType](vt) {
+		if hir.IsSintType(vt) || hir.IsFloatType(vt) {
 			return &hir.NumNegate{Value: value}
 		}
 		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
@@ -389,17 +287,17 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
 		switch {
-		case stlbasic.Is[hir.IntType](vt):
+		case hir.IsIntType(vt):
 			return &hir.IntBitNegate{Value: value}
-		case stlbasic.Is[*hir.BoolType](vt):
+		case hir.IsBoolType(vt):
 			return &hir.BoolNegate{Value: value}
 		default:
 			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 			return nil
 		}
 	case token.AND:
-		if expect != nil && stlbasic.Is[*hir.RefType](expect) {
-			expect = expect.(*hir.RefType).Elem
+		if expect != nil && hir.IsRefType(expect) {
+			expect = hir.AsRefType(expect).Elem
 		}
 		value := self.analyseExpr(expect, node.Value)
 		if !stlbasic.Is[hir.Ident](value) {
@@ -410,58 +308,37 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 		if expect != nil {
 			expect = &hir.RefType{Elem: expect}
 		}
-		v := self.analyseExpr(expect, node.Value)
-		vt := v.GetType()
-		if !stlbasic.Is[*hir.RefType](vt) {
+		value := self.analyseExpr(expect, node.Value)
+		vt := value.GetType()
+		if !hir.IsRefType(vt) {
 			errors.ThrowExpectReferenceError(node.Value.Position(), vt)
 		}
-		return &hir.GetValue{Value: v}
+		return &hir.GetValue{Value: value}
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseIdent(node *ast.Ident) hir.Expr {
-	var pkgName string
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.ContainKey(pkgName) {
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-		}
+func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Expr {
+	expr := self.analyseIdent((*ast.Ident)(node), true)
+	if expr.IsNone(){
+		errors.ThrowUnknownIdentifierError(node.Name.Position(), node.Name.Name)
 	}
-	if len(node.GenericArgs) == 0{
-		// 普通标识符
-		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
-		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
-		}
-		return value
-	}else{
-		// 泛型函数
-		gf, ok := self.pkgScope.GetGenericFunction(pkgName, node.Name.Source())
-		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
-		}
-		if gf.GenericParams.Length() != uint(len(node.GenericArgs)){
-			errors.ThrowParameterNumberNotMatchError(node.Name.Position, gf.GenericParams.Length(), uint(len(node.GenericArgs)))
-		}
-		params := lo.Map(node.GenericArgs, func(item ast.Type, _ int) hir.Type {
-			return self.analyseType(item)
-		})
-		return gf.AddInstance(params...)
-	}
+	value, _ := expr.MustValue().Left()
+	return value
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
 	f := self.analyseExpr(nil, node.Func)
-	ft, ok := f.GetType().(*hir.FuncType)
-	if !ok {
-		errors.ThrowNotFunctionError(node.Func.Position(), f.GetType())
-	} else if len(ft.Params) != len(node.Args) {
+	if !hir.IsFuncType(f.GetType()){
+		errors.ThrowExpectFunctionError(node.Func.Position(), f.GetType())
+	}
+	ft := hir.AsFuncType(f.GetType())
+	if len(ft.Params) != len(node.Args) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ft.Params)), uint(len(node.Args)))
 	}
 	args := lo.Map(node.Args, func(item ast.Expr, index int) hir.Expr {
-		return self.analyseExpr(ft.Params[index], item)
+		return self.expectExpr(ft.Params[index], item)
 	})
 	return &hir.Call{
 		Func: f,
@@ -470,13 +347,14 @@ func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
 }
 
 func (self *Analyser) analyseTuple(expect hir.Type, node *ast.Tuple) hir.Expr {
-	if len(node.Elems) == 1 && (expect == nil || !stlbasic.Is[*hir.TupleType](expect)) {
+	if len(node.Elems) == 1 && (expect == nil || !hir.IsTupleType(expect)) {
 		return self.analyseExpr(expect, node.Elems[0])
 	}
 
 	elemExpects := make([]hir.Type, len(node.Elems))
 	if expect != nil {
-		if tt, ok := expect.(*hir.TupleType); ok {
+		if hir.IsTupleType(expect) {
+			tt := hir.AsTupleType(expect)
 			if len(tt.Elems) < len(node.Elems) {
 				copy(elemExpects, tt.Elems)
 			} else if len(tt.Elems) > len(node.Elems) {
@@ -496,25 +374,47 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 	tt := self.analyseType(node.Type)
 	from := self.analyseExpr(tt, node.Value)
 	ft := from.GetType()
-	if ft.AssignableTo(tt) {
-		return self.autoTypeCovert(tt, from)
+	if v, ok := self.autoTypeCovert(tt, from); ok {
+		return v
 	}
 
 	switch {
-	case stlbasic.Is[hir.NumberType](ft) && stlbasic.Is[hir.NumberType](tt):
+	case hir.IsNumberType(ft) && hir.IsNumberType(tt):
+		// i8 -> u8
 		return &hir.Num2Num{
 			From: from,
-			To:   tt.(hir.NumberType),
+			To:   tt,
 		}
-	case stlbasic.Is[*hir.UnionType](tt) && tt.(*hir.UnionType).GetElemIndex(ft) >= 0:
-		return &hir.Union{
-			Type:  tt.(*hir.UnionType),
-			Value: from,
+	case hir.IsUnionType(ft) && hir.AsUnionType(ft).Contain(tt):
+		if hir.IsUnionType(tt){
+			// <i8,u8> -> <i8>
+			return &hir.ShrinkUnion{
+				Type:  tt,
+				Value: from,
+			}
+		}else{
+			// <i8,u8> -> i8
+			return &hir.UnUnion{
+				Type:  tt,
+				Value: from,
+			}
 		}
-	case stlbasic.Is[*hir.UnionType](ft) && ft.(*hir.UnionType).GetElemIndex(tt) >= 0:
-		return &hir.UnUnion{
-			Type:  tt,
-			Value: from,
+	case hir.IsPointer(ft) && hir.IsPointer(tt):
+		// *u8 | *?u8 | func() -> *u8 | *?u8 | func()
+		return &hir.Pointer2Pointer{
+			From: from,
+			To:   tt,
+		}
+	case hir.IsPointer(ft) && tt.EqualTo(hir.Usize):
+		// *u8 | *?u8 | func() -> usize
+		return &hir.Pointer2Usize{
+			From: from,
+		}
+	case ft.EqualTo(hir.Usize) && hir.IsPointer(tt):
+		// usize -> *u8 | *?u8 | func()
+		return &hir.Usize2Pointer{
+			From: from,
+			To: tt,
 		}
 	default:
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
@@ -524,48 +424,76 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 
 func (self *Analyser) expectExpr(expect hir.Type, node ast.Expr) hir.Expr {
 	value := self.analyseExpr(expect, node)
-	if vt := value.GetType(); !vt.AssignableTo(expect) {
-		errors.ThrowTypeMismatchError(node.Position(), vt, expect)
+	newValue, ok := self.autoTypeCovert(expect, value)
+	if !ok{
+		errors.ThrowTypeMismatchError(node.Position(), value.GetType(), expect)
 	}
-	return self.autoTypeCovert(expect, value)
+	return newValue
 }
 
 // 自动类型转换
-func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) hir.Expr {
+func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, bool) {
 	vt := v.GetType()
-	if vt.Equal(expect) {
-		return v
+	if vt.EqualTo(expect) {
+		return v, true
 	}
 
 	switch {
-	case stlbasic.Is[*hir.UnionType](expect) && expect.(*hir.UnionType).Contain(vt):
-		return &hir.Union{
-			Type:  expect.(*hir.UnionType),
-			Value: v,
+	case hir.IsUnionType(expect) && hir.AsUnionType(expect).Contain(vt):
+		if hir.IsUnionType(vt){
+			// <i8> -> <i8,u8>
+			return &hir.ExpandUnion{
+				Type:  expect,
+				Value: v,
+			}, true
+		}else{
+			// i8 -> <i8,u8>
+			return &hir.Union{
+				Type:  expect,
+				Value: v,
+			}, true
 		}
-	case stlbasic.Is[*hir.RefType](vt) && vt.(*hir.RefType).ToPtrType().Equal(expect):
-		return &hir.WrapWithNull{Value: v}
+	case hir.IsRefType(vt) && hir.AsRefType(vt).ToPtrType().EqualTo(expect):
+		// *i8 -> *?i8
+		return &hir.WrapWithNull{Value: v}, true
 	default:
-		panic("unreachable")
+		return v, false
 	}
 }
 
-func (self *Analyser) analyseArray(node *ast.Array) *hir.Array {
-	t := self.analyseArrayType(node.Type)
+func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array {
+	var expectArray *hir.ArrayType
+	var expectElem hir.Type
+	if expect != nil && hir.IsArrayType(expect){
+		expectArray = hir.AsArrayType(expect)
+		expectElem = expectArray.Elem
+	}
+	if expectArray == nil && len(node.Elems) == 0{
+		errors.ThrowExpectArrayTypeError(node.Position(), hir.Empty)
+	}
 	elems := make([]hir.Expr, len(node.Elems))
-	for i, en := range node.Elems {
-		elems[i] = self.expectExpr(t.Elem, en)
+	for i, elemNode := range node.Elems {
+		elems[i] = stlbasic.TernaryAction(i==0, func() hir.Expr {
+			return self.analyseExpr(expectElem, elemNode)
+		}, func() hir.Expr {
+			return self.expectExpr(elems[0].GetType(), elemNode)
+		})
 	}
 	return &hir.Array{
-		Type:  t,
+		Type: stlbasic.TernaryAction(len(elems)!=0, func() hir.Type {
+			return &hir.ArrayType{
+				Size: uint(len(elems)),
+				Elem: elems[0].GetType(),
+			}
+		}, func() hir.Type {return expectArray}),
 		Elems: elems,
 	}
 }
 
 func (self *Analyser) analyseIndex(node *ast.Index) *hir.Index {
 	from := self.analyseExpr(nil, node.From)
-	if !stlbasic.Is[*hir.ArrayType](from.GetType()) {
-		errors.ThrowNotArrayError(node.From.Position(), from.GetType())
+	if !hir.IsArrayType(from.GetType()) {
+		errors.ThrowExpectArrayError(node.From.Position(), from.GetType())
 	}
 	index := self.expectExpr(hir.Usize, node.Index)
 	return &hir.Index{
@@ -588,11 +516,11 @@ func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *hir.Ex
 	expectFrom.Elems[index] = expect
 
 	from := self.analyseExpr(expectFrom, node.From)
-	tt, ok := from.GetType().(*hir.TupleType)
-	if !ok {
-		errors.ThrowNotTupleError(node.From.Position(), from.GetType())
+	if !hir.IsTupleType(from.GetType()){
+		errors.ThrowExpectTupleError(node.From.Position(), from.GetType())
 	}
 
+	tt := hir.AsTupleType(from.GetType())
 	if index >= uint(len(tt.Elems)) {
 		errors.ThrowInvalidIndexError(node.Index.Position, index)
 	}
@@ -603,25 +531,25 @@ func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *hir.Ex
 }
 
 func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
-	st := self.analyseIdentType(node.Type).(*hir.StructType)
-	fieldNames := hashset.NewHashSet[string]()
-	for iter := st.Fields.Keys().Iterator(); iter.Next(); {
-		fieldNames.Add(iter.Value())
+	stObj := self.analyseIdentType(node.Type)
+	if !hir.IsStructType(stObj){
+		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
+	st := hir.AsStructType(stObj)
 
 	existedFields := make(map[string]hir.Expr)
 	for _, nf := range node.Fields {
 		fn := nf.First.Source()
-		if !fieldNames.Contain(fn) {
-			errors.ThrowIdentifierDuplicationError(nf.First.Position, nf.First)
+		if !st.Fields.ContainKey(fn) || (!self.pkgScope.pkg.Equal(st.Pkg) && !st.Fields.Get(fn).Public) {
+			errors.ThrowUnknownIdentifierError(nf.First.Position, nf.First)
 		}
-		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Second, nf.Second)
+		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.Second)
 	}
 
 	fields := make([]hir.Expr, st.Fields.Length())
 	var i int
 	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		fn, ft := iter.Value().First, iter.Value().Second.Second
+		fn, ft := iter.Value().First, iter.Value().Second.Type
 		if fv, ok := existedFields[fn]; ok {
 			fields[i] = fv
 		} else {
@@ -630,53 +558,86 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 	}
 
 	return &hir.Struct{
-		Type:   st,
+		Type:   stObj,
 		Fields: fields,
 	}
 }
 
-func (self *Analyser) analyseField(node *ast.Field) hir.Expr {
+func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
+	fieldName := node.Index.Name.Source()
+
 	from := self.analyseExpr(nil, node.From)
-	fieldName := node.Index.Source()
-	if st, ok := from.GetType().(*hir.StructType); ok{
-		// 方法
-		if method := st.Methods.Get(fieldName); method != nil && (method.Public || st.Pkg == self.pkgScope.path){
-			return &hir.Method{
-				Self:   from,
-				Define: method,
+	if !hir.IsStructType(from.GetType()){
+		errors.ThrowExpectStructError(node.From.Position(), from.GetType())
+	}
+	st := hir.AsStructType(from.GetType())
+
+	if genericParams, ok := node.Index.Params.Value(); ok{
+		// 泛型方法
+		if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
+			switch method := methodObj.(type) {
+			case *hir.GenericMethodDef:
+				if method.GenericParams.Length() != uint(len(genericParams.Data)){
+					errors.ThrowParameterNumberNotMatchError(genericParams.Position(), method.GenericParams.Length(), uint(len(genericParams.Data)))
+				}
+				params := stlslices.Map(genericParams.Data, func(_ int, e ast.Type) hir.Type {
+					return self.analyseType(e)
+				})
+				return &hir.GenericMethodInst{
+					Self:   from,
+					Define: method,
+					Params: params,
+				}
+			case *hir.GenericStructMethodDef:
+				if method.GenericParams.Length() != uint(len(genericParams.Data)){
+					errors.ThrowParameterNumberNotMatchError(genericParams.Position(), method.GenericParams.Length(), uint(len(genericParams.Data)))
+				}
+				params := stlslices.Map(genericParams.Data, func(_ int, e ast.Type) hir.Type {
+					return self.analyseType(e)
+				})
+				return &hir.GenericStructGenericMethodInst{
+					Self:   from,
+					Define: method,
+					Params: params,
+				}
+			default:
+				panic("unreachable")
+			}
+		}
+	}else{
+		// 方法 or 泛型方法
+		if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
+			switch method := methodObj.(type) {
+			case *hir.MethodDef:
+				return &hir.Method{
+					Self:   from,
+					Define: method,
+				}
+			case *hir.GenericStructMethodDef:
+				return &hir.GenericStructMethodInst{
+					Self:   from,
+					Define: method,
+				}
+			default:
+				panic("unreachable")
 			}
 		}
 
 		// 字段
-		var i int
-		for iter := st.Fields.Iterator(); iter.Next(); i++ {
+		for i, iter := 0, st.Fields.Iterator(); iter.Next(); i++ {
 			field := iter.Value()
-			if field.First == fieldName && (field.Second.First || st.Pkg == self.pkgScope.path) {
-				return &hir.Field{
+			if field.First == fieldName && (field.Second.Public || self.pkgScope.pkg.Equal(st.Pkg)) {
+				return &hir.GetField{
+					Internal: self.pkgScope.pkg.Equal(st.Pkg),
 					From:  from,
 					Index: uint(i),
 				}
 			}
 		}
-
-		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-		return nil
-	}else if gt, ok := from.GetType().(*hir.GenericParam); ok{
-		if constraint, ok := gt.Constraint.Value(); ok{
-			if method := constraint.Methods.Get(fieldName); method != nil{
-				return &hir.TraitMethod{
-					Type: gt,
-					Value: util.Some(from),
-					Name: fieldName,
-				}
-			}
-		}
-		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-		return nil
-	}else{
-		errors.ThrowNotStructError(node.From.Position(), from.GetType())
-		return nil
 	}
+
+	errors.ThrowUnknownIdentifierError(node.Index.Name.Position, node.Index.Name)
+	return nil
 }
 
 func (self *Analyser) analyseString(node *ast.String) *hir.String {
@@ -691,9 +652,9 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	vt := value.GetType()
 
 	switch {
-	case vt.Equal(target):
+	case vt.EqualTo(target):
 		return &hir.Boolean{Value: true}
-	case stlbasic.Is[*hir.UnionType](vt) && vt.(*hir.UnionType).GetElemIndex(target) >= 0:
+	case hir.IsUnionType(vt) && hir.AsUnionType(vt).Contain(target):
 		return &hir.UnionTypeJudgment{
 			Value: value,
 			Type:  target,
@@ -703,30 +664,26 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	}
 }
 
-func (self *Analyser) analyseNull(expect hir.Type, node *ast.Null) *hir.Zero {
-	if expect == nil || !(stlbasic.Is[*hir.PtrType](expect) || stlbasic.Is[*hir.RefType](expect)) {
-		errors.ThrowExpectPointerTypeError(node.Position())
+func (self *Analyser) analyseNull(expect hir.Type, node *ast.Null) *hir.Default {
+	if expect == nil {
+		errors.ThrowExpectPointerTypeError(node.Position(), hir.Empty)
+	}else if !hir.IsPtrType(expect) && !hir.IsFuncType(expect){
+		errors.ThrowExpectPointerTypeError(node.Position(), expect)
 	}
-	var t *hir.PtrType
-	if stlbasic.Is[*hir.PtrType](expect) {
-		t = expect.(*hir.PtrType)
-	} else {
-		t = expect.(*hir.RefType).ToPtrType()
-	}
-	return &hir.Zero{Type: t}
+	return &hir.Default{Type: expect}
 }
 
 func (self *Analyser) analyseCheckNull(expect hir.Type, node *ast.CheckNull) *hir.CheckNull {
 	if expect != nil {
-		if pt, ok := expect.(*hir.PtrType); ok {
-			expect = pt
-		} else if rt, ok := expect.(*hir.RefType); ok {
-			expect = rt.ToPtrType()
+		if hir.IsPtrType(expect){
+			expect = hir.AsPtrType(expect)
+		} else if hir.IsRefType(expect) {
+			expect = hir.AsRefType(expect).ToPtrType()
 		}
 	}
 	value := self.analyseExpr(expect, node.Value)
 	vt := value.GetType()
-	if !stlbasic.Is[*hir.PtrType](vt) {
+	if !hir.IsPtrType(vt) {
 		errors.ThrowExpectPointerError(node.Value.Position(), vt)
 	}
 	return &hir.CheckNull{Value: value}
@@ -737,11 +694,4 @@ func (self *Analyser) analyseSelfValue(node *ast.SelfValue)*hir.Param{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
 	return self.selfValue
-}
-
-func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) hir.Expr{
-	if !t.HasDefault(){
-		errors.ThrowCanNotGetDefault(pos, t)
-	}
-	return &hir.Zero{Type: t}
 }

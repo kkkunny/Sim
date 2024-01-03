@@ -15,16 +15,10 @@ type Type interface {
 }
 
 // IdentType 标识符类型
-type IdentType struct {
-	Pkg  util.Option[token.Token]
-	Name token.Token
-}
+type IdentType Ident
 
 func (self *IdentType) Position() reader.Position {
-	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.Name.Position)
-	}
-	return self.Name.Position
+	return (*Ident)(self).Position()
 }
 
 func (self *IdentType) typ() {}
@@ -86,11 +80,10 @@ func (self *UnionType) typ() {}
 type PtrType struct {
 	Begin reader.Position
 	Elem  Type
-	End   reader.Position
 }
 
 func (self *PtrType) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
+	return reader.MixPosition(self.Begin, self.Elem.Position())
 }
 
 func (self *PtrType) typ() {}

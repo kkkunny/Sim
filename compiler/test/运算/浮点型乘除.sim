@@ -1,0 +1,7 @@
+import std::os
+
+func main(){
+    let v: f32 = 1
+    os::exit((v * 2 / 2.1) as u8)
+    return
+}

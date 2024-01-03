@@ -51,9 +51,13 @@ func (self *_UnreachableCodeElimination) walkBlock(ir *mir.Block){
 	// 找到结束语句的下一个语句
 	cursor := ir.Stmts().Front()
 	for ; cursor!=nil; cursor=cursor.Next(){
-		if self.walkStmt(cursor.Value){
+		end, insertUnreachable := self.walkStmt(cursor.Value)
+		if end{
 			cursor = cursor.Next()
 			break
+		}else if insertUnreachable{
+			mir.NewUnreachable(ir)
+			ir.Stmts().MoveAfter(ir.Stmts().Back(), cursor)
 		}
 	}
 
@@ -65,13 +69,18 @@ func (self *_UnreachableCodeElimination) walkBlock(ir *mir.Block){
 	}
 }
 
-func (self *_UnreachableCodeElimination) walkStmt(ir mir.Stmt)bool{
+func (self *_UnreachableCodeElimination) walkStmt(ir mir.Stmt)(bool, bool){
 	if jump, ok := ir.(mir.Jump); ok{
 		for _, to := range jump.Targets(){
 			self.blockFroms.Get(to).Add(ir.Belong())
 		}
 	}
-	return stlbasic.Is[mir.Terminating](ir)
+	if call, ok := ir.(*mir.Call); ok{
+		if f, ok := call.Func().(*mir.Function); ok && f.ContainAttribute(mir.FunctionAttributeNoReturn){
+			return false, true
+		}
+	}
+	return stlbasic.Is[mir.Terminating](ir), false
 }
 
 func (self *_UnreachableCodeElimination) removeBlock(f *mir.Function, cursor *list.Element[*mir.Block]){

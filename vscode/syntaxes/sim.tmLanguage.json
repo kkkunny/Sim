@@ -35,7 +35,7 @@
 		"types": {
 			"patterns": [
 				{
-					"match": "\\b(i(8|16|32|64|128|size)|u(8|16|32|64|128|size)|float(32|64))\\b",
+					"match": "\\b(i(8|16|32|64|size)|u(8|16|32|64|size)|float(32|64))\\b",
 					"name": "entity.name.type.numeric.rust"
 				},
 				{
@@ -167,6 +167,11 @@
 					"comment": "math",
 					"match": "\\+|-|\\*|/|%",
 					"name": "keyword.operator.math.rust"
+				},
+				{
+					"comment": "question",
+					"match": "\\?",
+					"name": "keyword.operator.question.rust"
 				}
 			]
 		}

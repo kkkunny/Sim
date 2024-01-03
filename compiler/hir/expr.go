@@ -5,8 +5,6 @@ import (
 
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
-
-	"github.com/kkkunny/Sim/util"
 )
 
 // Expr 表达式
@@ -24,7 +22,7 @@ type Ident interface {
 
 // Integer 整数
 type Integer struct {
-	Type  IntType
+	Type  Type
 	Value *big.Int
 }
 
@@ -40,7 +38,7 @@ func (self *Integer) Mutable() bool {
 
 // Float 浮点数
 type Float struct {
-	Type  *FloatType
+	Type  Type
 	Value *big.Float
 }
 
@@ -406,371 +404,49 @@ func (self *NumGeNum) GetRight() Expr {
 	return self.Right
 }
 
-// NumEqNum 数字等于数字
-type NumEqNum struct {
+// Equal 比较相等
+type Equal struct {
 	Left, Right Expr
 }
 
-func (self *NumEqNum) stmt() {}
+func (self *Equal) stmt() {}
 
-func (self *NumEqNum) GetType() Type {
+func (self *Equal) GetType() Type {
 	return Bool
 }
 
-func (self *NumEqNum) Mutable() bool {
+func (self *Equal) Mutable() bool {
 	return false
 }
 
-func (self *NumEqNum) GetLeft() Expr {
+func (self *Equal) GetLeft() Expr {
 	return self.Left
 }
 
-func (self *NumEqNum) GetRight() Expr {
+func (self *Equal) GetRight() Expr {
 	return self.Right
 }
 
-// BoolEqBool 布尔等于布尔
-type BoolEqBool struct {
+// NotEqual 比较不相等
+type NotEqual struct {
 	Left, Right Expr
 }
 
-func (self *BoolEqBool) stmt() {}
+func (self *NotEqual) stmt() {}
 
-func (self *BoolEqBool) GetType() Type {
+func (self *NotEqual) GetType() Type {
 	return Bool
 }
 
-func (self *BoolEqBool) Mutable() bool {
+func (self *NotEqual) Mutable() bool {
 	return false
 }
 
-func (self *BoolEqBool) GetLeft() Expr {
+func (self *NotEqual) GetLeft() Expr {
 	return self.Left
 }
 
-func (self *BoolEqBool) GetRight() Expr {
-	return self.Right
-}
-
-// FuncEqFunc 函数等于函数
-type FuncEqFunc struct {
-	Left, Right Expr
-}
-
-func (self *FuncEqFunc) stmt() {}
-
-func (self *FuncEqFunc) GetType() Type {
-	return Bool
-}
-
-func (self *FuncEqFunc) Mutable() bool {
-	return false
-}
-
-func (self *FuncEqFunc) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *FuncEqFunc) GetRight() Expr {
-	return self.Right
-}
-
-// ArrayEqArray 数组等于数组
-type ArrayEqArray struct {
-	Left, Right Expr
-}
-
-func (self *ArrayEqArray) stmt() {}
-
-func (self *ArrayEqArray) GetType() Type {
-	return Bool
-}
-
-func (self *ArrayEqArray) Mutable() bool {
-	return false
-}
-
-func (self *ArrayEqArray) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *ArrayEqArray) GetRight() Expr {
-	return self.Right
-}
-
-// TupleEqTuple 元组等于元组
-type TupleEqTuple struct {
-	Left, Right Expr
-}
-
-func (self *TupleEqTuple) stmt() {}
-
-func (self *TupleEqTuple) GetType() Type {
-	return Bool
-}
-
-func (self *TupleEqTuple) Mutable() bool {
-	return false
-}
-
-func (self *TupleEqTuple) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *TupleEqTuple) GetRight() Expr {
-	return self.Right
-}
-
-// StructEqStruct 结构体等于结构体
-type StructEqStruct struct {
-	Left, Right Expr
-}
-
-func (self *StructEqStruct) stmt() {}
-
-func (self *StructEqStruct) GetType() Type {
-	return Bool
-}
-
-func (self *StructEqStruct) Mutable() bool {
-	return false
-}
-
-func (self *StructEqStruct) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *StructEqStruct) GetRight() Expr {
-	return self.Right
-}
-
-// StringEqString 字符串等于字符串
-type StringEqString struct {
-	Left, Right Expr
-}
-
-func (self *StringEqString) stmt() {}
-
-func (self *StringEqString) GetType() Type {
-	return Bool
-}
-
-func (self *StringEqString) Mutable() bool {
-	return false
-}
-
-func (self *StringEqString) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *StringEqString) GetRight() Expr {
-	return self.Right
-}
-
-// UnionEqUnion 联合等于联合
-type UnionEqUnion struct {
-	Left, Right Expr
-}
-
-func (self *UnionEqUnion) stmt() {}
-
-func (self *UnionEqUnion) GetType() Type {
-	return Bool
-}
-
-func (self *UnionEqUnion) Mutable() bool {
-	return false
-}
-
-func (self *UnionEqUnion) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *UnionEqUnion) GetRight() Expr {
-	return self.Right
-}
-
-// NumNeNum 数字不等数字
-type NumNeNum struct {
-	Left, Right Expr
-}
-
-func (self *NumNeNum) stmt() {}
-
-func (self *NumNeNum) GetType() Type {
-	return Bool
-}
-
-func (self *NumNeNum) Mutable() bool {
-	return false
-}
-
-func (self *NumNeNum) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *NumNeNum) GetRight() Expr {
-	return self.Right
-}
-
-// BoolNeBool 布尔不等布尔
-type BoolNeBool struct {
-	Left, Right Expr
-}
-
-func (self *BoolNeBool) stmt() {}
-
-func (self *BoolNeBool) GetType() Type {
-	return Bool
-}
-
-func (self *BoolNeBool) Mutable() bool {
-	return false
-}
-
-func (self *BoolNeBool) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *BoolNeBool) GetRight() Expr {
-	return self.Right
-}
-
-// FuncNeFunc 函数不等函数
-type FuncNeFunc struct {
-	Left, Right Expr
-}
-
-func (self *FuncNeFunc) stmt() {}
-
-func (self *FuncNeFunc) GetType() Type {
-	return Bool
-}
-
-func (self *FuncNeFunc) Mutable() bool {
-	return false
-}
-
-func (self *FuncNeFunc) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *FuncNeFunc) GetRight() Expr {
-	return self.Right
-}
-
-// ArrayNeArray 数组不等数组
-type ArrayNeArray struct {
-	Left, Right Expr
-}
-
-func (self *ArrayNeArray) stmt() {}
-
-func (self *ArrayNeArray) GetType() Type {
-	return Bool
-}
-
-func (self *ArrayNeArray) Mutable() bool {
-	return false
-}
-
-func (self *ArrayNeArray) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *ArrayNeArray) GetRight() Expr {
-	return self.Right
-}
-
-// TupleNeTuple 元组不等元组
-type TupleNeTuple struct {
-	Left, Right Expr
-}
-
-func (self *TupleNeTuple) stmt() {}
-
-func (self *TupleNeTuple) GetType() Type {
-	return Bool
-}
-
-func (self *TupleNeTuple) Mutable() bool {
-	return false
-}
-
-func (self *TupleNeTuple) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *TupleNeTuple) GetRight() Expr {
-	return self.Right
-}
-
-// StructNeStruct 结构体不等结构体
-type StructNeStruct struct {
-	Left, Right Expr
-}
-
-func (self *StructNeStruct) stmt() {}
-
-func (self *StructNeStruct) GetType() Type {
-	return Bool
-}
-
-func (self *StructNeStruct) Mutable() bool {
-	return false
-}
-
-func (self *StructNeStruct) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *StructNeStruct) GetRight() Expr {
-	return self.Right
-}
-
-// StringNeString 字符串不等字符串
-type StringNeString struct {
-	Left, Right Expr
-}
-
-func (self *StringNeString) stmt() {}
-
-func (self *StringNeString) GetType() Type {
-	return Bool
-}
-
-func (self *StringNeString) Mutable() bool {
-	return false
-}
-
-func (self *StringNeString) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *StringNeString) GetRight() Expr {
-	return self.Right
-}
-
-// UnionNeUnion 联合不等于联合
-type UnionNeUnion struct {
-	Left, Right Expr
-}
-
-func (self *UnionNeUnion) stmt() {}
-
-func (self *UnionNeUnion) GetType() Type {
-	return Bool
-}
-
-func (self *UnionNeUnion) Mutable() bool {
-	return false
-}
-
-func (self *UnionNeUnion) GetLeft() Expr {
-	return self.Left
-}
-
-func (self *UnionNeUnion) GetRight() Expr {
+func (self *NotEqual) GetRight() Expr {
 	return self.Right
 }
 
@@ -907,7 +583,7 @@ type Call struct {
 func (self *Call) stmt() {}
 
 func (self *Call) GetType() Type {
-	return self.Func.GetType().(*FuncType).Ret
+	return AsFuncType(self.Func.GetType()).Ret
 }
 
 func (self *Call) Mutable() bool {
@@ -923,7 +599,7 @@ type Covert interface {
 // Num2Num 数字类型转数字类型
 type Num2Num struct {
 	From Expr
-	To   NumberType
+	To   Type
 }
 
 func (self *Num2Num) stmt() {}
@@ -932,17 +608,76 @@ func (self *Num2Num) GetType() Type {
 	return self.To
 }
 
-func (self *Num2Num) Mutable() bool {
-	return self.From.Mutable()
+func (*Num2Num) Mutable() bool {
+	return false
 }
 
 func (self *Num2Num) GetFrom() Expr {
 	return self.From
 }
 
+// Pointer2Pointer 指针转指针
+type Pointer2Pointer struct {
+	From Expr
+	To   Type
+}
+
+func (self *Pointer2Pointer) stmt() {}
+
+func (self *Pointer2Pointer) GetType() Type {
+	return self.To
+}
+
+func (self *Pointer2Pointer) Mutable() bool {
+	return self.From.Mutable()
+}
+
+func (self *Pointer2Pointer) GetFrom() Expr {
+	return self.From
+}
+
+// Pointer2Usize 指针转usize
+type Pointer2Usize struct {
+	From Expr
+}
+
+func (self *Pointer2Usize) stmt() {}
+
+func (self *Pointer2Usize) GetType() Type {
+	return Usize
+}
+
+func (*Pointer2Usize) Mutable() bool {
+	return false
+}
+
+func (self *Pointer2Usize) GetFrom() Expr {
+	return self.From
+}
+
+// Usize2Pointer usize转指针
+type Usize2Pointer struct {
+	From Expr
+	To Type
+}
+
+func (self *Usize2Pointer) stmt() {}
+
+func (self *Usize2Pointer) GetType() Type {
+	return self.To
+}
+
+func (self *Usize2Pointer) Mutable() bool {
+	return self.From.Mutable()
+}
+
+func (self *Usize2Pointer) GetFrom() Expr {
+	return self.From
+}
+
 // Array 数组
 type Array struct {
-	Type  *ArrayType
+	Type Type
 	Elems []Expr
 }
 
@@ -965,7 +700,7 @@ type Index struct {
 func (self *Index) stmt() {}
 
 func (self *Index) GetType() Type {
-	return self.From.GetType().(*ArrayType).Elem
+	return AsArrayType(self.From.GetType()).Elem
 }
 
 func (self *Index) Mutable() bool {
@@ -1004,7 +739,7 @@ type Extract struct {
 func (self *Extract) stmt() {}
 
 func (self *Extract) GetType() Type {
-	return self.From.GetType().(*TupleType).Elems[self.Index]
+	return AsTupleType(self.From.GetType()).Elems[self.Index]
 }
 
 func (self *Extract) Mutable() bool {
@@ -1032,7 +767,7 @@ func (*Param) ident() {}
 
 // Struct 结构体
 type Struct struct {
-	Type   *StructType
+	Type   Type
 	Fields []Expr
 }
 
@@ -1046,35 +781,39 @@ func (self *Struct) Mutable() bool {
 	return false
 }
 
-// Zero 零值
-type Zero struct {
+// Default 默认值
+type Default struct {
 	Type Type
 }
 
-func (*Zero) stmt() {}
+func (*Default) stmt() {}
 
-func (self *Zero) GetType() Type {
+func (self *Default) GetType() Type {
 	return self.Type
 }
 
-func (self *Zero) Mutable() bool {
+func (self *Default) Mutable() bool {
 	return false
 }
 
-// Field 字段
-type Field struct {
+// GetField 取字段
+type GetField struct {
+	Internal bool
 	From  Expr
 	Index uint
 }
 
-func (self *Field) stmt() {}
+func (self *GetField) stmt() {}
 
-func (self *Field) GetType() Type {
-	return self.From.GetType().(*StructType).Fields.Values().Get(self.Index).Second
+func (self *GetField) GetType() Type {
+	return AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Type
 }
 
-func (self *Field) Mutable() bool {
-	return self.From.Mutable()
+func (self *GetField) Mutable() bool {
+	if self.Internal{
+		return true
+	}
+	return self.From.Mutable() && AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Mutable
 }
 
 // String 字符串
@@ -1094,7 +833,7 @@ func (self *String) Mutable() bool {
 
 // Union 联合
 type Union struct {
-	Type  *UnionType
+	Type  Type
 	Value Expr
 }
 
@@ -1167,7 +906,7 @@ type GetValue struct {
 func (self *GetValue) stmt() {}
 
 func (self *GetValue) GetType() Type {
-	return self.Value.GetType().(*RefType).Elem
+	return AsRefType(self.Value.GetType()).Elem
 }
 
 func (self *GetValue) Mutable() bool {
@@ -1186,7 +925,7 @@ type WrapWithNull struct {
 func (self *WrapWithNull) stmt() {}
 
 func (self *WrapWithNull) GetType() Type {
-	return self.Value.GetType().(*RefType).ToPtrType()
+	return AsRefType(self.Value.GetType()).ToPtrType()
 }
 
 func (self *WrapWithNull) Mutable() bool {
@@ -1201,7 +940,7 @@ type CheckNull struct {
 func (self *CheckNull) stmt() {}
 
 func (self *CheckNull) GetType() Type {
-	return &RefType{Elem: self.Value.GetType().(*PtrType).Elem}
+	return &RefType{Elem: AsPtrType(self.Value.GetType()).Elem}
 }
 
 func (self *CheckNull) Mutable() bool {
@@ -1217,7 +956,7 @@ type Method struct {
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*StructDef{
-	return self.Self.GetType().(*StructDef)
+	return AsStructType(self.Self.GetType())
 }
 
 func (self *Method) GetType() Type {
@@ -1230,55 +969,196 @@ func (self *Method) Mutable() bool {
 
 func (*Method) ident() {}
 
-// GenericFuncInstance 泛型函数实例
-type GenericFuncInstance struct {
+// GenericFuncInst 泛型函数实例
+type GenericFuncInst struct {
 	Define *GenericFuncDef
 	Params []Type
 }
 
-func (self *GenericFuncInstance) stmt() {}
+func (self *GenericFuncInst) stmt() {}
 
-func (self *GenericFuncInstance) GetType() Type {
-	if self.Define.GenericParams.Length() != uint(len(self.Params)){
-		panic("unreachable")
+func (self *GenericFuncInst) GetType() Type {
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](self.Define.GenericParams.Capacity())
+	for i, iter:=0, self.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.Params[i])
 	}
-	table := hashmap.NewHashMapWithCapacity[*GenericParam, Type](self.Define.GenericParams.Length())
-	var i int
-	for iter:=self.Define.GenericParams.Values().Iterator(); iter.Next(); {
-		table.Set(iter.Value(), self.Params[i])
-		i++
-	}
-	return ReplaceGenericParam(self.Define.GetFuncType(), table)
+	return ReplaceAllGenericIdent(maps, self.Define.GetFuncType())
 }
 
-func (self *GenericFuncInstance) Mutable() bool {
+func (self *GenericFuncInst) Mutable() bool {
 	return false
 }
 
-func (*GenericFuncInstance) ident() {}
+func (*GenericFuncInst) ident() {}
 
-// TraitMethod 特性方法
-type TraitMethod struct {
-	Type *GenericParam
-	Value util.Option[Expr]
-	Name string
+// GenericStructMethodInst 泛型结构体方法实例
+type GenericStructMethodInst struct {
+	Self   Expr
+	Define *GenericStructMethodDef
 }
 
-func (self *TraitMethod) stmt() {}
+func (self *GenericStructMethodInst) stmt() {}
 
-func (self *TraitMethod) GetType() Type {
-	constraint := self.Type.Constraint.MustValue()
-	for iter:=constraint.Methods.Iterator(); iter.Next(); {
-		data := iter.Value()
-		if data.First == self.Name{
-			return data.Second
-		}
-	}
-	panic("unreachable")
+func (self *GenericStructMethodInst) GetScope()*StructDef{
+	return AsStructType(self.Self.GetType())
 }
 
-func (self *TraitMethod) Mutable() bool {
+func (self *GenericStructMethodInst) GetType() Type {
+	return self.GetMethodType()
+}
+
+func (self *GenericStructMethodInst) Mutable() bool {
 	return false
 }
 
-func (*TraitMethod) ident() {}
+func (*GenericStructMethodInst) ident() {}
+
+func (self *GenericStructMethodInst) GetGenericParams()[]Type{
+	return self.GetScope().genericParams
+}
+
+func (self *GenericStructMethodInst) GetFuncType() Type {
+	params := self.GetGenericParams()
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](self.Define.Scope.GenericParams.Capacity())
+	for i, iter:=0, self.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, params[i])
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetFuncType())
+}
+
+func (self *GenericStructMethodInst) GetMethodType() Type {
+	params := self.GetGenericParams()
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](self.Define.Scope.GenericParams.Capacity())
+	for i, iter:=0, self.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, params[i])
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetMethodType())
+}
+
+// GenericMethodInst 泛型方法实例
+type GenericMethodInst struct {
+	Self   Expr
+	Define *GenericMethodDef
+	Params []Type
+}
+
+func (self *GenericMethodInst) stmt() {}
+
+func (self *GenericMethodInst) GetScope()*StructDef{
+	return AsStructType(self.Self.GetType())
+}
+
+func (self *GenericMethodInst) GetType() Type {
+	return self.GetMethodType()
+}
+
+func (self *GenericMethodInst) Mutable() bool {
+	return false
+}
+
+func (*GenericMethodInst) ident() {}
+
+func (self *GenericMethodInst) GetFuncType() Type {
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
+	for i, iter:=0, self.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.Params[i])
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetFuncType())
+}
+
+func (self *GenericMethodInst) GetMethodType() Type {
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
+	for i, iter:=0, self.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, self.Params[i])
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetMethodType())
+}
+
+// GenericStructGenericMethodInst 泛型结构体泛型方法实例
+type GenericStructGenericMethodInst struct {
+	Self   Expr
+	Define *GenericStructMethodDef
+	Params []Type
+}
+
+func (self *GenericStructGenericMethodInst) stmt() {}
+
+func (self *GenericStructGenericMethodInst) GetScope()*StructDef{
+	return AsStructType(self.Self.GetType())
+}
+
+func (self *GenericStructGenericMethodInst) GetType() Type {
+	return self.GetMethodType()
+}
+
+func (self *GenericStructGenericMethodInst) Mutable() bool {
+	return false
+}
+
+func (*GenericStructGenericMethodInst) ident() {}
+
+func (self *GenericStructGenericMethodInst) GetScopeGenericParams()[]Type{
+	return self.GetScope().genericParams
+}
+
+func (self *GenericStructGenericMethodInst) GetGenericParams()[]Type{
+	return append(self.GetScopeGenericParams(), self.Params...)
+}
+
+func (self *GenericStructGenericMethodInst) GetFuncType() Type {
+	params := self.GetGenericParams()
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(params)))
+	for i, iter:=0, self.Define.GetGenericParams().Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, params[i])
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetFuncType())
+}
+
+func (self *GenericStructGenericMethodInst) GetMethodType() Type {
+	params := self.GetGenericParams()
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(params)))
+	for i, iter:=0, self.Define.GetGenericParams().Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, params[i])
+	}
+	return ReplaceAllGenericIdent(maps, self.Define.GetMethodType())
+}
+
+// ShrinkUnion 缩小联合
+type ShrinkUnion struct {
+	Type  Type
+	Value Expr
+}
+
+func (self *ShrinkUnion) stmt() {}
+
+func (self *ShrinkUnion) GetType() Type {
+	return self.Type
+}
+
+func (self *ShrinkUnion) Mutable() bool {
+	return false
+}
+
+func (self *ShrinkUnion) GetFrom() Expr{
+	return self.Value
+}
+
+// ExpandUnion 扩大联合
+type ExpandUnion struct {
+	Type  Type
+	Value Expr
+}
+
+func (self *ExpandUnion) stmt() {}
+
+func (self *ExpandUnion) GetType() Type {
+	return self.Type
+}
+
+func (self *ExpandUnion) Mutable() bool {
+	return false
+}
+
+func (self *ExpandUnion) GetFrom() Expr{
+	return self.Value
+}

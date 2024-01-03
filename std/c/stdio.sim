@@ -1,0 +1,2 @@
+@extern("printf")
+pub func printf(format: string)int

@@ -1,0 +1,3 @@
+func main(){
+    let v: <i8> = 1 as i8
+}

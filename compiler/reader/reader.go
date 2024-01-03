@@ -1,12 +1,16 @@
 package reader
 
-import "io"
+import (
+	"io"
+
+	stlos "github.com/kkkunny/stl/os"
+)
 
 // Reader 读取器
 type Reader interface {
-	io.RuneReader
+	io.ByteReader
 	io.Seeker
-	Path() string
+	Path() stlos.FilePath
 	Position() Position
 	Offset() uint
 }

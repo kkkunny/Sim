@@ -1,117 +1,207 @@
 package codegen_ir
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/pair"
+	"github.com/samber/lo"
+
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
-func (self *CodeGenerator) declStructDef(node *hir.StructDef) {
-	self.structs.Set(node, self.module.NewNamedStructType(""))
+func (self *CodeGenerator) declStructDef(ir *hir.StructDef) {
+	self.structs.Set(ir.String(), pair.NewPair[mir.StructType, *types.StructType](self.module.NewNamedStructType(""), types.NewStructType(ir.Pkg.String(), ir.Name)))
 }
 
-func (self *CodeGenerator) defStructDef(node *hir.StructDef) {
-	st := self.structs.Get(node)
-	fields := make([]mir.Type, node.Fields.Length())
-	var i int
-	for iter := node.Fields.Values().Iterator(); iter.Next(); i++ {
-		fields[i] = self.codegenType(iter.Value().Second)
+func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
+	stPair := self.structs.Get(ir.String())
+	fields, fieldRts := make([]mir.Type, ir.Fields.Length()), make([]types.Field, ir.Fields.Length())
+	for i, iter := 0, ir.Fields.Values().Iterator(); iter.Next(); i++ {
+		f, fRt := self.codegenType(iter.Value().Type)
+		fields[i], fieldRts[i] = f, types.NewField(fRt, ir.Name)
+	}
+	stPair.First.SetElems(fields...)
+	stPair.Second.Fields = fieldRts
+}
+
+func (self *CodeGenerator) declGenericStructDef(ir *hir.GenericStructInst) (mir.StructType, *types.StructType) {
+	return self.module.NewNamedStructType(""), types.NewStructType(ir.Define.Pkg.String(), ir.Define.GetName())
+}
+
+func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir.StructType) {
+	stIr := ir.StructType()
+	fields := make([]mir.Type, stIr.Fields.Length())
+	fieldRts := make([]types.Field, stIr.Fields.Length())
+	for i, iter := 0, stIr.Fields.Iterator(); iter.Next(); i++ {
+		f, fRt := self.codegenType(iter.Value().Second.Type)
+		fields[i], fieldRts[i] = f, types.NewField(fRt, iter.Value().First)
 	}
 	st.SetElems(fields...)
 }
 
-func (self *CodeGenerator) codegenGlobalDecl(node hir.Global) {
-	switch globalNode := node.(type) {
+func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
+	switch global := ir.(type) {
 	case *hir.FuncDef:
-		self.declFuncDef(globalNode)
+		self.declFuncDef(global)
 	case *hir.MethodDef:
-		self.declMethodDef(globalNode)
-	case *hir.Variable:
-		self.declGlobalVariable(globalNode)
-	case *hir.GenericFuncDef:
-		self.declGenericFuncDef(globalNode)
-	case *hir.StructDef:
+		self.declMethodDef(global)
+	case *hir.VarDef:
+		self.declGlobalVariable(global)
+	case *hir.MultiVarDef:
+		self.declMultiGlobalVariable(global)
+	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) declFuncDef(node *hir.FuncDef) {
-	ft := self.codegenFuncType(node.GetType().(*hir.FuncType))
-	f := self.module.NewFunction(node.ExternName, ft)
-	self.values.Set(node, f)
+func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
+	ftObj, _ := self.codegenType(ir.GetType())
+	ft := ftObj.(mir.FuncType)
+	f := self.module.NewFunction(ir.ExternName, ft)
+	if ir.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
 }
 
-func (self *CodeGenerator) declMethodDef(node *hir.MethodDef) {
-	ft := self.codegenFuncType(node.GetType().(*hir.FuncType))
+func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
+	ftObj, _ := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
 	f := self.module.NewFunction("", ft)
-	self.values.Set(node, f)
+	if ir.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
 }
 
-func (self *CodeGenerator) declGlobalVariable(node *hir.Variable) {
-	t := self.codegenType(node.Type)
-	v := self.module.NewGlobalVariable("", t, mir.NewZero(self.codegenType(node.GetType())))
-	self.values.Set(node, v)
+func (self *CodeGenerator) declGlobalVariable(ir *hir.VarDef) {
+	t, _ := self.codegenType(ir.Type)
+	v := self.module.NewGlobalVariable("", t, mir.NewZero(t))
+	self.values.Set(ir, v)
 }
 
-func (self *CodeGenerator) declGenericFuncDef(node *hir.GenericFuncDef) {
-	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
-		inst := iter.Value()
-		ft := self.codegenFuncType(inst.GetType().(*hir.FuncType))
-		f := self.module.NewFunction("", ft)
-		self.values.Set(inst, f)
+func (self *CodeGenerator) declMultiGlobalVariable(ir *hir.MultiVarDef) {
+	for _, varDef := range ir.Vars{
+		self.declGlobalVariable(varDef)
 	}
 }
 
-func (self *CodeGenerator) codegenGlobalDef(node hir.Global) {
-	switch globalNode := node.(type) {
+func (self *CodeGenerator) declGenericFuncDef(ir *hir.GenericFuncInst) *mir.Function {
+	ftObj, _ := self.codegenType(ir.GetType())
+	ft := ftObj.(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Define.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
+	return f
+}
+
+func (self *CodeGenerator) declGenericStructMethodDef(ir *hir.GenericStructMethodInst) *mir.Function {
+	ftObj, _ := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Define.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
+	return f
+}
+
+func (self *CodeGenerator) declGenericMethodDef(ir *hir.GenericMethodInst) *mir.Function {
+	ftObj, _ := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Define.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
+	return f
+}
+
+func (self *CodeGenerator) declGenericStructGenericMethodDef(ir *hir.GenericStructGenericMethodInst) *mir.Function {
+	ftObj, _ := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.NoReturn{
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Define.InlineControl.Value(); ok{
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.values.Set(ir, f)
+	return f
+}
+
+func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
+	switch global := ir.(type) {
 	case *hir.FuncDef:
-		if globalNode.Body.IsNone() {
-			self.defFuncDecl(globalNode)
+		if global.Body.IsNone() {
+			self.defFuncDecl(global)
 		} else {
-			self.defFuncDef(globalNode)
+			self.defFuncDef(global)
 		}
 	case *hir.MethodDef:
-		self.defMethodDef(globalNode)
+		self.defMethodDef(global)
 	case *hir.StructDef:
-		self.defStructDef(globalNode)
-	case *hir.Variable:
-		self.defGlobalVariable(globalNode)
-	case *hir.GenericFuncDef:
-		self.defGenericFuncDef(globalNode)
+		self.defStructDef(global)
+	case *hir.VarDef:
+		self.defGlobalVariable(global)
+	case *hir.MultiVarDef:
+		self.defMultiGlobalVariable(global)
+	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) defFuncDef(node *hir.FuncDef) {
-	f := self.values.Get(node).(*mir.Function)
+func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
+	f := self.values.Get(ir).(*mir.Function)
 	self.builder.MoveTo(f.NewBlock())
 	for i, p := range f.Params() {
-		self.values.Set(node.Params[i], p)
+		self.values.Set(ir.Params[i], p)
 	}
-	block, _ := self.codegenBlock(node.Body.MustValue(), nil)
+	block, _ := self.codegenBlock(ir.Body.MustValue(), nil)
 	self.builder.BuildUnCondJump(block)
 }
 
-func (self *CodeGenerator) defMethodDef(node *hir.MethodDef) {
-	f := self.values.Get(node).(*mir.Function)
+func (self *CodeGenerator) defMethodDef(ir *hir.MethodDef) {
+	f := self.values.Get(ir).(*mir.Function)
 	self.builder.MoveTo(f.NewBlock())
-	paramNodes := append([]*hir.Param{node.SelfParam}, node.Params...)
+	paramNodes := append([]*hir.Param{ir.SelfParam}, ir.Params...)
 	for i, p := range f.Params() {
 		self.values.Set(paramNodes[i], p)
 	}
-	block, _ := self.codegenBlock(node.Body, nil)
+	block, _ := self.codegenBlock(ir.Body, nil)
 	self.builder.BuildUnCondJump(block)
 }
 
-func (self *CodeGenerator) defFuncDecl(node *hir.FuncDef) {
-	_ = self.values.Get(node).(*mir.Function)
+func (self *CodeGenerator) defFuncDecl(ir *hir.FuncDef) {
+	_ = self.values.Get(ir).(*mir.Function)
 }
 
-func (self *CodeGenerator) defGlobalVariable(node *hir.Variable) {
-	gv := self.values.Get(node).(*mir.GlobalVariable)
+func (self *CodeGenerator) defGlobalVariable(ir *hir.VarDef) {
+	gv := self.values.Get(ir).(*mir.GlobalVariable)
 	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
-	value := self.codegenExpr(node.Value, true)
+	value := self.codegenExpr(ir.Value, true)
 	if constValue, ok := value.(mir.Const); ok {
 		gv.SetValue(constValue)
 	} else {
@@ -119,24 +209,84 @@ func (self *CodeGenerator) defGlobalVariable(node *hir.Variable) {
 	}
 }
 
-func (self *CodeGenerator) defGenericFuncDef(node *hir.GenericFuncDef) {
-	for iter:=node.Instances.Values().Iterator(); iter.Next(); {
-		inst := iter.Value()
-		f := self.values.Get(inst).(*mir.Function)
-		self.builder.MoveTo(f.NewBlock())
-
-		var i int
-		for iter:=node.GenericParams.Values().Iterator(); iter.Next(); {
-			self.genericParams.Set(iter.Value(), inst.Params[i])
-			i++
+func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiVarDef) {
+	if constant, ok := ir.Value.(*hir.Tuple); ok && len(constant.Elems) == len(ir.Vars){
+		for i, varNode := range ir.Vars{
+			varNode.Value = constant.Elems[i]
+			self.defGlobalVariable(varNode)
 		}
-
-		for i, p := range f.Params() {
-			self.values.Set(node.Params[i], p)
-		}
-		block, _ := self.codegenBlock(node.Body, nil)
-		self.builder.BuildUnCondJump(block)
-
-		self.genericParams.Clear()
+	}else{
+		self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
+		self.codegenUnTuple(ir.Value, lo.Map(ir.Vars, func(item *hir.VarDef, _ int) hir.Expr {
+			return item
+		}))
 	}
+}
+
+func (self *CodeGenerator) defGenericFuncDef(ir *hir.GenericFuncInst, f *mir.Function) {
+	self.builder.MoveTo(f.NewBlock())
+	for i, p := range f.Params() {
+		self.values.Set(ir.Define.Params[i], p)
+	}
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
+	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(ir.Params[i])))
+	}
+	self.genericIdentMapStack.Push(maps)
+	defer self.genericIdentMapStack.Pop()
+	block, _ := self.codegenBlock(ir.Define.Body, nil)
+	self.builder.BuildUnCondJump(block)
+}
+
+func (self *CodeGenerator) defGenericStructMethodDef(ir *hir.GenericStructMethodInst, f *mir.Function) {
+	self.builder.MoveTo(f.NewBlock())
+	paramNodes := append([]*hir.Param{ir.Define.SelfParam}, ir.Define.Params...)
+	for i, p := range f.Params() {
+		self.values.Set(paramNodes[i], p)
+	}
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
+	genericParams := ir.GetGenericParams()
+	for i, iter:=0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i])))
+	}
+	self.genericIdentMapStack.Push(maps)
+	defer self.genericIdentMapStack.Pop()
+	block, _ := self.codegenBlock(ir.Define.Body, nil)
+	self.builder.BuildUnCondJump(block)
+}
+
+func (self *CodeGenerator) defGenericMethodDef(ir *hir.GenericMethodInst, f *mir.Function) {
+	self.builder.MoveTo(f.NewBlock())
+	paramNodes := append([]*hir.Param{ir.Define.SelfParam}, ir.Define.Params...)
+	for i, p := range f.Params() {
+		self.values.Set(paramNodes[i], p)
+	}
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
+	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(ir.Params[i])))
+	}
+	self.genericIdentMapStack.Push(maps)
+	defer self.genericIdentMapStack.Pop()
+	block, _ := self.codegenBlock(ir.Define.Body, nil)
+	self.builder.BuildUnCondJump(block)
+}
+
+func (self *CodeGenerator) defGenericStructGenericMethodDef(ir *hir.GenericStructGenericMethodInst, f *mir.Function) {
+	self.builder.MoveTo(f.NewBlock())
+	paramNodes := append([]*hir.Param{ir.Define.SelfParam}, ir.Define.Params...)
+	for i, p := range f.Params() {
+		self.values.Set(paramNodes[i], p)
+	}
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
+	genericParams := ir.GetGenericParams()
+	for i, iter:=0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i])))
+	}
+	for i, iter:=0, ir.Define.GenericParams.Iterator(); iter.Next(); i++{
+		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i+int(ir.Define.Scope.GenericParams.Length())])))
+	}
+	self.genericIdentMapStack.Push(maps)
+	defer self.genericIdentMapStack.Pop()
+	block, _ := self.codegenBlock(ir.Define.Body, nil)
+	self.builder.BuildUnCondJump(block)
 }

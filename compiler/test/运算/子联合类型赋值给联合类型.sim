@@ -1,0 +1,7 @@
+type son = <u8>
+type parent = <i8, son>
+
+func main(){
+    let v: son = 1 as u8
+    let v2: parent = v
+}

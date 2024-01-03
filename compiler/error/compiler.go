@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/iterator"
+	stliter "github.com/kkkunny/stl/container/iter"
 
 	"github.com/kkkunny/Sim/ast"
 	"github.com/kkkunny/Sim/hir"
@@ -63,11 +63,6 @@ func ThrowIllegalUnaryError(pos reader.Position, op token.Token, t hir.Type) {
 	ThrowError(pos, "illegal unary operation with `%s` type `%s`", op.Source(), t)
 }
 
-// ThrowNotFunctionError 必须是函数
-func ThrowNotFunctionError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect function type but there is `%s`", t)
-}
-
 // ThrowParameterNumberNotMatchError 参数数量不匹配
 func ThrowParameterNumberNotMatchError(pos reader.Position, expect, now uint) {
 	ThrowError(pos, "parameter number does not match, expect `%d`, but there has `%d`", expect, now)
@@ -78,34 +73,49 @@ func ThrowIllegalCovertError(pos reader.Position, from, to hir.Type) {
 	ThrowError(pos, "type `%s` can not covert to `%s`", from, to)
 }
 
-// ThrowNotArrayError 必须是数组
-func ThrowNotArrayError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect array type but there is `%s`", t)
-}
-
 // ThrowExpectPointerTypeError 期待指针类型
-func ThrowExpectPointerTypeError(pos reader.Position) {
-	ThrowError(pos, "expect a pointer type")
+func ThrowExpectPointerTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a pointer type but there is type `%s`", t)
 }
 
-// ThrowExpectPointerError 期待指针
+// ThrowExpectStructTypeError 期待结构体类型
+func ThrowExpectStructTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a struct type but there is type `%s`", t)
+}
+
+// ThrowExpectArrayTypeError 期待数组类型
+func ThrowExpectArrayTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a array type but there is type `%s`", t)
+}
+
+// ThrowExpectFunctionError 期待一个函数
+func ThrowExpectFunctionError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a function but there is type `%s`", t)
+}
+
+// ThrowExpectPointerError 期待一个指针
 func ThrowExpectPointerError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect pointer type but there is `%s`", t)
+	ThrowError(pos, "expect a pointer but there is type `%s`", t)
 }
 
-// ThrowExpectReferenceError 期待引用
+// ThrowExpectReferenceError 期待一个引用
 func ThrowExpectReferenceError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect reference type but there is `%s`", t)
+	ThrowError(pos, "expect a reference but there is type `%s`", t)
 }
 
-// ThrowNotTupleError 必须是元组
-func ThrowNotTupleError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect tuple type but there is `%s`", t)
+// ThrowExpectArrayError 期待一个数组
+func ThrowExpectArrayError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a array but there is type `%s`", t)
 }
 
-// ThrowNotStructError 必须是结构体
-func ThrowNotStructError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect struct type but there is `%s`", t)
+// ThrowExpectTupleError 期待一个元组
+func ThrowExpectTupleError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a tuple but there is type `%s`", t)
+}
+
+// ThrowExpectStructError 期待一个结构体
+func ThrowExpectStructError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a struct but there is type `%s`", t)
 }
 
 // ThrowInvalidIndexError 超出下标
@@ -160,7 +170,7 @@ func ThrowIllegalType(pos reader.Position) {
 
 // ThrowInvalidPackage 无效包
 func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Token]) {
-	pathStrs := iterator.Map[token.Token, string, dynarray.DynArray[string]](paths, func(v token.Token) string {
+	pathStrs := stliter.Map[token.Token, string, dynarray.DynArray[string]](paths, func(v token.Token) string {
 		return v.Source()
 	})
 	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs.ToSlice(), "."))

@@ -1,0 +1,3 @@
+@extern("exit")
+@noreturn
+pub func exit(status: int)

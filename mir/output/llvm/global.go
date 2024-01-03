@@ -63,15 +63,26 @@ func (self *LLVMOutputer) codegenDeclValue(ir mir.Global){
 			f.SetLinkage(llvm.ExternalLinkage)
 		}
 		for _, attr := range global.Attributes(){
+			// FIXME: jit无法运行llvm.global_ctors
 			switch attr {
 			case mir.FunctionAttributeInit:
 				self.module.AddConstructor(65535, f)
 			case mir.FunctionAttributeFini:
 				self.module.AddDestructor(65535, f)
+			case mir.FunctionAttributeNoReturn:
+				f.AddAttribute(llvm.FuncAttributeNoReturn)
+			case mir.FunctionAttributeInline:
+				f.AddAttribute(llvm.FuncAttributeAlwaysInline)
+			case mir.FunctionAttributeNoInline:
+				f.AddAttribute(llvm.FuncAttributeNoInline)
 			default:
 				panic("unreachable")
 			}
 		}
+		if !global.ContainAttribute(mir.FunctionAttributeInline) && !global.ContainAttribute(mir.FunctionAttributeNoInline){
+			f.AddAttribute(llvm.FuncAttributeInlineHint)
+		}
+		f.AddAttribute(llvm.FuncAttributeAllocKind, 1|16|32)
 		self.values.Set(global, f)
 	default:
 		panic("unreachable")

@@ -1,14 +1,15 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
-
 	stlerror "github.com/kkkunny/stl/error"
+	stlos "github.com/kkkunny/stl/os"
 )
 
 // ROOT 语言根目录
-var ROOT string = func() string {
-	// FIXME: 从环境变量或程序目录获取语言根目录
-	return filepath.Dir(stlerror.MustWith(os.Getwd()))
+var ROOT = func() stlos.FilePath {
+	workdir := stlerror.MustWith(stlos.GetWorkDirectory())
+	if workdir.Base() == "test"{
+		workdir = workdir.Dir()
+	}
+	return workdir.Dir()
 }()

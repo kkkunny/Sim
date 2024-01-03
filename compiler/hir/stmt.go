@@ -31,7 +31,7 @@ func (*Block) stmt() {}
 
 // Return 函数返回
 type Return struct {
-	Func  GlobalFunc
+	Func  GlobalFuncOrMethod
 	Value util.Option[Expr]
 }
 
@@ -91,7 +91,7 @@ type Continue struct {
 func (*Continue) stmt() {}
 
 type For struct {
-	Cursor   *Variable
+	Cursor   *VarDef
 	Iterator Expr
 	Body     *Block
 }

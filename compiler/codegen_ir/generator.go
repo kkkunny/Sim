@@ -2,16 +2,19 @@ package codegen_ir
 
 import (
 	"github.com/kkkunny/stl/container/hashmap"
-	"github.com/kkkunny/stl/container/iterator"
+	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
+	"github.com/kkkunny/stl/container/stack"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	means linkedlist.LinkedList[hir.Global]
+	irs linkedlist.LinkedList[hir.Global]
 
 	target  mir.Target
 	ctx     *mir.Context
@@ -21,26 +24,27 @@ type CodeGenerator struct {
 	values  hashmap.HashMap[hir.Expr, mir.Value]
 	loops   hashmap.HashMap[hir.Loop, loop]
 	strings hashmap.HashMap[string, *mir.Constant]
-	structs hashmap.HashMap[*hir.StructDef, mir.StructType]
-
-	genericParams hashmap.HashMap[*hir.GenericParam, hir.Type]
+	structs hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
+	funcCache hashmap.HashMap[string, *mir.Function]
+	genericIdentMapStack stack.Stack[hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]]
+	structCache hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
 }
 
-func New(target mir.Target, means linkedlist.LinkedList[hir.Global]) *CodeGenerator {
+func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {
 	ctx := mir.NewContext(target)
 	return &CodeGenerator{
-		means: means,
-		target:   target,
-		ctx:      ctx,
-		module:   ctx.NewModule(),
-		builder:  ctx.NewBuilder(),
+		irs:     irs,
+		target:  target,
+		ctx:     ctx,
+		module:  ctx.NewModule(),
+		builder: ctx.NewBuilder(),
 	}
 }
 
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() *mir.Module {
 	// 类型声明
-	iterator.Foreach(self.means, func(v hir.Global) bool {
+	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		st, ok := v.(*hir.StructDef)
 		if ok {
 			self.declStructDef(st)
@@ -48,34 +52,28 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		return true
 	})
 	// 值声明
-	iterator.Foreach(self.means, func(v hir.Global) bool {
+	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		self.codegenGlobalDecl(v)
 		return true
 	})
 	// 值定义
-	iterator.Foreach(self.means, func(v hir.Global) bool {
+	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		self.codegenGlobalDef(v)
 		return true
 	})
 	// 初始化函数
-	// FIXME: jit无法运行llvm.global_ctors
 	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
 	self.builder.BuildReturn()
 	// 主函数
-	var hasMain bool
-	iterator.Foreach(self.means, func(v hir.Global) bool {
+	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {
-			hasMain = true
 			f := self.values.Get(funcNode).(*mir.Function)
 			self.builder.MoveTo(self.getMainFunction().Blocks().Front().Value)
-			self.builder.BuildReturn(self.builder.BuildCall(f))
+			self.builder.BuildCall(f)
+			self.builder.BuildReturn(mir.NewUint(self.ctx.U8(), 0))
 			return false
 		}
 		return true
 	})
-	if !hasMain {
-		self.builder.MoveTo(self.getMainFunction().Blocks().Front().Value)
-		self.builder.BuildReturn(mir.NewUint(self.ctx.U8(), 0))
-	}
 	return self.module
 }

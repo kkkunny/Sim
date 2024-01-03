@@ -1,31 +1,45 @@
 package codegen_ir
 
 import (
+	"bytes"
+	"encoding/gob"
+	"fmt"
+
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
 	stlerror "github.com/kkkunny/stl/error"
+	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 	module2 "github.com/kkkunny/Sim/mir/pass/module"
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
+func (self *CodeGenerator) getExternFunction(name string, t mir.FuncType)*mir.Function{
+	fn, ok := self.module.NamedFunction(name)
+	if !ok {
+		fn = self.module.NewFunction(name, t)
+	}
+	return fn
+}
+
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
-	switch meanType := t.(type) {
-	case hir.IntType, *hir.BoolType, *hir.FloatType:
+	switch irType := hir.FlattenType(t).(type) {
+	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType:
 		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
 	case *hir.FuncType, *hir.PtrType, *hir.RefType:
 		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
 	case *hir.ArrayType:
-		res := self.buildArrayEqual(meanType, l, r)
+		res := self.buildArrayEqual(irType, l, r)
 		if not {
 			res = self.builder.BuildNot(res)
 		}
 		return res
 	case *hir.TupleType, *hir.StructType:
-		res := self.buildStructEqual(meanType, l, r)
+		res := self.buildStructEqual(irType, l, r)
 		if not {
 			res = self.builder.BuildNot(res)
 		}
@@ -44,15 +58,18 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 		}
 		return res
 	case *hir.UnionType:
-		// TODO: 联合类型比较
-		panic("unreachable")
+		res := self.buildUnionEqual(irType, l, r)
+		if not {
+			res = self.builder.BuildNot(res)
+		}
+		return res
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) buildArrayEqual(meanType *hir.ArrayType, l, r mir.Value) mir.Value {
-	t := self.codegenArrayType(meanType)
+func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value) mir.Value {
+	t := self.codegenTypeOnly(irType).(mir.ArrayType)
 	if t.Length() == 0 {
 		return mir.Bool(self.ctx, true)
 	}
@@ -71,7 +88,7 @@ func (self *CodeGenerator) buildArrayEqual(meanType *hir.ArrayType, l, r mir.Val
 
 	// body
 	self.builder.MoveTo(bodyBlock)
-	cond = self.buildEqual(meanType.Elem, self.buildArrayIndex(l, index, false), self.buildArrayIndex(r, index, false), false)
+	cond = self.buildEqual(irType.Elem, self.buildArrayIndex(l, index, false), self.buildArrayIndex(r, index, false), false)
 	bodyEndBlock := self.builder.Current()
 	actionBlock := bodyEndBlock.Belong().NewBlock()
 	self.builder.BuildCondJump(cond, actionBlock, outBlock)
@@ -90,21 +107,21 @@ func (self *CodeGenerator) buildArrayEqual(meanType *hir.ArrayType, l, r mir.Val
 	)
 }
 
-func (self *CodeGenerator) buildStructEqual(meanType hir.Type, l, r mir.Value) mir.Value {
-	_, isTuple := meanType.(*hir.TupleType)
+func (self *CodeGenerator) buildStructEqual(irType hir.Type, l, r mir.Value) mir.Value {
+	_, isTuple := irType.(*hir.TupleType)
 	t := stlbasic.TernaryAction(isTuple, func() mir.StructType {
-		return self.codegenTupleType(meanType.(*hir.TupleType))
+		return self.codegenTypeOnly(irType).(mir.StructType)
 	}, func() mir.StructType {
-		return self.codegenStructType(meanType.(*hir.StructType))
+		return self.codegenTypeOnly(irType).(mir.StructType)
 	})
 	fields := stlbasic.TernaryAction(isTuple, func() dynarray.DynArray[hir.Type] {
-		return dynarray.NewDynArrayWith(meanType.(*hir.TupleType).Elems...)
+		return dynarray.NewDynArrayWith(irType.(*hir.TupleType).Elems...)
 	}, func() dynarray.DynArray[hir.Type] {
-		values := meanType.(*hir.StructType).Fields.Values()
+		values := irType.(*hir.StructType).Fields.Values()
 		res := dynarray.NewDynArrayWithLength[hir.Type](values.Length())
 		var i uint
 		for iter:=values.Iterator(); iter.Next(); {
-			res.Set(i, iter.Value().Second)
+			res.Set(i, iter.Value().Type)
 			i++
 		}
 		return res
@@ -142,6 +159,47 @@ func (self *CodeGenerator) buildStructEqual(meanType hir.Type, l, r mir.Value) m
 		phi.AddFroms(pair.NewPair[*mir.Block, mir.Value](iter.Value(), stlbasic.Ternary[mir.Value](iter.HasNext(), mir.Bool(self.ctx, false), nextBlocks.Back().First)))
 	}
 	return phi
+}
+
+func (self *CodeGenerator) buildUnionEqual(irType *hir.UnionType, l, r mir.Value) mir.Value {
+	key := fmt.Sprintf("equal:%s", irType.String())
+
+	var f *mir.Function
+	if !self.funcCache.ContainKey(key){
+		curBlock := self.builder.Current()
+		f = self.module.NewFunction("", self.ctx.NewFuncType(self.ctx.Bool(), l.Type(), r.Type()))
+		lp, rp := f.Params()[0], f.Params()[1]
+
+		self.builder.MoveTo(f.NewBlock())
+		lk, rk := self.buildStructIndex(lp, 1, false), self.buildStructIndex(rp, 1, false)
+		falseBlock, nextBlock := f.NewBlock(), f.NewBlock()
+		self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindNE, lk, rk), falseBlock, nextBlock)
+
+		self.builder.MoveTo(falseBlock)
+		self.builder.BuildReturn(mir.Bool(self.ctx, false))
+
+		self.builder.MoveTo(nextBlock)
+		lvp, rvp := self.buildStructIndex(lp, 0, true), self.buildStructIndex(rp, 0, true)
+		for i, elemIr := range irType.Elems{
+			if i < len(irType.Elems) - 1 {
+				var equalBlock *mir.Block
+				equalBlock, nextBlock = f.NewBlock(), f.NewBlock()
+				self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindEQ, lk, mir.NewInt(lk.Type().(mir.IntType), int64(i))), equalBlock, nextBlock)
+				self.builder.MoveTo(equalBlock)
+			}
+			lv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(lvp, self.ctx.NewPtrType(self.codegenTypeOnly(elemIr))))
+			rv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(rvp, self.ctx.NewPtrType(self.codegenTypeOnly(elemIr))))
+			self.builder.BuildReturn(self.buildEqual(elemIr, lv, rv, false))
+			if i < len(irType.Elems) - 1 {
+				self.builder.MoveTo(nextBlock)
+			}
+		}
+		self.builder.MoveTo(curBlock)
+	}else{
+		f = self.funcCache.Get(key)
+	}
+
+	return self.builder.BuildCall(f, l, r)
 }
 
 func (self *CodeGenerator) buildArrayIndex(array, i mir.Value, expectPtr ...bool)mir.Value{
@@ -201,8 +259,68 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 	return initFn
 }
 
+func (self *CodeGenerator) constString(s string) mir.Const {
+	st, _ := self.codegenStringType()
+	if !self.strings.ContainKey(s) {
+		self.strings.Set(s, self.module.NewConstant("", mir.NewString(self.ctx, s)))
+	}
+	return mir.NewStruct(
+		st,
+		mir.NewArrayIndex(self.strings.Get(s), mir.NewInt(self.ctx.Usize(), 0)),
+		mir.NewInt(self.ctx.Usize(), int64(len(s))),
+	)
+}
+
+func (self *CodeGenerator) buildCovertUnionIndex(src, dst *types.UnionType, index mir.Value)mir.Value{
+	strType, _ := self.codegenStringType()
+	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(self.ctx.U8(), strType, strType, self.ctx.U8()))
+
+	gob.Register(new(types.EmptyType))
+	gob.Register(new(types.BoolType))
+	gob.Register(new(types.StringType))
+	gob.Register(new(types.SintType))
+	gob.Register(new(types.UintType))
+	gob.Register(new(types.FloatType))
+	gob.Register(new(types.PtrType))
+	gob.Register(new(types.RefType))
+	gob.Register(new(types.FuncType))
+	gob.Register(new(types.ArrayType))
+	gob.Register(new(types.TupleType))
+	gob.Register(new(types.UnionType))
+	gob.Register(new(types.StructType))
+
+	var srcStr, dstStr bytes.Buffer
+	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src))
+	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst))
+	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
+}
+
+func (self *CodeGenerator) buildCheckUnionType(src, dst *types.UnionType, index mir.Value)mir.Value{
+	strType, _ := self.codegenStringType()
+	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(self.ctx.Bool(), strType, strType, self.ctx.U8()))
+
+	gob.Register(new(types.EmptyType))
+	gob.Register(new(types.BoolType))
+	gob.Register(new(types.StringType))
+	gob.Register(new(types.SintType))
+	gob.Register(new(types.UintType))
+	gob.Register(new(types.FloatType))
+	gob.Register(new(types.PtrType))
+	gob.Register(new(types.RefType))
+	gob.Register(new(types.FuncType))
+	gob.Register(new(types.ArrayType))
+	gob.Register(new(types.TupleType))
+	gob.Register(new(types.UnionType))
+	gob.Register(new(types.StructType))
+
+	var srcStr, dstStr bytes.Buffer
+	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src))
+	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst))
+	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
+}
+
 // CodegenIr 中间代码生成
-func CodegenIr(target mir.Target, path string) (*mir.Module, stlerror.Error) {
+func CodegenIr(target mir.Target, path stlos.FilePath) (*mir.Module, stlerror.Error) {
 	means, err := analyse.Analyse(path)
 	if err != nil{
 		return nil, err

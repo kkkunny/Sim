@@ -5,10 +5,10 @@ package main
 import (
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
+	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/codegen_asm"
 	"github.com/kkkunny/Sim/mir"
@@ -17,8 +17,7 @@ import (
 func main() {
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 
-	path := stlerror.MustWith(filepath.Abs(os.Args[1]))
-	reader := stlerror.MustWith(codegen_asm.CodegenAsm(mir.DefaultTarget(), path))
+	reader := stlerror.MustWith(codegen_asm.CodegenAsm(mir.DefaultTarget(), stlos.NewFilePath(os.Args[1])))
 	defer reader.Close()
 	stlerror.MustWith(io.Copy(os.Stdout, reader))
 }

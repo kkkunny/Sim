@@ -7,6 +7,7 @@ import (
 
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlerror "github.com/kkkunny/stl/error"
+	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
@@ -14,10 +15,12 @@ import (
 	"github.com/kkkunny/Sim/lex"
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/util"
 )
 
-func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T) (res []T) {
-	for self.skipSEM(); !self.nextIs(end); self.skipSEM() {
+func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T, atLeastOne ...bool) (res []T) {
+	atLeastOneVal := len(atLeastOne) > 0 && atLeastOne[0]
+	for self.skipSEM(); (len(res) == 0 && atLeastOneVal) || !self.nextIs(end); self.skipSEM() {
 		res = append(res, f())
 		if !self.skipNextIs(sem) {
 			break
@@ -27,25 +30,122 @@ func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T) (re
 	return res
 }
 
+func (self *Parser) parseExprList(end token.Kind, atLeaseOne ...bool) (res []ast.Expr) {
+	return loopParseWithUtil(self, token.COM, end, func() ast.Expr {
+		return self.mustExpr(self.parseOptionExpr(true))
+	}, atLeaseOne...)
+}
+
+func (self *Parser) parseTypeList(end token.Kind, atLeastOne ...bool) (res []ast.Type) {
+	return loopParseWithUtil(self, token.COM, end, func() ast.Type {
+		return self.parseType()
+	}, atLeastOne...)
+}
+
+func (self *Parser) parseParamList(end token.Kind) (res []ast.Param) {
+	return loopParseWithUtil(self, token.COM, end, func() ast.Param {
+		mut := self.skipNextIs(token.MUT)
+		pn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		pt := self.parseType()
+		return ast.Param{
+			Mutable: mut,
+			Name:    pn,
+			Type:    pt,
+		}
+	})
+}
+
+func (self *Parser) parseFieldList(end token.Kind) (res []ast.Field) {
+	return loopParseWithUtil(self, token.COM, end, func() ast.Field {
+		pub := self.skipNextIs(token.PUBLIC)
+		mut := self.skipNextIs(token.MUT)
+		pn := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		pt := self.parseType()
+		return ast.Field{
+			Public: pub,
+			Mutable: mut,
+			Name:    pn,
+			Type:    pt,
+		}
+	})
+}
+
 func expectAttrIn(attrs []ast.Attr, expectAttr ...ast.Attr) {
 	expectAttrTypes := lo.Map(expectAttr, func(item ast.Attr, _ int) reflect.Type {
 		return reflect.ValueOf(item).Type()
 	})
+loop:
 	for _, attr := range attrs {
 		if len(expectAttrTypes) == 0 {
 			errors.ThrowUnExpectAttr(attr.Position())
 		}
 		attrType := reflect.ValueOf(attr).Type()
 		for _, expectAttrType := range expectAttrTypes {
-			if !attrType.AssignableTo(expectAttrType) {
-				errors.ThrowUnExpectAttr(attr.Position())
+			if attrType.AssignableTo(expectAttrType) {
+				continue loop
 			}
 		}
+		errors.ThrowUnExpectAttr(attr.Position())
+	}
+}
+
+func (self *Parser) parseGenericNameDef(name token.Token)ast.GenericNameDef{
+	if !self.skipNextIs(token.LT){
+		return ast.GenericNameDef{Name: name}
+	}
+	begin := self.curTok.Position
+	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {return self.expectNextIs(token.IDENT)}, true)
+	end := self.expectNextIs(token.GT).Position
+	return ast.GenericNameDef{
+		Name: name,
+		Params: util.Some(ast.List[token.Token]{
+			Begin: begin,
+			Data: params,
+			End: end,
+		}),
+	}
+}
+
+func (self *Parser) parseGenericName(name token.Token, expectScope ...bool)ast.GenericName{
+	if len(expectScope) > 0 && expectScope[0] && !self.skipNextIs(token.SCOPE){
+		return ast.GenericName{Name: name}
+	}else if (len(expectScope) == 0 || !expectScope[0]) && !self.nextIs(token.LT){
+		return ast.GenericName{Name: name}
+	}
+	begin := self.expectNextIs(token.LT).Position
+	params := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {return self.parseType()}, true)
+	end := self.expectNextIs(token.GT).Position
+	return ast.GenericName{
+		Name: name,
+		Params: util.Some(ast.List[ast.Type]{
+			Begin: begin,
+			Data: params,
+			End: end,
+		}),
+	}
+}
+
+func (self *Parser) parseIdent() *ast.Ident {
+	var pkg util.Option[token.Token]
+	var name ast.GenericName
+	pkgOrName := self.expectNextIs(token.IDENT)
+	if !self.skipNextIs(token.SCOPE) {
+		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName, true)
+	} else if !self.nextIs(token.LT){
+		pkg, name = util.Some(pkgOrName), self.parseGenericName(self.expectNextIs(token.IDENT))
+	} else {
+		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName)
+	}
+	return &ast.Ident{
+		Pkg:  pkg,
+		Name: name,
 	}
 }
 
 // 语法解析目标文件
-func parseFile(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
+func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 	_, r, err := reader.NewReaderFromFile(path)
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
@@ -54,8 +154,8 @@ func parseFile(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) 
 }
 
 // 语法解析目标目录
-func parseDir(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
-	entries, err := stlerror.ErrorWith(os.ReadDir(path))
+func parseDir(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
+	entries, err := stlerror.ErrorWith(os.ReadDir(path.String()))
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
 	}
@@ -64,7 +164,7 @@ func parseDir(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sim" {
 			continue
 		}
-		fileAst, err := parseFile(filepath.Join(path, entry.Name()))
+		fileAst, err := parseFile(path.Join(entry.Name()))
 		if err != nil {
 			return linkedlist.LinkedList[ast.Global]{}, err
 		}
@@ -74,8 +174,8 @@ func parseDir(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 }
 
 // Parse 语法解析
-func Parse(path string) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
-	fs, err := stlerror.ErrorWith(os.Stat(path))
+func Parse(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
+	fs, err := stlerror.ErrorWith(os.Stat(path.String()))
 	if err != nil{
 		return linkedlist.LinkedList[ast.Global]{}, err
 	}

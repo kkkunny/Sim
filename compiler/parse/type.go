@@ -13,7 +13,7 @@ import (
 func (self *Parser) parseOptionType() util.Option[ast.Type] {
 	switch self.nextTok.Kind {
 	case token.IDENT:
-		return util.Some[ast.Type](self.parseIdentType())
+		return util.Some[ast.Type]((*ast.IdentType)(self.parseIdent()))
 	case token.FUNC:
 		return util.Some[ast.Type](self.parseFuncType())
 	case token.LBA:
@@ -37,22 +37,6 @@ func (self *Parser) parseType() ast.Type {
 		errors.ThrowIllegalType(self.nextTok.Position)
 	}
 	return t
-}
-
-func (self *Parser) parseIdentType() *ast.IdentType {
-	pkg := util.None[token.Token]()
-	var name token.Token
-	pkgOrName := self.expectNextIs(token.IDENT)
-	if self.skipNextIs(token.SCOPE) {
-		pkg = util.Some(pkgOrName)
-		name = self.expectNextIs(token.IDENT)
-	} else {
-		name = pkgOrName
-	}
-	return &ast.IdentType{
-		Pkg:  pkg,
-		Name: name,
-	}
 }
 
 func (self *Parser) parseFuncType() *ast.FuncType {
@@ -95,15 +79,9 @@ func (self *Parser) parseTupleType() *ast.TupleType {
 	}
 }
 
-func (self *Parser) parseTypeList(end token.Kind) (res []ast.Type) {
-	return loopParseWithUtil(self, token.COM, end, func() ast.Type {
-		return self.parseType()
-	})
-}
-
 func (self *Parser) parseUnionType() *ast.UnionType {
 	begin := self.expectNextIs(token.LT).Position
-	elems := dynarray.NewDynArrayWith[ast.Type](self.parseTypeList(token.GT)...)
+	elems := dynarray.NewDynArrayWith[ast.Type](self.parseTypeList(token.GT, true)...)
 	end := self.expectNextIs(token.GT).Position
 	return &ast.UnionType{
 		Begin: begin,
@@ -114,17 +92,16 @@ func (self *Parser) parseUnionType() *ast.UnionType {
 
 func (self *Parser) parsePtrOrRefType() ast.Type {
 	begin := self.expectNextIs(token.MUL).Position
-	elem := self.parseType()
-	if self.skipNextIs(token.QUE) {
+	if self.skipNextIs(token.QUE){
+		elem := self.parseType()
 		return &ast.PtrType{
 			Begin: begin,
 			Elem:  elem,
-			End:   self.curTok.Position,
 		}
-	} else {
+	}else{
 		return &ast.RefType{
 			Begin: begin,
-			Elem:  elem,
+			Elem:  self.parseType(),
 		}
 	}
 }

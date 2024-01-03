@@ -1,0 +1,11 @@
+struct a{
+    pub v: u8
+}
+
+struct b{}
+
+func main(){
+    let v1: a = a{v: 1}
+    let v2: b = b{}
+    return
+}

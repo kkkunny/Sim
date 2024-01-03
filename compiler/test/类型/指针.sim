@@ -1,0 +1,4 @@
+func main(){
+    let v1: *?u8 = null
+    return
+}

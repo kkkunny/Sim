@@ -17,6 +17,8 @@ type Global interface {
 	RealName()string
 	Define()string
 	setIndex(i uint) uint
+	ReadRefValues()[]Value
+	WriteRefValues()[]Value
 }
 
 // NamedStruct 带名字结构体
@@ -114,6 +116,20 @@ func (self *NamedStruct) Define()string{
 	return fmt.Sprintf("type %s = {%s}", self.Name(), strings.Join(elems, ","))
 }
 
+func (self *NamedStruct) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *NamedStruct) WriteRefValues()[]Value{
+	return nil
+}
+
+// GlobalValue 全局值
+type GlobalValue interface {
+	Global
+	Value
+}
+
 // GlobalVariable 全局变量
 type GlobalVariable struct {
 	ctx *Context
@@ -174,7 +190,7 @@ func (self *GlobalVariable) Context()*Context{
 
 func (self *GlobalVariable) Define()string{
 	if self.value != nil{
-		return fmt.Sprintf("var %s %s = %s", self.t, self.Name(), self.value)
+		return fmt.Sprintf("var %s %s = %s", self.t, self.Name(), self.value.Name())
 	}else{
 		return fmt.Sprintf("var %s %s", self.t, self.Name())
 	}
@@ -194,6 +210,17 @@ func (self *GlobalVariable) Type()Type{
 
 func (self *GlobalVariable) ValueType()Type{
 	return self.t
+}
+
+func (self *GlobalVariable) ReadRefValues()[]Value{
+	if self.value == nil{
+		return nil
+	}
+	return []Value{self.value}
+}
+
+func (self *GlobalVariable) WriteRefValues()[]Value{
+	return nil
 }
 
 // Function 函数
@@ -327,6 +354,9 @@ type FunctionAttribute string
 const (
 	FunctionAttributeInit FunctionAttribute = "init"  // init
 	FunctionAttributeFini FunctionAttribute = "fini"  // fini
+	FunctionAttributeNoReturn FunctionAttribute = "noreturn"  // 函数不会返回
+	FunctionAttributeInline FunctionAttribute = "inline"  // 内联
+	FunctionAttributeNoInline FunctionAttribute = "noinline"  // 禁用内联
 )
 
 func (self *Function) SetAttribute(attr ...FunctionAttribute){
@@ -336,6 +366,15 @@ func (self *Function) SetAttribute(attr ...FunctionAttribute){
 			if !self.t.Ret().Equal(self.ctx.Void()) || len(self.t.Params()) != 0{
 				panic("unreachable")
 			}
+		case FunctionAttributeInline:
+			if self.attrs.Contain(FunctionAttributeNoInline){
+				panic("unreachable")
+			}
+		case FunctionAttributeNoInline:
+			if self.attrs.Contain(FunctionAttributeInline){
+				panic("unreachable")
+			}
+		case FunctionAttributeNoReturn:
 		default:
 			panic("unreachable")
 		}
@@ -343,8 +382,25 @@ func (self *Function) SetAttribute(attr ...FunctionAttribute){
 	}
 }
 
+func (self *Function) ContainAttribute(attr FunctionAttribute)bool{
+	return self.attrs.Contain(attr)
+}
+
 func (self *Function) Attributes()[]FunctionAttribute{
 	return self.attrs.ToSlice().ToSlice()
+}
+
+func (self *Function) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *Function) WriteRefValues()[]Value{
+	return nil
+}
+
+// IsStartFunction 是否是入口函数
+func (self *Function) IsStartFunction()bool{
+	return self.name == "main" || self.attrs.Contain(FunctionAttributeInit) || self.attrs.Contain(FunctionAttributeFini)
 }
 
 // Constant 常量
@@ -426,4 +482,15 @@ func (*Constant) constant(){}
 
 func (self *Constant) ValueType()Type{
 	return self.value.Type()
+}
+
+func (self *Constant) ReadRefValues()[]Value{
+	if self.value == nil{
+		return nil
+	}
+	return []Value{self.value}
+}
+
+func (self *Constant) WriteRefValues()[]Value{
+	return nil
 }

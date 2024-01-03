@@ -5,10 +5,9 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/hir"
-
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
+	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/util"
 )
 
@@ -44,71 +43,12 @@ func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
 }
 
 func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
-	switch name := node.Name.Source(); name {
-	case "isize":
-		return hir.Isize
-	case "i8":
-		return hir.I8
-	case "i16":
-		return hir.I16
-	case "i32":
-		return hir.I32
-	case "i64":
-		return hir.I64
-	case "i128":
-		return hir.I128
-	case "usize":
-		return hir.Usize
-	case "u8":
-		return hir.U8
-	case "u16":
-		return hir.U16
-	case "u32":
-		return hir.U32
-	case "u64":
-		return hir.U64
-	case "u128":
-		return hir.U128
-	case "f32":
-		return hir.F32
-	case "f64":
-		return hir.F64
-	case "bool":
-		return hir.Bool
-	case "str":
-		return hir.Str
-	default:
-		var pkgName string
-		if pkgToken, ok := node.Pkg.Value(); ok {
-			pkgName = pkgToken.Source()
-			if !self.pkgScope.externs.ContainKey(pkgName) {
-				errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-			}
-		}else{
-			// 泛型参数
-			if self.localScope != nil{
-				switch funDecl := self.localScope.GetFunc().(type){
-				case *hir.GenericFuncDef:
-					if gp := funDecl.GenericParams.Get(node.Name.Source()); gp != nil{
-						return gp
-					}
-				}
-			}
-		}
-		// 结构体
-		if st, ok := self.pkgScope.GetStruct(pkgName, name); ok {
-			return st
-		}
-		// 类型别名
-		if typeAlias, ok := self.pkgScope.GetTypeAlias(pkgName, name); ok {
-			if target, ok := typeAlias.Right(); ok{
-				return target
-			}
-			return self.defTypeAlias(name)
-		}
-		errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-		return nil
+	typ := self.analyseIdent((*ast.Ident)(node), false)
+	if typ.IsNone(){
+		errors.ThrowUnknownIdentifierError(node.Name.Position(), node.Name.Name)
 	}
+	t, _ := typ.MustValue().Right()
+	return t
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType) *hir.FuncType {
@@ -126,7 +66,6 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
 	if !ok {
 		panic("unreachable")
 	} else if !size.IsUint64() {
-		// FIXME: 数组最大容量
 		errors.ThrowIllegalInteger(node.Position(), node.Size)
 	}
 	elem := self.analyseType(node.Elem)
@@ -161,20 +100,5 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
 	if self.selfType == nil{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
-	return self.selfType
-}
-
-func (self *Analyser) analyseTraitType(selfType hir.Type, node *ast.IdentType) *hir.Trait {
-	var pkgName string
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.ContainKey(pkgName) {
-			errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-		}
-	}
-	if traitNode, ok := self.pkgScope.GetTrait(pkgName, node.Name.Source()); ok {
-		return self.defTrait(selfType, traitNode)
-	}
-	errors.ThrowUnknownIdentifierError(node.Position(), node.Name)
-	return nil
+	return &hir.SelfType{Self: self.selfType}
 }

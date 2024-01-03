@@ -14,6 +14,12 @@ func (self *Parser) parseAttrList() (attrs []ast.Attr) {
 		switch attrname.Source() {
 		case "extern":
 			attrs = append(attrs, self.parseExtern(begin))
+		case "noreturn":
+			attrs = append(attrs, self.parseNoReturn(begin))
+		case "inline":
+			attrs = append(attrs, self.parseInline(begin))
+		case "noinline":
+			attrs = append(attrs, self.parseNoInline(begin))
 		default:
 			errors.ThrowIllegalAttr(self.nextTok.Position)
 			panic("unreachable")
@@ -31,5 +37,26 @@ func (self *Parser) parseExtern(begin reader.Position) *ast.Extern {
 		Begin: begin,
 		Name:  name,
 		End:   end,
+	}
+}
+
+func (self *Parser) parseNoReturn(begin reader.Position) *ast.NoReturn {
+	return &ast.NoReturn{
+		Begin: begin,
+		End:   self.curTok.Position,
+	}
+}
+
+func (self *Parser) parseInline(begin reader.Position) *ast.Inline {
+	return &ast.Inline{
+		Begin: begin,
+		End:   self.curTok.Position,
+	}
+}
+
+func (self *Parser) parseNoInline(begin reader.Position) *ast.NoInline {
+	return &ast.NoInline{
+		Begin: begin,
+		End:   self.curTok.Position,
 	}
 }
