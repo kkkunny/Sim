@@ -81,7 +81,7 @@ func (self *Analyser) setSelfType(td hir.TypeDef)(callback func()){
 }
 
 // 获取类型默认值
-func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) hir.Expr{
+func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default{
 	if !self.isTypeHasDefault(t){
 		errors.ThrowCanNotGetDefault(pos, t)
 	}

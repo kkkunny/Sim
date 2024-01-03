@@ -53,6 +53,8 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseNull(expect, exprNode)
 	case *ast.CheckNull:
 		return self.analyseCheckNull(expect, exprNode)
+	case *ast.Default:
+		return self.analyseDefault(expect, exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -697,4 +699,11 @@ func (self *Analyser) analyseCheckNull(expect hir.Type, node *ast.CheckNull) *hi
 		errors.ThrowExpectPointerError(node.Value.Position(), vt)
 	}
 	return &hir.CheckNull{Value: value}
+}
+
+func (self *Analyser) analyseDefault(expect hir.Type, node *ast.Default)*hir.Default{
+	if expect == nil{
+		errors.ThrowExpectAType(node.Position())
+	}
+	return self.getTypeDefaultValue(node.Position(), expect)
 }

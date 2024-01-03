@@ -1,9 +1,13 @@
-struct A{}
+trait Default{
+    default()Self
+}
 
-func (A) get(self: Self){}
+struct Option<T>{
+    v: *?T
+}
 
-func (A) get2(){
-    debug("2")
+func (Option<T>) default()Self{
+    return Self{v: default}
 }
 
 func main(){

@@ -24,7 +24,7 @@ func (self *Parser) parseOptionType() util.Option[ast.Type] {
 		return util.Some[ast.Type](self.parseUnionType())
 	case token.MUL:
 		return util.Some[ast.Type](self.parsePtrOrRefType())
-	case token.SELFTYPE:
+	case token.SELF:
 		return util.Some[ast.Type](self.parseSelfType())
 	default:
 		return util.None[ast.Type]()
@@ -107,5 +107,5 @@ func (self *Parser) parsePtrOrRefType() ast.Type {
 }
 
 func (self *Parser) parseSelfType()*ast.SelfType{
-	return &ast.SelfType{Token: self.expectNextIs(token.SELFTYPE)}
+	return &ast.SelfType{Token: self.expectNextIs(token.SELF)}
 }

@@ -273,3 +273,16 @@ func (self *SelfValue) Position() reader.Position {
 func (self *SelfValue) stmt() {}
 
 func (self *SelfValue) expr() {}
+
+// Default 默认值
+type Default struct {
+	Pos reader.Position
+}
+
+func (self *Default) Position() reader.Position {
+	return self.Pos
+}
+
+func (self *Default) stmt() {}
+
+func (self *Default) expr() {}

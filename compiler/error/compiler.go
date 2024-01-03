@@ -195,3 +195,8 @@ func ThrowDivZero(pos reader.Position) {
 func ThrowIndexOutOfRange(pos reader.Position) {
 	ThrowError(pos, "index out of range")
 }
+
+// ThrowExpectAType 期待一个类型
+func ThrowExpectAType(pos reader.Position) {
+	ThrowError(pos, "expect a type")
+}
