@@ -655,9 +655,6 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	case vt.EqualTo(target):
 		return &hir.Boolean{Value: true}
 	case hir.IsUnionType(vt) && hir.AsUnionType(vt).Contain(target):
-		if hir.IsUnionType(target){
-			return &hir.Boolean{Value: true}
-		}
 		return &hir.UnionTypeJudgment{
 			Value: value,
 			Type:  target,

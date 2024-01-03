@@ -1,0 +1,9 @@
+import std::os
+
+func main(){
+    let v: <i8, u8> = 0 as u8
+    if v is u8{
+        os::exit(0)
+    }
+    os::exit(1)
+}

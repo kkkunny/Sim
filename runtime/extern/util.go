@@ -11,8 +11,9 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/kkkunny/Sim/runtime/types"
 	stlerror "github.com/kkkunny/stl/error"
+
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
 // GCAlloc 在gc上分配堆内存（byte）
@@ -52,4 +53,14 @@ func CovertUnionIndex(srcStr, dstStr types.Str, index types.U8)types.U8{
 	}else{
 		return types.NewU8(uint8(dst.IndexElem(src.Elem(uint(index.Value())))))
 	}
+}
+
+// CheckUnionType 检查原联合值实际类型是否属于新联合类型
+func CheckUnionType(srcStr, dstStr types.Str, index types.U8)types.Bool{
+	src, dst := new(types.UnionType), new(types.UnionType)
+
+	stlerror.Must(gob.NewDecoder(strings.NewReader(srcStr.String())).Decode(src))
+	stlerror.Must(gob.NewDecoder(strings.NewReader(dstStr.String())).Decode(dst))
+
+	return types.NewBool(dst.Contain(src.Elem(uint(index.Value()))))
 }

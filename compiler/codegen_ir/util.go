@@ -18,6 +18,14 @@ import (
 	"github.com/kkkunny/Sim/runtime/types"
 )
 
+func (self *CodeGenerator) getExternFunction(name string, t mir.FuncType)*mir.Function{
+	fn, ok := self.module.NamedFunction(name)
+	if !ok {
+		fn = self.module.NewFunction(name, t)
+	}
+	return fn
+}
+
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
 	switch irType := hir.FlattenType(t).(type) {
 	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType:
@@ -251,11 +259,6 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 	return initFn
 }
 
-func (self *CodeGenerator) codegenTypeOnly(ir hir.Type)mir.Type{
-	t, _ := self.codegenType(ir)
-	return t
-}
-
 func (self *CodeGenerator) constString(s string) mir.Const {
 	st, _ := self.codegenStringType()
 	if !self.strings.ContainKey(s) {
@@ -269,11 +272,32 @@ func (self *CodeGenerator) constString(s string) mir.Const {
 }
 
 func (self *CodeGenerator) buildCovertUnionIndex(src, dst *types.UnionType, index mir.Value)mir.Value{
-	fn, ok := self.module.NamedFunction("sim_runtime_covert_union_index")
-	if !ok {
-		strType, _ := self.codegenStringType()
-		fn = self.module.NewFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(self.ctx.U8(), strType, strType, self.ctx.U8()))
-	}
+	strType, _ := self.codegenStringType()
+	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(self.ctx.U8(), strType, strType, self.ctx.U8()))
+
+	gob.Register(new(types.EmptyType))
+	gob.Register(new(types.BoolType))
+	gob.Register(new(types.StringType))
+	gob.Register(new(types.SintType))
+	gob.Register(new(types.UintType))
+	gob.Register(new(types.FloatType))
+	gob.Register(new(types.PtrType))
+	gob.Register(new(types.RefType))
+	gob.Register(new(types.FuncType))
+	gob.Register(new(types.ArrayType))
+	gob.Register(new(types.TupleType))
+	gob.Register(new(types.UnionType))
+	gob.Register(new(types.StructType))
+
+	var srcStr, dstStr bytes.Buffer
+	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src))
+	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst))
+	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
+}
+
+func (self *CodeGenerator) buildCheckUnionType(src, dst *types.UnionType, index mir.Value)mir.Value{
+	strType, _ := self.codegenStringType()
+	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(self.ctx.Bool(), strType, strType, self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
 	gob.Register(new(types.BoolType))

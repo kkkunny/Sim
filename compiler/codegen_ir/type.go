@@ -13,6 +13,11 @@ import (
 	"github.com/kkkunny/Sim/runtime/types"
 )
 
+func (self *CodeGenerator) codegenTypeOnly(ir hir.Type)mir.Type{
+	t, _ := self.codegenType(ir)
+	return t
+}
+
 func (self *CodeGenerator) codegenType(ir hir.Type) (mir.Type, types.Type) {
 	switch t := ir.(type) {
 	case *hir.EmptyType:

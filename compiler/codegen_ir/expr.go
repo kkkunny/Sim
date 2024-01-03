@@ -369,10 +369,19 @@ func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenUnionTypeJudgment(ir *hir.UnionTypeJudgment) mir.Value {
-	ut := self.codegenTypeOnly(ir.Value.GetType()).(mir.StructType)
-	typeIndex := self.buildStructIndex(self.codegenExpr(ir.Value, false), 1, false)
-	index := hir.AsUnionType(ir.Value.GetType()).GetElemIndex(ir.Type)
-	return self.builder.BuildCmp(mir.CmpKindEQ, typeIndex, mir.NewInt(ut.Elems()[1].(mir.IntType), int64(index)))
+	if !hir.IsUnionType(ir.Type){
+		ut := self.codegenTypeOnly(ir.Value.GetType()).(mir.StructType)
+		from := self.codegenExpr(ir.Value, false)
+		typeIndex := self.buildStructIndex(from, 1, false)
+		index := hir.AsUnionType(ir.Value.GetType()).GetElemIndex(ir.Type)
+		return self.builder.BuildCmp(mir.CmpKindEQ, typeIndex, mir.NewInt(ut.Elems()[1].(mir.IntType), int64(index)))
+	}else{
+		_, srcRt := self.codegenType(ir.Value.GetType())
+		_, dstRt := self.codegenType(ir.Type)
+		from := self.codegenExpr(ir.Value, false)
+		index := self.buildStructIndex(from, 1, false)
+		return self.buildCheckUnionType(srcRt.(*types.UnionType), dstRt.(*types.UnionType), index)
+	}
 }
 
 func (self *CodeGenerator) codegenUnUnion(ir *hir.UnUnion) mir.Value {
