@@ -261,3 +261,17 @@ func (self *CheckNull) Position() reader.Position {
 func (self *CheckNull) stmt() {}
 
 func (self *CheckNull) expr() {}
+
+// StaticMethod 静态方法
+type StaticMethod struct {
+	Type Type
+	Name GenericName
+}
+
+func (self *StaticMethod) Position() reader.Position {
+	return reader.MixPosition(self.Type.Position(), self.Name.Position())
+}
+
+func (self *StaticMethod) stmt() {}
+
+func (self *StaticMethod) expr() {}

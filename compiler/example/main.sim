@@ -7,7 +7,7 @@ func (Option<T>) default()Self{
 }
 
 func main(){
-    let v: Option::<u8> = Option::<u8>{v: null}.default()
+    let v: Option::<u8> = Option::<u8>:default()
     if v.v == null{
         debug("null")
     }

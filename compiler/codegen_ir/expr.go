@@ -203,7 +203,8 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	switch fnIr := ir.Func.(type) {
 	case hir.MethodExpr:
 		if !fnIr.GetDefine().IsStatic(){
-			selfArg = self.codegenExpr(fnIr.GetSelf(), true)
+			selfValue, _ := fnIr.GetSelf()
+			selfArg = self.codegenExpr(selfValue, true)
 		}
 		switch method := fnIr.(type) {
 		case *hir.Method:

@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/either"
 	stlerror "github.com/kkkunny/stl/error"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
@@ -53,6 +54,8 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseNull(expect, exprNode)
 	case *ast.CheckNull:
 		return self.analyseCheckNull(expect, exprNode)
+	case *ast.StaticMethod:
+		return self.analyseStaticMethod(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -594,7 +597,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 					return self.analyseType(e)
 				})
 				return &hir.GenericMethodInst{
-					Self:   from,
+					Self:   either.Left[hir.Expr, *hir.StructType](from),
 					Define: method,
 					Params: params,
 				}
@@ -606,7 +609,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 					return self.analyseType(e)
 				})
 				return &hir.GenericStructGenericMethodInst{
-					Self:   from,
+					Self:   either.Left[hir.Expr, *hir.StructType](from),
 					Define: method,
 					Params: params,
 				}
@@ -620,12 +623,12 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 			switch method := methodObj.(type) {
 			case *hir.MethodDef:
 				return &hir.Method{
-					Self:   from,
+					Self:   either.Left[hir.Expr, *hir.StructType](from),
 					Define: method,
 				}
 			case *hir.GenericStructMethodDef:
 				return &hir.GenericStructMethodInst{
-					Self:   from,
+					Self:   either.Left[hir.Expr, *hir.StructType](from),
 					Define: method,
 				}
 			default:
@@ -697,4 +700,63 @@ func (self *Analyser) analyseCheckNull(expect hir.Type, node *ast.CheckNull) *hi
 		errors.ThrowExpectPointerError(node.Value.Position(), vt)
 	}
 	return &hir.CheckNull{Value: value}
+}
+
+func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{
+	stObj := self.analyseType(node.Type)
+	if !hir.IsStructType(stObj){
+		errors.ThrowExpectStructError(node.Type.Position(), stObj)
+	}
+	st := hir.AsStructType(stObj)
+
+	f := st.Methods.Get(node.Name.Name.Source())
+	if f == nil || !f.IsStatic() || (!f.GetPublic() && !self.pkgScope.pkg.Equal(f.GetPackage())){
+		errors.ThrowUnknownIdentifierError(node.Name.Name.Position, node.Name.Name)
+	}
+
+	if genericParams, ok := node.Name.Params.Value(); ok{
+		switch method := f.(type) {
+		case *hir.GenericMethodDef:
+			if method.GenericParams.Length() != uint(len(genericParams.Data)){
+				errors.ThrowParameterNumberNotMatchError(genericParams.Position(), method.GenericParams.Length(), uint(len(genericParams.Data)))
+			}
+			params := stlslices.Map(genericParams.Data, func(_ int, e ast.Type) hir.Type {
+				return self.analyseType(e)
+			})
+			return &hir.GenericMethodInst{
+				Self:   either.Right[hir.Expr, *hir.StructType](st),
+				Define: method,
+				Params: params,
+			}
+		case *hir.GenericStructMethodDef:
+			if method.GenericParams.Length() != uint(len(genericParams.Data)){
+				errors.ThrowParameterNumberNotMatchError(genericParams.Position(), method.GenericParams.Length(), uint(len(genericParams.Data)))
+			}
+			params := stlslices.Map(genericParams.Data, func(_ int, e ast.Type) hir.Type {
+				return self.analyseType(e)
+			})
+			return &hir.GenericStructGenericMethodInst{
+				Self:   either.Right[hir.Expr, *hir.StructType](st),
+				Define: method,
+				Params: params,
+			}
+		default:
+			panic("unreachable")
+		}
+	}else{
+		switch method := f.(type) {
+		case *hir.MethodDef:
+			return &hir.Method{
+				Self:   either.Right[hir.Expr, *hir.StructType](st),
+				Define: method,
+			}
+		case *hir.GenericStructMethodDef:
+			return &hir.GenericStructMethodInst{
+				Self:   either.Right[hir.Expr, *hir.StructType](st),
+				Define: method,
+			}
+		default:
+			panic("unreachable")
+		}
+	}
 }
