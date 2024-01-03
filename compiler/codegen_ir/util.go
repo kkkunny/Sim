@@ -14,7 +14,6 @@ import (
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	module2 "github.com/kkkunny/Sim/mir/pass/module"
 	"github.com/kkkunny/Sim/runtime/types"
 )
 
@@ -319,6 +318,49 @@ func (self *CodeGenerator) buildCheckUnionType(src, dst *types.UnionType, index 
 	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
 }
 
+func (self *CodeGenerator) buildPanic(s string){
+	strType, _ := self.codegenStringType()
+	fn := self.getExternFunction("sim_runtime_panic", self.ctx.NewFuncType(self.ctx.Void(), strType))
+	self.builder.BuildCall(fn, self.constString(s))
+	self.builder.BuildUnreachable()
+}
+
+func (self *CodeGenerator) buildCheckNull(v mir.Value){
+	cond := self.builder.BuildPtrEqual(mir.PtrEqualKindEQ, v, mir.NewZero(v.Type()))
+	f := self.builder.Current().Belong()
+	panicBlock, endBlock := f.NewBlock(), f.NewBlock()
+	self.builder.BuildCondJump(cond, panicBlock, endBlock)
+
+	self.builder.MoveTo(panicBlock)
+	self.buildPanic("null pointer exception")
+
+	self.builder.MoveTo(endBlock)
+}
+
+func (self *CodeGenerator) buildCheckZero(v mir.Value){
+	cond := self.builder.BuildCmp(mir.CmpKindEQ, v, mir.NewZero(v.Type()))
+	f := self.builder.Current().Belong()
+	panicBlock, endBlock := f.NewBlock(), f.NewBlock()
+	self.builder.BuildCondJump(cond, panicBlock, endBlock)
+
+	self.builder.MoveTo(panicBlock)
+	self.buildPanic("zero exception")
+
+	self.builder.MoveTo(endBlock)
+}
+
+func (self *CodeGenerator) buildCheckIndex(index mir.Value, rangev uint64){
+	cond := self.builder.BuildCmp(mir.CmpKindGE, index, mir.NewInt(index.Type().(mir.IntType), int64(rangev)))
+	f := self.builder.Current().Belong()
+	panicBlock, endBlock := f.NewBlock(), f.NewBlock()
+	self.builder.BuildCondJump(cond, panicBlock, endBlock)
+
+	self.builder.MoveTo(panicBlock)
+	self.buildPanic("index out of range")
+
+	self.builder.MoveTo(endBlock)
+}
+
 // CodegenIr 中间代码生成
 func CodegenIr(target mir.Target, path stlos.FilePath) (*mir.Module, stlerror.Error) {
 	means, err := analyse.Analyse(path)
@@ -326,6 +368,6 @@ func CodegenIr(target mir.Target, path stlos.FilePath) (*mir.Module, stlerror.Er
 		return nil, err
 	}
 	module := New(target, means).Codegen()
-	module2.Run(module, module2.DeadCodeElimination)
+	// module2.Run(module, module2.DeadCodeElimination)
 	return module, nil
 }

@@ -62,8 +62,12 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		return true
 	})
 	// 初始化函数
-	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
-	self.builder.BuildReturn()
+	for cursor:=self.getInitFunction().Blocks().Front(); cursor!=nil; cursor=cursor.Next(){
+		if !cursor.Value.Terminated(){
+			self.builder.MoveTo(cursor.Value)
+			self.builder.BuildReturn()
+		}
+	}
 	// 主函数
 	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
 		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {

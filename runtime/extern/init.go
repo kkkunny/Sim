@@ -18,15 +18,15 @@ var FuncList = [...]Function{
 		To:   Debug,
 	},
 	{
-		Name: "sim_runtime_check_null",
-		To:   CheckNull,
-	},
-	{
 		Name: "sim_runtime_covert_union_index",
 		To:   CovertUnionIndex,
 	},
 	{
 		Name: "sim_runtime_check_union_type",
 		To:   CheckUnionType,
+	},
+	{
+		Name: "sim_runtime_panic",
+		To:   Panic,
 	},
 }

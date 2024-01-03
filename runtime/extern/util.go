@@ -36,7 +36,7 @@ func StrEqStr(l, r types.Str) types.Bool {
 // CheckNull 检查空指针
 func CheckNull(p types.Ptr) types.Ptr {
 	if p == nil {
-		panic("空指针")
+		Panic(types.NewStr("zero exception"))
 	}
 	return p
 }

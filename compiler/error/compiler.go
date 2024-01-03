@@ -185,3 +185,13 @@ func ThrowCanNotGetPointer(pos reader.Position) {
 func ThrowCircularReference(pos reader.Position, path token.Token) {
 	ThrowError(pos, "circular reference `%s`", path.Source())
 }
+
+// ThrowDivZero 除零
+func ThrowDivZero(pos reader.Position) {
+	ThrowError(pos, "can not divide by zero")
+}
+
+// ThrowIndexOutOfRange 超出下标
+func ThrowIndexOutOfRange(pos reader.Position) {
+	ThrowError(pos, "index out of range")
+}

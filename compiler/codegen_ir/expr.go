@@ -137,8 +137,10 @@ func (self *CodeGenerator) codegenBinary(ir hir.Binary) mir.Value {
 	case *hir.NumMulNum:
 		return self.builder.BuildMul(left, right)
 	case *hir.NumDivNum:
+		self.buildCheckZero(right)
 		return self.builder.BuildDiv(left, right)
 	case *hir.NumRemNum:
+		self.buildCheckZero(right)
 		return self.builder.BuildRem(left, right)
 	case *hir.NumLtNum:
 		return self.builder.BuildCmp(mir.CmpKindLT, left, right)
@@ -294,9 +296,11 @@ func (self *CodeGenerator) codegenArray(ir *hir.Array) mir.Value {
 }
 
 func (self *CodeGenerator) codegenIndex(ir *hir.Index, load bool) mir.Value {
-	// TODO: 运行时异常：超出索引下标
+	at := self.codegenTypeOnly(ir.From.GetType()).(mir.ArrayType)
+	index := self.codegenExpr(ir.Index, true)
+	self.buildCheckIndex(index, uint64(at.Length()))
 	from := self.codegenExpr(ir.From, false)
-	ptr := self.buildArrayIndex(from, self.codegenExpr(ir.Index, true))
+	ptr := self.buildArrayIndex(from, index)
 	if load && (stlbasic.Is[*mir.ArrayIndex](ptr) && ptr.(*mir.ArrayIndex).IsPtr()){
 		return self.builder.BuildLoad(ptr)
 	}
@@ -396,16 +400,9 @@ func (self *CodeGenerator) codegenWrapWithNull(ir *hir.WrapWithNull, load bool) 
 }
 
 func (self *CodeGenerator) codegenCheckNull(ir *hir.CheckNull) mir.Value {
-	name := "sim_runtime_check_null"
-	ptrType := self.ctx.NewPtrType(self.ctx.U8())
-	ft := self.ctx.NewFuncType(ptrType, ptrType)
-	f, ok := self.module.NamedFunction(name)
-	if !ok {
-		f = self.module.NewFunction(name, ft)
-	}
-
 	ptr := self.codegenExpr(ir.Value, true)
-	return self.builder.BuildCall(f, ptr)
+	self.buildCheckNull(ptr)
+	return ptr
 }
 
 func (self *CodeGenerator) codegenGenericFuncInst(ir *hir.GenericFuncInst)mir.Value{

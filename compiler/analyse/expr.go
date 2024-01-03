@@ -195,6 +195,10 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 		}
 	case token.DIV:
 		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0))==0) ||
+				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0))==0){
+				errors.ThrowDivZero(node.Right.Position())
+			}
 			return &hir.NumDivNum{
 				Left:  left,
 				Right: right,
@@ -202,6 +206,10 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 		}
 	case token.REM:
 		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0))==0) ||
+				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0))==0){
+				errors.ThrowDivZero(node.Right.Position())
+			}
 			return &hir.NumRemNum{
 				Left:  left,
 				Right: right,
@@ -495,7 +503,11 @@ func (self *Analyser) analyseIndex(node *ast.Index) *hir.Index {
 	if !hir.IsArrayType(from.GetType()) {
 		errors.ThrowExpectArrayError(node.From.Position(), from.GetType())
 	}
+	at := hir.AsArrayType(from.GetType())
 	index := self.expectExpr(hir.Usize, node.Index)
+	if stlbasic.Is[*hir.Integer](index) && index.(*hir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0{
+		errors.ThrowIndexOutOfRange(node.Index.Position())
+	}
 	return &hir.Index{
 		From:  from,
 		Index: index,
