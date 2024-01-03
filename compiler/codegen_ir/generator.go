@@ -4,10 +4,12 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/kkkunny/stl/container/stack"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
 // CodeGenerator 代码生成器
@@ -22,10 +24,10 @@ type CodeGenerator struct {
 	values  hashmap.HashMap[hir.Expr, mir.Value]
 	loops   hashmap.HashMap[hir.Loop, loop]
 	strings hashmap.HashMap[string, *mir.Constant]
-	structs hashmap.HashMap[string, mir.StructType]
+	structs hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
 	funcCache hashmap.HashMap[string, *mir.Function]
-	genericIdentMapStack stack.Stack[hashmap.HashMap[*hir.GenericIdentType, mir.Type]]
-	structCache hashmap.HashMap[string, mir.StructType]
+	genericIdentMapStack stack.Stack[hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]]
+	structCache hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
 }
 
 func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {

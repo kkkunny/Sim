@@ -1,6 +1,14 @@
-import std::os
+type son1 = <i8>
+type son2 = <i16>
+type parent = <son1, son2>
 
 func main(){
-    os::exit(1)
-    return
+    let v: son1 = 1 as i8
+    let v2: parent = v
+    if v2 is son1{
+        debug("son1")
+    }
+    if v2 is son2{
+        debug("son2")
+    }
 }

@@ -295,6 +295,9 @@ func AsStructType(t Type)*StructType{
 type StructType = StructDef
 
 func (self *StructType) String() string {
+	if self.Pkg.Equal(BuildInPackage){
+		return self.Name
+	}
 	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
 }
 
@@ -362,8 +365,25 @@ func (self *UnionType) EqualTo(dst Type) bool {
 }
 
 // Contain 是否包含类型
-func (self *UnionType) Contain(elem Type) bool {
-	return self.GetElemIndex(elem) >= 0
+func (self *UnionType) Contain(dst Type) bool {
+	if IsUnionType(dst){
+		return stlslices.All(AsUnionType(dst).Elems, func(_ int, de Type) bool {
+			return self.Contain(de)
+		})
+	}else{
+		for _, e := range self.Elems {
+			if IsUnionType(e){
+				if AsUnionType(e).Contain(dst){
+					return true
+				}
+			}else{
+				if e.EqualTo(dst){
+					return true
+				}
+			}
+		}
+		return false
+	}
 }
 
 // GetElemIndex 获取子类型下标
@@ -454,7 +474,10 @@ func (self *SelfType) EqualTo(dst Type) bool {
 type AliasType = TypeAliasDef
 
 func (self *AliasType) String() string {
-	return self.Target.String()
+	if self.Pkg.Equal(BuildInPackage){
+		return self.Name
+	}
+	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
 }
 
 func (self *AliasType) EqualTo(dst Type) bool {
@@ -548,6 +571,9 @@ func (self *GenericStructInst) GetPublic() bool{
 }
 
 func (self *GenericStructInst) String() string {
+	if self.Define.Pkg.Equal(BuildInPackage){
+		return self.GetName()
+	}
 	return fmt.Sprintf("%s::%s", self.Define.Pkg, self.GetName())
 }
 

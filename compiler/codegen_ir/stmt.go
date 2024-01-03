@@ -65,7 +65,7 @@ func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 
 func (self *CodeGenerator) codegenLocalVariable(ir *hir.VarDef) mir.Value {
 	value := self.codegenExpr(ir.Value, true)
-	ptr := self.builder.BuildAllocFromStack(self.codegenType(ir.Type))
+	ptr := self.builder.BuildAllocFromStack(self.codegenTypeOnly(ir.Type))
 	self.builder.BuildStore(value, ptr)
 	self.values.Set(ir, ptr)
 	return ptr
@@ -73,7 +73,7 @@ func (self *CodeGenerator) codegenLocalVariable(ir *hir.VarDef) mir.Value {
 
 func (self *CodeGenerator) codegenMultiLocalVariable(ir *hir.MultiVarDef) mir.Value {
 	for _, varNode := range ir.Vars{
-		ptr := self.builder.BuildAllocFromStack(self.codegenType(varNode.Type))
+		ptr := self.builder.BuildAllocFromStack(self.codegenTypeOnly(varNode.Type))
 		self.values.Set(varNode, ptr)
 	}
 	self.codegenUnTuple(ir.Value, lo.Map(ir.Vars, func(item *hir.VarDef, _ int) hir.Expr {

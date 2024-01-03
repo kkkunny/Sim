@@ -1,6 +1,5 @@
-package runtime
+package types
 
-// #include "types.h"
 import "C"
 
 import (
@@ -8,7 +7,7 @@ import (
 	"unsafe"
 )
 
-type I8 C.i8
+type I8 int8
 
 func NewI8(v int8) I8 {
 	return I8(v)
@@ -22,7 +21,7 @@ func (self I8) String() string {
 	return strconv.FormatInt(int64(self.Value()), 10)
 }
 
-type I16 C.i16
+type I16 int16
 
 func NewI16(v int16) I16 {
 	return I16(v)
@@ -36,7 +35,7 @@ func (self I16) String() string {
 	return strconv.FormatInt(int64(self.Value()), 10)
 }
 
-type I32 C.i32
+type I32 int32
 
 func NewI32(v int32) I32 {
 	return I32(v)
@@ -50,7 +49,7 @@ func (self I32) String() string {
 	return strconv.FormatInt(int64(self.Value()), 10)
 }
 
-type I64 C.i64
+type I64 int64
 
 func NewI64(v int64) I64 {
 	return I64(v)
@@ -64,7 +63,7 @@ func (self I64) String() string {
 	return strconv.FormatInt(self.Value(), 10)
 }
 
-type Isize C.isize
+type Isize int64
 
 func NewIsize(v int) Isize {
 	return Isize(v)
@@ -78,7 +77,7 @@ func (self Isize) String() string {
 	return strconv.FormatInt(int64(self.Value()), 10)
 }
 
-type U8 C.u8
+type U8 uint8
 
 func NewU8(v uint8) U8 {
 	return U8(v)
@@ -92,7 +91,7 @@ func (self U8) String() string {
 	return strconv.FormatUint(uint64(self.Value()), 10)
 }
 
-type U16 C.u16
+type U16 uint16
 
 func NewU16(v uint16) U16 {
 	return U16(v)
@@ -106,7 +105,7 @@ func (self U16) String() string {
 	return strconv.FormatUint(uint64(self.Value()), 10)
 }
 
-type U32 C.u32
+type U32 uint32
 
 func NewU32(v uint32) U32 {
 	return U32(v)
@@ -120,7 +119,7 @@ func (self U32) String() string {
 	return strconv.FormatUint(uint64(self.Value()), 10)
 }
 
-type U64 C.u64
+type U64 uint64
 
 func NewU64(v uint64) U64 {
 	return U64(v)
@@ -134,7 +133,7 @@ func (self U64) String() string {
 	return strconv.FormatUint(self.Value(), 10)
 }
 
-type Usize C.usize
+type Usize uint
 
 func NewUsize(v uint) Usize {
 	return Usize(v)
@@ -148,7 +147,7 @@ func (self Usize) String() string {
 	return strconv.FormatUint(uint64(self.Value()), 10)
 }
 
-type Bool C.bool
+type Bool uint8
 
 func NewBool(v bool) Bool {
 	if v {
@@ -170,7 +169,10 @@ func (self Bool) String() string {
 	}
 }
 
-type Str C.str
+type Str struct {
+	data *U8
+	len Usize
+}
 
 func NewStr(v string) Str {
 	return *(*Str)(unsafe.Pointer(&v))
@@ -193,3 +195,7 @@ func (self Str) String() string {
 }
 
 type Ptr = *I8
+
+func NewPtr(p unsafe.Pointer) Ptr {
+	return (Ptr)(p)
+}

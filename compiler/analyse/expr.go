@@ -338,7 +338,7 @@ func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ft.Params)), uint(len(node.Args)))
 	}
 	args := lo.Map(node.Args, func(item ast.Expr, index int) hir.Expr {
-		return self.analyseExpr(ft.Params[index], item)
+		return self.expectExpr(ft.Params[index], item)
 	})
 	return &hir.Call{
 		Func: f,
@@ -385,11 +385,19 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 			From: from,
 			To:   tt,
 		}
-	case hir.IsUnionType(ft) && hir.AsUnionType(ft).GetElemIndex(tt) >= 0:
-		// <i8,u8> -> i8
-		return &hir.UnUnion{
-			Type:  tt,
-			Value: from,
+	case hir.IsUnionType(ft) && hir.AsUnionType(ft).Contain(tt):
+		if hir.IsUnionType(tt){
+			// <i8,u8> -> <i8>
+			return &hir.ShrinkUnion{
+				Type:  tt,
+				Value: from,
+			}
+		}else{
+			// <i8,u8> -> i8
+			return &hir.UnUnion{
+				Type:  tt,
+				Value: from,
+			}
 		}
 	case hir.IsPointer(ft) && hir.IsPointer(tt):
 		// *u8 | *?u8 | func() -> *u8 | *?u8 | func()
@@ -432,11 +440,19 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 
 	switch {
 	case hir.IsUnionType(expect) && hir.AsUnionType(expect).Contain(vt):
-		// i8 -> <i8,u8>
-		return &hir.Union{
-			Type:  expect,
-			Value: v,
-		}, true
+		if hir.IsUnionType(vt){
+			// <i8> -> <i8,u8>
+			return &hir.ExpandUnion{
+				Type:  expect,
+				Value: v,
+			}, true
+		}else{
+			// i8 -> <i8,u8>
+			return &hir.Union{
+				Type:  expect,
+				Value: v,
+			}, true
+		}
 	case hir.IsRefType(vt) && hir.AsRefType(vt).ToPtrType().EqualTo(expect):
 		// *i8 -> *?i8
 		return &hir.WrapWithNull{Value: v}, true
@@ -638,7 +654,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	switch {
 	case vt.EqualTo(target):
 		return &hir.Boolean{Value: true}
-	case hir.IsUnionType(vt) && hir.AsUnionType(vt).GetElemIndex(target) >= 0:
+	case hir.IsUnionType(vt) && hir.AsUnionType(vt).Contain(target):
 		return &hir.UnionTypeJudgment{
 			Value: value,
 			Type:  target,

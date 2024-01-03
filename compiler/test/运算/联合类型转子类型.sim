@@ -1,0 +1,6 @@
+import std::os
+
+func main(){
+    let v: <u8> = 0 as u8
+    os::exit(v as u8)
+}
