@@ -21,4 +21,8 @@ var FuncList = [...]Function{
 		Name: "sim_runtime_check_null",
 		To:   CheckNull,
 	},
+	{
+		Name: "sim_runtime_covert_union_index",
+		To:   CovertUnionIndex,
+	},
 }

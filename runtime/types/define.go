@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/linkedhashset"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
@@ -321,12 +322,20 @@ type UnionType struct {
 }
 
 func NewUnionType(elems ...Type)*UnionType{
+	elems = stlslices.FlatMap(elems, func(_ int, e Type) []Type {
+		if ue, ok := e.(*UnionType); ok{
+			return ue.Elems
+		}else{
+			return []Type{e}
+		}
+	})
+	elems = linkedhashset.NewLinkedHashSetWith(elems...).ToSlice().ToSlice()
 	return &UnionType{Elems: elems}
 }
 
 func (self *UnionType) String() string {
-	elemStrs := lo.Map(self.Elems, func(item Type, _ int) string {
-		return item.String()
+	elemStrs := stlslices.Map(self.Elems, func(_ int, e Type) string {
+		return e.String()
 	})
 	return fmt.Sprintf("<%s>", strings.Join(elemStrs, ", "))
 }
@@ -339,7 +348,7 @@ func (self *UnionType) Hash() uint64 {
 
 func (self *UnionType) Equal(dst Type) bool {
 	dt, ok := dst.(*UnionType)
-	if !ok || len(self.Elems) != len(dt.Elems) {
+	if !ok {
 		return false
 	}
 	for i, e := range self.Elems {
@@ -348,6 +357,29 @@ func (self *UnionType) Equal(dst Type) bool {
 		}
 	}
 	return true
+}
+
+func (self *UnionType) IndexElem(t Type)int{
+	for i, elem := range self.Elems{
+		if elem.Equal(t){
+			return i
+		}
+	}
+	return -1
+}
+
+func (self *UnionType) Elem(i uint)Type{
+	return self.Elems[i]
+}
+
+func (self *UnionType) Contain(t Type)bool{
+	if ut, ok := t.(*UnionType); ok{
+		return stlslices.All[Type](ut.Elems, func(_ int, e Type) bool {
+			return self.Contain(e)
+		})
+	}else{
+		return stlslices.Contain(self.Elems, t)
+	}
 }
 
 type Field struct {

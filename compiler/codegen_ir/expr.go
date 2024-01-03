@@ -10,6 +10,7 @@ import (
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
@@ -32,7 +33,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 	case *hir.Call:
 		return self.codegenCall(expr)
 	case hir.Covert:
-		return self.codegenCovert(expr)
+		return self.codegenCovert(expr, load)
 	case *hir.Array:
 		return self.codegenArray(expr)
 	case *hir.Index:
@@ -230,25 +231,56 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenCovert(ir hir.Covert) mir.Value {
-	from := self.codegenExpr(ir.GetFrom(), true)
-	to := self.codegenTypeOnly(ir.GetType())
-
-	switch ir.(type) {
+func (self *CodeGenerator) codegenCovert(ir hir.Covert, load bool) mir.Value {
+		switch ir.(type) {
 	case *hir.Num2Num:
+		from := self.codegenExpr(ir.GetFrom(), true)
+		to := self.codegenTypeOnly(ir.GetType())
 		return self.builder.BuildNumberCovert(from, to.(mir.NumberType))
 	case *hir.Pointer2Pointer:
+		from := self.codegenExpr(ir.GetFrom(), true)
+		to := self.codegenTypeOnly(ir.GetType())
 		return self.builder.BuildPtrToPtr(from, to.(mir.PtrType))
 	case *hir.Pointer2Usize:
+		from := self.codegenExpr(ir.GetFrom(), true)
+		to := self.codegenTypeOnly(ir.GetType())
 		return self.builder.BuildPtrToUint(from, to.(mir.UintType))
 	case *hir.Usize2Pointer:
+		from := self.codegenExpr(ir.GetFrom(), true)
+		to := self.codegenTypeOnly(ir.GetType())
 		return self.builder.BuildUintToPtr(from, to.(mir.GenericPtrType))
 	case *hir.ShrinkUnion:
-		// TODO: <i8, u8> -> <i8>
-		panic("unreachable")
+		_, srcRt := self.codegenType(ir.GetFrom().GetType())
+		dst, dstRt := self.codegenType(ir.GetType())
+		from := self.codegenExpr(ir.GetFrom(), false)
+		srcData := self.buildStructIndex(from, 0, false)
+		srcIndex := self.buildStructIndex(from, 1, false)
+		newIndex := self.buildCovertUnionIndex(srcRt.(*types.UnionType), dstRt.(*types.UnionType), srcIndex)
+		ptr := self.builder.BuildAllocFromStack(dst)
+		newDataPtr := self.builder.BuildPtrToPtr(self.buildStructIndex(ptr, 0, true), self.ctx.NewPtrType(srcData.Type()))
+		self.builder.BuildStore(srcData, newDataPtr)
+		newIndexPtr := self.buildStructIndex(ptr, 1, true)
+		self.builder.BuildStore(newIndex, newIndexPtr)
+		if !load{
+			return ptr
+		}
+		return self.builder.BuildLoad(ptr)
 	case *hir.ExpandUnion:
-		// TODO: <i8> -> <i8, u8>
-		panic("unreachable")
+		_, srcRt := self.codegenType(ir.GetFrom().GetType())
+		dst, dstRt := self.codegenType(ir.GetType())
+		from := self.codegenExpr(ir.GetFrom(), false)
+		srcData := self.buildStructIndex(from, 0, false)
+		srcIndex := self.buildStructIndex(from, 1, false)
+		newIndex := self.buildCovertUnionIndex(srcRt.(*types.UnionType), dstRt.(*types.UnionType), srcIndex)
+		ptr := self.builder.BuildAllocFromStack(dst)
+		newDataPtr := self.builder.BuildPtrToPtr(self.buildStructIndex(ptr, 0, true), self.ctx.NewPtrType(srcData.Type()))
+		self.builder.BuildStore(srcData, newDataPtr)
+		newIndexPtr := self.buildStructIndex(ptr, 1, true)
+		self.builder.BuildStore(newIndex, newIndexPtr)
+		if !load{
+			return ptr
+		}
+		return self.builder.BuildLoad(ptr)
 	default:
 		panic("unreachable")
 	}
@@ -315,15 +347,7 @@ func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenString(ir *hir.String) mir.Value {
-	st, _ := self.codegenStringType()
-	if !self.strings.ContainKey(ir.Value) {
-		self.strings.Set(ir.Value, self.module.NewConstant("", mir.NewString(self.ctx, ir.Value)))
-	}
-	return mir.NewStruct(
-		st,
-		mir.NewArrayIndex(self.strings.Get(ir.Value), mir.NewInt(self.ctx.Usize(), 0)),
-		mir.NewInt(self.ctx.Usize(), int64(len(ir.Value))),
-	)
+	return self.constString(ir.Value)
 }
 
 func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {

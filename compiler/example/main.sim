@@ -6,9 +6,8 @@ func main(){
     let bv: b = 2 as i8
     let bv2: b = av
     if bv is i8{
-        debug(1)
-    }
-    if bv2 is a{
-        debug(2)
+        if bv2 as i8 == 1{
+            debug("1")
+        }
     }
 }

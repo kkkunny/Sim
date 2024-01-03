@@ -1,6 +1,8 @@
 package codegen_ir
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 
 	stlbasic "github.com/kkkunny/stl/basic"
@@ -13,6 +15,7 @@ import (
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 	module2 "github.com/kkkunny/Sim/mir/pass/module"
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
@@ -251,6 +254,45 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 func (self *CodeGenerator) codegenTypeOnly(ir hir.Type)mir.Type{
 	t, _ := self.codegenType(ir)
 	return t
+}
+
+func (self *CodeGenerator) constString(s string) mir.Const {
+	st, _ := self.codegenStringType()
+	if !self.strings.ContainKey(s) {
+		self.strings.Set(s, self.module.NewConstant("", mir.NewString(self.ctx, s)))
+	}
+	return mir.NewStruct(
+		st,
+		mir.NewArrayIndex(self.strings.Get(s), mir.NewInt(self.ctx.Usize(), 0)),
+		mir.NewInt(self.ctx.Usize(), int64(len(s))),
+	)
+}
+
+func (self *CodeGenerator) buildCovertUnionIndex(src, dst *types.UnionType, index mir.Value)mir.Value{
+	fn, ok := self.module.NamedFunction("sim_runtime_covert_union_index")
+	if !ok {
+		strType, _ := self.codegenStringType()
+		fn = self.module.NewFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(self.ctx.U8(), strType, strType, self.ctx.U8()))
+	}
+
+	gob.Register(new(types.EmptyType))
+	gob.Register(new(types.BoolType))
+	gob.Register(new(types.StringType))
+	gob.Register(new(types.SintType))
+	gob.Register(new(types.UintType))
+	gob.Register(new(types.FloatType))
+	gob.Register(new(types.PtrType))
+	gob.Register(new(types.RefType))
+	gob.Register(new(types.FuncType))
+	gob.Register(new(types.ArrayType))
+	gob.Register(new(types.TupleType))
+	gob.Register(new(types.UnionType))
+	gob.Register(new(types.StructType))
+
+	var srcStr, dstStr bytes.Buffer
+	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src))
+	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst))
+	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
 }
 
 // CodegenIr 中间代码生成

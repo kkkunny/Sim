@@ -338,7 +338,7 @@ func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ft.Params)), uint(len(node.Args)))
 	}
 	args := lo.Map(node.Args, func(item ast.Expr, index int) hir.Expr {
-		return self.analyseExpr(ft.Params[index], item)
+		return self.expectExpr(ft.Params[index], item)
 	})
 	return &hir.Call{
 		Func: f,
