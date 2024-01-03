@@ -74,7 +74,6 @@ const (
 	NULL
 	TYPE
 	SELF
-	DEFAULT
 	_KeywordEnd
 )
 
@@ -139,7 +138,6 @@ var kindNames = [...]string{
 	NULL:     "null",
 	TYPE:     "type",
 	SELF:     "Self",
-	DEFAULT:  "default",
 }
 
 // Lookup 区分标识符和关键字

@@ -44,8 +44,8 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseString())
 	case token.NULL:
 		return util.Some[ast.Expr](self.parseNull())
-	case token.DEFAULT:
-		return util.Some[ast.Expr](self.parseDefault())
+	case token.SELF:
+		return util.Some[ast.Expr](self.parseStruct(&ast.SelfType{Token: self.expectNextIs(token.SELF)}))
 	default:
 		return util.None[ast.Expr]()
 	}
@@ -218,7 +218,7 @@ func (self *Parser) parseArray() *ast.Array {
 	}
 }
 
-func (self *Parser) parseStruct(st *ast.IdentType) *ast.Struct {
+func (self *Parser) parseStruct(st ast.Type) *ast.Struct {
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, ast.Expr] {
 		fn := self.expectNextIs(token.IDENT)
@@ -232,8 +232,4 @@ func (self *Parser) parseStruct(st *ast.IdentType) *ast.Struct {
 		Fields: fields,
 		End:    end,
 	}
-}
-
-func (self *Parser) parseDefault()*ast.Default{
-	return &ast.Default{Pos: self.expectNextIs(token.DEFAULT).Position}
 }

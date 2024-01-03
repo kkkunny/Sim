@@ -1,17 +1,14 @@
-trait Default{
-    default()Self
-}
-
 struct Option<T>{
     v: *?T
 }
 
 func (Option<T>) default()Self{
-    return Self{v: default}
+    return Self{v: null}
 }
 
 func main(){
-    let a = A{}
-    a.get()
-    a.get2()
+    let v: Option::<u8> = Option::<u8>{v: null}.default()
+    if v.v == null{
+        debug("null")
+    }
 }

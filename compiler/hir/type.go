@@ -487,7 +487,7 @@ func (self *AliasType) EqualTo(dst Type) bool {
 // ReplaceAllGenericIdent 替换所有泛型标识符类型
 func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Type)Type{
 	switch tt := t.(type) {
-	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *SelfType, *BoolType:
+	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *BoolType:
 		return tt
 	case *PtrType:
 		return &PtrType{Elem: ReplaceAllGenericIdent(maps, tt.Elem)}
@@ -525,6 +525,8 @@ func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Typ
 		return &UnionType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
 			return ReplaceAllGenericIdent(maps, e)
 		})}
+	case *SelfType:
+		return &SelfType{Self: ReplaceAllGenericIdent(maps, tt.Self).(TypeDef)}
 	case *GenericIdentType:
 		return maps.Get(tt)
 	case *GenericStructInst:

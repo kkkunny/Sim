@@ -53,8 +53,6 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseNull(expect, exprNode)
 	case *ast.CheckNull:
 		return self.analyseCheckNull(expect, exprNode)
-	case *ast.Default:
-		return self.analyseDefault(expect, exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -543,7 +541,7 @@ func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *hir.Ex
 }
 
 func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
-	stObj := self.analyseIdentType(node.Type)
+	stObj := self.analyseType(node.Type)
 	if !hir.IsStructType(stObj){
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
@@ -699,11 +697,4 @@ func (self *Analyser) analyseCheckNull(expect hir.Type, node *ast.CheckNull) *hi
 		errors.ThrowExpectPointerError(node.Value.Position(), vt)
 	}
 	return &hir.CheckNull{Value: value}
-}
-
-func (self *Analyser) analyseDefault(expect hir.Type, node *ast.Default)*hir.Default{
-	if expect == nil{
-		errors.ThrowExpectAType(node.Position())
-	}
-	return self.getTypeDefaultValue(node.Position(), expect)
 }
