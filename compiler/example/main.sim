@@ -1,4 +1,13 @@
+struct A{}
+
+func (A) get(self: Self){}
+
+func (A) get2(){
+    debug("2")
+}
+
 func main(){
-    let a = [1, 2]
-    let b = a[2]
+    let a = A{}
+    a.get()
+    a.get2()
 }

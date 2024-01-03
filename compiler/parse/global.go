@@ -84,9 +84,6 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 		begin = pub.Position
 	}
 	self.expectNextIs(token.LPA)
-	mut := self.skipNextIs(token.MUT)
-	selfName := self.expectNextIs(token.SELFVALUE)
-	self.expectNextIs(token.COL)
 	scope := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
 	self.expectNextIs(token.RPA)
 	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
@@ -99,8 +96,6 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 		Attrs:    attrs,
 		Begin:    begin,
 		Public:   pub != nil,
-		SelfMut:  mut,
-		SelfName: selfName,
 		SelfType: scope,
 		Name:     name,
 		Params:   params,

@@ -73,7 +73,6 @@ const (
 	PUBLIC
 	NULL
 	TYPE
-	SELFVALUE
 	SELFTYPE
 	_KeywordEnd
 )
@@ -138,7 +137,6 @@ var kindNames = [...]string{
 	PUBLIC:    "pub",
 	NULL:      "null",
 	TYPE:     "type",
-	SELFVALUE: "self",
 	SELFTYPE:  "Self",
 }
 

@@ -174,58 +174,34 @@ func (*FuncDef) globalFunc(){}
 
 type GlobalMethod interface {
 	Global
+	GetSelfType()TypeDef
 	GetMethodType()*FuncType
+	IsStatic()bool
 }
 
 // MethodDef 方法定义
 type MethodDef struct {
-	Pkg Package
-	Public     bool
 	Scope *StructDef
-	Name       string
-	SelfParam *Param
-	Params     []*Param
-	Ret        Type
-	Body       *Block
-
-	NoReturn bool
-	InlineControl util.Option[bool]
+	FuncDef
 }
 
-func (self *MethodDef) GetPackage()Package{
-	return self.Pkg
+func (self *MethodDef) GetSelfType()TypeDef{
+	return self.Scope
 }
 
-func (self *MethodDef) GetPublic() bool {
-	return self.Public
-}
-
-func (*MethodDef) stmt() {}
-
-func (self *MethodDef) GetFuncType() *FuncType {
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: append([]Type{self.Scope}, lo.Map(self.Params, func(item *Param, index int) Type {
-			return item.GetType()
-		})...),
+func (self *MethodDef) GetMethodType()*FuncType{
+	ft := self.GetFuncType()
+	if !self.IsStatic(){
+		ft.Params = ft.Params[1:]
 	}
+	return ft
 }
 
-func (self *MethodDef) GetType() Type {
-	return self.GetFuncType()
-}
-
-func (self *MethodDef) Mutable() bool {
-	return false
-}
-
-func (self *MethodDef) GetMethodType() *FuncType {
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: lo.Map(self.Params, func(item *Param, index int) Type {
-			return item.GetType()
-		}),
+func (self *MethodDef) IsStatic()bool{
+	if len(self.Params) == 0{
+		return true
 	}
+	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
 }
 
 // TypeAliasDef 类型别名定义
@@ -320,29 +296,11 @@ func (*GenericStructDef) globalStruct(){}
 
 // GenericStructMethodDef 泛型结构体方法定义
 type GenericStructMethodDef struct {
-	Pkg Package
-	Public     bool
 	Scope *GenericStructDef
-	Name       string
-	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
-	SelfParam *Param
-	Params     []*Param
-	Ret        Type
-	Body       *Block
-
-	NoReturn bool
-	InlineControl util.Option[bool]
+	GenericFuncDef
 }
 
-func (self *GenericStructMethodDef) GetPackage()Package{
-	return self.Pkg
-}
-
-func (self *GenericStructMethodDef) GetPublic() bool {
-	return self.Public
-}
-
-func (self *GenericStructMethodDef) GetSelfType()*GenericStructInst{
+func (self *GenericStructMethodDef) GetSelfType()TypeDef{
 	return &GenericStructInst{
 		Define: self.Scope,
 		Params: stlslices.Map(self.Scope.GenericParams.Values().ToSlice(), func(_ int, e *GenericIdentType) Type {
@@ -351,22 +309,12 @@ func (self *GenericStructMethodDef) GetSelfType()*GenericStructInst{
 	}
 }
 
-func (self *GenericStructMethodDef) GetFuncType() *FuncType {
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: append([]Type{self.GetSelfType()}, lo.Map(self.Params, func(item *Param, index int) Type {
-			return item.GetType()
-		})...),
+func (self *GenericStructMethodDef) GetMethodType()*FuncType{
+	ft := self.GetFuncType()
+	if !self.IsStatic(){
+		ft.Params = ft.Params[1:]
 	}
-}
-
-func (self *GenericStructMethodDef) GetMethodType() *FuncType {
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: lo.Map(self.Params, func(item *Param, index int) Type {
-			return item.GetType()
-		}),
-	}
+	return ft
 }
 
 func (self *GenericStructMethodDef) GetGenericParams()(res linkedhashmap.LinkedHashMap[string, *GenericIdentType]){
@@ -379,48 +327,38 @@ func (self *GenericStructMethodDef) GetGenericParams()(res linkedhashmap.LinkedH
 	return res
 }
 
+func (self *GenericStructMethodDef) IsStatic()bool{
+	if len(self.Params) == 0{
+		return true
+	}
+	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
+}
+
 // GenericMethodDef 泛型方法定义
 type GenericMethodDef struct {
-	Pkg Package
-	Public     bool
 	Scope *StructDef
-	Name       string
-	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
-	SelfParam *Param
-	Params     []*Param
-	Ret        Type
-	Body       *Block
-
-	NoReturn bool
-	InlineControl util.Option[bool]
+	GenericFuncDef
 }
 
-func (self *GenericMethodDef) GetPackage()Package{
-	return self.Pkg
+func (self *GenericMethodDef) GetSelfType()TypeDef{
+	return self.Scope
 }
 
-func (self *GenericMethodDef) GetPublic() bool {
-	return self.Public
-}
-
-func (self *GenericMethodDef) GetFuncType() *FuncType {
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: append([]Type{self.Scope}, lo.Map(self.Params, func(item *Param, index int) Type {
-			return item.GetType()
-		})...),
+func (self *GenericMethodDef) GetMethodType()*FuncType{
+	ft := self.GetFuncType()
+	if !self.IsStatic(){
+		ft.Params = ft.Params[1:]
 	}
-}
-
-func (self *GenericMethodDef) GetMethodType() *FuncType {
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: lo.Map(self.Params, func(item *Param, index int) Type {
-			return item.GetType()
-		}),
-	}
+	return ft
 }
 
 func (self *GenericMethodDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
 	return self.GenericParams
+}
+
+func (self *GenericMethodDef) IsStatic()bool{
+	if len(self.Params) == 0{
+		return true
+	}
+	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
 }

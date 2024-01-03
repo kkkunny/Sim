@@ -23,7 +23,6 @@ type Analyser struct {
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 
-	selfValue *hir.Param
 	selfType  hir.TypeDef
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]

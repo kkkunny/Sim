@@ -1,0 +1,12 @@
+import std::os
+
+struct A{}
+
+func (A) get(self: Self, v: u8)u8{
+    return v
+}
+
+func main(){
+    let a = A{}
+    os::exit(a.get(0))
+}

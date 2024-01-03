@@ -196,41 +196,34 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
-	if method, ok := ir.Func.(*hir.Method); ok{
-		f := self.values.Get(method.Define)
-		selfParam := self.codegenExpr(method.Self, true)
-		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
-			return self.codegenExpr(item, true)
-		})
-		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
-	}else if method, ok := ir.Func.(*hir.GenericStructMethodInst); ok{
-		f := self.codegenGenericStructMethodInst(method)
-		selfParam := self.codegenExpr(method.Self, true)
-		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
-			return self.codegenExpr(item, true)
-		})
-		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
-	} else if method, ok := ir.Func.(*hir.GenericMethodInst); ok{
-		f := self.codegenGenericMethodInst(method)
-		selfParam := self.codegenExpr(method.Self, true)
-		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
-			return self.codegenExpr(item, true)
-		})
-		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
-	}  else if method, ok := ir.Func.(*hir.GenericStructGenericMethodInst); ok{
-		f := self.codegenGenericStructGenericMethodInst(method)
-		selfParam := self.codegenExpr(method.Self, true)
-		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
-			return self.codegenExpr(item, true)
-		})
-		return self.builder.BuildCall(f, append([]mir.Value{selfParam}, args...)...)
-	} else{
-		f := self.codegenExpr(ir.Func, true)
-		args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
-			return self.codegenExpr(item, true)
-		})
-		return self.builder.BuildCall(f, args...)
+	args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
+		return self.codegenExpr(item, true)
+	})
+	var f, selfArg mir.Value
+	switch fnIr := ir.Func.(type) {
+	case hir.MethodExpr:
+		if !fnIr.GetDefine().IsStatic(){
+			selfArg = self.codegenExpr(fnIr.GetSelf(), true)
+		}
+		switch method := fnIr.(type) {
+		case *hir.Method:
+			f = self.values.Get(&method.Define.FuncDef)
+		case *hir.GenericStructMethodInst:
+			f = self.codegenGenericStructMethodInst(method)
+		case *hir.GenericMethodInst:
+			f = self.codegenGenericMethodInst(method)
+		case *hir.GenericStructGenericMethodInst:
+			f = self.codegenGenericStructGenericMethodInst(method)
+		default:
+			panic("unreachable")
+		}
+	default:
+		f = self.codegenExpr(ir.Func, true)
 	}
+	if selfArg != nil{
+		args = append([]mir.Value{selfArg}, args...)
+	}
+	return self.builder.BuildCall(f, args...)
 }
 
 func (self *CodeGenerator) codegenCovert(ir hir.Covert, load bool) mir.Value {

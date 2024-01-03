@@ -10,10 +10,10 @@ pub func Err<T, E>(v: E)Result::<T, E>{
     return Result::<T, E>{data: v}
 }
 
-pub func (self: Result<T, E>) is_ok()bool{
+pub func (Result<T, E>) is_ok(self: Self)bool{
     return self.data is T
 }
 
-pub func (self: Result<T, E>) is_err()bool{
+pub func (Result<T, E>) is_err(self: Self)bool{
     return self.data is E
 }

@@ -947,6 +947,13 @@ func (self *CheckNull) Mutable() bool {
 	return self.Value.Mutable()
 }
 
+type MethodExpr interface {
+	Expr
+	GetScope()*StructDef
+	GetDefine()GlobalMethod
+	GetSelf()Expr
+}
+
 // Method 方法
 type Method struct {
 	Self   Expr
@@ -957,6 +964,14 @@ func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*StructDef{
 	return AsStructType(self.Self.GetType())
+}
+
+func (self *Method) GetDefine()GlobalMethod{
+	return self.Define
+}
+
+func (self *Method) GetSelf()Expr{
+	return self.Self
 }
 
 func (self *Method) GetType() Type {
@@ -1001,6 +1016,14 @@ func (self *GenericStructMethodInst) stmt() {}
 
 func (self *GenericStructMethodInst) GetScope()*StructDef{
 	return AsStructType(self.Self.GetType())
+}
+
+func (self *GenericStructMethodInst) GetDefine()GlobalMethod{
+	return self.Define
+}
+
+func (self *GenericStructMethodInst) GetSelf()Expr{
+	return self.Self
 }
 
 func (self *GenericStructMethodInst) GetType() Type {
@@ -1048,6 +1071,14 @@ func (self *GenericMethodInst) GetScope()*StructDef{
 	return AsStructType(self.Self.GetType())
 }
 
+func (self *GenericMethodInst) GetDefine()GlobalMethod{
+	return self.Define
+}
+
+func (self *GenericMethodInst) GetSelf()Expr{
+	return self.Self
+}
+
 func (self *GenericMethodInst) GetType() Type {
 	return self.GetMethodType()
 }
@@ -1085,6 +1116,14 @@ func (self *GenericStructGenericMethodInst) stmt() {}
 
 func (self *GenericStructGenericMethodInst) GetScope()*StructDef{
 	return AsStructType(self.Self.GetType())
+}
+
+func (self *GenericStructGenericMethodInst) GetDefine()GlobalMethod{
+	return self.Define
+}
+
+func (self *GenericStructGenericMethodInst) GetSelf()Expr{
+	return self.Self
 }
 
 func (self *GenericStructGenericMethodInst) GetType() Type {

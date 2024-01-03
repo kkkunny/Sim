@@ -232,9 +232,11 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 
 func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 	f := &hir.MethodDef{
-		Pkg: self.pkgScope.pkg,
-		Public:    node.Public,
-		Name:      node.Name.Name.Source(),
+		FuncDef: hir.FuncDef{
+			Pkg: self.pkgScope.pkg,
+			Public:    node.Public,
+			Name:      node.Name.Name.Source(),
+		},
 	}
 	for _, attrObj := range node.Attrs {
 		switch attrObj.(type) {
@@ -254,11 +256,6 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		errors.ThrowUnknownIdentifierError(node.SelfType.Name.Position, node.SelfType.Name)
 	}
 	f.Scope = td.(*hir.StructDef)
-	f.SelfParam = &hir.Param{
-		Mut:  node.SelfMut,
-		Type: f.Scope,
-		Name: token.SELFVALUE.String(),
-	}
 
 	defer self.setSelfType(f.Scope)()
 
@@ -368,9 +365,11 @@ func (self *Analyser) declGenericFuncDef(node *ast.FuncDef) {
 
 func (self *Analyser) declGenericStructMethodDef(node *ast.MethodDef) {
 	f := &hir.GenericStructMethodDef{
-		Pkg: self.pkgScope.pkg,
-		Public:    node.Public,
-		Name:      node.Name.Name.Source(),
+		GenericFuncDef: hir.GenericFuncDef{
+			Pkg: self.pkgScope.pkg,
+			Public:    node.Public,
+			Name:      node.Name.Name.Source(),
+		},
 	}
 	for _, attrObj := range node.Attrs {
 		switch attrObj.(type) {
@@ -417,13 +416,6 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.MethodDef) {
 		}
 	}
 	defer self.genericIdentMap.Clear()
-
-	f.SelfParam = &hir.Param{
-		Mut:  node.SelfMut,
-		Type: f.GetSelfType(),
-		Name: token.SELFVALUE.String(),
-	}
-
 	defer self.setSelfType(f.GetSelfType())()
 
 	paramNameSet := hashset.NewHashSetWith[string]()
@@ -448,9 +440,11 @@ func (self *Analyser) declGenericStructMethodDef(node *ast.MethodDef) {
 
 func (self *Analyser) declGenericMethodDef(node *ast.MethodDef) {
 	f := &hir.GenericMethodDef{
-		Pkg: self.pkgScope.pkg,
-		Public:    node.Public,
-		Name:      node.Name.Name.Source(),
+		GenericFuncDef: hir.GenericFuncDef{
+			Pkg: self.pkgScope.pkg,
+			Public:    node.Public,
+			Name:      node.Name.Name.Source(),
+		},
 	}
 	for _, attrObj := range node.Attrs {
 		switch attrObj.(type) {
@@ -485,13 +479,6 @@ func (self *Analyser) declGenericMethodDef(node *ast.MethodDef) {
 		self.genericIdentMap.Set(pn, pt)
 	}
 	defer self.genericIdentMap.Clear()
-
-	f.SelfParam = &hir.Param{
-		Mut:  node.SelfMut,
-		Type: f.Scope,
-		Name: token.SELFVALUE.String(),
-	}
-
 	defer self.setSelfType(f.Scope)()
 
 	paramNameSet := hashset.NewHashSetWith[string]()
@@ -579,7 +566,6 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
 		self.localScope = nil
 	}()
 	defer self.setSelfType(st)()
-	defer self.setSelfValue(f.SelfParam)()
 
 	for i, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {
@@ -587,7 +573,7 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
 		}
 	}
 
-	f.Body = self.analyseFuncBody(node.Body)
+	f.Body = util.Some(self.analyseFuncBody(node.Body))
 	return f
 }
 
@@ -675,7 +661,6 @@ func (self *Analyser) defGenericStructMethodDef(node *ast.MethodDef) *hir.Generi
 		self.localScope = nil
 	}()
 	defer self.setSelfType(f.GetSelfType())()
-	defer self.setSelfValue(f.SelfParam)()
 
 	for i, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {
@@ -701,7 +686,6 @@ func (self *Analyser) defGenericMethodDef(node *ast.MethodDef) *hir.GenericMetho
 		self.localScope = nil
 	}()
 	defer self.setSelfType(f.Scope)()
-	defer self.setSelfValue(f.SelfParam)()
 
 	for i, p := range f.Params {
 		if !self.localScope.SetValue(p.Name, p) {

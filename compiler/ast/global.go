@@ -157,8 +157,6 @@ type MethodDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
-	SelfMut  bool
-	SelfName token.Token
 	SelfType GenericNameDef
 	Name     GenericNameDef
 	Params   []Param

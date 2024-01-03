@@ -72,14 +72,6 @@ func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool
 	return hirs, importPackageErrorNone
 }
 
-func (self *Analyser) setSelfValue(v *hir.Param)(callback func()){
-	bk := self.selfValue
-	self.selfValue = v
-	return func() {
-		self.selfValue = bk
-	}
-}
-
 func (self *Analyser) setSelfType(td hir.TypeDef)(callback func()){
 	bk := self.selfType
 	self.selfType = td
