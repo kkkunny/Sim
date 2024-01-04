@@ -349,17 +349,22 @@ func (self *CodeGenerator) codegenString(ir *hir.String) mir.Value {
 }
 
 func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
-	ut := self.codegenTypeOnly(ir.Type).(mir.StructType)
+	utObj, utRtObj := self.codegenType(ir.Type)
+	ut, utRt := utObj.(mir.StructType), utRtObj.(*types.UnionType)
+	_, vtRtObj := self.codegenType(ir.Value.GetType())
+
 	value := self.codegenExpr(ir.Value, true)
 	ptr := self.builder.BuildAllocFromStack(ut)
 	dataPtr := self.buildStructIndex(ptr, 0, true)
 	dataPtr = self.builder.BuildPtrToPtr(dataPtr, self.ctx.NewPtrType(value.Type()))
 	self.builder.BuildStore(value, dataPtr)
-	index := hir.AsUnionType(ir.Type).GetElemIndex(ir.Value.GetType())
+
+	index := utRt.IndexElem(vtRtObj)
 	self.builder.BuildStore(
 		mir.NewInt(ut.Elems()[1].(mir.UintType), int64(index)),
 		self.buildStructIndex(ptr, 1, true),
 	)
+
 	if load {
 		return self.builder.BuildLoad(ptr)
 	}
@@ -367,18 +372,18 @@ func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenUnionTypeJudgment(ir *hir.UnionTypeJudgment) mir.Value {
+	srcObj, srcRtObj := self.codegenType(ir.Value.GetType())
+	srcT, srcRt := srcObj.(mir.StructType), srcRtObj.(*types.UnionType)
+	_, dstRt := self.codegenType(ir.Type)
+
+	from := self.codegenExpr(ir.Value, false)
+	srcIndex := self.buildStructIndex(from, 1, false)
+
 	if !hir.IsUnionType(ir.Type){
-		ut := self.codegenTypeOnly(ir.Value.GetType()).(mir.StructType)
-		from := self.codegenExpr(ir.Value, false)
-		typeIndex := self.buildStructIndex(from, 1, false)
-		index := hir.AsUnionType(ir.Value.GetType()).GetElemIndex(ir.Type)
-		return self.builder.BuildCmp(mir.CmpKindEQ, typeIndex, mir.NewInt(ut.Elems()[1].(mir.IntType), int64(index)))
+		targetIndex := srcRt.IndexElem(dstRt)
+		return self.builder.BuildCmp(mir.CmpKindEQ, srcIndex, mir.NewInt(srcT.Elems()[1].(mir.IntType), int64(targetIndex)))
 	}else{
-		_, srcRt := self.codegenType(ir.Value.GetType())
-		_, dstRt := self.codegenType(ir.Type)
-		from := self.codegenExpr(ir.Value, false)
-		index := self.buildStructIndex(from, 1, false)
-		return self.buildCheckUnionType(srcRt.(*types.UnionType), dstRt.(*types.UnionType), index)
+		return self.buildCheckUnionType(srcRt, dstRt.(*types.UnionType), srcIndex)
 	}
 }
 

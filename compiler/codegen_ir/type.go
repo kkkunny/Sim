@@ -134,6 +134,9 @@ func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) (mir.StructType, 
 	for i, e := range ir.Elems{
 		var et mir.Type
 		et, elemRts[i] = self.codegenType(e)
+		if hir.IsUnionType(e){
+			et = et.(mir.StructType).Elems()[0]
+		}
 		if esize := et.Size(); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}

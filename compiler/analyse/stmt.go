@@ -2,6 +2,7 @@ package analyse
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
@@ -34,6 +35,8 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
 		return self.analyseContinue(stmtNode), hir.BlockEofNextLoop
 	case *ast.For:
 		return self.analyseFor(stmtNode)
+	case *ast.Match:
+		return self.analyseMatch(stmtNode)
 	default:
 		panic("unreachable")
 	}
@@ -241,4 +244,57 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 		eof = hir.BlockEofNone
 	}
 	return loop, eof
+}
+
+func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
+	value := self.analyseExpr(nil, node.Value)
+	vtObj := value.GetType()
+	if !hir.IsUnionType(vtObj){
+		errors.ThrowExpectUnionTypeError(node.Value.Position(), vtObj)
+	}
+	vt := hir.AsUnionType(vtObj)
+
+	cases := make([]pair.Pair[hir.Type, *hir.Block], len(node.Cases))
+	for i, caseNode := range node.Cases{
+		caseCond := self.analyseType(caseNode.First)
+		if !vt.Contain(caseCond){
+			errors.ThrowTypeMismatchError(caseNode.First.Position(), caseCond, vtObj)
+		}else if hir.IsUnionType(caseCond){
+			errors.ThrowNotExpectUnionTypeError(caseNode.First.Position(), caseCond)
+		}
+		var newValue *hir.VarDef
+		var fn func(_LocalScope)
+		if v, ok := value.(hir.Variable); ok{
+			newValue = &hir.VarDef{
+				Pkg: self.pkgScope.pkg,
+				Mut: v.Mutable(),
+				Type: caseCond,
+				Name: v.GetName(),
+				Value: &hir.UnUnion{
+					Type: caseCond,
+					Value: v,
+				},
+			}
+			fn = func(scope _LocalScope) {
+				scope.SetValue(v.GetName(), newValue)
+			}
+		}
+		caseBody, _ := self.analyseBlock(caseNode.Second, fn)
+		if newValue != nil{
+			caseBody.Stmts.PushFront(newValue)
+		}
+		cases[i] = pair.NewPair(caseCond, caseBody)
+	}
+
+	var other util.Option[*hir.Block]
+	if otherNode, ok := node.Other.Value(); ok{
+		caseBody, _ := self.analyseBlock(otherNode, nil)
+		other = util.Some(caseBody)
+	}
+
+	return &hir.Match{
+		Value: value,
+		Cases: cases,
+		Other: other,
+	}, hir.BlockEofNone
 }

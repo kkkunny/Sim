@@ -33,6 +33,9 @@ func (self *COutputer) codegenStmt(ir mir.Stmt){
 		self.varDefBuffer.WriteString(fmt.Sprintf("if (%s) goto %s; else goto %s;", self.codegenValue(stmt.Cond()), self.blocks.Get(stmt.TrueBlock()), self.blocks.Get(stmt.FalseBlock())))
 	case mir.StmtValue:
 		self.codegenStmtValue(stmt)
+	case *mir.Switch:
+		// TODO: c语言switch生成
+		panic("unreachable")
 	default:
 		panic("unreachable")
 	}

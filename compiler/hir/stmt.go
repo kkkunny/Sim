@@ -2,6 +2,7 @@ package hir
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/util"
 )
@@ -98,3 +99,11 @@ type For struct {
 
 func (*For) stmt() {}
 func (*For) loop() {}
+
+type Match struct {
+	Value Expr
+	Cases []pair.Pair[Type, *Block]
+	Other util.Option[*Block]
+}
+
+func (*Match) stmt() {}

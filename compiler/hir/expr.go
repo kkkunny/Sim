@@ -21,6 +21,12 @@ type Ident interface {
 	ident()
 }
 
+// Variable 变量
+type Variable interface {
+	Ident
+	GetName()string
+}
+
 // Integer 整数
 type Integer struct {
 	Type  Type
@@ -765,6 +771,10 @@ func (self *Param) Mutable() bool {
 }
 
 func (*Param) ident() {}
+
+func (self *Param) GetName()string{
+	return self.Name
+}
 
 // Struct 结构体
 type Struct struct {

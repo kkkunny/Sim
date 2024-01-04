@@ -38,6 +38,16 @@ func (self Parser) nextIs(k token.Kind) bool {
 	return self.nextTok.Is(k)
 }
 
+// 下一个token是否属于
+func (self Parser) nextIn(k ...token.Kind) bool {
+	for _, kk := range k{
+		if self.nextIs(kk){
+			return true
+		}
+	}
+	return false
+}
+
 // 如果下一个token是则跳过
 func (self *Parser) skipNextIs(k token.Kind) bool {
 	if self.nextIs(k) {

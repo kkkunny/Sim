@@ -2,6 +2,7 @@ package ast
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
@@ -117,3 +118,18 @@ func (self *For) Position() reader.Position {
 }
 
 func (*For) stmt() {}
+
+// Match 匹配
+type Match struct {
+	Begin     reader.Position
+	Value Expr
+	Cases []pair.Pair[Type, *Block]
+	Other util.Option[*Block]
+	End reader.Position
+}
+
+func (self *Match) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (*Match) stmt() {}

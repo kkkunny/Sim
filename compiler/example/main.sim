@@ -1,14 +1,13 @@
-struct Option<T>{
-    v: *?T
-}
-
-func (Option<T>) default()Self{
-    return Self{v: null}
-}
-
 func main(){
-    let v: Option::<u8> = Option::<u8>:default()
-    if v.v == null{
-        debug("null")
+    let a: <i32, u32, f32> = 1 as i32
+    match a{
+    is i32:
+        if a is i32{
+            debug("i32")
+        }
+    is u32:
+        debug("u32")
+    other:
+        debug("other")
     }
 }
