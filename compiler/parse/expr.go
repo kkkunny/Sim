@@ -32,10 +32,13 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseFloat())
 	case token.IDENT:
 		ident := (*ast.IdentExpr)(self.parseIdent())
-		if !canStruct || !self.nextIs(token.LBR) {
+		if canStruct && self.nextIs(token.LBR){
+			return util.Some[ast.Expr](self.parseStruct((*ast.IdentType)(ident)))
+		}else if self.nextIs(token.COL){
+			return util.Some[ast.Expr](self.parseStaticMethod((*ast.IdentType)(ident)))
+		}else{
 			return util.Some[ast.Expr](ident)
 		}
-		return util.Some[ast.Expr](self.parseStruct((*ast.IdentType)(ident)))
 	case token.LPA:
 		return util.Some[ast.Expr](self.parseTuple())
 	case token.LBA:
@@ -44,6 +47,13 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseString())
 	case token.NULL:
 		return util.Some[ast.Expr](self.parseNull())
+	case token.SELF:
+		st := &ast.SelfType{Token: self.expectNextIs(token.SELF)}
+		if self.nextIs(token.LBR){
+			return util.Some[ast.Expr](self.parseStruct(st))
+		}else{
+			return util.Some[ast.Expr](self.parseStaticMethod(st))
+		}
 	default:
 		return util.None[ast.Expr]()
 	}
@@ -216,7 +226,7 @@ func (self *Parser) parseArray() *ast.Array {
 	}
 }
 
-func (self *Parser) parseStruct(st *ast.IdentType) *ast.Struct {
+func (self *Parser) parseStruct(st ast.Type) *ast.Struct {
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, ast.Expr] {
 		fn := self.expectNextIs(token.IDENT)
@@ -229,5 +239,14 @@ func (self *Parser) parseStruct(st *ast.IdentType) *ast.Struct {
 		Type:   st,
 		Fields: fields,
 		End:    end,
+	}
+}
+
+func (self *Parser) parseStaticMethod(st ast.Type)*ast.StaticMethod{
+	self.expectNextIs(token.COL)
+	name := self.parseGenericName(self.expectNextIs(token.IDENT))
+	return &ast.StaticMethod{
+		Type: st,
+		Name: name,
 	}
 }

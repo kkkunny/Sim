@@ -3,6 +3,7 @@ package hir
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/samber/lo"
 )
@@ -951,27 +952,33 @@ type MethodExpr interface {
 	Expr
 	GetScope()*StructDef
 	GetDefine()GlobalMethod
-	GetSelf()Expr
+	GetSelf()(Expr, bool)
 }
 
 // Method 方法
 type Method struct {
-	Self   Expr
+	Self   either.Either[Expr, *StructType]
 	Define *MethodDef
 }
 
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*StructDef{
-	return AsStructType(self.Self.GetType())
+	if self.Self.IsLeft(){
+		value, _ := self.Self.Left()
+		return AsStructType(value.GetType())
+	}else{
+		st, _ := self.Self.Right()
+		return st
+	}
 }
 
 func (self *Method) GetDefine()GlobalMethod{
 	return self.Define
 }
 
-func (self *Method) GetSelf()Expr{
-	return self.Self
+func (self *Method) GetSelf()(Expr, bool){
+	return self.Self.Left()
 }
 
 func (self *Method) GetType() Type {
@@ -1008,22 +1015,28 @@ func (*GenericFuncInst) ident() {}
 
 // GenericStructMethodInst 泛型结构体方法实例
 type GenericStructMethodInst struct {
-	Self   Expr
+	Self   either.Either[Expr, *StructType]
 	Define *GenericStructMethodDef
 }
 
 func (self *GenericStructMethodInst) stmt() {}
 
 func (self *GenericStructMethodInst) GetScope()*StructDef{
-	return AsStructType(self.Self.GetType())
+	if self.Self.IsLeft(){
+		value, _ := self.Self.Left()
+		return AsStructType(value.GetType())
+	}else{
+		st, _ := self.Self.Right()
+		return st
+	}
 }
 
 func (self *GenericStructMethodInst) GetDefine()GlobalMethod{
 	return self.Define
 }
 
-func (self *GenericStructMethodInst) GetSelf()Expr{
-	return self.Self
+func (self *GenericStructMethodInst) GetSelf()(Expr, bool){
+	return self.Self.Left()
 }
 
 func (self *GenericStructMethodInst) GetType() Type {
@@ -1060,7 +1073,7 @@ func (self *GenericStructMethodInst) GetMethodType() Type {
 
 // GenericMethodInst 泛型方法实例
 type GenericMethodInst struct {
-	Self   Expr
+	Self   either.Either[Expr, *StructType]
 	Define *GenericMethodDef
 	Params []Type
 }
@@ -1068,15 +1081,21 @@ type GenericMethodInst struct {
 func (self *GenericMethodInst) stmt() {}
 
 func (self *GenericMethodInst) GetScope()*StructDef{
-	return AsStructType(self.Self.GetType())
+	if self.Self.IsLeft(){
+		value, _ := self.Self.Left()
+		return AsStructType(value.GetType())
+	}else{
+		st, _ := self.Self.Right()
+		return st
+	}
 }
 
 func (self *GenericMethodInst) GetDefine()GlobalMethod{
 	return self.Define
 }
 
-func (self *GenericMethodInst) GetSelf()Expr{
-	return self.Self
+func (self *GenericMethodInst) GetSelf()(Expr, bool){
+	return self.Self.Left()
 }
 
 func (self *GenericMethodInst) GetType() Type {
@@ -1107,7 +1126,7 @@ func (self *GenericMethodInst) GetMethodType() Type {
 
 // GenericStructGenericMethodInst 泛型结构体泛型方法实例
 type GenericStructGenericMethodInst struct {
-	Self   Expr
+	Self   either.Either[Expr, *StructType]
 	Define *GenericStructMethodDef
 	Params []Type
 }
@@ -1115,15 +1134,21 @@ type GenericStructGenericMethodInst struct {
 func (self *GenericStructGenericMethodInst) stmt() {}
 
 func (self *GenericStructGenericMethodInst) GetScope()*StructDef{
-	return AsStructType(self.Self.GetType())
+	if self.Self.IsLeft(){
+		value, _ := self.Self.Left()
+		return AsStructType(value.GetType())
+	}else{
+		st, _ := self.Self.Right()
+		return st
+	}
 }
 
 func (self *GenericStructGenericMethodInst) GetDefine()GlobalMethod{
 	return self.Define
 }
 
-func (self *GenericStructGenericMethodInst) GetSelf()Expr{
-	return self.Self
+func (self *GenericStructGenericMethodInst) GetSelf()(Expr, bool){
+	return self.Self.Left()
 }
 
 func (self *GenericStructGenericMethodInst) GetType() Type {

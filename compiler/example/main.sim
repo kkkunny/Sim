@@ -1,13 +1,14 @@
-struct A{}
+struct Option<T>{
+    v: *?T
+}
 
-func (A) get(self: Self){}
-
-func (A) get2(){
-    debug("2")
+func (Option<T>) default()Self{
+    return Self{v: null}
 }
 
 func main(){
-    let a = A{}
-    a.get()
-    a.get2()
+    let v: Option::<u8> = Option::<u8>:default()
+    if v.v == null{
+        debug("null")
+    }
 }

@@ -181,7 +181,7 @@ func (self *Extract) expr() {}
 
 // Struct 结构体
 type Struct struct {
-	Type   *IdentType
+	Type   Type
 	Fields []pair.Pair[token.Token, Expr]
 	End    reader.Position
 }
@@ -262,14 +262,16 @@ func (self *CheckNull) stmt() {}
 
 func (self *CheckNull) expr() {}
 
-type SelfValue struct {
-	Token token.Token
+// StaticMethod 静态方法
+type StaticMethod struct {
+	Type Type
+	Name GenericName
 }
 
-func (self *SelfValue) Position() reader.Position {
-	return self.Token.Position
+func (self *StaticMethod) Position() reader.Position {
+	return reader.MixPosition(self.Type.Position(), self.Name.Position())
 }
 
-func (self *SelfValue) stmt() {}
+func (self *StaticMethod) stmt() {}
 
-func (self *SelfValue) expr() {}
+func (self *StaticMethod) expr() {}
