@@ -29,4 +29,8 @@ var FuncList = [...]Function{
 		Name: "sim_runtime_panic",
 		To:   Panic,
 	},
+	{
+		Name: "sim_runtime_malloc",
+		To:   GCAlloc,
+	},
 }

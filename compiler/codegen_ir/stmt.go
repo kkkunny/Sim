@@ -69,17 +69,25 @@ func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 }
 
 func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) mir.Value {
-	value := self.codegenExpr(ir.Value, true)
-	ptr := self.builder.BuildAllocFromStack(self.codegenTypeOnly(ir.Type))
-	self.builder.BuildStore(value, ptr)
+	t := self.codegenTypeOnly(ir.Type)
+	var ptr mir.Value
+	if !ir.Escaped{
+		ptr = self.builder.BuildAllocFromStack(t)
+	}else{
+		ptr = self.buildMalloc(t)
+	}
 	self.values.Set(ir, ptr)
+	value := self.codegenExpr(ir.Value, true)
+	if constValue, ok := value.(mir.Const); ok && constValue.IsZero(){
+		return ptr
+	}
+	self.builder.BuildStore(value, ptr)
 	return ptr
 }
 
 func (self *CodeGenerator) codegenMultiLocalVariable(ir *hir.MultiLocalVarDef) mir.Value {
 	for _, varNode := range ir.Vars {
-		ptr := self.builder.BuildAllocFromStack(self.codegenTypeOnly(varNode.Type))
-		self.values.Set(varNode, ptr)
+		self.codegenLocalVariable(varNode)
 	}
 	self.codegenUnTuple(ir.Value, stlslices.As[*hir.LocalVarDef, []*hir.LocalVarDef, hir.Expr, []hir.Expr](ir.Vars))
 	return nil

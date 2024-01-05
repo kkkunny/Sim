@@ -157,6 +157,10 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 		})
 		value = &hir.Tuple{Elems: elems}
 	}
+
+	for _, v := range vars{
+		v.Value = &hir.Default{Type: v.Type}
+	}
 	return &hir.MultiLocalVarDef{
 		Vars:  vars,
 		Value: value,

@@ -311,6 +311,8 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 		value := self.analyseExpr(expect, node.Value)
 		if !stlbasic.Is[hir.Ident](value) {
 			errors.ThrowCanNotGetPointer(node.Value.Position())
+		}else if localVarDef, ok := value.(*hir.LocalVarDef); ok{
+			localVarDef.Escaped = true
 		}
 		return &hir.GetPtr{Value: value}
 	case token.MUL:

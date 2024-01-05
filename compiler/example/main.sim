@@ -1,13 +1,8 @@
 func main(){
-    let a: <i32, u32, f32> = 1 as i32
-    match a{
-    is i32:
-        if a is i32{
-            debug("i32")
+    for i in [1, 2]{
+        let j = &i
+        if *j == 1{
+            debug("1")
         }
-    is u32:
-        debug("u32")
-    other:
-        debug("other")
     }
 }

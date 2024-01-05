@@ -112,6 +112,7 @@ func (*Match) stmt() {}
 type LocalVarDef struct {
 	VarDecl
 	Value      Expr
+	Escaped bool
 }
 
 func (*LocalVarDef) stmt() {}
