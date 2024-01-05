@@ -158,6 +158,9 @@ func (self *_DeadVariablesElimination) walkStmt(ir mir.Stmt){
 		readValues = stmt.Elems()
 	case *mir.Unreachable:
 		self.validMap.Add(stmt)
+	case *mir.Switch:
+		readValues = []mir.Value{stmt.Value()}
+		self.validMap.Add(stmt)
 	}
 
 	reads := self.readMap.Get(ir)

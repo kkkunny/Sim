@@ -1945,3 +1945,69 @@ func (self *Unreachable) ReadRefValues()[]Value{
 func (self *Unreachable) WriteRefValues()[]Value{
 	return nil
 }
+
+// Switch 分支选择
+type Switch struct {
+	b *Block
+	value Value
+	cases []pair.Pair[Const, *Block]
+	other *Block
+}
+
+func (self *Builder) BuildSwitch(value Value, other *Block, cases ...pair.Pair[Const, *Block])Jump {
+	for _, c := range cases{
+		if !c.First.Type().Equal(value.Type()){
+			panic("unreachable")
+		}
+	}
+	if len(cases) == 0{
+		return self.BuildUnCondJump(other)
+	}
+	stmt := &Switch{
+		b: self.cur,
+		value: value,
+		cases: cases,
+		other: other,
+	}
+	self.cur.stmts.PushBack(stmt)
+	return stmt
+}
+
+func (self *Switch) Belong()*Block{
+	return self.b
+}
+
+func (self *Switch) Define()string{
+	cases := stlslices.Map(self.cases, func(_ int, e pair.Pair[Const, *Block]) string {
+		return fmt.Sprintf("%s: %s", e.First.Name(), e.Second.Name())
+	})
+	return fmt.Sprintf("switch %s to %s cases { %s }", self.value.Name(), self.other.Name(), strings.Join(cases, ", "))
+}
+
+func (self *Switch) Value()Value{
+	return self.value
+}
+
+func (self *Switch) OtherBlock()*Block{
+	return self.other
+}
+
+func (self *Switch) Cases()[]pair.Pair[Const, *Block]{
+	return self.cases
+}
+
+func (*Switch)terminate(){}
+
+func (self *Switch) Targets()[]*Block{
+	return append(stlslices.Map(self.cases, func(_ int, e pair.Pair[Const, *Block]) *Block {
+		return e.Second
+	}), self.other)
+}
+
+func (self *Switch) ReadRefValues()[]Value{
+	return nil
+}
+
+func (self *Switch) WriteRefValues()[]Value{
+	return nil
+}

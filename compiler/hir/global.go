@@ -11,7 +11,7 @@ import (
 
 // Global 全局
 type Global interface {
-	GetPackage()Package
+	GetPackage() Package
 	GetPublic() bool
 }
 
@@ -19,34 +19,34 @@ type Global interface {
 type TypeDef interface {
 	Global
 	Type
-	GetName()string
+	GetName() string
 }
 
 // GlobalStruct 全局结构体
 type GlobalStruct interface {
 	Global
-	GetName()string
+	GetName() string
 	globalStruct()
 }
 
 type Field struct {
-	Public bool
+	Public  bool
 	Mutable bool
-	Type Type
+	Type    Type
 }
 
 // StructDef 结构体定义
 type StructDef struct {
-	Pkg Package
-	Public bool
-	Name   string
-	Fields linkedhashmap.LinkedHashMap[string, Field]
+	Pkg     Package
+	Public  bool
+	Name    string
+	Fields  linkedhashmap.LinkedHashMap[string, Field]
 	Methods hashmap.HashMap[string, GlobalMethod]
 
-	genericParams []Type  // 泛型结构体实例化时使用，为泛型结构体方法实例化提供泛型参数
+	genericParams []Type // 泛型结构体实例化时使用，为泛型结构体方法实例化提供泛型参数
 }
 
-func (self *StructDef) GetPackage()Package{
+func (self *StructDef) GetPackage() Package {
 	return self.Pkg
 }
 
@@ -54,71 +54,57 @@ func (self *StructDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *StructDef) GetName()string{
+func (self *StructDef) GetName() string {
 	return self.Name
 }
 
-func (*StructDef) globalStruct(){}
+func (*StructDef) globalStruct() {}
 
-// VarDef 变量定义
-type VarDef struct {
-	Pkg Package
+// GlobalVarDef 全局变量定义
+type GlobalVarDef struct {
+	VarDecl
+	Pkg        Package
 	Public     bool
-	Mut        bool
-	Type       Type
 	ExternName string
-	Name       string
 	Value      Expr
 }
 
-func (self *VarDef) GetPackage()Package{
+func (self *GlobalVarDef) GetPackage() Package {
 	return self.Pkg
 }
 
-func (self *VarDef) GetPublic() bool {
+func (self *GlobalVarDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *VarDef) GetName()string{
-	return self.Name
+func (*GlobalVarDef) stmt() {}
+
+func (*GlobalVarDef) ident() {}
+
+// MultiGlobalVarDef 多全局变量定义
+type MultiGlobalVarDef struct {
+	Vars  []*GlobalVarDef
+	Value Expr
 }
 
-func (*VarDef) stmt() {}
-
-func (self *VarDef) GetType() Type {
-	return self.Type
-}
-
-func (self *VarDef) Mutable() bool {
-	return self.Mut
-}
-
-func (*VarDef) ident() {}
-
-// MultiVarDef 多变量定义
-type MultiVarDef struct {
-	Vars []*VarDef
-	Value      Expr
-}
-
-func (self *MultiVarDef) GetPackage()Package{
+func (self *MultiGlobalVarDef) GetPackage() Package {
 	return self.Vars[0].GetPackage()
 }
 
-func (self *MultiVarDef) GetPublic() bool {
-	for _, v := range self.Vars{
-		if !v.Public{
+func (self *MultiGlobalVarDef) GetPublic() bool {
+	for _, v := range self.Vars {
+		if !v.Public {
 			return false
 		}
 	}
 	return true
 }
 
-func (*MultiVarDef) stmt() {}
+func (*MultiGlobalVarDef) stmt() {}
 
 type GlobalFuncOrMethod interface {
 	Global
-	GetFuncType()*FuncType
+	GetFuncType() *FuncType
 }
 
 type GlobalFunc interface {
@@ -128,7 +114,7 @@ type GlobalFunc interface {
 
 // FuncDef 函数定义
 type FuncDef struct {
-	Pkg Package
+	Pkg        Package
 	Public     bool
 	ExternName string
 	Name       string
@@ -136,11 +122,11 @@ type FuncDef struct {
 	Ret        Type
 	Body       util.Option[*Block]
 
-	NoReturn bool
+	NoReturn      bool
 	InlineControl util.Option[bool]
 }
 
-func (self *FuncDef) GetPackage()Package{
+func (self *FuncDef) GetPackage() Package {
 	return self.Pkg
 }
 
@@ -170,13 +156,13 @@ func (self *FuncDef) Mutable() bool {
 
 func (*FuncDef) ident() {}
 
-func (*FuncDef) globalFunc(){}
+func (*FuncDef) globalFunc() {}
 
 type GlobalMethod interface {
 	Global
-	GetSelfType()TypeDef
-	GetMethodType()*FuncType
-	IsStatic()bool
+	GetSelfType() TypeDef
+	GetMethodType() *FuncType
+	IsStatic() bool
 }
 
 // MethodDef 方法定义
@@ -185,20 +171,20 @@ type MethodDef struct {
 	FuncDef
 }
 
-func (self *MethodDef) GetSelfType()TypeDef{
+func (self *MethodDef) GetSelfType() TypeDef {
 	return self.Scope
 }
 
-func (self *MethodDef) GetMethodType()*FuncType{
+func (self *MethodDef) GetMethodType() *FuncType {
 	ft := self.GetFuncType()
-	if !self.IsStatic(){
+	if !self.IsStatic() {
 		ft.Params = ft.Params[1:]
 	}
 	return ft
 }
 
-func (self *MethodDef) IsStatic()bool{
-	if len(self.Params) == 0{
+func (self *MethodDef) IsStatic() bool {
+	if len(self.Params) == 0 {
 		return true
 	}
 	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
@@ -206,13 +192,13 @@ func (self *MethodDef) IsStatic()bool{
 
 // TypeAliasDef 类型别名定义
 type TypeAliasDef struct {
-	Pkg Package
+	Pkg    Package
 	Public bool
 	Name   string
 	Target Type
 }
 
-func (self *TypeAliasDef) GetPackage()Package{
+func (self *TypeAliasDef) GetPackage() Package {
 	return self.Pkg
 }
 
@@ -220,30 +206,30 @@ func (self *TypeAliasDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *TypeAliasDef) GetName()string{
+func (self *TypeAliasDef) GetName() string {
 	return self.Name
 }
 
 type GlobalGenericDef interface {
 	Global
-	GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]
+	GetGenericParams() linkedhashmap.LinkedHashMap[string, *GenericIdentType]
 }
 
 // GenericFuncDef 泛型函数定义
 type GenericFuncDef struct {
-	Pkg Package
-	Public     bool
-	Name       string
+	Pkg           Package
+	Public        bool
+	Name          string
 	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
-	Params     []*Param
-	Ret        Type
-	Body       *Block
+	Params        []*Param
+	Ret           Type
+	Body          *Block
 
-	NoReturn bool
+	NoReturn      bool
 	InlineControl util.Option[bool]
 }
 
-func (self *GenericFuncDef) GetPackage()Package{
+func (self *GenericFuncDef) GetPackage() Package {
 	return self.Pkg
 }
 
@@ -253,30 +239,30 @@ func (self *GenericFuncDef) GetPublic() bool {
 
 func (self *GenericFuncDef) GetFuncType() *FuncType {
 	return &FuncType{
-		Ret:    self.Ret,
+		Ret: self.Ret,
 		Params: lo.Map(self.Params, func(item *Param, index int) Type {
 			return item.GetType()
 		}),
 	}
 }
 
-func (self *GenericFuncDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
+func (self *GenericFuncDef) GetGenericParams() linkedhashmap.LinkedHashMap[string, *GenericIdentType] {
 	return self.GenericParams
 }
 
-func (*GenericFuncDef) globalFunc(){}
+func (*GenericFuncDef) globalFunc() {}
 
 // GenericStructDef 泛型结构体定义
 type GenericStructDef struct {
-	Pkg Package
-	Public bool
-	Name   string
+	Pkg           Package
+	Public        bool
+	Name          string
 	GenericParams linkedhashmap.LinkedHashMap[string, *GenericIdentType]
-	Fields linkedhashmap.LinkedHashMap[string, Field]
-	Methods hashmap.HashMap[string, *GenericStructMethodDef]
+	Fields        linkedhashmap.LinkedHashMap[string, Field]
+	Methods       hashmap.HashMap[string, *GenericStructMethodDef]
 }
 
-func (self *GenericStructDef) GetPackage()Package{
+func (self *GenericStructDef) GetPackage() Package {
 	return self.Pkg
 }
 
@@ -284,15 +270,15 @@ func (self *GenericStructDef) GetPublic() bool {
 	return self.Public
 }
 
-func (self *GenericStructDef) GetName()string{
+func (self *GenericStructDef) GetName() string {
 	return self.Name
 }
 
-func (self *GenericStructDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
+func (self *GenericStructDef) GetGenericParams() linkedhashmap.LinkedHashMap[string, *GenericIdentType] {
 	return self.GenericParams
 }
 
-func (*GenericStructDef) globalStruct(){}
+func (*GenericStructDef) globalStruct() {}
 
 // GenericStructMethodDef 泛型结构体方法定义
 type GenericStructMethodDef struct {
@@ -300,7 +286,7 @@ type GenericStructMethodDef struct {
 	GenericFuncDef
 }
 
-func (self *GenericStructMethodDef) GetSelfType()TypeDef{
+func (self *GenericStructMethodDef) GetSelfType() TypeDef {
 	return &GenericStructInst{
 		Define: self.Scope,
 		Params: stlslices.Map(self.Scope.GenericParams.Values().ToSlice(), func(_ int, e *GenericIdentType) Type {
@@ -309,26 +295,26 @@ func (self *GenericStructMethodDef) GetSelfType()TypeDef{
 	}
 }
 
-func (self *GenericStructMethodDef) GetMethodType()*FuncType{
+func (self *GenericStructMethodDef) GetMethodType() *FuncType {
 	ft := self.GetFuncType()
-	if !self.IsStatic(){
+	if !self.IsStatic() {
 		ft.Params = ft.Params[1:]
 	}
 	return ft
 }
 
-func (self *GenericStructMethodDef) GetGenericParams()(res linkedhashmap.LinkedHashMap[string, *GenericIdentType]){
-	for iter:=self.Scope.GetGenericParams().Iterator(); iter.Next(); {
+func (self *GenericStructMethodDef) GetGenericParams() (res linkedhashmap.LinkedHashMap[string, *GenericIdentType]) {
+	for iter := self.Scope.GetGenericParams().Iterator(); iter.Next(); {
 		res.Set(iter.Value().First, iter.Value().Second)
 	}
-	for iter:=self.GenericParams.Iterator(); iter.Next(); {
+	for iter := self.GenericParams.Iterator(); iter.Next(); {
 		res.Set(iter.Value().First, iter.Value().Second)
 	}
 	return res
 }
 
-func (self *GenericStructMethodDef) IsStatic()bool{
-	if len(self.Params) == 0{
+func (self *GenericStructMethodDef) IsStatic() bool {
+	if len(self.Params) == 0 {
 		return true
 	}
 	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
@@ -340,24 +326,24 @@ type GenericMethodDef struct {
 	GenericFuncDef
 }
 
-func (self *GenericMethodDef) GetSelfType()TypeDef{
+func (self *GenericMethodDef) GetSelfType() TypeDef {
 	return self.Scope
 }
 
-func (self *GenericMethodDef) GetMethodType()*FuncType{
+func (self *GenericMethodDef) GetMethodType() *FuncType {
 	ft := self.GetFuncType()
-	if !self.IsStatic(){
+	if !self.IsStatic() {
 		ft.Params = ft.Params[1:]
 	}
 	return ft
 }
 
-func (self *GenericMethodDef) GetGenericParams()linkedhashmap.LinkedHashMap[string, *GenericIdentType]{
+func (self *GenericMethodDef) GetGenericParams() linkedhashmap.LinkedHashMap[string, *GenericIdentType] {
 	return self.GenericParams
 }
 
-func (self *GenericMethodDef) IsStatic()bool{
-	if len(self.Params) == 0{
+func (self *GenericMethodDef) IsStatic() bool {
+	if len(self.Params) == 0 {
 		return true
 	}
 	return !self.GetSelfType().EqualTo(self.Params[0].GetType())

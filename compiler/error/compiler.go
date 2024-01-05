@@ -88,6 +88,16 @@ func ThrowExpectArrayTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a array type but there is type `%s`", t)
 }
 
+// ThrowExpectUnionTypeError 期待联合类型
+func ThrowExpectUnionTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a union type but there is type `%s`", t)
+}
+
+// ThrowNotExpectUnionTypeError 不期待联合类型
+func ThrowNotExpectUnionTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "not expect a union type but there is type `%s`", t)
+}
+
 // ThrowExpectFunctionError 期待一个函数
 func ThrowExpectFunctionError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a function but there is type `%s`", t)
@@ -116,6 +126,11 @@ func ThrowExpectTupleError(pos reader.Position, t hir.Type) {
 // ThrowExpectStructError 期待一个结构体
 func ThrowExpectStructError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a struct but there is type `%s`", t)
+}
+
+// ThrowExpectUnionError 期待一个联合体
+func ThrowExpectUnionError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a union but there is type `%s`", t)
 }
 
 // ThrowInvalidIndexError 超出下标

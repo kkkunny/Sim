@@ -39,6 +39,21 @@ func (self *LLVMOutputer) codegenStmt(ir mir.Stmt){
 		self.builder.CreateCondBr(self.codegenValue(stmt.Cond()), self.blocks.Get(stmt.TrueBlock()), self.blocks.Get(stmt.FalseBlock()))
 	case mir.StmtValue:
 		self.codegenStmtValue(stmt)
+	case *mir.Switch:
+		value := self.codegenValue(stmt.Value())
+		block := self.blocks.Get(stmt.OtherBlock())
+		caseIrs := stmt.Cases()
+		cases := make([]struct {
+			Value llvm.Value
+			Block llvm.Block
+		}, len(caseIrs))
+		for i, caseIr := range caseIrs{
+			cases[i] = struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.codegenConst(caseIr.First), Block: self.blocks.Get(caseIr.Second)}
+		}
+		self.builder.CreateSwitch(value, block, cases...)
 	default:
 		panic("unreachable")
 	}

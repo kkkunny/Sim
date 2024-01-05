@@ -9,6 +9,7 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
 	stlerror "github.com/kkkunny/stl/error"
+	stlmath "github.com/kkkunny/stl/math"
 	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/analyse"
@@ -359,6 +360,13 @@ func (self *CodeGenerator) buildCheckIndex(index mir.Value, rangev uint64){
 	self.buildPanic("index out of range")
 
 	self.builder.MoveTo(endBlock)
+}
+
+func (self *CodeGenerator) buildMalloc(t mir.Type)mir.Value{
+	fn := self.getExternFunction("sim_runtime_malloc", self.ctx.NewFuncType(self.ctx.NewPtrType(self.ctx.I8()), self.ctx.Usize()))
+	size := stlmath.RoundTo(t.Size(), stlos.Size(t.Align())*stlos.Byte)
+	ptr := self.builder.BuildCall(fn, mir.NewUint(self.ctx.Usize(), uint64(size/stlos.Byte)))
+	return self.builder.BuildPtrToPtr(ptr, self.ctx.NewPtrType(t))
 }
 
 // CodegenIr 中间代码生成

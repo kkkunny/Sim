@@ -2,20 +2,23 @@ package codegen_ir
 
 import (
 	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/hashset"
 	stliter "github.com/kkkunny/stl/container/iter"
-	"github.com/samber/lo"
+	"github.com/kkkunny/stl/container/pair"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
 	switch stmt := ir.(type) {
 	case *hir.Return:
 		self.codegenReturn(stmt)
-	case *hir.VarDef:
+	case *hir.LocalVarDef:
 		self.codegenLocalVariable(stmt)
-	case *hir.MultiVarDef:
+	case *hir.MultiLocalVarDef:
 		self.codegenMultiLocalVariable(stmt)
 	case *hir.IfElse:
 		self.codegenIfElse(stmt)
@@ -29,6 +32,8 @@ func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
 		self.codegenContinue(stmt)
 	case *hir.For:
 		self.codegenFor(stmt)
+	case *hir.Match:
+		self.codegenMatch(stmt)
 	default:
 		panic("unreachable")
 	}
@@ -63,22 +68,28 @@ func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 	}
 }
 
-func (self *CodeGenerator) codegenLocalVariable(ir *hir.VarDef) mir.Value {
-	value := self.codegenExpr(ir.Value, true)
-	ptr := self.builder.BuildAllocFromStack(self.codegenTypeOnly(ir.Type))
-	self.builder.BuildStore(value, ptr)
+func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) mir.Value {
+	t := self.codegenTypeOnly(ir.Type)
+	var ptr mir.Value
+	if !ir.Escaped{
+		ptr = self.builder.BuildAllocFromStack(t)
+	}else{
+		ptr = self.buildMalloc(t)
+	}
 	self.values.Set(ir, ptr)
+	value := self.codegenExpr(ir.Value, true)
+	if constValue, ok := value.(mir.Const); ok && constValue.IsZero(){
+		return ptr
+	}
+	self.builder.BuildStore(value, ptr)
 	return ptr
 }
 
-func (self *CodeGenerator) codegenMultiLocalVariable(ir *hir.MultiVarDef) mir.Value {
-	for _, varNode := range ir.Vars{
-		ptr := self.builder.BuildAllocFromStack(self.codegenTypeOnly(varNode.Type))
-		self.values.Set(varNode, ptr)
+func (self *CodeGenerator) codegenMultiLocalVariable(ir *hir.MultiLocalVarDef) mir.Value {
+	for _, varNode := range ir.Vars {
+		self.codegenLocalVariable(varNode)
 	}
-	self.codegenUnTuple(ir.Value, lo.Map(ir.Vars, func(item *hir.VarDef, _ int) hir.Expr {
-		return item
-	}))
+	self.codegenUnTuple(ir.Value, stlslices.As[*hir.LocalVarDef, []*hir.LocalVarDef, hir.Expr, []hir.Expr](ir.Vars))
 	return nil
 }
 
@@ -183,7 +194,7 @@ type forRange struct {
 	Out    *mir.Block
 }
 
-func (self *forRange) SetOutBlock(block *mir.Block) {}
+func (self *forRange) SetOutBlock(*mir.Block) {}
 
 func (self *forRange) GetOutBlock() (*mir.Block, bool) {
 	return self.Out, true
@@ -246,4 +257,50 @@ func (self *CodeGenerator) codegenFor(ir *hir.For) {
 	if outBlock, ok := self.loops.Get(ir).GetOutBlock(); ok {
 		self.builder.MoveTo(outBlock)
 	}
+}
+
+func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
+	if ir.Other.IsNone() && len(ir.Cases) == 0 {
+		return
+	}
+
+	vtObj, vtRtObj := self.codegenType(ir.Value.GetType())
+	vt, vtRt := vtObj.(mir.StructType), vtRtObj.(*types.UnionType)
+	value := self.codegenExpr(ir.Value, true)
+	index := self.buildStructIndex(value, 1)
+
+	curBlock := self.builder.Current()
+	endBlock := curBlock.Belong().NewBlock()
+
+	existConds := hashset.NewHashSet[int]()
+	cases := make([]pair.Pair[mir.Const, *mir.Block], 0, len(ir.Cases))
+	for _, c := range ir.Cases {
+		_, caseTypeRtObj := self.codegenType(c.First)
+		caseIndex := vtRt.IndexElem(caseTypeRtObj)
+		if existConds.Contain(caseIndex) {
+			continue
+		}
+
+		existConds.Add(caseIndex)
+		caseBlock, caseCurBlock := self.codegenBlock(c.Second, nil)
+		self.builder.MoveTo(caseCurBlock)
+		self.builder.BuildUnCondJump(endBlock)
+
+		cases = append(cases, pair.NewPair[mir.Const, *mir.Block](mir.NewInt(vt.Elems()[1].(mir.IntType), int64(caseIndex)), caseBlock))
+	}
+
+	var otherBlock *mir.Block
+	if otherIr, ok := ir.Other.Value(); ok {
+		var otherCurBlock *mir.Block
+		otherBlock, otherCurBlock = self.codegenBlock(otherIr, nil)
+		self.builder.MoveTo(otherCurBlock)
+		self.builder.BuildUnCondJump(endBlock)
+	} else {
+		otherBlock = endBlock
+	}
+
+	self.builder.MoveTo(curBlock)
+	self.builder.BuildSwitch(index, otherBlock, cases...)
+
+	self.builder.MoveTo(endBlock)
 }

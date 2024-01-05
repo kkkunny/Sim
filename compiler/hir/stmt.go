@@ -2,6 +2,7 @@ package hir
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/util"
 )
@@ -91,10 +92,37 @@ type Continue struct {
 func (*Continue) stmt() {}
 
 type For struct {
-	Cursor   *VarDef
+	Cursor   *LocalVarDef
 	Iterator Expr
 	Body     *Block
 }
 
 func (*For) stmt() {}
 func (*For) loop() {}
+
+type Match struct {
+	Value Expr
+	Cases []pair.Pair[Type, *Block]
+	Other util.Option[*Block]
+}
+
+func (*Match) stmt() {}
+
+// LocalVarDef 局部变量定义
+type LocalVarDef struct {
+	VarDecl
+	Value      Expr
+	Escaped bool
+}
+
+func (*LocalVarDef) stmt() {}
+
+func (*LocalVarDef) ident() {}
+
+// MultiLocalVarDef 多局部变量定义
+type MultiLocalVarDef struct {
+	Vars  []*LocalVarDef
+	Value Expr
+}
+
+func (*MultiLocalVarDef) stmt() {}

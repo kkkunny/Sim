@@ -747,25 +747,6 @@ func (self *Extract) Mutable() bool {
 	return self.From.Mutable()
 }
 
-// Param 参数
-type Param struct {
-	Mut  bool
-	Type Type
-	Name string
-}
-
-func (*Param) stmt() {}
-
-func (self *Param) GetType() Type {
-	return self.Type
-}
-
-func (self *Param) Mutable() bool {
-	return self.Mut
-}
-
-func (*Param) ident() {}
-
 // Struct 结构体
 type Struct struct {
 	Type   Type

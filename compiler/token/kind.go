@@ -74,6 +74,8 @@ const (
 	NULL
 	TYPE
 	SELF
+	OTHER
+	MATCH
 	_KeywordEnd
 )
 
@@ -138,6 +140,8 @@ var kindNames = [...]string{
 	NULL:     "null",
 	TYPE:     "type",
 	SELF:     "Self",
+	OTHER: "other",
+	MATCH: "match",
 }
 
 // Lookup 区分标识符和关键字

@@ -386,16 +386,6 @@ func (self *UnionType) Contain(dst Type) bool {
 	}
 }
 
-// GetElemIndex 获取子类型下标
-func (self *UnionType) GetElemIndex(elem Type) int {
-	for i, e := range self.Elems {
-		if e.EqualTo(elem){
-			return i
-		}
-	}
-	return -1
-}
-
 func IsPointer(t Type)bool{
 	t = FlattenType(t)
 	return IsPtrType(t) || IsRefType(t) || IsFuncType(t)
