@@ -92,7 +92,7 @@ type Continue struct {
 func (*Continue) stmt() {}
 
 type For struct {
-	Cursor   *VarDef
+	Cursor   *LocalVarDef
 	Iterator Expr
 	Body     *Block
 }
@@ -107,3 +107,21 @@ type Match struct {
 }
 
 func (*Match) stmt() {}
+
+// LocalVarDef 局部变量定义
+type LocalVarDef struct {
+	VarDecl
+	Value      Expr
+}
+
+func (*LocalVarDef) stmt() {}
+
+func (*LocalVarDef) ident() {}
+
+// MultiLocalVarDef 多局部变量定义
+type MultiLocalVarDef struct {
+	Vars  []*LocalVarDef
+	Value Expr
+}
+
+func (*MultiLocalVarDef) stmt() {}

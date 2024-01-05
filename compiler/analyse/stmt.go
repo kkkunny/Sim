@@ -3,7 +3,7 @@ package analyse
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/pair"
-	"github.com/samber/lo"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
 
@@ -89,74 +89,76 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 	}
 }
 
-func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *hir.VarDef {
-	v := &hir.VarDef{
-		Pkg: self.pkgScope.pkg,
-		Mut:  node.Var.Mutable,
-		Name: node.Var.Name.Source(),
+func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *hir.LocalVarDef {
+	v := &hir.LocalVarDef{
+		VarDecl: hir.VarDecl{
+			Mut:  node.Var.Mutable,
+			Name: node.Var.Name.Source(),
+		},
 	}
 	if !self.localScope.SetValue(v.Name, v) {
 		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
 
-	if typeNode, ok := node.Var.Type.Value(); ok{
+	if typeNode, ok := node.Var.Type.Value(); ok {
 		v.Type = self.analyseType(typeNode)
-		if valueNode, ok := node.Value.Value(); ok{
+		if valueNode, ok := node.Value.Value(); ok {
 			v.Value = self.expectExpr(v.Type, valueNode)
-		}else{
+		} else {
 			v.Value = self.getTypeDefaultValue(typeNode.Position(), v.Type)
 		}
-	}else{
+	} else {
 		v.Value = self.analyseExpr(nil, node.Value.MustValue())
 		v.Type = v.Value.GetType()
 	}
 	return v
 }
 
-func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *hir.MultiVarDef {
+func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *hir.MultiLocalVarDef {
 	allHaveType := true
-	vars := lo.Map(node.Vars, func(item ast.VarDef, _ int) *hir.VarDef {
-		v := &hir.VarDef{
-			Pkg: self.pkgScope.pkg,
-			Mut:  item.Mutable,
-			Name: item.Name.Source(),
+	vars := stlslices.Map(node.Vars, func(_ int, e ast.VarDef) *hir.LocalVarDef {
+		v := &hir.LocalVarDef{
+			VarDecl: hir.VarDecl{
+				Mut:  e.Mutable,
+				Name: e.Name.Source(),
+			},
 		}
-		if typeNode, ok := item.Type.Value(); ok{
+		if typeNode, ok := e.Type.Value(); ok {
 			v.Type = self.analyseType(typeNode)
-		}else{
+		} else {
 			allHaveType = false
 		}
 		if !self.localScope.SetValue(v.Name, v) {
-			errors.ThrowIdentifierDuplicationError(item.Name.Position, item.Name)
+			errors.ThrowIdentifierDuplicationError(e.Name.Position, e.Name)
 		}
 		return v
 	})
-	varTypes := lo.Map(vars, func(item *hir.VarDef, _ int) hir.Type {
-		return item.GetType()
+	varTypes := stlslices.Map(vars, func(_ int, e *hir.LocalVarDef) hir.Type {
+		return e.GetType()
 	})
 
 	var value hir.Expr
-	if valueNode, ok := node.Value.Value(); ok && allHaveType{
+	if valueNode, ok := node.Value.Value(); ok && allHaveType {
 		value = self.expectExpr(&hir.TupleType{Elems: varTypes}, valueNode)
-	}else if ok{
+	} else if ok {
 		value = self.analyseExpr(&hir.TupleType{Elems: varTypes}, valueNode)
 		vt, ok := value.GetType().(*hir.TupleType)
-		if !ok{
+		if !ok {
 			errors.ThrowExpectTupleError(valueNode.Position(), value.GetType())
-		}else if len(vt.Elems) != len(vars){
+		} else if len(vt.Elems) != len(vars) {
 			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(vars)), uint(len(vt.Elems)))
 		}
-		for i, v := range vars{
+		for i, v := range vars {
 			v.Type = vt.Elems[i]
 		}
-	}else{
-		elems := lo.Map(vars, func(item *hir.VarDef, i int) hir.Expr {
-			return self.getTypeDefaultValue(node.Vars[i].Type.MustValue().Position(), item.GetType())
+	} else {
+		elems := stlslices.Map(vars, func(i int, e *hir.LocalVarDef) hir.Expr {
+			return self.getTypeDefaultValue(node.Vars[i].Type.MustValue().Position(), e.GetType())
 		})
 		value = &hir.Tuple{Elems: elems}
 	}
-	return &hir.MultiVarDef{
-		Vars: vars,
+	return &hir.MultiLocalVarDef{
+		Vars:  vars,
 		Value: value,
 	}
 }
@@ -225,10 +227,12 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 	et := hir.AsArrayType(iterType).Elem
 	loop := &hir.For{
 		Iterator: iterator,
-		Cursor: &hir.VarDef{
-			Mut:   node.CursorMut,
-			Type:  et,
-			Name:  node.Cursor.Source(),
+		Cursor: &hir.LocalVarDef{
+			VarDecl: hir.VarDecl{
+				Mut:  node.CursorMut,
+				Type: et,
+				Name: node.Cursor.Source(),
+			},
 			Value: &hir.Default{Type: et},
 		},
 	}
@@ -249,29 +253,30 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 	value := self.analyseExpr(nil, node.Value)
 	vtObj := value.GetType()
-	if !hir.IsUnionType(vtObj){
+	if !hir.IsUnionType(vtObj) {
 		errors.ThrowExpectUnionTypeError(node.Value.Position(), vtObj)
 	}
 	vt := hir.AsUnionType(vtObj)
 
 	cases := make([]pair.Pair[hir.Type, *hir.Block], len(node.Cases))
-	for i, caseNode := range node.Cases{
+	for i, caseNode := range node.Cases {
 		caseCond := self.analyseType(caseNode.First)
-		if !vt.Contain(caseCond){
+		if !vt.Contain(caseCond) {
 			errors.ThrowTypeMismatchError(caseNode.First.Position(), caseCond, vtObj)
-		}else if hir.IsUnionType(caseCond){
+		} else if hir.IsUnionType(caseCond) {
 			errors.ThrowNotExpectUnionTypeError(caseNode.First.Position(), caseCond)
 		}
-		var newValue *hir.VarDef
+		var newValue *hir.LocalVarDef
 		var fn func(_LocalScope)
-		if v, ok := value.(hir.Variable); ok{
-			newValue = &hir.VarDef{
-				Pkg: self.pkgScope.pkg,
-				Mut: v.Mutable(),
-				Type: caseCond,
-				Name: v.GetName(),
-				Value: &hir.UnUnion{
+		if v, ok := value.(hir.Variable); ok {
+			newValue = &hir.LocalVarDef{
+				VarDecl: hir.VarDecl{
+					Mut:  v.Mutable(),
 					Type: caseCond,
+					Name: v.GetName(),
+				},
+				Value: &hir.UnUnion{
+					Type:  caseCond,
 					Value: v,
 				},
 			}
@@ -280,14 +285,14 @@ func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 			}
 		}
 		caseBody, _ := self.analyseBlock(caseNode.Second, fn)
-		if newValue != nil{
+		if newValue != nil {
 			caseBody.Stmts.PushFront(newValue)
 		}
 		cases[i] = pair.NewPair(caseCond, caseBody)
 	}
 
 	var other util.Option[*hir.Block]
-	if otherNode, ok := node.Other.Value(); ok{
+	if otherNode, ok := node.Other.Value(); ok {
 		caseBody, _ := self.analyseBlock(otherNode, nil)
 		other = util.Some(caseBody)
 	}

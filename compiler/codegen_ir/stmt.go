@@ -5,7 +5,7 @@ import (
 	"github.com/kkkunny/stl/container/hashset"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/pair"
-	"github.com/samber/lo"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
@@ -16,9 +16,9 @@ func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
 	switch stmt := ir.(type) {
 	case *hir.Return:
 		self.codegenReturn(stmt)
-	case *hir.VarDef:
+	case *hir.LocalVarDef:
 		self.codegenLocalVariable(stmt)
-	case *hir.MultiVarDef:
+	case *hir.MultiLocalVarDef:
 		self.codegenMultiLocalVariable(stmt)
 	case *hir.IfElse:
 		self.codegenIfElse(stmt)
@@ -68,7 +68,7 @@ func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 	}
 }
 
-func (self *CodeGenerator) codegenLocalVariable(ir *hir.VarDef) mir.Value {
+func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) mir.Value {
 	value := self.codegenExpr(ir.Value, true)
 	ptr := self.builder.BuildAllocFromStack(self.codegenTypeOnly(ir.Type))
 	self.builder.BuildStore(value, ptr)
@@ -76,14 +76,12 @@ func (self *CodeGenerator) codegenLocalVariable(ir *hir.VarDef) mir.Value {
 	return ptr
 }
 
-func (self *CodeGenerator) codegenMultiLocalVariable(ir *hir.MultiVarDef) mir.Value {
-	for _, varNode := range ir.Vars{
+func (self *CodeGenerator) codegenMultiLocalVariable(ir *hir.MultiLocalVarDef) mir.Value {
+	for _, varNode := range ir.Vars {
 		ptr := self.builder.BuildAllocFromStack(self.codegenTypeOnly(varNode.Type))
 		self.values.Set(varNode, ptr)
 	}
-	self.codegenUnTuple(ir.Value, lo.Map(ir.Vars, func(item *hir.VarDef, _ int) hir.Expr {
-		return item
-	}))
+	self.codegenUnTuple(ir.Value, stlslices.As[*hir.LocalVarDef, []*hir.LocalVarDef, hir.Expr, []hir.Expr](ir.Vars))
 	return nil
 }
 
@@ -254,7 +252,7 @@ func (self *CodeGenerator) codegenFor(ir *hir.For) {
 }
 
 func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
-	if ir.Other.IsNone() && len(ir.Cases) == 0{
+	if ir.Other.IsNone() && len(ir.Cases) == 0 {
 		return
 	}
 
@@ -268,10 +266,10 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 
 	existConds := hashset.NewHashSet[int]()
 	cases := make([]pair.Pair[mir.Const, *mir.Block], 0, len(ir.Cases))
-	for _, c := range ir.Cases{
+	for _, c := range ir.Cases {
 		_, caseTypeRtObj := self.codegenType(c.First)
 		caseIndex := vtRt.IndexElem(caseTypeRtObj)
-		if existConds.Contain(caseIndex){
+		if existConds.Contain(caseIndex) {
 			continue
 		}
 
@@ -284,12 +282,12 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 	}
 
 	var otherBlock *mir.Block
-	if otherIr, ok := ir.Other.Value(); ok{
+	if otherIr, ok := ir.Other.Value(); ok {
 		var otherCurBlock *mir.Block
 		otherBlock, otherCurBlock = self.codegenBlock(otherIr, nil)
 		self.builder.MoveTo(otherCurBlock)
 		self.builder.BuildUnCondJump(endBlock)
-	}else{
+	} else {
 		otherBlock = endBlock
 	}
 

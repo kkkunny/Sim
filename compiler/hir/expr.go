@@ -21,12 +21,6 @@ type Ident interface {
 	ident()
 }
 
-// Variable 变量
-type Variable interface {
-	Ident
-	GetName()string
-}
-
 // Integer 整数
 type Integer struct {
 	Type  Type
@@ -751,29 +745,6 @@ func (self *Extract) GetType() Type {
 
 func (self *Extract) Mutable() bool {
 	return self.From.Mutable()
-}
-
-// Param 参数
-type Param struct {
-	Mut  bool
-	Type Type
-	Name string
-}
-
-func (*Param) stmt() {}
-
-func (self *Param) GetType() Type {
-	return self.Type
-}
-
-func (self *Param) Mutable() bool {
-	return self.Mut
-}
-
-func (*Param) ident() {}
-
-func (self *Param) GetName()string{
-	return self.Name
 }
 
 // Struct 结构体
