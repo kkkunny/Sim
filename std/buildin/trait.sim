@@ -1,0 +1,3 @@
+trait Default{
+    default: func()Self
+}

@@ -97,8 +97,10 @@ func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
 }
 
 func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
-	if self.selfType == nil{
+	if self.selfType == nil && !self.inTrait{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
+	}else if self.inTrait{
+		return &hir.SelfType{Self: util.None[hir.TypeDef]()}
 	}
-	return &hir.SelfType{Self: self.selfType}
+	return &hir.SelfType{Self: util.Some(self.selfType)}
 }

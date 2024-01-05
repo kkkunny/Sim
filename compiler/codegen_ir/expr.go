@@ -5,11 +5,13 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/runtime/traits"
 	"github.com/kkkunny/Sim/runtime/types"
 )
 
@@ -318,13 +320,41 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 }
 
 func (self *CodeGenerator) codegenZero(ir hir.Type) mir.Value {
-	switch t := ir.(type) {
-	case *hir.SelfType:
-		return self.codegenZero(t.Self)
-	case *hir.AliasType:
-		return self.codegenZero(t.Target)
+	t, trtObj := self.codegenType(ir)
+	switch trt := trtObj.(type) {
+	case *types.EmptyType, *types.FuncType, *types.RefType:
+		panic("unreachable")
+	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.ArrayType, *types.TupleType, *types.UnionType, *types.PtrType:
+		return mir.NewZero(t)
+	case *types.StringType:
+		return self.constString("")
+	case *types.StructType:
+		defaultTrait := traits.NewDefault(trt)
+		if !defaultTrait.IsInst(trt){
+			return mir.NewZero(t)
+		}
+		st := hir.AsStructType(ir)
+		methodObj := st.Methods.Get(defaultTrait.Methods.Keys().Get(0))
+		switch method := methodObj.(type) {
+		case *hir.MethodDef:
+			return self.codegenCall(&hir.Call{
+				Func: &hir.Method{
+					Define: method,
+					Self: either.Right[hir.Expr, *hir.StructType](st),
+				},
+			})
+		case *hir.GenericStructMethodDef:
+			return self.codegenCall(&hir.Call{
+				Func: &hir.GenericStructMethodInst{
+					Define: method,
+					Self: either.Right[hir.Expr, *hir.StructType](st),
+				},
+			})
+		default:
+			panic("unreachable")
+		}
 	default:
-		return mir.NewZero(self.codegenTypeOnly(t))
+		panic("unreachable")
 	}
 }
 

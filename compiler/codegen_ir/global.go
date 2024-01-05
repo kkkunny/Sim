@@ -12,7 +12,7 @@ import (
 )
 
 func (self *CodeGenerator) declStructDef(ir *hir.StructDef) {
-	self.structs.Set(ir.String(), pair.NewPair[mir.StructType, *types.StructType](self.module.NewNamedStructType(""), types.NewStructType(ir.Pkg.String(), ir.Name)))
+	self.structs.Set(ir.String(), pair.NewPair[mir.StructType, *types.StructType](self.module.NewNamedStructType(""), types.NewStructType(ir.Pkg.String(), ir.Name, nil, nil)))
 }
 
 func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
@@ -24,13 +24,22 @@ func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
 	}
 	stPair.First.SetElems(fields...)
 	stPair.Second.Fields = fieldRts
+	methodRts := make([]types.Method, 0, ir.Methods.Length())
+	for iter := ir.Methods.Values().Iterator(); iter.Next(); {
+		switch method := iter.Value().(type) {
+		case *hir.MethodDef:
+			_, ft := self.codegenFuncType(method.GetFuncType())
+			methodRts = append(methodRts, types.NewMethod(ft, method.Name))
+		}
+	}
+	stPair.Second.Methods = methodRts
 }
 
 func (self *CodeGenerator) declGenericStructDef(ir *hir.GenericStructInst) (mir.StructType, *types.StructType) {
-	return self.module.NewNamedStructType(""), types.NewStructType(ir.Define.Pkg.String(), ir.Define.GetName())
+	return self.module.NewNamedStructType(""), types.NewStructType(ir.Define.Pkg.String(), ir.Define.GetName(), nil, nil)
 }
 
-func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir.StructType) {
+func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir.StructType, stRt *types.StructType) {
 	stIr := ir.StructType()
 	fields := make([]mir.Type, stIr.Fields.Length())
 	fieldRts := make([]types.Field, stIr.Fields.Length())
@@ -39,6 +48,18 @@ func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir
 		fields[i], fieldRts[i] = f, types.NewField(fRt, iter.Value().First)
 	}
 	st.SetElems(fields...)
+	stRt.Fields = fieldRts
+	methodRts := make([]types.Method, 0, stIr.Methods.Length())
+	for iter := stIr.Methods.Values().Iterator(); iter.Next(); {
+		switch method := iter.Value().(type) {
+		case *hir.GenericStructMethodDef:
+			if method.GenericParams.Empty(){
+				_, ft := self.codegenFuncType(method.GetFuncType())
+				methodRts = append(methodRts, types.NewMethod(ft, method.Name))
+			}
+		}
+	}
+	stRt.Methods = methodRts
 }
 
 func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
@@ -51,7 +72,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiGlobalVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
+	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef, *hir.TraitDef:
 	default:
 		panic("unreachable")
 	}
@@ -158,7 +179,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		self.defGlobalVariable(global)
 	case *hir.MultiGlobalVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
+	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef, *hir.TraitDef:
 	default:
 		panic("unreachable")
 	}

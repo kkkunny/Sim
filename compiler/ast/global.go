@@ -169,3 +169,18 @@ func (self *MethodDef) Position() reader.Position {
 }
 
 func (*MethodDef) global() {}
+
+// TraitDef 特性定义
+type TraitDef struct {
+	Begin    reader.Position
+	Public   bool
+	Name     token.Token
+	Methods []Field
+	End reader.Position
+}
+
+func (self *TraitDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (*TraitDef) global() {}

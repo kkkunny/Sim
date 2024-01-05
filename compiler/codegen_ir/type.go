@@ -154,7 +154,7 @@ func (self *CodeGenerator) codegenRefType(ir *hir.RefType) (mir.PtrType, *types.
 	return self.ctx.NewPtrType(elem), types.NewRefType(elemRt)
 }
 func (self *CodeGenerator) codegenSelfType(ir *hir.SelfType)(mir.Type, types.Type){
-	return self.codegenType(ir.Self)
+	return self.codegenType(ir.Self.MustValue())
 }
 
 func (self *CodeGenerator) codegenAliasType(ir *hir.AliasType)(mir.Type, types.Type){
@@ -178,6 +178,6 @@ func (self *CodeGenerator) codegenGenericStructInst(ir *hir.GenericStructInst)(m
 
 	st, stRt := self.declGenericStructDef(ir)
 	self.structCache.Set(key, pair.NewPair(st, stRt))
-	self.defGenericStructDef(ir, st)
+	self.defGenericStructDef(ir, st, stRt)
 	return st, stRt
 }

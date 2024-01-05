@@ -11,6 +11,8 @@ import (
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
+
+	"github.com/kkkunny/Sim/util"
 )
 
 var (
@@ -45,7 +47,7 @@ type Type interface {
 func FlattenType(t Type)Type{
 	switch tt := t.(type) {
 	case *SelfType:
-		return FlattenType(tt.Self)
+		return FlattenType(tt.Self.MustValue())
 	case *AliasType:
 		return FlattenType(tt.Target)
 	case *GenericStructInst:
@@ -449,15 +451,15 @@ func (self *RefType) ToPtrType() *PtrType {
 
 // SelfType Self类型
 type SelfType struct{
-	Self TypeDef
+	Self util.Option[TypeDef]
 }
 
 func (self *SelfType) String() string {
-	return self.Self.String()
+	return self.Self.MustValue().String()
 }
 
 func (self *SelfType) EqualTo(dst Type) bool {
-	return self.Self.EqualTo(dst)
+	return self.Self.MustValue().EqualTo(dst)
 }
 
 // AliasType 别名类型
@@ -516,7 +518,7 @@ func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Typ
 			return ReplaceAllGenericIdent(maps, e)
 		})}
 	case *SelfType:
-		return &SelfType{Self: ReplaceAllGenericIdent(maps, tt.Self).(TypeDef)}
+		return &SelfType{Self: util.Some(ReplaceAllGenericIdent(maps, tt.Self.MustValue()).(TypeDef))}
 	case *GenericIdentType:
 		return maps.Get(tt)
 	case *GenericStructInst:

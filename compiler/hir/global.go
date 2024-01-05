@@ -348,3 +348,19 @@ func (self *GenericMethodDef) IsStatic() bool {
 	}
 	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
 }
+
+// TraitDef 特性定义
+type TraitDef struct {
+	Pkg     Package
+	Public  bool
+	Name    string
+	Methods hashmap.HashMap[string, *FuncType]
+}
+
+func (self *TraitDef) GetPackage() Package {
+	return self.Pkg
+}
+
+func (self *TraitDef) GetPublic() bool {
+	return self.Public
+}

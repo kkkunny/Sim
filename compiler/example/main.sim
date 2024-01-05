@@ -1,8 +1,12 @@
+struct A{
+    data: str
+}
+
+func (A) default()Self{
+    return Self{data: "123"}
+}
+
 func main(){
-    for i in [1, 2]{
-        let j = &i
-        if *j == 1{
-            debug("1")
-        }
-    }
+    let a: A
+    debug(a.data)
 }
