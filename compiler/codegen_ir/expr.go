@@ -5,11 +5,13 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/runtime/traits"
 	"github.com/kkkunny/Sim/runtime/types"
 )
 
@@ -43,7 +45,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 	case *hir.Extract:
 		return self.codegenExtract(expr, load)
 	case *hir.Default:
-		return self.codegenZero(expr.GetType())
+		return self.codegenDefault(expr.GetType())
 	case *hir.Struct:
 		return self.codegenStruct(expr)
 	case *hir.GetField:
@@ -317,14 +319,52 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 	return ptr
 }
 
-func (self *CodeGenerator) codegenZero(ir hir.Type) mir.Value {
-	switch t := ir.(type) {
-	case *hir.SelfType:
-		return self.codegenZero(t.Self)
-	case *hir.AliasType:
-		return self.codegenZero(t.Target)
+func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
+	t, rtt := self.codegenType(tir)
+
+	switch trt := rtt.(type) {
+	case *types.EmptyType, *types.FuncType, *types.RefType:
+		panic("unreachable")
+	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.PtrType, *types.UnionType:
+		return mir.NewZero(t)
+	case *types.StringType:
+		return self.constString("")
+	case *types.ArrayType:
+		// TODO: 填充所有字段为默认值
+		return mir.NewZero(t)
+	case *types.TupleType:
+		elems := stlslices.Map(hir.AsTupleType(tir).Elems, func(_ int, e hir.Type) mir.Value {
+			return self.codegenDefault(e)
+		})
+		return self.builder.BuildPackStruct(t.(mir.StructType), elems...)
+	case *types.StructType:
+		defaultTrait := traits.NewDefault(trt)
+		if !defaultTrait.IsInst(trt){
+			// TODO: 填充所有字段为默认值
+			return mir.NewZero(t)
+		}
+		st := hir.AsStructType(tir)
+		methodObj := st.Methods.Get(defaultTrait.Methods.Keys().Get(0))
+		switch method := methodObj.(type) {
+		case *hir.MethodDef:
+			return self.codegenCall(&hir.Call{
+				Func: &hir.Method{
+					Define: method,
+					Self: either.Right[hir.Expr, *hir.StructType](st),
+				},
+			})
+		case *hir.GenericStructMethodDef:
+			return self.codegenCall(&hir.Call{
+				Func: &hir.GenericStructMethodInst{
+					Define: method,
+					Self: either.Right[hir.Expr, *hir.StructType](st),
+				},
+			})
+		default:
+			panic("unreachable")
+		}
 	default:
-		return mir.NewZero(self.codegenTypeOnly(t))
+		panic("unreachable")
 	}
 }
 

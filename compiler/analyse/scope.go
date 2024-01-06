@@ -21,6 +21,7 @@ type _PkgScope struct {
 
 	valueDefs hashmap.HashMap[string, hir.Ident]
 	typeDefs  hashmap.HashMap[string, hir.TypeDef]
+	traitDefs  hashmap.HashMap[string, *hir.TraitDef]
 	genericFuncDefs hashmap.HashMap[string, *hir.GenericFuncDef]
 	genericStructDefs hashmap.HashMap[string, *hir.GenericStructDef]
 }
@@ -207,6 +208,47 @@ func (self *_PkgScope) GetGenericStructDef(pkg, name string) (*hir.GenericStruct
 		return nil, false
 	}
 	def, ok := pkgScope.getLocalGenericStructDef(name)
+	if !ok || !def.GetPublic() {
+		return nil, false
+	}
+	return def, true
+}
+
+func (self *_PkgScope) SetTraitDef(def *hir.TraitDef) bool {
+	if _, ok := self.getTraitDef(def.Name); ok {
+		return false
+	}
+	self.traitDefs.Set(def.Name, def)
+	return true
+}
+
+func (self *_PkgScope) getLocalTraitDef(name string) (*hir.TraitDef, bool) {
+	return self.traitDefs.Get(name), self.traitDefs.ContainKey(name)
+}
+
+func (self *_PkgScope) getTraitDef(name string) (*hir.TraitDef, bool) {
+	def, ok := self.getLocalTraitDef(name)
+	if ok {
+		return def, true
+	}
+	for iter := self.links.Iterator(); iter.Next(); {
+		def, ok := iter.Value().getLocalTraitDef(name)
+		if ok && def.GetPublic() {
+			return def, true
+		}
+	}
+	return nil, false
+}
+
+func (self *_PkgScope) GetTraitDef(pkg, name string) (*hir.TraitDef, bool) {
+	if pkg == "" {
+		return self.getTraitDef(name)
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		return nil, false
+	}
+	def, ok := pkgScope.getLocalTraitDef(name)
 	if !ok || !def.GetPublic() {
 		return nil, false
 	}

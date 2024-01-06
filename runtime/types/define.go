@@ -394,17 +394,31 @@ func NewField(t Type, name string)Field{
 	}
 }
 
+type Method struct {
+	Type *FuncType
+	Name string
+}
+
+func NewMethod(t *FuncType, name string)Method{
+	return Method{
+		Type: t,
+		Name: name,
+	}
+}
+
 type StructType struct {
 	Pkg    string
 	Name   string
 	Fields []Field
+	Methods []Method
 }
 
-func NewStructType(pkg, name string, fields ...Field)*StructType{
+func NewStructType(pkg, name string, fields []Field, methods []Method)*StructType{
 	return &StructType{
 		Pkg: pkg,
 		Name: name,
 		Fields: fields,
+		Methods: methods,
 	}
 }
 
@@ -413,14 +427,12 @@ func (self *StructType) String() string {
 }
 
 func (self *StructType) Hash() uint64 {
-	return lo.Sum(stlslices.Map(self.Fields, func(_ int, f Field) uint64 {
-		return f.Type.Hash()
-	}))
+	return stlbasic.Hash(self.String())
 }
 
 func (self *StructType) Equal(dst Type) bool {
 	dt, ok := dst.(*StructType)
-	if !ok || self.Pkg == dt.Pkg || self.Name != dt.Name {
+	if !ok || self.Pkg != dt.Pkg || self.Name != dt.Name {
 		return false
 	}
 	return true

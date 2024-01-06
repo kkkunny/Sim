@@ -11,6 +11,8 @@ import (
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
+
+	"github.com/kkkunny/Sim/util"
 )
 
 var (
@@ -45,7 +47,7 @@ type Type interface {
 func FlattenType(t Type)Type{
 	switch tt := t.(type) {
 	case *SelfType:
-		return FlattenType(tt.Self)
+		return FlattenType(tt.Self.MustValue())
 	case *AliasType:
 		return FlattenType(tt.Target)
 	case *GenericStructInst:
@@ -447,17 +449,75 @@ func (self *RefType) ToPtrType() *PtrType {
 	return &PtrType{Elem: self.Elem}
 }
 
+// 替换空self类型
+func replaceEmptySelfType(t Type, to Type)Type{
+	switch tt := t.(type) {
+	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *BoolType, *GenericIdentType:
+		return tt
+	case *PtrType:
+		return &PtrType{Elem: replaceEmptySelfType(t, to)}
+	case *RefType:
+		return &RefType{Elem: replaceEmptySelfType(t, to)}
+	case *FuncType:
+		return &FuncType{
+			Ret: replaceEmptySelfType(tt.Ret, to),
+			Params: stlslices.Map(tt.Params, func(_ int, e Type) Type {
+				return replaceEmptySelfType(e, to)
+			}),
+		}
+	case *ArrayType:
+		return &ArrayType{
+			Size: tt.Size,
+			Elem: replaceEmptySelfType(t, tt.Elem),
+		}
+	case *TupleType:
+		return &TupleType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return replaceEmptySelfType(e, to)
+		})}
+	case *StructType:
+		fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
+			e.Second.Type = replaceEmptySelfType(e.Second.Type, to)
+			return pair.NewPair[string, Field](e.First, e.Second)
+		})
+		return &StructType{
+			Pkg: tt.Pkg,
+			Public: tt.Public,
+			Name: tt.Name,
+			Fields: fields,
+			Methods: tt.Methods,
+		}
+	case *UnionType:
+		return &UnionType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return replaceEmptySelfType(e, to)
+		})}
+	case *SelfType:
+		if tt.Self.IsNone(){
+			return to
+		}
+		return &SelfType{Self: util.Some(replaceEmptySelfType(tt.Self.MustValue(), to).(TypeDef))}
+	case *GenericStructInst:
+		return &GenericStructInst{
+			Define: tt.Define,
+			Params: stlslices.Map(tt.Params, func(i int, e Type) Type {
+				return replaceEmptySelfType(e, to)
+			}),
+		}
+	default:
+		panic("unreachable")
+	}
+}
+
 // SelfType Self类型
 type SelfType struct{
-	Self TypeDef
+	Self util.Option[TypeDef]
 }
 
 func (self *SelfType) String() string {
-	return self.Self.String()
+	return self.Self.MustValue().String()
 }
 
 func (self *SelfType) EqualTo(dst Type) bool {
-	return self.Self.EqualTo(dst)
+	return self.Self.MustValue().EqualTo(dst)
 }
 
 // AliasType 别名类型
@@ -516,7 +576,7 @@ func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Typ
 			return ReplaceAllGenericIdent(maps, e)
 		})}
 	case *SelfType:
-		return &SelfType{Self: ReplaceAllGenericIdent(maps, tt.Self).(TypeDef)}
+		return &SelfType{Self: util.Some(ReplaceAllGenericIdent(maps, tt.Self.MustValue()).(TypeDef))}
 	case *GenericIdentType:
 		return maps.Get(tt)
 	case *GenericStructInst:

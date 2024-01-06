@@ -24,6 +24,7 @@ type Analyser struct {
 	localScope _LocalScope
 
 	selfType  hir.TypeDef
+	inTrait bool
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
 	genericIdentMap hashmap.HashMap[string, *hir.GenericIdentType]
@@ -82,6 +83,8 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 			}
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
+		case *ast.TraitDef:
+			self.declTraitDef(node)
 		}
 		return true
 	})
@@ -95,6 +98,8 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 			}
 		case *ast.TypeAlias:
 			meanNodes.PushBack(self.defTypeAlias(node))
+		case *ast.TraitDef:
+			meanNodes.PushBack(self.defTraitDef(node))
 		}
 		return true
 	})

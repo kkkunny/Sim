@@ -76,6 +76,17 @@ func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
 	}
 }
 
+func (self *Analyser) declTraitDef(node *ast.TraitDef){
+	trait := &hir.TraitDef{
+		Pkg: self.pkgScope.pkg,
+		Public: node.Public,
+		Name: node.Name.Source(),
+	}
+	if !self.pkgScope.SetTraitDef(trait) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+}
+
 func (self *Analyser) declGenericStructDef(node *ast.StructDef) {
 	st := &hir.GenericStructDef{
 		Pkg:    self.pkgScope.pkg,
@@ -109,11 +120,14 @@ func (self *Analyser) defStructDef(node *ast.StructDef) *hir.StructDef {
 	}
 	st := td.(*hir.StructDef)
 
-	for _, f := range node.Fields {
-		st.Fields.Set(f.Name.Source(), hir.Field{
-			Public:  f.Public,
-			Mutable: f.Mutable,
-			Type:    self.analyseType(f.Type),
+	for _, fn := range node.Fields {
+		if st.Fields.ContainKey(fn.Name.Source()){
+			errors.ThrowIdentifierDuplicationError(fn.Name.Position, fn.Name)
+		}
+		st.Fields.Set(fn.Name.Source(), hir.Field{
+			Public:  fn.Public,
+			Mutable: fn.Mutable,
+			Type:    self.analyseType(fn.Type),
 		})
 	}
 	return st
@@ -128,6 +142,30 @@ func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
 
 	tad.Target = self.analyseType(node.Type)
 	return tad
+}
+
+func (self *Analyser) defTraitDef(node *ast.TraitDef)*hir.TraitDef{
+	def, ok := self.pkgScope.getLocalTraitDef(node.Name.Source())
+	if !ok {
+		panic("unreachable")
+	}
+
+	self.inTrait = true
+	defer func() {
+		self.inTrait = false
+	}()
+
+	for _, mn := range node.Methods{
+		if def.Methods.ContainKey(mn.Name.Source()){
+			errors.ThrowIdentifierDuplicationError(mn.Name.Position, mn.Name)
+		}
+		mt := self.analyseType(mn.Type)
+		if !hir.IsFuncType(mt){
+			errors.ThrowExpectFuncTypeError(mn.Type.Position(), mt)
+		}
+		def.Methods.Set(mn.Name.Source(), hir.AsFuncType(mt))
+	}
+	return def
 }
 
 func (self *Analyser) defGenericStructDef(node *ast.StructDef) *hir.GenericStructDef {
@@ -175,7 +213,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
 		self.declMultiGlobalVariable(global)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.TraitDef:
 	default:
 		panic("unreachable")
 	}
@@ -535,7 +573,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
 		return self.defMultiGlobalVariable(global)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.TraitDef:
 		return nil
 	default:
 		panic("unreachable")

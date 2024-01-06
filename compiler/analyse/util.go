@@ -105,6 +105,10 @@ func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
 		}
 		return true
 	case *hir.StructType:
+		defaultTrait, _ := self.pkgScope.getTraitDef("Default")
+		if tt.IsImpl(defaultTrait){
+			return true
+		}
 		for iter:=tt.Fields.Values().Iterator(); iter.Next(); {
 			if !self.isTypeHasDefault(iter.Value().Type){
 				return false
@@ -119,7 +123,7 @@ func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
 		}
 		return true
 	case *hir.SelfType:
-		return self.isTypeHasDefault(tt.Self)
+		return self.isTypeHasDefault(tt.Self.MustValue())
 	case *hir.AliasType:
 		return self.isTypeHasDefault(tt.Target)
 	case *hir.GenericIdentType:
@@ -164,7 +168,7 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 			}
 		}
 	case *hir.SelfType:
-		if self.checkTypeCircle(trace, typ.Self){
+		if self.checkTypeCircle(trace, typ.Self.MustValue()){
 			return true
 		}
 	case *hir.AliasType:

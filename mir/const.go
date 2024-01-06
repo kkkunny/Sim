@@ -314,13 +314,9 @@ func NewArray(t ArrayType, elem ...Const)Const{
 		}
 	}
 
-	zero := true
-	for _, e := range elem{
-		if !e.IsZero(){
-			zero = false
-			break
-		}
-	}
+	zero := stlslices.All(elem, func(_ int, e Const) bool {
+		return e.IsZero()
+	})
 	if zero{
 		return NewEmptyArray(t)
 	}
@@ -331,11 +327,12 @@ func NewArray(t ArrayType, elem ...Const)Const{
 	}
 }
 
-func NewString(ctx *Context, s string)*Array{
+func NewString(ctx *Context, s string)Const{
 	elems := lo.Map([]byte(s), func(item byte, _ int) Const {
 		return NewInt(ctx.U8(), int64(item))
 	})
-	return NewArray(ctx.NewArrayType(uint(len(elems)+1), ctx.U8()), append(elems, NewInt(ctx.U8(), 0))...).(*Array)
+	elems = append(elems, NewInt(ctx.U8(), 0))
+	return NewArray(ctx.NewArrayType(uint(len(elems)), ctx.U8()), elems...)
 }
 
 func (self *Array) Name()string{
@@ -381,13 +378,9 @@ func NewStruct(t StructType, elem ...Const)Const{
 		}
 	}
 
-	zero := true
-	for _, e := range elem{
-		if !e.IsZero(){
-			zero = false
-			break
-		}
-	}
+	zero := stlslices.All(elem, func(_ int, e Const) bool {
+		return e.IsZero()
+	})
 	if zero{
 		return NewEmptyStruct(t)
 	}

@@ -98,6 +98,11 @@ func ThrowNotExpectUnionTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "not expect a union type but there is type `%s`", t)
 }
 
+// ThrowExpectFuncTypeError 期待函数类型
+func ThrowExpectFuncTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a function type but there is type `%s`", t)
+}
+
 // ThrowExpectFunctionError 期待一个函数
 func ThrowExpectFunctionError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a function but there is type `%s`", t)
