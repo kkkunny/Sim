@@ -378,13 +378,9 @@ func NewStruct(t StructType, elem ...Const)Const{
 		}
 	}
 
-	zero := true
-	for _, e := range elem{
-		if !e.IsZero(){
-			zero = false
-			break
-		}
-	}
+	zero := stlslices.All(elem, func(_ int, e Const) bool {
+		return e.IsZero()
+	})
 	if zero{
 		return NewEmptyStruct(t)
 	}

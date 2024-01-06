@@ -45,7 +45,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 	case *hir.Extract:
 		return self.codegenExtract(expr, load)
 	case *hir.Default:
-		return self.codegenZero(expr.GetType())
+		return self.codegenDefault(expr.GetType())
 	case *hir.Struct:
 		return self.codegenStruct(expr)
 	case *hir.GetField:
@@ -319,21 +319,31 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 	return ptr
 }
 
-func (self *CodeGenerator) codegenZero(ir hir.Type) mir.Value {
-	t, trtObj := self.codegenType(ir)
-	switch trt := trtObj.(type) {
+func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
+	t, rtt := self.codegenType(tir)
+
+	switch trt := rtt.(type) {
 	case *types.EmptyType, *types.FuncType, *types.RefType:
 		panic("unreachable")
-	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.ArrayType, *types.TupleType, *types.UnionType, *types.PtrType:
+	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.PtrType, *types.UnionType:
 		return mir.NewZero(t)
 	case *types.StringType:
 		return self.constString("")
+	case *types.ArrayType:
+		// TODO: 填充所有字段为默认值
+		return mir.NewZero(t)
+	case *types.TupleType:
+		elems := stlslices.Map(hir.AsTupleType(tir).Elems, func(_ int, e hir.Type) mir.Value {
+			return self.codegenDefault(e)
+		})
+		return self.builder.BuildPackStruct(t.(mir.StructType), elems...)
 	case *types.StructType:
 		defaultTrait := traits.NewDefault(trt)
 		if !defaultTrait.IsInst(trt){
+			// TODO: 填充所有字段为默认值
 			return mir.NewZero(t)
 		}
-		st := hir.AsStructType(ir)
+		st := hir.AsStructType(tir)
 		methodObj := st.Methods.Get(defaultTrait.Methods.Keys().Get(0))
 		switch method := methodObj.(type) {
 		case *hir.MethodDef:
