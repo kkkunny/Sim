@@ -449,6 +449,64 @@ func (self *RefType) ToPtrType() *PtrType {
 	return &PtrType{Elem: self.Elem}
 }
 
+// 替换空self类型
+func replaceEmptySelfType(t Type, to Type)Type{
+	switch tt := t.(type) {
+	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *BoolType, *GenericIdentType:
+		return tt
+	case *PtrType:
+		return &PtrType{Elem: replaceEmptySelfType(t, to)}
+	case *RefType:
+		return &RefType{Elem: replaceEmptySelfType(t, to)}
+	case *FuncType:
+		return &FuncType{
+			Ret: replaceEmptySelfType(tt.Ret, to),
+			Params: stlslices.Map(tt.Params, func(_ int, e Type) Type {
+				return replaceEmptySelfType(e, to)
+			}),
+		}
+	case *ArrayType:
+		return &ArrayType{
+			Size: tt.Size,
+			Elem: replaceEmptySelfType(t, tt.Elem),
+		}
+	case *TupleType:
+		return &TupleType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return replaceEmptySelfType(e, to)
+		})}
+	case *StructType:
+		fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
+			e.Second.Type = replaceEmptySelfType(e.Second.Type, to)
+			return pair.NewPair[string, Field](e.First, e.Second)
+		})
+		return &StructType{
+			Pkg: tt.Pkg,
+			Public: tt.Public,
+			Name: tt.Name,
+			Fields: fields,
+			Methods: tt.Methods,
+		}
+	case *UnionType:
+		return &UnionType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return replaceEmptySelfType(e, to)
+		})}
+	case *SelfType:
+		if tt.Self.IsNone(){
+			return to
+		}
+		return &SelfType{Self: util.Some(replaceEmptySelfType(tt.Self.MustValue(), to).(TypeDef))}
+	case *GenericStructInst:
+		return &GenericStructInst{
+			Define: tt.Define,
+			Params: stlslices.Map(tt.Params, func(i int, e Type) Type {
+				return replaceEmptySelfType(e, to)
+			}),
+		}
+	default:
+		panic("unreachable")
+	}
+}
+
 // SelfType Self类型
 type SelfType struct{
 	Self util.Option[TypeDef]

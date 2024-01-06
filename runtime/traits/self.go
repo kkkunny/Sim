@@ -39,9 +39,7 @@ func replaceSelfType(src types.Type, to types.Type)types.Type{
 			stlslices.Map(t.Fields, func(_ int, f types.Field) types.Field{
 				return types.NewField(replaceSelfType(f.Type, to), f.Name)
 			}),
-			stlslices.Map(t.Methods, func(_ int, f types.Method) types.Method{
-				return types.NewMethod(replaceSelfType(f.Type, to).(*types.FuncType), f.Name)
-			}),
+			t.Methods,
 		)
 	case *types.UnionType:
 		return types.NewUnionType(stlslices.Map(t.Elems, func(_ int, e types.Type) types.Type {
