@@ -20,6 +20,8 @@ func (self *Parser) parseAttrList() (attrs []ast.Attr) {
 			attrs = append(attrs, self.parseInline(begin))
 		case "noinline":
 			attrs = append(attrs, self.parseNoInline(begin))
+		case "var_arg":
+			attrs = append(attrs, self.parseVarArg(begin))
 		default:
 			errors.ThrowIllegalAttr(self.nextTok.Position)
 			panic("unreachable")
@@ -56,6 +58,13 @@ func (self *Parser) parseInline(begin reader.Position) *ast.Inline {
 
 func (self *Parser) parseNoInline(begin reader.Position) *ast.NoInline {
 	return &ast.NoInline{
+		Begin: begin,
+		End:   self.curTok.Position,
+	}
+}
+
+func (self *Parser) parseVarArg(begin reader.Position) *ast.VarArg {
+	return &ast.VarArg{
 		Begin: begin,
 		End:   self.curTok.Position,
 	}

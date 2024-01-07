@@ -54,7 +54,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 	}
 	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
 	if name.Params.IsNone(){
-		expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
+		expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
 	}else{
 		expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
 	}

@@ -1,2 +1,3 @@
+@var_arg
 @extern("printf")
 pub func printf(format: string)int

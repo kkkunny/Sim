@@ -237,6 +237,8 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 			f.InlineControl = util.Some[bool](true)
 		case *ast.NoInline:
 			f.InlineControl = util.Some[bool](false)
+		case *ast.VarArg:
+			f.VarArg = true
 		default:
 			panic("unreachable")
 		}

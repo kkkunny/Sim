@@ -344,12 +344,17 @@ func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
 	if !hir.IsFuncType(f.GetType()){
 		errors.ThrowExpectFunctionError(node.Func.Position(), f.GetType())
 	}
+	vararg := stlbasic.Is[*hir.FuncDef](f) && f.(*hir.FuncDef).VarArg
 	ft := hir.AsFuncType(f.GetType())
-	if len(ft.Params) != len(node.Args) {
+	if (!vararg && len(node.Args) != len(ft.Params)) || (vararg && len(node.Args) < len(ft.Params)) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ft.Params)), uint(len(node.Args)))
 	}
 	args := lo.Map(node.Args, func(item ast.Expr, index int) hir.Expr {
-		return self.expectExpr(ft.Params[index], item)
+		if vararg && index >= len(ft.Params){
+			return self.analyseExpr(nil, item)
+		}else{
+			return self.expectExpr(ft.Params[index], item)
+		}
 	})
 	return &hir.Call{
 		Func: f,

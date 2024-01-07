@@ -464,14 +464,17 @@ type FuncType interface {
 	Type
 	Ret()Type
 	Params()[]Type
+	VarArg()bool
+	SetVarArg(v bool)
 }
 
 type funcType struct {
 	ret Type
 	params []Type
+	varArg bool
 }
 
-func (self *Context) NewFuncType(ret Type, param ...Type)FuncType {
+func (self *Context) NewFuncType(varArg bool, ret Type, param ...Type)FuncType {
 	if !ret.Context().Target().Equal(self.Target()){
 		panic("unreachable")
 	}
@@ -483,6 +486,7 @@ func (self *Context) NewFuncType(ret Type, param ...Type)FuncType {
 	return &funcType{
 		ret: ret,
 		params: param,
+		varArg: varArg,
 	}
 }
 
@@ -490,6 +494,9 @@ func (self *funcType) String()string{
 	params := lo.Map(self.params, func(item Type, _ int) string {
 		return item.String()
 	})
+	if self.varArg{
+		params = append(params, "...")
+	}
 	return fmt.Sprintf("%s(%s)", self.ret, strings.Join(params, ","))
 }
 
@@ -527,3 +534,11 @@ func (self *funcType) Params()[]Type{
 }
 
 func (self *funcType) ptr(){}
+
+func (self *funcType) VarArg()bool{
+	return self.varArg
+}
+
+func (self *funcType) SetVarArg(v bool){
+	self.varArg = v
+}

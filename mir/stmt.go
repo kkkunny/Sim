@@ -1100,12 +1100,22 @@ type Call struct {
 }
 
 func (self *Builder) BuildCall(f Value, arg ...Value)StmtValue{
-	params := f.Type().(FuncType).Params()
-	if len(params) != len(arg){
-		panic("unreachable")
+	ft := f.Type().(FuncType)
+	argTypes := stlslices.Map(arg, func(_ int, e Value) Type {
+		return e.Type()
+	})
+	if !ft.VarArg(){
+		if len(arg) != len(ft.Params()){
+			panic("unreachable")
+		}
+	}else{
+		if len(arg) < len(ft.Params()){
+			panic("unreachable")
+		}
+		argTypes = argTypes[:len(ft.Params())]
 	}
-	for i, p := range params{
-		if !p.Equal(arg[i].Type()){
+	for i, at := range argTypes{
+		if !at.Equal(ft.Params()[i]){
 			panic("unreachable")
 		}
 	}

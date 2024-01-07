@@ -81,6 +81,9 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 	ftObj, _ := self.codegenType(ir.GetType())
 	ft := ftObj.(mir.FuncType)
+	if ir.VarArg{
+		ft.SetVarArg(true)
+	}
 	f := self.module.NewFunction(ir.ExternName, ft)
 	if ir.NoReturn {
 		f.SetAttribute(mir.FunctionAttributeNoReturn)

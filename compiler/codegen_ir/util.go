@@ -46,7 +46,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 		return res
 	case *hir.StringType:
 		name := "sim_runtime_str_eq_str"
-		ft := self.ctx.NewFuncType(self.ctx.Bool(), l.Type(), r.Type())
+		ft := self.ctx.NewFuncType(false, self.ctx.Bool(), l.Type(), r.Type())
 		var f *mir.Function
 		var ok bool
 		if f, ok = self.module.NamedFunction(name); !ok {
@@ -167,7 +167,7 @@ func (self *CodeGenerator) buildUnionEqual(irType *hir.UnionType, l, r mir.Value
 	var f *mir.Function
 	if !self.funcCache.ContainKey(key){
 		curBlock := self.builder.Current()
-		f = self.module.NewFunction("", self.ctx.NewFuncType(self.ctx.Bool(), l.Type(), r.Type()))
+		f = self.module.NewFunction("", self.ctx.NewFuncType(false, self.ctx.Bool(), l.Type(), r.Type()))
 		lp, rp := f.Params()[0], f.Params()[1]
 
 		self.builder.MoveTo(f.NewBlock())
@@ -243,7 +243,7 @@ func (self *CodeGenerator) buildStructIndex(st mir.Value, i uint64, expectPtr ..
 func (self *CodeGenerator) getMainFunction() *mir.Function {
 	mainFn, ok := self.module.NamedFunction("main")
 	if !ok {
-		mainFn = self.module.NewFunction("main", self.ctx.NewFuncType(self.ctx.U8()))
+		mainFn = self.module.NewFunction("main", self.ctx.NewFuncType(false, self.ctx.U8()))
 		mainFn.NewBlock()
 	}
 	return mainFn
@@ -252,7 +252,7 @@ func (self *CodeGenerator) getMainFunction() *mir.Function {
 func (self *CodeGenerator) getInitFunction() *mir.Function {
 	initFn, ok := self.module.NamedFunction("sim_runtime_init")
 	if !ok {
-		initFn = self.module.NewFunction("sim_runtime_init", self.ctx.NewFuncType(self.ctx.Void()))
+		initFn = self.module.NewFunction("sim_runtime_init", self.ctx.NewFuncType(false, self.ctx.Void()))
 		initFn.SetAttribute(mir.FunctionAttributeInit)
 		initFn.NewBlock()
 	}
@@ -273,7 +273,7 @@ func (self *CodeGenerator) constString(s string) mir.Const {
 
 func (self *CodeGenerator) buildCovertUnionIndex(src, dst *types.UnionType, index mir.Value)mir.Value{
 	strType, _ := self.codegenStringType()
-	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(self.ctx.U8(), strType, strType, self.ctx.U8()))
+	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(false, self.ctx.U8(), strType, strType, self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
 	gob.Register(new(types.BoolType))
@@ -297,7 +297,7 @@ func (self *CodeGenerator) buildCovertUnionIndex(src, dst *types.UnionType, inde
 
 func (self *CodeGenerator) buildCheckUnionType(src, dst *types.UnionType, index mir.Value)mir.Value{
 	strType, _ := self.codegenStringType()
-	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(self.ctx.Bool(), strType, strType, self.ctx.U8()))
+	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(false, self.ctx.Bool(), strType, strType, self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
 	gob.Register(new(types.BoolType))
@@ -321,7 +321,7 @@ func (self *CodeGenerator) buildCheckUnionType(src, dst *types.UnionType, index 
 
 func (self *CodeGenerator) buildPanic(s string){
 	strType, _ := self.codegenStringType()
-	fn := self.getExternFunction("sim_runtime_panic", self.ctx.NewFuncType(self.ctx.Void(), strType))
+	fn := self.getExternFunction("sim_runtime_panic", self.ctx.NewFuncType(false, self.ctx.Void(), strType))
 	self.builder.BuildCall(fn, self.constString(s))
 	self.builder.BuildUnreachable()
 }
@@ -363,7 +363,7 @@ func (self *CodeGenerator) buildCheckIndex(index mir.Value, rangev uint64){
 }
 
 func (self *CodeGenerator) buildMalloc(t mir.Type)mir.Value{
-	fn := self.getExternFunction("sim_runtime_malloc", self.ctx.NewFuncType(self.ctx.NewPtrType(self.ctx.I8()), self.ctx.Usize()))
+	fn := self.getExternFunction("sim_runtime_malloc", self.ctx.NewFuncType(false, self.ctx.NewPtrType(self.ctx.I8()), self.ctx.Usize()))
 	size := stlmath.RoundTo(t.Size(), stlos.Size(t.Align())*stlos.Byte)
 	ptr := self.builder.BuildCall(fn, mir.NewUint(self.ctx.Usize(), uint64(size/stlos.Byte)))
 	return self.builder.BuildPtrToPtr(ptr, self.ctx.NewPtrType(t))

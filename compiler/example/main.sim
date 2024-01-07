@@ -1,13 +1,8 @@
-struct A{
-    data: *str
-}
-
-func (A) default()Self{
-    let s: str
-    return Self{data: &s}
-}
+import std::c
+import std::reflect
 
 func main(){
-    let a: A
-    debug(*a.data)
+    let s = "hello world %lld\n"
+    let header = *(&s as *reflect::string)
+    c::printf(header.ptr as c::string, 10)
 }

@@ -145,6 +145,7 @@ type FuncDef struct {
 
 	NoReturn      bool
 	InlineControl util.Option[bool]
+	VarArg bool
 }
 
 func (self *FuncDef) GetPackage() Package {

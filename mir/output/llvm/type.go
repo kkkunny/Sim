@@ -76,12 +76,12 @@ func (self *LLVMOutputer) codegenFuncType(ir mir.FuncType)llvm.FunctionType{
 				params[i] = self.ctx.PointerType(p)
 			}
 		}
-		return self.ctx.FunctionType(false, ret, params...)
+		return self.ctx.FunctionType(ir.VarArg(), ret, params...)
 	default:
 		params := lo.Map(ir.Params(), func(item mir.Type, _ int) llvm.Type {
 			return self.codegenType(item)
 		})
-		return self.ctx.FunctionType(false, self.codegenType(ir.Ret()), params...)
+		return self.ctx.FunctionType(ir.VarArg(), self.codegenType(ir.Ret()), params...)
 	}
 }
 

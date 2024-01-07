@@ -63,3 +63,16 @@ func (self *NoInline) Position() reader.Position {
 func (self *NoInline) AttrName() string {
 	return "noinline"
 }
+
+type VarArg struct {
+	Begin reader.Position
+	End   reader.Position
+}
+
+func (self *VarArg) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *VarArg) AttrName() string {
+	return "var_arg"
+}

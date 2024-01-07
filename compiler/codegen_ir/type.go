@@ -94,7 +94,7 @@ func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) (mir.FuncType, *typ
 	for i, p := range ir.Params{
 		params[i], paramRts[i] = self.codegenType(p)
 	}
-	return self.ctx.NewFuncType(ret, params...), types.NewFuncType(retRt, )
+	return self.ctx.NewFuncType(false, ret, params...), types.NewFuncType(retRt, )
 }
 
 func (self *CodeGenerator) codegenBoolType() (mir.UintType, *types.BoolType) {
