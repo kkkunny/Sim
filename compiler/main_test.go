@@ -13,7 +13,7 @@ import (
 )
 
 func TestDebug(t *testing.T) {
-	module := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), stlos.NewFilePath("example/main.sim")))
+	module := stlerror.MustWith(codegen_ir.CodegenIr(mir.DefaultTarget(), stlos.NewFilePath("examples/main.sim")))
 	ret := stlerror.MustWith(interpret.Interpret(module))
 	stltest.AssertEq(t, ret, 0)
 }
