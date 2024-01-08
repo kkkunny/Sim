@@ -1,3 +1,21 @@
+pub type size_t = isize
+
 @var_arg
 @extern("printf")
 pub func printf(format: string)int
+
+@var_arg
+@extern("scanf")
+pub func scanf(format: string)int
+
+@extern("getchar")
+pub func getchar()int
+
+@extern("putchar")
+pub func putchar(char: int)int
+
+@extern("puts")
+pub func puts(str: string)int
+
+@extern("perror")
+pub func perror(str: string)

@@ -606,7 +606,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 				return &hir.GenericMethodInst{
 					Self:   either.Left[hir.Expr, *hir.StructType](from),
 					Define: method,
-					Params: params,
+					Args:   params,
 				}
 			case *hir.GenericStructMethodDef:
 				if method.GenericParams.Length() != uint(len(genericParams.Data)){
@@ -618,7 +618,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 				return &hir.GenericStructGenericMethodInst{
 					Self:   either.Left[hir.Expr, *hir.StructType](from),
 					Define: method,
-					Params: params,
+					Args:   params,
 				}
 			default:
 				panic("unreachable")
@@ -733,7 +733,7 @@ func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{
 			return &hir.GenericMethodInst{
 				Self:   either.Right[hir.Expr, *hir.StructType](st),
 				Define: method,
-				Params: params,
+				Args:   params,
 			}
 		case *hir.GenericStructMethodDef:
 			if method.GenericParams.Length() != uint(len(genericParams.Data)){
@@ -745,7 +745,7 @@ func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{
 			return &hir.GenericStructGenericMethodInst{
 				Self:   either.Right[hir.Expr, *hir.StructType](st),
 				Define: method,
-				Params: params,
+				Args:   params,
 			}
 		default:
 			panic("unreachable")

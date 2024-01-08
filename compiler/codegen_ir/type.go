@@ -168,9 +168,8 @@ func (self *CodeGenerator) codegenGenericIdentType(ir *hir.GenericIdentType)(mir
 }
 
 func (self *CodeGenerator) codegenGenericStructInst(ir *hir.GenericStructInst)(mir.StructType, types.Type){
-	key := fmt.Sprintf("generic_struct(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
-		pt, _ := self.codegenType(e)
-		return pt.String()
+	key := fmt.Sprintf("generic_struct(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Args, func(_ int, e hir.Type) string {
+		return self.codegenTypeOnly(e).String()
 	}), ","))
 	if stp := self.structCache.Get(key); stp.First != nil{
 		return stp.First, stp.Second

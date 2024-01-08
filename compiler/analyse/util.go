@@ -273,7 +273,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 				})
 				instType := &hir.GenericStructInst{
 					Define: st,
-					Params: params,
+					Args:   params,
 				}
 
 				if self.checkTypeCircle(stlbasic.Ptr(hashset.NewHashSet[hir.Type]()), instType){
@@ -297,7 +297,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 				})
 				return util.Some(either.Left[hir.Expr, hir.Type](&hir.GenericFuncInst{
 					Define: f,
-					Params: params,
+					Args:   params,
 				}))
 			}
 		}

@@ -2,7 +2,6 @@ package codegen_ir
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
@@ -40,6 +39,8 @@ func (self *CodeGenerator) declGenericStructDef(ir *hir.GenericStructInst) (mir.
 }
 
 func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir.StructType, stRt *types.StructType) {
+	defer self.mapGenericParams2GenericArgs(ir)()
+
 	stIr := ir.StructType()
 	fields := make([]mir.Type, stIr.Fields.Length())
 	fieldRts := make([]types.Field, stIr.Fields.Length())
@@ -236,12 +237,9 @@ func (self *CodeGenerator) defGenericFuncDef(ir *hir.GenericFuncInst, f *mir.Fun
 	for i, p := range f.Params() {
 		self.values.Set(ir.Define.Params[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
-	for i, iter := 0, ir.Define.GenericParams.Iterator(); iter.Next(); i++ {
-		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(ir.Params[i])))
-	}
-	self.genericIdentMapStack.Push(maps)
-	defer self.genericIdentMapStack.Pop()
+
+	defer self.mapGenericParams2GenericArgs(ir)()
+
 	block, _ := self.codegenBlock(ir.Define.Body, nil)
 	self.builder.BuildUnCondJump(block)
 }
@@ -251,13 +249,9 @@ func (self *CodeGenerator) defGenericStructMethodDef(ir *hir.GenericStructMethod
 	for i, p := range f.Params() {
 		self.values.Set(ir.Define.Params[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
-	genericParams := ir.GetGenericParams()
-	for i, iter := 0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++ {
-		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i])))
-	}
-	self.genericIdentMapStack.Push(maps)
-	defer self.genericIdentMapStack.Pop()
+
+	defer self.mapGenericParams2GenericArgs(ir)()
+
 	block, _ := self.codegenBlock(ir.Define.Body, nil)
 	self.builder.BuildUnCondJump(block)
 }
@@ -267,12 +261,9 @@ func (self *CodeGenerator) defGenericMethodDef(ir *hir.GenericMethodInst, f *mir
 	for i, p := range f.Params() {
 		self.values.Set(ir.Define.Params[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
-	for i, iter := 0, ir.Define.GenericParams.Iterator(); iter.Next(); i++ {
-		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(ir.Params[i])))
-	}
-	self.genericIdentMapStack.Push(maps)
-	defer self.genericIdentMapStack.Pop()
+
+	defer self.mapGenericParams2GenericArgs(ir)()
+
 	block, _ := self.codegenBlock(ir.Define.Body, nil)
 	self.builder.BuildUnCondJump(block)
 }
@@ -282,16 +273,9 @@ func (self *CodeGenerator) defGenericStructGenericMethodDef(ir *hir.GenericStruc
 	for i, p := range f.Params() {
 		self.values.Set(ir.Define.Params[i], p)
 	}
-	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
-	genericParams := ir.GetGenericParams()
-	for i, iter := 0, ir.Define.Scope.GenericParams.Iterator(); iter.Next(); i++ {
-		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i])))
-	}
-	for i, iter := 0, ir.Define.GenericParams.Iterator(); iter.Next(); i++ {
-		maps.Set(iter.Value().Second, pair.NewPair(self.codegenType(genericParams[i+int(ir.Define.Scope.GenericParams.Length())])))
-	}
-	self.genericIdentMapStack.Push(maps)
-	defer self.genericIdentMapStack.Pop()
+
+	defer self.mapGenericParams2GenericArgs(ir)()
+
 	block, _ := self.codegenBlock(ir.Define.Body, nil)
 	self.builder.BuildUnCondJump(block)
 }

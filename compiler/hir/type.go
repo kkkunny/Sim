@@ -498,7 +498,7 @@ func replaceEmptySelfType(t Type, to Type)Type{
 	case *GenericStructInst:
 		return &GenericStructInst{
 			Define: tt.Define,
-			Params: stlslices.Map(tt.Params, func(i int, e Type) Type {
+			Args: stlslices.Map(tt.Args, func(i int, e Type) Type {
 				return replaceEmptySelfType(e, to)
 			}),
 		}
@@ -582,7 +582,7 @@ func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Typ
 	case *GenericStructInst:
 		return &GenericStructInst{
 			Define: tt.Define,
-			Params: stlslices.Map(tt.Params, func(i int, e Type) Type {
+			Args: stlslices.Map(tt.Args, func(i int, e Type) Type {
 				return ReplaceAllGenericIdent(maps, e)
 			}),
 		}
@@ -612,7 +612,7 @@ func (self *GenericIdentType) EqualTo(dst Type) bool {
 // GenericStructInst 泛型结构体实例
 type GenericStructInst struct {
 	Define *GenericStructDef
-	Params []Type
+	Args   []Type
 }
 
 func (self *GenericStructInst) GetPackage()Package{
@@ -634,16 +634,16 @@ func (self *GenericStructInst) EqualTo(dst Type) bool {
 }
 
 func (self *GenericStructInst) GetName()string{
-	return fmt.Sprintf("%s::<%s>", self.Define.Name, strings.Join(stlslices.Map(self.Params, func(i int, e Type) string {
+	return fmt.Sprintf("%s::<%s>", self.Define.Name, strings.Join(stlslices.Map(self.Args, func(i int, e Type) string {
 		return e.String()
 	}), ", "))
 }
 
 func (self *GenericStructInst) StructType()*StructType{
-	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Args)))
 	var i int
 	for iter:=self.Define.GenericParams.Iterator(); iter.Next(); {
-		maps.Set(iter.Value().Second, self.Params[i])
+		maps.Set(iter.Value().Second, self.Args[i])
 		i++
 	}
 	fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](self.Define.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
@@ -654,12 +654,20 @@ func (self *GenericStructInst) StructType()*StructType{
 		return pair.NewPair[string, GlobalMethod](e.First, e.Second)
 	})
 	st := &StructType{
-		Pkg: self.Define.Pkg,
-		Public: self.Define.Public,
-		Name: self.GetName(),
-		Fields: fields,
-		Methods: methods,
-		genericParams: self.Params,
+		Pkg:         self.Define.Pkg,
+		Public:      self.Define.Public,
+		Name:        self.GetName(),
+		Fields:      fields,
+		Methods:     methods,
+		genericArgs: self.Args,
 	}
 	return st
+}
+
+func (self *GenericStructInst) GetGenericParams()[]*GenericIdentType{
+	return self.Define.GenericParams.Values().ToSlice()
+}
+
+func (self *GenericStructInst) GetGenericArgs()[]Type{
+	return self.Args
 }

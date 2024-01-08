@@ -975,7 +975,7 @@ func (*Method) ident() {}
 // GenericFuncInst 泛型函数实例
 type GenericFuncInst struct {
 	Define *GenericFuncDef
-	Params []Type
+	Args   []Type
 }
 
 func (self *GenericFuncInst) stmt() {}
@@ -983,7 +983,7 @@ func (self *GenericFuncInst) stmt() {}
 func (self *GenericFuncInst) GetType() Type {
 	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](self.Define.GenericParams.Capacity())
 	for i, iter:=0, self.Define.GenericParams.Iterator(); iter.Next(); i++{
-		maps.Set(iter.Value().Second, self.Params[i])
+		maps.Set(iter.Value().Second, self.Args[i])
 	}
 	return ReplaceAllGenericIdent(maps, self.Define.GetFuncType())
 }
@@ -993,6 +993,14 @@ func (self *GenericFuncInst) Mutable() bool {
 }
 
 func (*GenericFuncInst) ident() {}
+
+func (self *GenericFuncInst) GetGenericParams()[]*GenericIdentType{
+	return self.Define.GenericParams.Values().ToSlice()
+}
+
+func (self *GenericFuncInst) GetGenericArgs()[]Type{
+	return self.Args
+}
 
 // GenericStructMethodInst 泛型结构体方法实例
 type GenericStructMethodInst struct {
@@ -1030,12 +1038,12 @@ func (self *GenericStructMethodInst) Mutable() bool {
 
 func (*GenericStructMethodInst) ident() {}
 
-func (self *GenericStructMethodInst) GetGenericParams()[]Type{
-	return self.GetScope().genericParams
+func (self *GenericStructMethodInst) GetGenericArgs()[]Type{
+	return self.GetScope().genericArgs
 }
 
 func (self *GenericStructMethodInst) GetFuncType() Type {
-	params := self.GetGenericParams()
+	params := self.GetGenericArgs()
 	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](self.Define.Scope.GenericParams.Capacity())
 	for i, iter:=0, self.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
 		maps.Set(iter.Value().Second, params[i])
@@ -1044,7 +1052,7 @@ func (self *GenericStructMethodInst) GetFuncType() Type {
 }
 
 func (self *GenericStructMethodInst) GetMethodType() Type {
-	params := self.GetGenericParams()
+	params := self.GetGenericArgs()
 	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](self.Define.Scope.GenericParams.Capacity())
 	for i, iter:=0, self.Define.Scope.GenericParams.Iterator(); iter.Next(); i++{
 		maps.Set(iter.Value().Second, params[i])
@@ -1052,11 +1060,15 @@ func (self *GenericStructMethodInst) GetMethodType() Type {
 	return ReplaceAllGenericIdent(maps, self.Define.GetMethodType())
 }
 
+func (self *GenericStructMethodInst) GetGenericParams()[]*GenericIdentType{
+	return self.Define.GenericParams.Values().ToSlice()
+}
+
 // GenericMethodInst 泛型方法实例
 type GenericMethodInst struct {
 	Self   either.Either[Expr, *StructType]
 	Define *GenericMethodDef
-	Params []Type
+	Args   []Type
 }
 
 func (self *GenericMethodInst) stmt() {}
@@ -1090,26 +1102,34 @@ func (self *GenericMethodInst) Mutable() bool {
 func (*GenericMethodInst) ident() {}
 
 func (self *GenericMethodInst) GetFuncType() Type {
-	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Args)))
 	for i, iter:=0, self.Define.GenericParams.Iterator(); iter.Next(); i++{
-		maps.Set(iter.Value().Second, self.Params[i])
+		maps.Set(iter.Value().Second, self.Args[i])
 	}
 	return ReplaceAllGenericIdent(maps, self.Define.GetFuncType())
 }
 
 func (self *GenericMethodInst) GetMethodType() Type {
-	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Params)))
+	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Args)))
 	for i, iter:=0, self.Define.GenericParams.Iterator(); iter.Next(); i++{
-		maps.Set(iter.Value().Second, self.Params[i])
+		maps.Set(iter.Value().Second, self.Args[i])
 	}
 	return ReplaceAllGenericIdent(maps, self.Define.GetMethodType())
+}
+
+func (self *GenericMethodInst) GetGenericParams()[]*GenericIdentType{
+	return self.Define.GenericParams.Values().ToSlice()
+}
+
+func (self *GenericMethodInst) GetGenericArgs()[]Type{
+	return self.Args
 }
 
 // GenericStructGenericMethodInst 泛型结构体泛型方法实例
 type GenericStructGenericMethodInst struct {
 	Self   either.Either[Expr, *StructType]
 	Define *GenericStructMethodDef
-	Params []Type
+	Args   []Type
 }
 
 func (self *GenericStructGenericMethodInst) stmt() {}
@@ -1142,16 +1162,20 @@ func (self *GenericStructGenericMethodInst) Mutable() bool {
 
 func (*GenericStructGenericMethodInst) ident() {}
 
-func (self *GenericStructGenericMethodInst) GetScopeGenericParams()[]Type{
-	return self.GetScope().genericParams
+func (self *GenericStructGenericMethodInst) GetScopeGenericArgs()[]Type{
+	return self.GetScope().genericArgs
 }
 
-func (self *GenericStructGenericMethodInst) GetGenericParams()[]Type{
-	return append(self.GetScopeGenericParams(), self.Params...)
+func (self *GenericStructGenericMethodInst) GetGenericParams()[]*GenericIdentType{
+	return append(self.Define.Scope.GenericParams.Values().ToSlice(), self.Define.GenericParams.Values().ToSlice()...)
+}
+
+func (self *GenericStructGenericMethodInst) GetGenericArgs()[]Type{
+	return append(self.GetScopeGenericArgs(), self.Args...)
 }
 
 func (self *GenericStructGenericMethodInst) GetFuncType() Type {
-	params := self.GetGenericParams()
+	params := self.GetGenericArgs()
 	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(params)))
 	for i, iter:=0, self.Define.GetGenericParams().Iterator(); iter.Next(); i++{
 		maps.Set(iter.Value().Second, params[i])
@@ -1160,7 +1184,7 @@ func (self *GenericStructGenericMethodInst) GetFuncType() Type {
 }
 
 func (self *GenericStructGenericMethodInst) GetMethodType() Type {
-	params := self.GetGenericParams()
+	params := self.GetGenericArgs()
 	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(params)))
 	for i, iter:=0, self.Define.GetGenericParams().Iterator(); iter.Next(); i++{
 		maps.Set(iter.Value().Second, params[i])

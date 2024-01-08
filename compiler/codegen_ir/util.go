@@ -7,6 +7,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/pair"
 	stlerror "github.com/kkkunny/stl/error"
 	stlmath "github.com/kkkunny/stl/math"
@@ -15,6 +16,7 @@ import (
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	module2 "github.com/kkkunny/Sim/mir/pass/module"
 	"github.com/kkkunny/Sim/runtime/types"
 )
 
@@ -369,6 +371,21 @@ func (self *CodeGenerator) buildMalloc(t mir.Type)mir.Value{
 	return self.builder.BuildPtrToPtr(ptr, self.ctx.NewPtrType(t))
 }
 
+func (self *CodeGenerator) mapGenericParams2GenericArgs(inst hir.GenericInst)func(){
+	params, args := inst.GetGenericParams(), inst.GetGenericArgs()
+	if len(params) != len(args){
+		panic("unreachable")
+	}
+
+	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
+	for i, param := range params {
+		maps.Set(param, pair.NewPair(self.codegenType(args[i])))
+	}
+
+	self.genericIdentMapStack.Push(maps)
+	return func() { self.genericIdentMapStack.Pop() }
+}
+
 // CodegenIr 中间代码生成
 func CodegenIr(target mir.Target, path stlos.FilePath) (*mir.Module, stlerror.Error) {
 	means, err := analyse.Analyse(path)
@@ -376,6 +393,6 @@ func CodegenIr(target mir.Target, path stlos.FilePath) (*mir.Module, stlerror.Er
 		return nil, err
 	}
 	module := New(target, means).Codegen()
-	// module2.Run(module, module2.DeadCodeElimination)
+	module2.Run(module, module2.DeadCodeElimination)
 	return module, nil
 }

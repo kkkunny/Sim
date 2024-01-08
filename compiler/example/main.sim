@@ -1,8 +1,5 @@
-import std::c
-import std::reflect
+import std::io
 
 func main(){
-    let s = "hello world %lld\n"
-    let header = *(&s as *reflect::string)
-    c::printf(header.ptr as c::string, 10)
+    io::println("Hello World")
 }

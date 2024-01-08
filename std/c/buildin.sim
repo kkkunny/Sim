@@ -14,3 +14,7 @@ pub type float = f32
 pub type double = f64
 
 pub type string = *?char
+
+pub func str2cstring(s: str)string{
+    return *(&s as *string)
+}

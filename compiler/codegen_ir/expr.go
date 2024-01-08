@@ -450,7 +450,7 @@ func (self *CodeGenerator) codegenGenericFuncInst(ir *hir.GenericFuncInst) mir.V
 		self.builder.MoveTo(cur)
 	}()
 
-	key := fmt.Sprintf("generic_func(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
+	key := fmt.Sprintf("generic_func(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
 		return self.codegenTypeOnly(e).String()
 	}), ","))
 	if f := self.funcCache.Get(key); f != nil {
@@ -469,7 +469,7 @@ func (self *CodeGenerator) codegenGenericStructMethodInst(ir *hir.GenericStructM
 		self.builder.MoveTo(cur)
 	}()
 
-	key := fmt.Sprintf("(%p<%s>)generic_method(%p)", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetGenericParams(), func(i int, e hir.Type) string {
+	key := fmt.Sprintf("(%p<%s>)generic_method(%p)", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetGenericArgs(), func(i int, e hir.Type) string {
 		return self.codegenTypeOnly(e).String()
 	}), ","), ir.Define)
 	if f := self.funcCache.Get(key); f != nil {
@@ -488,7 +488,7 @@ func (self *CodeGenerator) codegenGenericMethodInst(ir *hir.GenericMethodInst) *
 		self.builder.MoveTo(cur)
 	}()
 
-	key := fmt.Sprintf("(%p)generic_method(%p)<%s>", ir.Define.Scope, ir.Define, strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
+	key := fmt.Sprintf("(%p)generic_method(%p)<%s>", ir.Define.Scope, ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
 		return self.codegenTypeOnly(e).String()
 	}), ","))
 	if f := self.funcCache.Get(key); f != nil {
@@ -507,9 +507,9 @@ func (self *CodeGenerator) codegenGenericStructGenericMethodInst(ir *hir.Generic
 		self.builder.MoveTo(cur)
 	}()
 
-	key := fmt.Sprintf("(%p<%s>)generic_method(%p)<%s>", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetScopeGenericParams(), func(i int, e hir.Type) string {
+	key := fmt.Sprintf("(%p<%s>)generic_method(%p)<%s>", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetScopeGenericArgs(), func(i int, e hir.Type) string {
 		return self.codegenTypeOnly(e).String()
-	}), ","), ir.Define, strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
+	}), ","), ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
 		return self.codegenTypeOnly(e).String()
 	}), ","))
 	if f := self.funcCache.Get(key); f != nil {

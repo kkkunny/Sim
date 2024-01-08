@@ -46,7 +46,7 @@ type StructDef struct {
 	Fields  linkedhashmap.LinkedHashMap[string, Field]
 	Methods hashmap.HashMap[string, GlobalMethod]
 
-	genericParams []Type // 泛型结构体实例化时使用，为泛型结构体方法实例化提供泛型参数
+	genericArgs []Type // 泛型结构体实例化时使用，为泛型结构体方法实例化提供泛型参数
 }
 
 func (self *StructDef) GetPackage() Package {
@@ -311,7 +311,7 @@ type GenericStructMethodDef struct {
 func (self *GenericStructMethodDef) GetSelfType() TypeDef {
 	return &GenericStructInst{
 		Define: self.Scope,
-		Params: stlslices.Map(self.Scope.GenericParams.Values().ToSlice(), func(_ int, e *GenericIdentType) Type {
+		Args: stlslices.Map(self.Scope.GenericParams.Values().ToSlice(), func(_ int, e *GenericIdentType) Type {
 			return e
 		}),
 	}

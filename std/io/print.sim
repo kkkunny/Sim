@@ -1,10 +1,8 @@
 import std::c
-import std::reflect
 
 // 格式化输出
 pub func print(s: str)Result::<usize, ()>{
-    let header = *(&s as *reflect::string)
-    let count = c::printf(header.ptr as c::string)
+    let count = c::printf(c::str2cstring(s))
     if count < 0{
         return Err::<usize, ()>(())
     }
@@ -13,7 +11,9 @@ pub func print(s: str)Result::<usize, ()>{
 
 // 格式化输出带换行
 pub func println(s: str)Result::<usize, ()>{
-    let res = print(s)
-    print("\n")
-    return res
+    let count = c::puts(c::str2cstring(s))
+    if count < 0{
+        return Err::<usize, ()>(())
+    }
+    return Ok::<usize, ()>(count as usize)
 }
