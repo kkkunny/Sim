@@ -8,8 +8,8 @@ import (
 // ROOT 语言根目录
 var ROOT = func() stlos.FilePath {
 	workdir := stlerror.MustWith(stlos.GetWorkDirectory())
-	if workdir.Base() == "test"{
+	if workdir.Base() == "tests"{
 		workdir = workdir.Dir()
 	}
-	return workdir.Dir()
+	return workdir
 }()

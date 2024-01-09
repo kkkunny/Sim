@@ -586,9 +586,13 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 	fieldName := node.Index.Name.Source()
 
-	from := self.analyseExpr(nil, node.From)
-	if !hir.IsStructType(from.GetType()){
-		errors.ThrowExpectStructError(node.From.Position(), from.GetType())
+	var from hir.Expr
+	if fromObj := self.analyseExpr(nil, node.From); hir.IsStructType(fromObj.GetType()){
+		from = fromObj
+	}else if ft := fromObj.GetType(); hir.IsRefType(ft) && hir.IsStructType(hir.AsRefType(ft).Elem){
+		from = &hir.GetValue{Value: fromObj}
+	}else{
+		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
 	st := hir.AsStructType(from.GetType())
 
