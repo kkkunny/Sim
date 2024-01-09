@@ -963,7 +963,11 @@ func (self *Method) GetSelf()(Expr, bool){
 }
 
 func (self *Method) GetType() Type {
-	return self.Define.GetMethodType()
+	if self.Self.IsLeft(){
+		return self.Define.GetMethodType()
+	}else{
+		return self.Define.GetFuncType()
+	}
 }
 
 func (self *Method) Mutable() bool {
@@ -1029,7 +1033,11 @@ func (self *GenericStructMethodInst) GetSelf()(Expr, bool){
 }
 
 func (self *GenericStructMethodInst) GetType() Type {
-	return self.GetMethodType()
+	if self.Self.IsLeft(){
+		return self.Define.GetMethodType()
+	}else{
+		return self.Define.GetFuncType()
+	}
 }
 
 func (self *GenericStructMethodInst) Mutable() bool {
@@ -1092,7 +1100,11 @@ func (self *GenericMethodInst) GetSelf()(Expr, bool){
 }
 
 func (self *GenericMethodInst) GetType() Type {
-	return self.GetMethodType()
+	if self.Self.IsLeft(){
+		return self.Define.GetMethodType()
+	}else{
+		return self.Define.GetFuncType()
+	}
 }
 
 func (self *GenericMethodInst) Mutable() bool {
@@ -1153,7 +1165,11 @@ func (self *GenericStructGenericMethodInst) GetSelf()(Expr, bool){
 }
 
 func (self *GenericStructGenericMethodInst) GetType() Type {
-	return self.GetMethodType()
+	if self.Self.IsLeft(){
+		return self.Define.GetMethodType()
+	}else{
+		return self.Define.GetFuncType()
+	}
 }
 
 func (self *GenericStructGenericMethodInst) Mutable() bool {

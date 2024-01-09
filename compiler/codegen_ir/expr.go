@@ -201,12 +201,11 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	var f, selfArg mir.Value
+	var f, selfValue mir.Value
 	switch fnIr := ir.Func.(type) {
 	case hir.MethodExpr:
-		if !fnIr.GetDefine().IsStatic() {
-			selfValue, _ := fnIr.GetSelf()
-			selfArg = self.codegenExpr(selfValue, true)
+		if selfValueIr, ok := fnIr.GetSelf(); ok {
+			selfValue = self.codegenExpr(selfValueIr, false)
 		}
 		switch method := fnIr.(type) {
 		case *hir.Method:
@@ -221,10 +220,17 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 			panic("unreachable")
 		}
 	default:
-		f = self.codegenExpr(ir.Func, true)
+		f = self.codegenExpr(ir.Func, false)
 	}
-	if selfArg != nil {
-		args = append([]mir.Value{selfArg}, args...)
+	if selfValue != nil {
+		var selfRef mir.Value
+		if expectSelfRefType := f.Type().(mir.FuncType).Params()[0]; !selfValue.Type().Equal(expectSelfRefType){
+			selfRef = self.builder.BuildAllocFromStack(selfValue.Type())
+			self.builder.BuildStore(selfValue, selfRef)
+		}else{
+			selfRef = selfValue
+		}
+		args = append([]mir.Value{selfRef}, args...)
 	}
 	return self.builder.BuildCall(f, args...)
 }

@@ -1,5 +1,12 @@
 import std::io
 
+struct a{}
+
+func (a) get(self: *Self)str{
+    return "111"
+}
+
 func main(){
-    io::println("Hello World")
+    let v = a{}
+    io::println(a:get(&v))
 }

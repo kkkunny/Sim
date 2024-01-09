@@ -594,7 +594,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 
 	if genericParams, ok := node.Index.Params.Value(); ok{
 		// 泛型方法
-		if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
+		if methodObj := st.Methods.Get(fieldName); methodObj != nil && !methodObj.IsStatic() && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
 			switch method := methodObj.(type) {
 			case *hir.GenericMethodDef:
 				if method.GenericParams.Length() != uint(len(genericParams.Data)){
@@ -626,7 +626,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 		}
 	}else{
 		// 方法 or 泛型方法
-		if methodObj := st.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
+		if methodObj := st.Methods.Get(fieldName); methodObj != nil && !methodObj.IsStatic() && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
 			switch method := methodObj.(type) {
 			case *hir.MethodDef:
 				return &hir.Method{
@@ -717,7 +717,7 @@ func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{
 	st := hir.AsStructType(stObj)
 
 	f := st.Methods.Get(node.Name.Name.Source())
-	if f == nil || !f.IsStatic() || (!f.GetPublic() && !self.pkgScope.pkg.Equal(f.GetPackage())){
+	if f == nil || (!f.GetPublic() && !self.pkgScope.pkg.Equal(f.GetPackage())){
 		errors.ThrowUnknownIdentifierError(node.Name.Name.Position, node.Name.Name)
 	}
 

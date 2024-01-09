@@ -209,7 +209,8 @@ func (self *MethodDef) IsStatic() bool {
 	if len(self.Params) == 0 {
 		return true
 	}
-	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
+	selfRef := &RefType{Elem: self.GetSelfType()}
+	return !selfRef.EqualTo(self.Params[0].GetType())
 }
 
 // TypeAliasDef 类型别名定义
@@ -339,7 +340,8 @@ func (self *GenericStructMethodDef) IsStatic() bool {
 	if len(self.Params) == 0 {
 		return true
 	}
-	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
+	selfRef := &RefType{Elem: self.GetSelfType()}
+	return !selfRef.EqualTo(self.Params[0].GetType())
 }
 
 // GenericMethodDef 泛型方法定义
@@ -368,7 +370,8 @@ func (self *GenericMethodDef) IsStatic() bool {
 	if len(self.Params) == 0 {
 		return true
 	}
-	return !self.GetSelfType().EqualTo(self.Params[0].GetType())
+	selfRef := &RefType{Elem: self.GetSelfType()}
+	return !selfRef.EqualTo(self.Params[0].GetType())
 }
 
 // TraitDef 特性定义
