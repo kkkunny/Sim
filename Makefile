@@ -50,6 +50,14 @@ codegenir: $(COMPILER_SRC_DIR)/codegen_ir.go $(TEST_FILE)
 codegenllvm: $(COMPILER_SRC_DIR)/codegen_llvm.go $(TEST_FILE)
 	@go run -tags codegenllvm $(COMPILER_SRC_DIR) $(TEST_FILE)
 
+.PHONY: codegenasm
+codegenasm: $(COMPILER_SRC_DIR)/codegen_llvm.go $(TEST_FILE)
+	@go run -tags codegenasm $(COMPILER_SRC_DIR) $(TEST_FILE)
+
+.PHONY: run
+run: $(COMPILER_SRC_DIR)/main.go $(TEST_FILE)
+	@go run $(COMPILER_SRC_DIR) $(TEST_FILE)
+
 .PHONY: build
 build: clean $(COMPILER_SRC_DIR)/main.go
 	go build -o $(BIN_FILE) $(COMPILER_SRC_DIR)

@@ -1,0 +1,8 @@
+import std::os
+
+func main(){
+    let a: u32 = 1
+    let b = a << 1
+    let c = b >> 1
+    os::exit(c as u8 - 1)
+}

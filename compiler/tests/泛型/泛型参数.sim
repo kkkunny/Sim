@@ -1,0 +1,14 @@
+import std::os
+
+struct Value{
+    value: u8
+}
+
+func (Value) get(self: *Self)u8{
+    return self.value
+}
+
+func main(){
+    let v = Value{value: 0}
+    os::exit(v.get())
+}

@@ -78,9 +78,6 @@ func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) mir.Value {
 	}
 	self.values.Set(ir, ptr)
 	value := self.codegenExpr(ir.Value, true)
-	if constValue, ok := value.(mir.Const); ok && constValue.IsZero(){
-		return ptr
-	}
 	self.builder.BuildStore(value, ptr)
 	return ptr
 }

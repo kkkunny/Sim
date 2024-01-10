@@ -1034,9 +1034,9 @@ func (self *GenericStructMethodInst) GetSelf()(Expr, bool){
 
 func (self *GenericStructMethodInst) GetType() Type {
 	if self.Self.IsLeft(){
-		return self.Define.GetMethodType()
+		return self.GetMethodType()
 	}else{
-		return self.Define.GetFuncType()
+		return self.GetFuncType()
 	}
 }
 
@@ -1069,7 +1069,7 @@ func (self *GenericStructMethodInst) GetMethodType() Type {
 }
 
 func (self *GenericStructMethodInst) GetGenericParams()[]*GenericIdentType{
-	return self.Define.GenericParams.Values().ToSlice()
+	return self.Define.Scope.GenericParams.Values().ToSlice()
 }
 
 // GenericMethodInst 泛型方法实例
@@ -1101,9 +1101,9 @@ func (self *GenericMethodInst) GetSelf()(Expr, bool){
 
 func (self *GenericMethodInst) GetType() Type {
 	if self.Self.IsLeft(){
-		return self.Define.GetMethodType()
+		return self.GetMethodType()
 	}else{
-		return self.Define.GetFuncType()
+		return self.GetFuncType()
 	}
 }
 
@@ -1166,9 +1166,9 @@ func (self *GenericStructGenericMethodInst) GetSelf()(Expr, bool){
 
 func (self *GenericStructGenericMethodInst) GetType() Type {
 	if self.Self.IsLeft(){
-		return self.Define.GetMethodType()
+		return self.GetMethodType()
 	}else{
-		return self.Define.GetFuncType()
+		return self.GetFuncType()
 	}
 }
 

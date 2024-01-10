@@ -220,7 +220,7 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 			panic("unreachable")
 		}
 	default:
-		f = self.codegenExpr(ir.Func, false)
+		f = self.codegenExpr(ir.Func, true)
 	}
 	if selfValue != nil {
 		var selfRef mir.Value

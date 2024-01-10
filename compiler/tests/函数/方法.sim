@@ -2,7 +2,7 @@ import std::os
 
 struct A{}
 
-func (A) get(self: Self, v: u8)u8{
+func (A) get(self: *Self, v: u8)u8{
     return v
 }
 

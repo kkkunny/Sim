@@ -7,6 +7,5 @@ func (A) get(v: u8)u8{
 }
 
 func main(){
-    let a = A{}
-    os::exit(a.get(0))
+    os::exit(A:get(0))
 }

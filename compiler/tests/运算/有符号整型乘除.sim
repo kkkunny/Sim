@@ -1,7 +1,0 @@
-import std::os
-
-func main(){
-    let v = 1
-    os::exit((v * 10 / 11) as u8)
-    return
-}
