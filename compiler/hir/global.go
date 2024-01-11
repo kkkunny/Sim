@@ -87,7 +87,7 @@ type GlobalVarDef struct {
 	Pkg        Package
 	Public     bool
 	ExternName string
-	Value      Expr
+	Value      util.Option[Expr]
 }
 
 func (self *GlobalVarDef) GetPackage() Package {

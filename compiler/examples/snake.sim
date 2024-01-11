@@ -1,0 +1,178 @@
+// clone from https://github.com/serene-dev/snake-c
+
+import std::c
+
+struct termios{
+	c_iflag: c::int,
+	c_oflag: c::int,
+	c_cflag: c::int,
+	c_lflag: c::int,
+	c_line: c::int,
+	c_cc: [32]c::int,
+	c_ispeed: c::int,
+	c_ospeed: c::int,
+}
+
+struct timeval{
+	tv_sec: c::long,
+	tv_usec: c::long,
+}
+
+struct fd_set{
+	fds_bits: [16]c::long,
+}
+
+@extern("usleep")
+func usleep(useconds: c::unsigned_int)c::int
+
+@extern("tcgetattr")
+func tcgetattr(fd: c::int, termios_p: *termios)c::int
+
+@extern("tcsetattr")
+func tcsetattr(fd: c::int, optional_actions: c::int, termios_p: *termios)c::int
+
+@extern("select")
+func select(nfds: c::int, readfds: *fd_set, writefds: *fd_set, exceptfds: *fd_set, timeout: *timeval)c::int
+
+let SIZE: (i32, i32) = (60, 30)
+
+func main(){
+	c::printf(c::str2cstring("\e[?25l"))
+
+	let mut oldt: termios
+	let mut newt: termios
+	tcgetattr(0, &oldt)
+	newt = oldt
+	newt.c_lflag = newt.c_lflag & -11
+	tcsetattr(0, 0, &newt)
+
+	let mut x: [1000]i32
+	let mut y: [1000]i32
+	let mut quit: bool
+	loop !quit{
+		c::printf(c::str2cstring("┌"))
+		let mut i: i32 = 0
+		for i < SIZE[0]{
+			c::printf(c::str2cstring("─"))
+			i += 1
+		}
+		c::printf(c::str2cstring("┐\n"))
+
+		i = 0
+		for i < SIZE[1]{
+			c::printf(c::str2cstring("│"))
+			let mut j: i32 = 0
+			for j < SIZE[0]{
+				c::printf(c::str2cstring("·"))
+				j += 1
+			}
+			c::printf(c::str2cstring("│\n"))
+			i += 1
+		}
+
+		c::printf(c::str2cstring("└"))
+		i = 0
+		for i < SIZE[0]{
+			c::printf(c::str2cstring("─"))
+			i += 1
+		}
+		c::printf(c::str2cstring("┘\n"))
+
+		c::printf(c::str2cstring("\e[%iA"), SIZE[1] as c::int + 2)
+
+		let mut head: i32
+		let mut tail: i32
+		x[head as usize] = SIZE[0] / 2
+		y[head as usize] = SIZE[1] / 2
+		let mut gameover: bool
+		let mut xdir: i32 = 1
+		let mut ydir: i32
+		let mut applex: i32 = -1
+		let mut appley: i32
+
+		for !quit && !gameover{
+			if applex < 0{
+				applex = c::rand() as i32 % SIZE[0]
+				appley = c::rand() as i32 % SIZE[1]
+
+				i = tail
+				for i != head{
+					if x[i as usize] == applex && y[i as usize] == appley{
+						applex = -1
+					}
+					i = (i + 1) % 1000
+				}
+
+				if applex >= 0{
+					c::printf(c::str2cstring("\e[%iB\e[%iC❤"), appley as c::int + 1, applex as c::int + 1)
+					c::printf(c::str2cstring("\e[%iF"), appley as c::int + 1)
+				}
+			}
+
+			c::printf(c::str2cstring("\e[%iB\e[%iC·"), y[tail as usize] as c::int + 1, x[tail as usize] as c::int + 1)
+			c::printf(c::str2cstring("\e[%iF"), y[tail as usize] as c::int + 1)
+
+			if x[head as usize] == applex && y[head as usize] == appley{
+				applex = -1
+				c::printf(c::str2cstring("\a"))
+			}else{
+				tail = (tail + 1) % 1000
+			}
+
+			let newhead: i32 = (head + 1) % 1000
+			x[newhead as usize] = (x[head as usize] + xdir + SIZE[0]) % SIZE[0]
+			y[newhead as usize] = (y[head as usize] + ydir + SIZE[1]) % SIZE[1]
+			head = newhead
+
+			i = tail
+			for i != head{
+				if x[i as usize] == x[head as usize] && y[i as usize] == y[head as usize]{
+					gameover = true
+				}
+				i = (i + 1) % 1000
+			}
+
+			c::printf(c::str2cstring("\e[%iB\e[%iC▓"), y[head as usize] as c::int + 1, x[head as usize] as c::int + 1)
+			c::printf(c::str2cstring("\e[%iF"), y[head as usize] as c::int + 1)
+			c::fflush(c::stdout)
+
+			usleep(5 as c::unsigned_int * 1000000 / 60)
+
+			let mut tv: timeval
+			let mut fds: fd_set
+			tv.tv_sec = 0
+			tv.tv_usec = 0
+
+			fds.fds_bits[0] |= 1
+			select(1, &fds, null, null, &tv)
+			if (fds.fds_bits[0] & 1) != 0{
+				let ch = c::getchar()
+				if ch == 27 || ch == 'q'{
+					quit = true
+				} else if ch == 'a' && xdir != 1{
+					xdir = - 1
+					ydir = 0
+				} else if ch == 'd' && xdir != -1{
+					xdir = 1
+					ydir = 0
+				} else if ch == 's' && ydir != -1{
+					xdir = 0
+					ydir = 1
+				} else if ch == 'w' && ydir != 1{
+					xdir = 0
+					ydir = -1
+				}
+			}
+		}
+
+		if !quit{
+			c::printf(c::str2cstring("\e[%iB\e[%iC Game Over! "), SIZE[1] as c::int / 2, SIZE[0] as c::int / 2 - 5)
+			c::printf(c::str2cstring("\e[%iF"), SIZE[1] as c::int / 2)
+			c::fflush(c::stdout)
+			c::getchar()
+		}
+	}
+
+	c::printf(c::str2cstring("\e[?25h"))
+	tcsetattr(0, 0, &oldt)
+}

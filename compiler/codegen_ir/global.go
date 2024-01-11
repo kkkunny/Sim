@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 	"github.com/kkkunny/Sim/runtime/types"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) declStructDef(ir *hir.StructDef) {
@@ -101,7 +102,7 @@ func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
 
 func (self *CodeGenerator) declGlobalVariable(ir *hir.GlobalVarDef) {
 	t, _ := self.codegenType(ir.Type)
-	v := self.module.NewGlobalVariable("", t, mir.NewZero(t))
+	v := self.module.NewGlobalVariable(ir.ExternName, t, nil)
 	self.values.Set(ir, v)
 }
 
@@ -180,7 +181,11 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 	case *hir.StructDef:
 		self.defStructDef(global)
 	case *hir.GlobalVarDef:
-		self.defGlobalVariable(global)
+		if global.Value.IsNone(){
+			self.defGlobalVariableDecl(global)
+		}else{
+			self.defGlobalVariableDef(global)
+		}
 	case *hir.MultiGlobalVarDef:
 		self.defMultiGlobalVariable(global)
 	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef, *hir.TraitDef:
@@ -207,10 +212,10 @@ func (self *CodeGenerator) defFuncDecl(ir *hir.FuncDef) {
 	_ = self.values.Get(ir).(*mir.Function)
 }
 
-func (self *CodeGenerator) defGlobalVariable(ir *hir.GlobalVarDef) {
+func (self *CodeGenerator) defGlobalVariableDef(ir *hir.GlobalVarDef) {
 	gv := self.values.Get(ir).(*mir.GlobalVariable)
 	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
-	value := self.codegenExpr(ir.Value, true)
+	value := self.codegenExpr(ir.Value.MustValue(), true)
 	if constValue, ok := value.(mir.Const); ok {
 		gv.SetValue(constValue)
 	} else {
@@ -218,11 +223,15 @@ func (self *CodeGenerator) defGlobalVariable(ir *hir.GlobalVarDef) {
 	}
 }
 
+func (self *CodeGenerator) defGlobalVariableDecl(ir *hir.GlobalVarDef) {
+	_ = self.values.Get(ir).(*mir.GlobalVariable)
+}
+
 func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 	if constant, ok := ir.Value.(*hir.Tuple); ok && len(constant.Elems) == len(ir.Vars) {
 		for i, varNode := range ir.Vars {
-			varNode.Value = constant.Elems[i]
-			self.defGlobalVariable(varNode)
+			varNode.Value = util.Some(constant.Elems[i])
+			self.defGlobalVariableDef(varNode)
 		}
 	} else {
 		self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)

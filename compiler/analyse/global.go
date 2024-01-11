@@ -637,9 +637,9 @@ func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *hir.
 	v := value.(*hir.GlobalVarDef)
 
 	if valueNode, ok := node.Value.Value(); ok {
-		v.Value = self.expectExpr(v.Type, valueNode)
-	} else {
-		v.Value = self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type)
+		v.Value = util.Some(self.expectExpr(v.Type, valueNode))
+	} else if v.ExternName == ""{
+		v.Value = util.Some[hir.Expr](self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type))
 	}
 	return v
 }
