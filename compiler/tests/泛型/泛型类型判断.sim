@@ -1,8 +1,11 @@
 import std::os
 
+func fun<T>(v: T)bool{
+    return v is u8
+}
+
 func main(){
-    let a: u8 = 1
-    if a is u8{
+    if fun::<u8>(1){
         os::exit(0)
     }
     os::exit(1)

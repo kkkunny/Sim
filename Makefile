@@ -69,7 +69,8 @@ clean:
 	rm -f $(BIN_PATH)
 
 .PHONY: test
-test: build
+test:
+	@make build > /dev/null
 	@files=`find $(TEST_DIR) -type f -name "*.$(EXT_NAME)"`; \
 	for file in $$files; do \
 	  	name=`basename $$file .$(EXT_NAME)`; \

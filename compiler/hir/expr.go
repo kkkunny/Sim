@@ -591,8 +591,8 @@ func (self *Call) Mutable() bool {
 	return false
 }
 
-// Covert 类型转换
-type Covert interface {
+// TypeCovert 类型转换
+type TypeCovert interface {
 	Expr
 	GetFrom() Expr
 }
@@ -829,19 +829,19 @@ func (self *Union) Mutable() bool {
 	return false
 }
 
-// UnionTypeJudgment 联合类型判断
-type UnionTypeJudgment struct {
+// TypeJudgment 类型判断
+type TypeJudgment struct {
 	Value Expr
 	Type  Type
 }
 
-func (self *UnionTypeJudgment) stmt() {}
+func (self *TypeJudgment) stmt() {}
 
-func (self *UnionTypeJudgment) GetType() Type {
+func (self *TypeJudgment) GetType() Type {
 	return Bool
 }
 
-func (self *UnionTypeJudgment) Mutable() bool {
+func (self *TypeJudgment) Mutable() bool {
 	return false
 }
 

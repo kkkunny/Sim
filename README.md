@@ -48,7 +48,7 @@ Sim是一门简洁的、强类型的编译型语言
 
 ## Hello World
 
-examples/hello_world.sim
+compiler/examples/hello_world.sim
 
 ```go
 import std::io
@@ -59,7 +59,6 @@ func main(){
 ```
 
 ```shell
-> cd compiler
-> go run . example/hello_world.sim
+> make run TEST_FILE=$PWD/compiler/examples/hello_world.sim
 hello world
 ```

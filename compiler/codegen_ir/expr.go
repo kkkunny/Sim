@@ -34,7 +34,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenIdent(expr, load)
 	case *hir.Call:
 		return self.codegenCall(expr)
-	case hir.Covert:
+	case hir.TypeCovert:
 		return self.codegenCovert(expr, load)
 	case *hir.Array:
 		return self.codegenArray(expr)
@@ -54,8 +54,8 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenString(expr)
 	case *hir.Union:
 		return self.codegenUnion(expr, load)
-	case *hir.UnionTypeJudgment:
-		return self.codegenUnionTypeJudgment(expr)
+	case *hir.TypeJudgment:
+		return self.codegenTypeJudgment(expr)
 	case *hir.UnUnion:
 		return self.codegenUnUnion(expr)
 	case *hir.WrapWithNull:
@@ -235,7 +235,7 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	return self.builder.BuildCall(f, args...)
 }
 
-func (self *CodeGenerator) codegenCovert(ir hir.Covert, load bool) mir.Value {
+func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value {
 	switch ir.(type) {
 	case *hir.Num2Num:
 		from := self.codegenExpr(ir.GetFrom(), true)
@@ -417,19 +417,24 @@ func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
 	return ptr
 }
 
-func (self *CodeGenerator) codegenUnionTypeJudgment(ir *hir.UnionTypeJudgment) mir.Value {
-	srcObj, srcRtObj := self.codegenType(ir.Value.GetType())
-	srcT, srcRt := srcObj.(mir.StructType), srcRtObj.(*types.UnionType)
-	_, dstRt := self.codegenType(ir.Type)
+func (self *CodeGenerator) codegenTypeJudgment(ir *hir.TypeJudgment) mir.Value {
+	_, dstTRtObj := self.codegenType(ir.Type)
+	srcTObj, srcTRtObj := self.codegenType(ir.Value.GetType())
+	switch {
+	case stlbasic.Is[*types.UnionType](srcTRtObj) && srcTRtObj.(*types.UnionType).Contain(dstTRtObj):
+		srcT, srcRt := srcTObj.(mir.StructType), srcTRtObj.(*types.UnionType)
 
-	from := self.codegenExpr(ir.Value, false)
-	srcIndex := self.buildStructIndex(from, 1, false)
+		from := self.codegenExpr(ir.Value, false)
+		srcIndex := self.buildStructIndex(from, 1, false)
 
-	if !hir.IsUnionType(ir.Type) {
-		targetIndex := srcRt.IndexElem(dstRt)
-		return self.builder.BuildCmp(mir.CmpKindEQ, srcIndex, mir.NewInt(srcT.Elems()[1].(mir.IntType), int64(targetIndex)))
-	} else {
-		return self.buildCheckUnionType(srcRt, dstRt.(*types.UnionType), srcIndex)
+		if dstRt, ok := dstTRtObj.(*types.UnionType); ok {
+			return self.buildCheckUnionType(srcRt, dstRt, srcIndex)
+		} else {
+			targetIndex := srcRt.IndexElem(dstTRtObj)
+			return self.builder.BuildCmp(mir.CmpKindEQ, srcIndex, mir.NewInt(srcT.Elems()[1].(mir.IntType), int64(targetIndex)))
+		}
+	default:
+		return mir.Bool(self.ctx, srcTRtObj.Equal(dstTRtObj))
 	}
 }
 
