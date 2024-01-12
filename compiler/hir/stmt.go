@@ -72,12 +72,13 @@ type Loop interface {
 	loop()
 }
 
-type EndlessLoop struct {
+type While struct {
+	Cond Expr
 	Body *Block
 }
 
-func (*EndlessLoop) stmt() {}
-func (*EndlessLoop) loop() {}
+func (*While) stmt() {}
+func (*While) loop() {}
 
 type Break struct {
 	Loop Loop
@@ -111,7 +112,7 @@ func (*Match) stmt() {}
 // LocalVarDef 局部变量定义
 type LocalVarDef struct {
 	VarDecl
-	Value      Expr
+	Value   Expr
 	Escaped bool
 }
 

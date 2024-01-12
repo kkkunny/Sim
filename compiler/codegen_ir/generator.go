@@ -21,13 +21,13 @@ type CodeGenerator struct {
 	module  *mir.Module
 	builder *mir.Builder
 
-	values  hashmap.HashMap[hir.Expr, mir.Value]
-	loops   hashmap.HashMap[hir.Loop, loop]
-	strings hashmap.HashMap[string, *mir.Constant]
-	structs hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
-	funcCache hashmap.HashMap[string, *mir.Function]
+	values               hashmap.HashMap[hir.Expr, mir.Value]
+	loops                hashmap.HashMap[hir.Loop, loop]
+	strings              hashmap.HashMap[string, *mir.Constant]
+	structs              hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
+	funcCache            hashmap.HashMap[string, *mir.Function]
 	genericIdentMapStack stack.Stack[hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]]
-	structCache hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
+	structCache          hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
 }
 
 func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {
@@ -62,8 +62,8 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		return true
 	})
 	// 初始化函数
-	for cursor:=self.getInitFunction().Blocks().Front(); cursor!=nil; cursor=cursor.Next(){
-		if !cursor.Value.Terminated(){
+	for cursor := self.getInitFunction().Blocks().Front(); cursor != nil; cursor = cursor.Next() {
+		if !cursor.Value.Terminated() {
 			self.builder.MoveTo(cursor.Value)
 			self.builder.BuildReturn()
 		}

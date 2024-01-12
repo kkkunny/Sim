@@ -27,8 +27,8 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
 		return self.analyseIfElse(stmtNode)
 	case ast.Expr:
 		return self.analyseExpr(nil, stmtNode), hir.BlockEofNone
-	case *ast.Loop:
-		return self.analyseEndlessLoop(stmtNode)
+	case *ast.While:
+		return self.analyseWhile(stmtNode)
 	case *ast.Break:
 		return self.analyseBreak(stmtNode), hir.BlockEofBreakLoop
 	case *ast.Continue:
@@ -158,7 +158,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 		value = &hir.Tuple{Elems: elems}
 	}
 
-	for _, v := range vars{
+	for _, v := range vars {
 		v.Value = &hir.Default{Type: v.Type}
 	}
 	return &hir.MultiLocalVarDef{
@@ -192,8 +192,9 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof
 	}
 }
 
-func (self *Analyser) analyseEndlessLoop(node *ast.Loop) (*hir.EndlessLoop, hir.BlockEof) {
-	loop := &hir.EndlessLoop{}
+func (self *Analyser) analyseWhile(node *ast.While) (*hir.While, hir.BlockEof) {
+	cond := self.expectExpr(hir.Bool, node.Cond)
+	loop := &hir.While{Cond: cond}
 	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {
 		scope.SetLoop(loop)
 	})

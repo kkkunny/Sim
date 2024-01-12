@@ -24,8 +24,8 @@ func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
 		self.codegenIfElse(stmt)
 	case hir.Expr:
 		self.codegenExpr(stmt, false)
-	case *hir.EndlessLoop:
-		self.codegenEndlessLoop(stmt)
+	case *hir.While:
+		self.codegenWhile(stmt)
 	case *hir.Break:
 		self.codegenBreak(stmt)
 	case *hir.Continue:
@@ -71,9 +71,9 @@ func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) mir.Value {
 	t := self.codegenTypeOnly(ir.Type)
 	var ptr mir.Value
-	if !ir.Escaped{
+	if !ir.Escaped {
 		ptr = self.builder.BuildAllocFromStack(t)
-	}else{
+	} else {
 		ptr = self.buildMalloc(t)
 	}
 	self.values.Set(ir, ptr)
@@ -141,35 +141,40 @@ type loop interface {
 	GetNextBlock() *mir.Block
 }
 
-type endlessLoop struct {
-	BodyEntry *mir.Block
+type whileLoop struct {
+	Cond *mir.Block
 	Out       *mir.Block
 }
 
-func (self *endlessLoop) SetOutBlock(block *mir.Block) {
+func (self *whileLoop) SetOutBlock(block *mir.Block) {
 	self.Out = block
 }
 
-func (self *endlessLoop) GetOutBlock() (*mir.Block, bool) {
+func (self *whileLoop) GetOutBlock() (*mir.Block, bool) {
 	return self.Out, self.Out != nil
 }
 
-func (self *endlessLoop) GetNextBlock() *mir.Block {
-	return self.BodyEntry
+func (self *whileLoop) GetNextBlock() *mir.Block {
+	return self.Cond
 }
 
-func (self *CodeGenerator) codegenEndlessLoop(ir *hir.EndlessLoop) {
-	entryBlock, endBlock := self.codegenBlock(ir.Body, func(block *mir.Block) {
-		self.loops.Set(ir, &endlessLoop{BodyEntry: block})
+func (self *CodeGenerator) codegenWhile(ir *hir.While) {
+	f := self.builder.Current().Belong()
+	condBlock, endBlock := f.NewBlock(),  f.NewBlock()
+
+	self.builder.BuildUnCondJump(condBlock)
+	self.builder.MoveTo(condBlock)
+	cond := self.codegenExpr(ir.Cond, true)
+
+	bodyEntryBlock, bodyEndBlock := self.codegenBlock(ir.Body, func(block *mir.Block) {
+		self.loops.Set(ir, &whileLoop{Cond: condBlock, Out: endBlock})
 	})
-	self.builder.BuildUnCondJump(entryBlock)
-	if !endBlock.Terminated() {
-		self.builder.MoveTo(endBlock)
-		self.builder.BuildUnCondJump(entryBlock)
-	}
-	if outBlock, ok := self.loops.Get(ir).GetOutBlock(); ok {
-		self.builder.MoveTo(outBlock)
-	}
+	self.builder.BuildCondJump(cond, bodyEntryBlock, endBlock)
+
+	self.builder.MoveTo(bodyEndBlock)
+	self.builder.BuildUnCondJump(condBlock)
+
+	self.builder.MoveTo(endBlock)
 }
 
 func (self *CodeGenerator) codegenBreak(ir *hir.Break) {

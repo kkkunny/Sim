@@ -63,7 +63,7 @@ const (
 	IF
 	ELSE
 	MUT
-	LOOP
+	WHILE
 	BREAK
 	CONTINUE
 	FOR
@@ -132,7 +132,7 @@ var kindNames = [...]string{
 	MUT:       "mut",
 	BREAK:    "break",
 	CONTINUE: "continue",
-	LOOP:     "loop",
+	WHILE:     "while",
 	FOR:      "for",
 	IN:       "in",
 	IMPORT:   "import",

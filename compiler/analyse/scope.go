@@ -17,23 +17,23 @@ type _Scope interface {
 type _PkgScope struct {
 	pkg     hir.Package
 	externs hashmap.HashMap[string, *_PkgScope]
-	links     linkedhashset.LinkedHashSet[*_PkgScope]
+	links   linkedhashset.LinkedHashSet[*_PkgScope]
 
-	valueDefs hashmap.HashMap[string, hir.Ident]
-	typeDefs  hashmap.HashMap[string, hir.TypeDef]
-	traitDefs  hashmap.HashMap[string, *hir.TraitDef]
-	genericFuncDefs hashmap.HashMap[string, *hir.GenericFuncDef]
+	valueDefs         hashmap.HashMap[string, hir.Ident]
+	typeDefs          hashmap.HashMap[string, hir.TypeDef]
+	traitDefs         hashmap.HashMap[string, *hir.TraitDef]
+	genericFuncDefs   hashmap.HashMap[string, *hir.GenericFuncDef]
 	genericStructDefs hashmap.HashMap[string, *hir.GenericStructDef]
 }
 
 func _NewPkgScope(pkg hir.Package) *_PkgScope {
 	return &_PkgScope{
-		pkg:       pkg,
-		externs:   hashmap.NewHashMap[string, *_PkgScope](),
-		links:     linkedhashset.NewLinkedHashSet[*_PkgScope](),
-		valueDefs: hashmap.NewHashMap[string, hir.Ident](),
-		typeDefs:  hashmap.NewHashMap[string, hir.TypeDef](),
-		genericFuncDefs: hashmap.NewHashMap[string, *hir.GenericFuncDef](),
+		pkg:               pkg,
+		externs:           hashmap.NewHashMap[string, *_PkgScope](),
+		links:             linkedhashset.NewLinkedHashSet[*_PkgScope](),
+		valueDefs:         hashmap.NewHashMap[string, hir.Ident](),
+		typeDefs:          hashmap.NewHashMap[string, hir.TypeDef](),
+		genericFuncDefs:   hashmap.NewHashMap[string, *hir.GenericFuncDef](),
 		genericStructDefs: hashmap.NewHashMap[string, *hir.GenericStructDef](),
 	}
 }

@@ -70,17 +70,18 @@ func (self *IfElse) Position() reader.Position {
 
 func (*IfElse) stmt() {}
 
-// Loop 循环
-type Loop struct {
+// While 循环
+type While struct {
 	Begin reader.Position
+	Cond Expr
 	Body  *Block
 }
 
-func (self *Loop) Position() reader.Position {
+func (self *While) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.Body.Position())
 }
 
-func (*Loop) stmt() {}
+func (*While) stmt() {}
 
 // Break 跳出循环
 type Break struct {
@@ -121,11 +122,11 @@ func (*For) stmt() {}
 
 // Match 匹配
 type Match struct {
-	Begin     reader.Position
+	Begin reader.Position
 	Value Expr
 	Cases []pair.Pair[Type, *Block]
 	Other util.Option[*Block]
-	End reader.Position
+	End   reader.Position
 }
 
 func (self *Match) Position() reader.Position {
