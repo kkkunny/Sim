@@ -105,10 +105,6 @@ func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
 		}
 		return true
 	case *hir.StructType:
-		defaultTrait, _ := self.pkgScope.getTraitDef("Default")
-		if tt.IsImpl(defaultTrait){
-			return true
-		}
 		for iter:=tt.Fields.Values().Iterator(); iter.Next(); {
 			if !self.isTypeHasDefault(iter.Value().Type){
 				return false

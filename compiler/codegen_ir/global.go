@@ -74,7 +74,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiGlobalVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef, *hir.TraitDef:
+	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
 	default:
 		panic("unreachable")
 	}
@@ -188,7 +188,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		}
 	case *hir.MultiGlobalVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef, *hir.TraitDef:
+	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
 	default:
 		panic("unreachable")
 	}

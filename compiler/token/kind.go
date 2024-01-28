@@ -76,7 +76,6 @@ const (
 	SELF
 	OTHER
 	MATCH
-	TRAIT
 	_KeywordEnd
 )
 
@@ -143,7 +142,6 @@ var kindNames = [...]string{
 	SELF:     "Self",
 	OTHER: "other",
 	MATCH: "match",
-	TRAIT: "trait",
 }
 
 // Lookup 区分标识符和关键字

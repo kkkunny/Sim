@@ -1,11 +1,8 @@
 package hir
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
-	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
-	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
@@ -62,24 +59,6 @@ func (self *StructDef) GetName() string {
 }
 
 func (*StructDef) globalStruct() {}
-
-func (self *StructDef) IsImpl(trait *TraitDef)bool{
-	traitMethods := stliter.Map[pair.Pair[string, *FuncType], pair.Pair[string, *FuncType], hashmap.HashMap[string, *FuncType]](trait.Methods, func(p pair.Pair[string, *FuncType]) pair.Pair[string, *FuncType] {
-		return pair.NewPair(p.First, replaceEmptySelfType(p.Second, self).(*FuncType))
-	})
-	for iter:=traitMethods.Iterator(); iter.Next(); {
-		method := self.Methods.Get(iter.Value().First)
-		if method == nil{
-			return false
-		}else if stlbasic.Is[*GenericMethodDef](method) || (stlbasic.Is[*GenericStructMethodDef](method) && !method.(*GenericStructMethodDef).GenericParams.Empty()){
-			return false
-		}
-		if !method.GetFuncType().EqualTo(iter.Value().Second){
-			return false
-		}
-	}
-	return true
-}
 
 // GlobalVarDef 全局变量定义
 type GlobalVarDef struct {
@@ -372,20 +351,4 @@ func (self *GenericMethodDef) IsStatic() bool {
 	}
 	selfRef := &RefType{Elem: self.GetSelfType()}
 	return !selfRef.EqualTo(self.Params[0].GetType())
-}
-
-// TraitDef 特性定义
-type TraitDef struct {
-	Pkg     Package
-	Public  bool
-	Name    string
-	Methods hashmap.HashMap[string, *FuncType]
-}
-
-func (self *TraitDef) GetPackage() Package {
-	return self.Pkg
-}
-
-func (self *TraitDef) GetPublic() bool {
-	return self.Public
 }

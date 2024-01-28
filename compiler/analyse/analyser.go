@@ -83,8 +83,6 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 			}
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
-		case *ast.TraitDef:
-			self.declTraitDef(node)
 		}
 		return true
 	})
@@ -98,8 +96,6 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 			}
 		case *ast.TypeAlias:
 			meanNodes.PushBack(self.defTypeAlias(node))
-		case *ast.TraitDef:
-			meanNodes.PushBack(self.defTraitDef(node))
 		}
 		return true
 	})

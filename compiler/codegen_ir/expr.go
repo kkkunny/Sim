@@ -5,13 +5,11 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/traits"
 	"github.com/kkkunny/Sim/runtime/types"
 )
 
@@ -328,7 +326,7 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 	t, rtt := self.codegenType(tir)
 
-	switch trt := rtt.(type) {
+	switch rtt.(type) {
 	case *types.EmptyType, *types.FuncType, *types.RefType:
 		panic("unreachable")
 	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.PtrType, *types.UnionType:
@@ -344,31 +342,8 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 		})
 		return self.builder.BuildPackStruct(t.(mir.StructType), elems...)
 	case *types.StructType:
-		defaultTrait := traits.NewDefault(trt)
-		if !defaultTrait.IsInst(trt){
-			// TODO: 填充所有字段为默认值
-			return mir.NewZero(t)
-		}
-		st := hir.AsStructType(tir)
-		methodObj := st.Methods.Get(defaultTrait.Methods.Keys().Get(0))
-		switch method := methodObj.(type) {
-		case *hir.MethodDef:
-			return self.codegenCall(&hir.Call{
-				Func: &hir.Method{
-					Define: method,
-					Self: either.Right[hir.Expr, *hir.StructType](st),
-				},
-			})
-		case *hir.GenericStructMethodDef:
-			return self.codegenCall(&hir.Call{
-				Func: &hir.GenericStructMethodInst{
-					Define: method,
-					Self: either.Right[hir.Expr, *hir.StructType](st),
-				},
-			})
-		default:
-			panic("unreachable")
-		}
+		// TODO: 填充所有字段为默认值
+		return mir.NewZero(t)
 	default:
 		panic("unreachable")
 	}

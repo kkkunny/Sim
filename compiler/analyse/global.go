@@ -76,17 +76,6 @@ func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
 	}
 }
 
-func (self *Analyser) declTraitDef(node *ast.TraitDef){
-	trait := &hir.TraitDef{
-		Pkg: self.pkgScope.pkg,
-		Public: node.Public,
-		Name: node.Name.Source(),
-	}
-	if !self.pkgScope.SetTraitDef(trait) {
-		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
-	}
-}
-
 func (self *Analyser) declGenericStructDef(node *ast.StructDef) {
 	st := &hir.GenericStructDef{
 		Pkg:    self.pkgScope.pkg,
@@ -144,30 +133,6 @@ func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
 	return tad
 }
 
-func (self *Analyser) defTraitDef(node *ast.TraitDef)*hir.TraitDef{
-	def, ok := self.pkgScope.getLocalTraitDef(node.Name.Source())
-	if !ok {
-		panic("unreachable")
-	}
-
-	self.inTrait = true
-	defer func() {
-		self.inTrait = false
-	}()
-
-	for _, mn := range node.Methods{
-		if def.Methods.ContainKey(mn.Name.Source()){
-			errors.ThrowIdentifierDuplicationError(mn.Name.Position, mn.Name)
-		}
-		mt := self.analyseType(mn.Type)
-		if !hir.IsFuncType(mt){
-			errors.ThrowExpectFuncTypeError(mn.Type.Position(), mt)
-		}
-		def.Methods.Set(mn.Name.Source(), hir.AsFuncType(mt))
-	}
-	return def
-}
-
 func (self *Analyser) defGenericStructDef(node *ast.StructDef) *hir.GenericStructDef {
 	st, ok := self.pkgScope.getLocalGenericStructDef(node.Name.Name.Source())
 	if !ok {
@@ -213,7 +178,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
 		self.declMultiGlobalVariable(global)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.TraitDef:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 	default:
 		panic("unreachable")
 	}
@@ -575,7 +540,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
 		return self.defMultiGlobalVariable(global)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias, *ast.TraitDef:
+	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
 		return nil
 	default:
 		panic("unreachable")

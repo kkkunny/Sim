@@ -31,8 +31,6 @@ func (self *Parser) parseGlobal() ast.Global {
 		return self.parseImport(attrs)
 	case token.TYPE:
 		return self.parseTypeAlias(attrs, pub)
-	case token.TRAIT:
-		return self.parseTraitDef(attrs, pub)
 	default:
 		errors.ThrowIllegalGlobal(self.nextTok.Position)
 		return nil
@@ -235,22 +233,5 @@ func (self *Parser) parseTypeAlias(attrs []ast.Attr, pub *token.Token) *ast.Type
 		Public: pub != nil,
 		Name:   name,
 		Type:   typ,
-	}
-}
-
-func (self *Parser) parseTraitDef(attrs []ast.Attr, pub *token.Token)*ast.TraitDef{
-	expectAttrIn(attrs)
-
-	begin := self.expectNextIs(token.TRAIT).Position
-	name := self.expectNextIs(token.IDENT)
-	self.expectNextIs(token.LBR)
-	methods := self.parseFieldList(token.RBR)
-	end := self.expectNextIs(token.RBR).Position
-	return &ast.TraitDef{
-		Begin: begin,
-		Public: pub!=nil,
-		Name: name,
-		Methods: methods,
-		End: end,
 	}
 }
