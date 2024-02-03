@@ -7,7 +7,6 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/pair"
 	stlerror "github.com/kkkunny/stl/error"
 	stlmath "github.com/kkkunny/stl/math"
@@ -369,21 +368,6 @@ func (self *CodeGenerator) buildMalloc(t mir.Type)mir.Value{
 	size := stlmath.RoundTo(t.Size(), stlos.Size(t.Align())*stlos.Byte)
 	ptr := self.builder.BuildCall(fn, mir.NewUint(self.ctx.Usize(), uint64(size/stlos.Byte)))
 	return self.builder.BuildPtrToPtr(ptr, self.ctx.NewPtrType(t))
-}
-
-func (self *CodeGenerator) mapGenericParams2GenericArgs(inst hir.GenericInst)func(){
-	params, args := inst.GetGenericParams(), inst.GetGenericArgs()
-	if len(params) != len(args){
-		panic("unreachable")
-	}
-
-	var maps hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]
-	for i, param := range params {
-		maps.Set(param, pair.NewPair(self.codegenType(args[i])))
-	}
-
-	self.genericIdentMapStack.Push(maps)
-	return func() { self.genericIdentMapStack.Pop() }
 }
 
 // CodegenIr 中间代码生成

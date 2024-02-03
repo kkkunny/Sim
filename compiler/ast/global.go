@@ -19,7 +19,7 @@ type Global interface {
 type StructDef struct {
 	Begin  reader.Position
 	Public bool
-	Name   GenericNameDef
+	Name   token.Token
 	Fields []Field
 	End    reader.Position
 }
@@ -133,7 +133,7 @@ type FuncDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
-	Name     GenericNameDef
+	Name     token.Token
 	Params   []Param
 	ParamEnd reader.Position
 	Ret      util.Option[Type]
@@ -157,8 +157,8 @@ type MethodDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
-	SelfType GenericNameDef
-	Name     GenericNameDef
+	SelfType token.Token
+	Name     token.Token
 	Params   []Param
 	Ret      util.Option[Type]
 	Body     *Block

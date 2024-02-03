@@ -47,20 +47,16 @@ func (self *Parser) parseFuncOrMethodDef(attrs []ast.Attr, pub *token.Token) ast
 }
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) *ast.FuncDef {
+	expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
 	if pub != nil {
 		begin = pub.Position
 	}
-	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
-	if name.Params.IsNone(){
-		expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
-	}else{
-		expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
-	}
+	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
 	params := self.parseParamList(token.RPA)
 	paramEnd := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
-	body := stlbasic.TernaryAction(name.Params.IsSome() || self.nextIs(token.LBR), func() util.Option[*ast.Block] {
+	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
 	}, func() util.Option[*ast.Block] {
 		return util.None[*ast.Block]()
@@ -84,9 +80,9 @@ func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin rea
 		begin = pub.Position
 	}
 	self.expectNextIs(token.LPA)
-	scope := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
+	scope := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.RPA)
-	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
+	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
 	params := self.parseParamList(token.RPA)
 	self.expectNextIs(token.RPA)
@@ -111,7 +107,7 @@ func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.Stru
 	if pub != nil {
 		begin = pub.Position
 	}
-	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
+	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
 	fields := self.parseFieldList(token.RBR)
 	end := self.expectNextIs(token.RBR).Position

@@ -1,12 +1,7 @@
 package codegen_ir
 
 import (
-	"fmt"
-	"strings"
-
-	"github.com/kkkunny/stl/container/pair"
 	stlos "github.com/kkkunny/stl/os"
-	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
@@ -50,10 +45,6 @@ func (self *CodeGenerator) codegenType(ir hir.Type) (mir.Type, types.Type) {
 		return self.codegenSelfType(t)
 	case *hir.AliasType:
 		return self.codegenAliasType(t)
-	case *hir.GenericIdentType:
-		return self.codegenGenericIdentType(t)
-	case *hir.GenericStructInst:
-		return self.codegenGenericStructInst(t)
 	default:
 		panic("unreachable")
 	}
@@ -160,23 +151,4 @@ func (self *CodeGenerator) codegenSelfType(ir *hir.SelfType)(mir.Type, types.Typ
 func (self *CodeGenerator) codegenAliasType(ir *hir.AliasType)(mir.Type, types.Type){
 	// TODO: 处理类型循环
 	return self.codegenType(ir.Target)
-}
-
-func (self *CodeGenerator) codegenGenericIdentType(ir *hir.GenericIdentType)(mir.Type, types.Type){
-	pair := self.genericIdentMapStack.Peek().Get(ir)
-	return pair.First, pair.Second
-}
-
-func (self *CodeGenerator) codegenGenericStructInst(ir *hir.GenericStructInst)(mir.StructType, types.Type){
-	key := fmt.Sprintf("generic_struct(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Args, func(_ int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","))
-	if stp := self.structCache.Get(key); stp.First != nil{
-		return stp.First, stp.Second
-	}
-
-	st, stRt := self.declGenericStructDef(ir)
-	self.structCache.Set(key, pair.NewPair(st, stRt))
-	self.defGenericStructDef(ir, st, stRt)
-	return st, stRt
 }

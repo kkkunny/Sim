@@ -197,11 +197,11 @@ func (self *Struct) expr() {}
 // GetField 取字段
 type GetField struct {
 	From  Expr
-	Index GenericName
+	Index token.Token
 }
 
 func (self *GetField) Position() reader.Position {
-	return reader.MixPosition(self.From.Position(), self.Index.Position())
+	return reader.MixPosition(self.From.Position(), self.Index.Position)
 }
 
 func (self *GetField) stmt() {}
@@ -265,11 +265,11 @@ func (self *CheckNull) expr() {}
 // StaticMethod 静态方法
 type StaticMethod struct {
 	Type Type
-	Name GenericName
+	Name token.Token
 }
 
 func (self *StaticMethod) Position() reader.Position {
-	return reader.MixPosition(self.Type.Position(), self.Name.Position())
+	return reader.MixPosition(self.Type.Position(), self.Name.Position)
 }
 
 func (self *StaticMethod) stmt() {}

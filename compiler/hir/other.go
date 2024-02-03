@@ -33,9 +33,3 @@ type Param struct {
 func (*Param) stmt() {}
 
 func (*Param) ident() {}
-
-// GenericInst 泛型实例化
-type GenericInst interface {
-	GetGenericParams()[]*GenericIdentType
-	GetGenericArgs()[]Type
-}

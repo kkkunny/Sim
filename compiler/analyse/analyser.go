@@ -27,7 +27,6 @@ type Analyser struct {
 	inTrait bool
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
-	genericIdentMap hashmap.HashMap[string, *hir.GenericIdentType]
 }
 
 func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
@@ -76,11 +75,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				self.declStructDef(node)
-			}else{
-				self.declGenericStructDef(node)
-			}
+			self.declStructDef(node)
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
 		}
@@ -89,11 +84,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
 		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				meanNodes.PushBack(self.defStructDef(node))
-			}else{
-				meanNodes.PushBack(self.defGenericStructDef(node))
-			}
+			meanNodes.PushBack(self.defStructDef(node))
 		case *ast.TypeAlias:
 			meanNodes.PushBack(self.defTypeAlias(node))
 		}
@@ -106,10 +97,8 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		var name token.Token
 		switch node := v.(type) {
 		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				st, _ := self.pkgScope.getLocalTypeDef(node.Name.Name.Source())
-				circle, name = self.checkTypeCircle(&trace, st), node.Name.Name
-			}
+			st, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
+			circle, name = self.checkTypeCircle(&trace, st), node.Name
 		case *ast.TypeAlias:
 			tad, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
 			circle, name = self.checkTypeCircle(&trace, tad), node.Name

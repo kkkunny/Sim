@@ -35,35 +35,6 @@ func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
 	stPair.Second.Methods = methodRts
 }
 
-func (self *CodeGenerator) declGenericStructDef(ir *hir.GenericStructInst) (mir.StructType, *types.StructType) {
-	return self.module.NewNamedStructType(""), types.NewStructType(ir.Define.Pkg.String(), ir.Define.GetName(), nil, nil)
-}
-
-func (self *CodeGenerator) defGenericStructDef(ir *hir.GenericStructInst, st mir.StructType, stRt *types.StructType) {
-	defer self.mapGenericParams2GenericArgs(ir)()
-
-	stIr := ir.StructType()
-	fields := make([]mir.Type, stIr.Fields.Length())
-	fieldRts := make([]types.Field, stIr.Fields.Length())
-	for i, iter := 0, stIr.Fields.Iterator(); iter.Next(); i++ {
-		f, fRt := self.codegenType(iter.Value().Second.Type)
-		fields[i], fieldRts[i] = f, types.NewField(fRt, iter.Value().First)
-	}
-	st.SetElems(fields...)
-	stRt.Fields = fieldRts
-	methodRts := make([]types.Method, 0, stIr.Methods.Length())
-	for iter := stIr.Methods.Values().Iterator(); iter.Next(); {
-		switch method := iter.Value().(type) {
-		case *hir.GenericStructMethodDef:
-			if method.GenericParams.Empty(){
-				_, ft := self.codegenFuncType(method.GetFuncType())
-				methodRts = append(methodRts, types.NewMethod(ft, method.Name))
-			}
-		}
-	}
-	stRt.Methods = methodRts
-}
-
 func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 	switch global := ir.(type) {
 	case *hir.FuncDef:
@@ -74,7 +45,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiGlobalVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.StructDef, *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
+	case *hir.StructDef, *hir.TypeAliasDef:
 	default:
 		panic("unreachable")
 	}
@@ -112,62 +83,6 @@ func (self *CodeGenerator) declMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 	}
 }
 
-func (self *CodeGenerator) declGenericFuncDef(ir *hir.GenericFuncInst) *mir.Function {
-	ftObj, _ := self.codegenType(ir.GetType())
-	ft := ftObj.(mir.FuncType)
-	f := self.module.NewFunction("", ft)
-	if ir.Define.NoReturn {
-		f.SetAttribute(mir.FunctionAttributeNoReturn)
-	}
-	if inline, ok := ir.Define.InlineControl.Value(); ok {
-		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
-	}
-	self.values.Set(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) declGenericStructMethodDef(ir *hir.GenericStructMethodInst) *mir.Function {
-	ftObj, _ := self.codegenType(ir.GetFuncType())
-	ft := ftObj.(mir.FuncType)
-	f := self.module.NewFunction("", ft)
-	if ir.Define.NoReturn {
-		f.SetAttribute(mir.FunctionAttributeNoReturn)
-	}
-	if inline, ok := ir.Define.InlineControl.Value(); ok {
-		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
-	}
-	self.values.Set(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) declGenericMethodDef(ir *hir.GenericMethodInst) *mir.Function {
-	ftObj, _ := self.codegenType(ir.GetFuncType())
-	ft := ftObj.(mir.FuncType)
-	f := self.module.NewFunction("", ft)
-	if ir.Define.NoReturn {
-		f.SetAttribute(mir.FunctionAttributeNoReturn)
-	}
-	if inline, ok := ir.Define.InlineControl.Value(); ok {
-		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
-	}
-	self.values.Set(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) declGenericStructGenericMethodDef(ir *hir.GenericStructGenericMethodInst) *mir.Function {
-	ftObj, _ := self.codegenType(ir.GetFuncType())
-	ft := ftObj.(mir.FuncType)
-	f := self.module.NewFunction("", ft)
-	if ir.Define.NoReturn {
-		f.SetAttribute(mir.FunctionAttributeNoReturn)
-	}
-	if inline, ok := ir.Define.InlineControl.Value(); ok {
-		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
-	}
-	self.values.Set(ir, f)
-	return f
-}
-
 func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 	switch global := ir.(type) {
 	case *hir.FuncDef:
@@ -188,7 +103,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		}
 	case *hir.MultiGlobalVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.GenericFuncDef, *hir.GenericStructDef, *hir.GenericStructMethodDef, *hir.GenericMethodDef:
+	case *hir.TypeAliasDef:
 	default:
 		panic("unreachable")
 	}
@@ -239,52 +154,4 @@ func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 			return item
 		}))
 	}
-}
-
-func (self *CodeGenerator) defGenericFuncDef(ir *hir.GenericFuncInst, f *mir.Function) {
-	self.builder.MoveTo(f.NewBlock())
-	for i, p := range f.Params() {
-		self.values.Set(ir.Define.Params[i], p)
-	}
-
-	defer self.mapGenericParams2GenericArgs(ir)()
-
-	block, _ := self.codegenBlock(ir.Define.Body, nil)
-	self.builder.BuildUnCondJump(block)
-}
-
-func (self *CodeGenerator) defGenericStructMethodDef(ir *hir.GenericStructMethodInst, f *mir.Function) {
-	self.builder.MoveTo(f.NewBlock())
-	for i, p := range f.Params() {
-		self.values.Set(ir.Define.Params[i], p)
-	}
-
-	defer self.mapGenericParams2GenericArgs(ir)()
-
-	block, _ := self.codegenBlock(ir.Define.Body, nil)
-	self.builder.BuildUnCondJump(block)
-}
-
-func (self *CodeGenerator) defGenericMethodDef(ir *hir.GenericMethodInst, f *mir.Function) {
-	self.builder.MoveTo(f.NewBlock())
-	for i, p := range f.Params() {
-		self.values.Set(ir.Define.Params[i], p)
-	}
-
-	defer self.mapGenericParams2GenericArgs(ir)()
-
-	block, _ := self.codegenBlock(ir.Define.Body, nil)
-	self.builder.BuildUnCondJump(block)
-}
-
-func (self *CodeGenerator) defGenericStructGenericMethodDef(ir *hir.GenericStructGenericMethodInst, f *mir.Function) {
-	self.builder.MoveTo(f.NewBlock())
-	for i, p := range f.Params() {
-		self.values.Set(ir.Define.Params[i], p)
-	}
-
-	defer self.mapGenericParams2GenericArgs(ir)()
-
-	block, _ := self.codegenBlock(ir.Define.Body, nil)
-	self.builder.BuildUnCondJump(block)
 }

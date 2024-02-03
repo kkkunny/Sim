@@ -1,9 +1,0 @@
-import std::os
-
-func get<T>(v: T)T{
-    return v
-}
-
-func main(){
-    os::exit(get::<u8>(0))
-}

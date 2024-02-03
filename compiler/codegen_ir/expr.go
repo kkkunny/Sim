@@ -1,9 +1,6 @@
 package codegen_ir
 
 import (
-	"fmt"
-	"strings"
-
 	stlbasic "github.com/kkkunny/stl/basic"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
@@ -60,7 +57,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenWrapWithNull(expr, load)
 	case *hir.CheckNull:
 		return self.codegenCheckNull(expr)
-	case *hir.MethodDef, *hir.GenericStructMethodInst, *hir.GenericMethodInst, *hir.GenericStructGenericMethodInst:
+	case *hir.MethodDef:
 		// TODO: 闭包
 		panic("unreachable")
 	default:
@@ -188,8 +185,6 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 			return p
 		}
 		return self.builder.BuildLoad(p)
-	case *hir.GenericFuncInst:
-		return self.codegenGenericFuncInst(identNode)
 	default:
 		panic("unreachable")
 	}
@@ -208,12 +203,6 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 		switch method := fnIr.(type) {
 		case *hir.Method:
 			f = self.values.Get(&method.Define.FuncDef)
-		case *hir.GenericStructMethodInst:
-			f = self.codegenGenericStructMethodInst(method)
-		case *hir.GenericMethodInst:
-			f = self.codegenGenericMethodInst(method)
-		case *hir.GenericStructGenericMethodInst:
-			f = self.codegenGenericStructGenericMethodInst(method)
 		default:
 			panic("unreachable")
 		}
@@ -428,82 +417,4 @@ func (self *CodeGenerator) codegenCheckNull(ir *hir.CheckNull) mir.Value {
 	ptr := self.codegenExpr(ir.Value, true)
 	self.buildCheckNull(ptr)
 	return ptr
-}
-
-func (self *CodeGenerator) codegenGenericFuncInst(ir *hir.GenericFuncInst) mir.Value {
-	cur := self.builder.Current()
-	defer func() {
-		self.builder.MoveTo(cur)
-	}()
-
-	key := fmt.Sprintf("generic_func(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","))
-	if f := self.funcCache.Get(key); f != nil {
-		return f
-	}
-
-	f := self.declGenericFuncDef(ir)
-	self.funcCache.Set(key, f)
-	self.defGenericFuncDef(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) codegenGenericStructMethodInst(ir *hir.GenericStructMethodInst) *mir.Function {
-	cur := self.builder.Current()
-	defer func() {
-		self.builder.MoveTo(cur)
-	}()
-
-	key := fmt.Sprintf("(%p<%s>)generic_method(%p)", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetGenericArgs(), func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","), ir.Define)
-	if f := self.funcCache.Get(key); f != nil {
-		return f
-	}
-
-	f := self.declGenericStructMethodDef(ir)
-	self.funcCache.Set(key, f)
-	self.defGenericStructMethodDef(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) codegenGenericMethodInst(ir *hir.GenericMethodInst) *mir.Function {
-	cur := self.builder.Current()
-	defer func() {
-		self.builder.MoveTo(cur)
-	}()
-
-	key := fmt.Sprintf("(%p)generic_method(%p)<%s>", ir.Define.Scope, ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","))
-	if f := self.funcCache.Get(key); f != nil {
-		return f
-	}
-
-	f := self.declGenericMethodDef(ir)
-	self.funcCache.Set(key, f)
-	self.defGenericMethodDef(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) codegenGenericStructGenericMethodInst(ir *hir.GenericStructGenericMethodInst) *mir.Function {
-	cur := self.builder.Current()
-	defer func() {
-		self.builder.MoveTo(cur)
-	}()
-
-	key := fmt.Sprintf("(%p<%s>)generic_method(%p)<%s>", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetScopeGenericArgs(), func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","), ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","))
-	if f := self.funcCache.Get(key); f != nil {
-		return f
-	}
-
-	f := self.declGenericStructGenericMethodDef(ir)
-	self.funcCache.Set(key, f)
-	self.defGenericStructGenericMethodDef(ir, f)
-	return f
 }

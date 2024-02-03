@@ -132,23 +132,20 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 	case token.DOT:
 		self.expectNextIs(token.DOT)
 		if self.skipNextIs(token.INTEGER) {
-			index := self.curTok
 			front = util.Some[ast.Expr](&ast.Extract{
 				From:  fv,
-				Index: index,
+				Index: self.curTok,
 			})
 		} else {
-			index := self.parseGenericName(self.expectNextIs(token.IDENT), true)
 			front = util.Some[ast.Expr](&ast.GetField{
 				From:  fv,
-				Index: index,
+				Index: self.expectNextIs(token.IDENT),
 			})
 		}
 	case token.NOT:
-		end := self.expectNextIs(token.NOT).Position
 		front = util.Some[ast.Expr](&ast.CheckNull{
 			Value: fv,
-			End:   end,
+			End:   self.expectNextIs(token.NOT).Position,
 		})
 	default:
 		return front
@@ -244,7 +241,7 @@ func (self *Parser) parseStruct(st ast.Type) *ast.Struct {
 
 func (self *Parser) parseStaticMethod(st ast.Type)*ast.StaticMethod{
 	self.expectNextIs(token.COL)
-	name := self.parseGenericName(self.expectNextIs(token.IDENT))
+	name := self.expectNextIs(token.IDENT)
 	return &ast.StaticMethod{
 		Type: st,
 		Name: name,

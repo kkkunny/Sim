@@ -5,7 +5,6 @@ import (
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/pair"
-	"github.com/kkkunny/stl/container/stack"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
@@ -26,7 +25,6 @@ type CodeGenerator struct {
 	strings              hashmap.HashMap[string, *mir.Constant]
 	structs              hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
 	funcCache            hashmap.HashMap[string, *mir.Function]
-	genericIdentMapStack stack.Stack[hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]]
 	structCache          hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
 }
 

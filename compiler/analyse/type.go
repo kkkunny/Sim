@@ -45,7 +45,7 @@ func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
 func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	typ := self.analyseIdent((*ast.Ident)(node), false)
 	if typ.IsNone(){
-		errors.ThrowUnknownIdentifierError(node.Name.Position(), node.Name.Name)
+		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
 	t, _ := typ.MustValue().Right()
 	return t
