@@ -126,7 +126,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 
 	switch node.Opera.Kind {
 	case token.ASS:
-		if lt.EqualTo(rt) {
+		if lt.Equal(rt) {
 			if !left.Mutable() {
 				errors.ThrowNotMutableError(node.Left.Position())
 			}
@@ -136,63 +136,63 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.AND:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		if lt.Equal(rt) && hir.IsIntType(lt) {
 			return &hir.IntAndInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.OR:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		if lt.Equal(rt) && hir.IsIntType(lt) {
 			return &hir.IntOrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.XOR:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		if lt.Equal(rt) && hir.IsIntType(lt) {
 			return &hir.IntXorInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHL:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		if lt.Equal(rt) && hir.IsIntType(lt) {
 			return &hir.IntShlInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHR:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		if lt.Equal(rt) && hir.IsIntType(lt) {
 			return &hir.IntShrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.ADD:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			return &hir.NumAddNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SUB:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			return &hir.NumSubNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.MUL:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			return &hir.NumMulNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.DIV:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0))==0) ||
 				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0))==0){
 				errors.ThrowDivZero(node.Right.Position())
@@ -203,7 +203,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.REM:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0))==0) ||
 				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0))==0){
 				errors.ThrowDivZero(node.Right.Position())
@@ -214,7 +214,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.EQ:
-		if lt.EqualTo(rt) {
+		if lt.Equal(rt) {
 			if !hir.IsEmptyType(lt){
 				return &hir.Equal{
 					Left:  left,
@@ -230,42 +230,42 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.LT:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GT:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGtNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LE:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.GE:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		if lt.Equal(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGeNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LAND:
-		if lt.EqualTo(rt) && hir.IsBoolType(lt) {
+		if lt.Equal(rt) && hir.IsBoolType(lt) {
 			return &hir.BoolAndBool{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LOR:
-		if lt.EqualTo(rt) && hir.IsBoolType(lt) {
+		if lt.Equal(rt) && hir.IsBoolType(lt) {
 			return &hir.BoolOrBool{
 				Left:  left,
 				Right: right,
@@ -418,12 +418,12 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 			From: from,
 			To:   tt,
 		}
-	case hir.IsPointer(ft) && tt.EqualTo(hir.Usize):
+	case hir.IsPointer(ft) && tt.Equal(hir.Usize):
 		// *u8 | *?u8 | func() -> usize
 		return &hir.Pointer2Usize{
 			From: from,
 		}
-	case ft.EqualTo(hir.Usize) && hir.IsPointer(tt):
+	case ft.Equal(hir.Usize) && hir.IsPointer(tt):
 		// usize -> *u8 | *?u8 | func()
 		return &hir.Usize2Pointer{
 			From: from,
@@ -447,7 +447,7 @@ func (self *Analyser) expectExpr(expect hir.Type, node ast.Expr) hir.Expr {
 // 自动类型转换
 func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, bool) {
 	vt := v.GetType()
-	if vt.EqualTo(expect) {
+	if vt.Equal(expect) {
 		return v, true
 	}
 
@@ -631,7 +631,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	vt := value.GetType()
 
 	switch {
-	case vt.EqualTo(target):
+	case vt.Equal(target):
 		return &hir.Boolean{Value: true}
 	default:
 		return &hir.TypeJudgment{

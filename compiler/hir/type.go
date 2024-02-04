@@ -6,7 +6,6 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	stlslices "github.com/kkkunny/stl/slices"
-	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/util"
 )
@@ -37,7 +36,9 @@ var (
 // Type 类型
 type Type interface {
 	fmt.Stringer
-	EqualTo(dst Type) bool
+	ID() string
+	stlbasic.Hashable
+	stlbasic.Comparable[Type]
 }
 
 func FlattenType(t Type)Type{
@@ -55,10 +56,6 @@ func IsEmptyType(t Type)bool{
 	return stlbasic.Is[*EmptyType](FlattenType(t))
 }
 
-func AsEmptyType(t Type)*EmptyType{
-	return FlattenType(t).(*EmptyType)
-}
-
 // EmptyType 空类型
 type EmptyType struct{}
 
@@ -66,9 +63,9 @@ func (*EmptyType) String() string {
 	return "empty"
 }
 
-func (self *EmptyType) EqualTo(dst Type) bool {
-	return IsEmptyType(dst)
-}
+func (self *EmptyType) ID() string          { return self.String() }
+func (self *EmptyType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *EmptyType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsNumberType(t Type)bool{
 	t = FlattenType(t)
@@ -94,19 +91,12 @@ type SintType struct {
 }
 
 func (self *SintType) String() string {
-	if self.Bits == 0{
-		return "isize"
-	}
-	return fmt.Sprintf("i%d", self.Bits)
+	return stlbasic.Ternary(self.Bits==0, "isize", fmt.Sprintf("i%d", self.Bits))
 }
 
-func (self *SintType) EqualTo(dst Type) bool {
-	if !IsSintType(dst){
-		return false
-	}
-	dstType := AsSintType(dst)
-	return self.Bits == dstType.Bits
-}
+func (self *SintType) ID() string          { return self.String() }
+func (self *SintType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *SintType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsUintType(t Type)bool{
 	return stlbasic.Is[*UintType](FlattenType(t))
@@ -122,19 +112,12 @@ type UintType struct {
 }
 
 func (self *UintType) String() string {
-	if self.Bits == 0{
-		return "usize"
-	}
-	return fmt.Sprintf("u%d", self.Bits)
+	return stlbasic.Ternary(self.Bits==0, "usize", fmt.Sprintf("u%d", self.Bits))
 }
 
-func (self *UintType) EqualTo(dst Type) bool {
-	if !IsUintType(dst){
-		return false
-	}
-	dstType := AsUintType(dst)
-	return self.Bits == dstType.Bits
-}
+func (self *UintType) ID() string          { return self.String() }
+func (self *UintType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *UintType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsFloatType(t Type)bool{
 	return stlbasic.Is[*FloatType](FlattenType(t))
@@ -153,13 +136,9 @@ func (self *FloatType) String() string {
 	return fmt.Sprintf("f%d", self.Bits)
 }
 
-func (self *FloatType) EqualTo(dst Type) bool {
-	if !IsFloatType(dst){
-		return false
-	}
-	dstType := AsFloatType(dst)
-	return self.Bits == dstType.Bits
-}
+func (self *FloatType) ID() string          { return self.String() }
+func (self *FloatType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *FloatType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsFuncType(t Type)bool{
 	return stlbasic.Is[*FuncType](FlattenType(t))
@@ -176,35 +155,17 @@ type FuncType struct {
 }
 
 func (self *FuncType) String() string {
-	params := lo.Map(self.Params, func(item Type, _ int) string {
-		return item.String()
-	})
-	ret := stlbasic.Ternary(self.Ret.EqualTo(Empty), "", self.Ret.String())
+	params := stlslices.Map(self.Params, func(_ int, e Type) string { return e.String() })
+	ret := stlbasic.Ternary(self.Ret.Equal(Empty), "", self.Ret.String())
 	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
 }
 
-func (self *FuncType) EqualTo(dst Type) bool {
-	if !IsFuncType(dst){
-		return false
-	}
-	dstType := AsFuncType(dst)
-	if !self.Ret.EqualTo(dstType.Ret) || len(self.Params) != len(dstType.Params){
-		return false
-	}
-	for i, p := range self.Params{
-		if !p.EqualTo(dstType.Params[i]){
-			return false
-		}
-	}
-	return true
-}
+func (self *FuncType) ID() string          { return self.String() }
+func (self *FuncType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *FuncType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsBoolType(t Type)bool{
 	return stlbasic.Is[*BoolType](FlattenType(t))
-}
-
-func AsBoolType(t Type)*BoolType{
-	return FlattenType(t).(*BoolType)
 }
 
 // BoolType 布尔型
@@ -214,9 +175,9 @@ func (*BoolType) String() string {
 	return "bool"
 }
 
-func (self *BoolType) EqualTo(dst Type) bool {
-	return IsBoolType(dst)
-}
+func (self *BoolType) ID() string          { return self.String() }
+func (self *BoolType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *BoolType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsArrayType(t Type)bool{
 	return stlbasic.Is[*ArrayType](FlattenType(t))
@@ -236,13 +197,9 @@ func (self *ArrayType) String() string {
 	return fmt.Sprintf("[%d]%s", self.Size, self.Elem)
 }
 
-func (self *ArrayType) EqualTo(dst Type) bool {
-	if !IsArrayType(dst){
-		return false
-	}
-	dstType := AsArrayType(dst)
-	return self.Elem.EqualTo(dstType.Elem)
-}
+func (self *ArrayType) ID() string          { return self.String() }
+func (self *ArrayType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *ArrayType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsTupleType(t Type)bool{
 	return stlbasic.Is[*TupleType](FlattenType(t))
@@ -258,27 +215,13 @@ type TupleType struct {
 }
 
 func (self *TupleType) String() string {
-	elems := lo.Map(self.Elems, func(item Type, _ int) string {
-		return item.String()
-	})
+	elems := stlslices.Map(self.Elems, func(_ int, e Type) string {return e.String()})
 	return fmt.Sprintf("(%s)", strings.Join(elems, ", "))
 }
 
-func (self *TupleType) EqualTo(dst Type) bool {
-	if !IsTupleType(dst){
-		return false
-	}
-	dstType := AsTupleType(dst)
-	if len(self.Elems) != len(dstType.Elems){
-		return false
-	}
-	for i, e := range self.Elems{
-		if !e.EqualTo(dstType.Elems[i]){
-			return false
-		}
-	}
-	return true
-}
+func (self *TupleType) ID() string          { return self.String() }
+func (self *TupleType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *TupleType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsStructType(t Type)bool{
 	return stlbasic.Is[*StructType](FlattenType(t))
@@ -291,19 +234,12 @@ func AsStructType(t Type)*StructType{
 type StructType = StructDef
 
 func (self *StructType) String() string {
-	if self.Pkg.Equal(BuildInPackage){
-		return self.Name
-	}
-	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
 }
 
-func (self *StructType) EqualTo(dst Type) bool {
-	if !IsStructType(dst){
-		return false
-	}
-	dstType := AsStructType(dst)
-	return self.Pkg == dstType.Pkg && self.Name == dstType.Name
-}
+func (self *StructType) ID() string          { return self.String() }
+func (self *StructType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *StructType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsStringType(t Type)bool{
 	return stlbasic.Is[*StringType](FlattenType(t))
@@ -320,9 +256,9 @@ func (*StringType) String() string {
 	return "str"
 }
 
-func (self *StringType) EqualTo(dst Type) bool {
-	return IsStringType(dst)
-}
+func (self *StringType) ID() string          { return self.String() }
+func (self *StringType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *StringType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 func IsUnionType(t Type)bool{
 	return stlbasic.Is[*UnionType](FlattenType(t))
@@ -338,27 +274,13 @@ type UnionType struct {
 }
 
 func (self *UnionType) String() string {
-	elemStrs := lo.Map(self.Elems, func(item Type, _ int) string {
-		return item.String()
-	})
-	return fmt.Sprintf("<%s>", strings.Join(elemStrs, ", "))
+	elems := stlslices.Map(self.Elems, func(_ int, e Type) string {return e.String()})
+	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
 }
 
-func (self *UnionType) EqualTo(dst Type) bool {
-	if !IsUnionType(dst){
-		return false
-	}
-	dstType := AsUnionType(dst)
-	if len(self.Elems) != len(dstType.Elems){
-		return false
-	}
-	for i, e := range dstType.Elems{
-		if !e.EqualTo(dstType.Elems[i]){
-			return false
-		}
-	}
-	return true
-}
+func (self *UnionType) ID() string          { return self.String() }
+func (self *UnionType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *UnionType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 // Contain 是否包含类型
 func (self *UnionType) Contain(dst Type) bool {
@@ -373,7 +295,7 @@ func (self *UnionType) Contain(dst Type) bool {
 					return true
 				}
 			}else{
-				if e.EqualTo(dst){
+				if e.Equal(dst){
 					return true
 				}
 			}
@@ -402,16 +324,12 @@ type RefType struct {
 }
 
 func (self *RefType) String() string {
-	return "&" + stlbasic.Ternary(self.Mut, "mut ", "") + self.Elem.String()
+	return stlbasic.Ternary(self.Mut, "&"+self.Elem.String(), "&mut "+self.Elem.String())
 }
 
-func (self *RefType) EqualTo(dst Type) bool {
-	if !IsRefType(dst){
-		return false
-	}
-	dstT := AsRefType(dst)
-	return self.Mut == dstT.Mut && self.Elem.EqualTo(dstT.Elem)
-}
+func (self *RefType) ID() string          { return self.String() }
+func (self *RefType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *RefType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 // SelfType Self类型
 type SelfType struct{
@@ -422,20 +340,17 @@ func (self *SelfType) String() string {
 	return self.Self.MustValue().String()
 }
 
-func (self *SelfType) EqualTo(dst Type) bool {
-	return self.Self.MustValue().EqualTo(dst)
-}
+func (self *SelfType) ID() string          { return self.String() }
+func (self *SelfType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *SelfType) Equal(dst Type) bool { return self.ID() == dst.ID() }
 
 // AliasType 别名类型
 type AliasType = TypeAliasDef
 
 func (self *AliasType) String() string {
-	if self.Pkg.Equal(BuildInPackage){
-		return self.Name
-	}
-	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
 }
 
-func (self *AliasType) EqualTo(dst Type) bool {
-	return self.Target.EqualTo(dst)
-}
+func (self *AliasType) ID() string          { return self.String() }
+func (self *AliasType) Hash() uint64        { return stlbasic.Hash(self.ID()) }
+func (self *AliasType) Equal(dst Type) bool { return self.ID() == dst.ID() }

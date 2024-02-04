@@ -12,11 +12,11 @@ import (
 )
 
 func (self *CodeGenerator) declStructDef(ir *hir.StructDef) {
-	self.structs.Set(ir.String(), pair.NewPair[mir.StructType, *types.StructType](self.module.NewNamedStructType(""), types.NewStructType(ir.Pkg.String(), ir.Name, nil, nil)))
+	self.structs.Set(ir, pair.NewPair[mir.StructType, *types.StructType](self.module.NewNamedStructType(""), types.NewStructType(ir.Pkg.String(), ir.Name, nil, nil)))
 }
 
 func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
-	stPair := self.structs.Get(ir.String())
+	stPair := self.structs.Get(ir)
 	fields, fieldRts := make([]mir.Type, ir.Fields.Length()), make([]types.Field, ir.Fields.Length())
 	for i, iter := 0, ir.Fields.Values().Iterator(); iter.Next(); i++ {
 		f, fRt := self.codegenType(iter.Value().Type)

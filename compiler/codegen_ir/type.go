@@ -104,7 +104,7 @@ func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) (mir.StructType, 
 }
 
 func (self *CodeGenerator) codegenStructType(ir *hir.StructType) (mir.StructType, *types.StructType) {
-	pair := self.structs.Get(ir.String())
+	pair := self.structs.Get(ir)
 	return pair.First, pair.Second
 }
 
