@@ -23,8 +23,6 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 		return self.analyseTupleType(typeNode)
 	case *ast.UnionType:
 		return self.analyseUnionType(typeNode)
-	case *ast.PtrType:
-		return self.analysePtrType(typeNode)
 	case *ast.RefType:
 		return self.analyseRefType(typeNode)
 	case *ast.SelfType:
@@ -86,10 +84,6 @@ func (self *Analyser) analyseUnionType(node *ast.UnionType) *hir.UnionType {
 	return &hir.UnionType{Elems: lo.Map(node.Elems.ToSlice(), func(item ast.Type, _ int) hir.Type {
 		return self.analyseType(item)
 	})}
-}
-
-func (self *Analyser) analysePtrType(node *ast.PtrType) *hir.PtrType {
-	return &hir.PtrType{Elem: self.analyseType(node.Elem)}
 }
 
 func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {

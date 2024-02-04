@@ -37,8 +37,6 @@ func (self *CodeGenerator) codegenType(ir hir.Type) (mir.Type, types.Type) {
 		return self.codegenStringType()
 	case *hir.UnionType:
 		return self.codegenUnionType(t)
-	case *hir.PtrType:
-		return self.codegenPtrType(t)
 	case *hir.RefType:
 		return self.codegenRefType(t)
 	case *hir.SelfType:
@@ -133,11 +131,6 @@ func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) (mir.StructType, 
 		}
 	}
 	return self.ctx.NewStructType(maxSizeType, self.ctx.U8()), types.NewUnionType(elemRts...)
-}
-
-func (self *CodeGenerator) codegenPtrType(ir *hir.PtrType) (mir.PtrType, *types.PtrType) {
-	elem, elemRt := self.codegenType(ir.Elem)
-	return self.ctx.NewPtrType(elem), types.NewPtrType(elemRt)
 }
 
 func (self *CodeGenerator) codegenRefType(ir *hir.RefType) (mir.PtrType, *types.RefType) {

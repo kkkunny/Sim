@@ -1,9 +1,8 @@
 import std::os
 
 func main(){
-    let mut i: u8 = 10
-    while i > 0{
-        i = i - 2
-    }
-    os::exit(i)
+    let v1: u8 = 1
+    let v2: &u8 = &v1
+    os::exit(*v2)
+    return
 }

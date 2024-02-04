@@ -5,9 +5,6 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	stliter "github.com/kkkunny/stl/container/iter"
-	"github.com/kkkunny/stl/container/linkedhashmap"
-	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
@@ -387,35 +384,7 @@ func (self *UnionType) Contain(dst Type) bool {
 
 func IsPointer(t Type)bool{
 	t = FlattenType(t)
-	return IsPtrType(t) || IsRefType(t) || IsFuncType(t)
-}
-
-func IsPtrType(t Type)bool{
-	return stlbasic.Is[*PtrType](FlattenType(t))
-}
-
-func AsPtrType(t Type)*PtrType{
-	return FlattenType(t).(*PtrType)
-}
-
-// PtrType 指针类型
-type PtrType struct {
-	Elem Type
-}
-
-func (self *PtrType) String() string {
-	return "*?" + self.Elem.String()
-}
-
-func (self *PtrType) EqualTo(dst Type) bool {
-	if !IsPtrType(dst){
-		return false
-	}
-	return self.Elem.EqualTo(AsPtrType(dst).Elem)
-}
-
-func (self *PtrType) ToRefType() *RefType {
-	return &RefType{Elem: self.Elem}
+	return IsRefType(t) || IsFuncType(t)
 }
 
 func IsRefType(t Type)bool{
@@ -428,73 +397,20 @@ func AsRefType(t Type)*RefType{
 
 // RefType 引用类型
 type RefType struct {
+	Mut bool
 	Elem Type
 }
 
 func (self *RefType) String() string {
-	return "*" + self.Elem.String()
+	return "&" + stlbasic.Ternary(self.Mut, "mut ", "") + self.Elem.String()
 }
 
 func (self *RefType) EqualTo(dst Type) bool {
 	if !IsRefType(dst){
 		return false
 	}
-	return self.Elem.EqualTo(AsRefType(dst).Elem)
-}
-
-func (self *RefType) ToPtrType() *PtrType {
-	return &PtrType{Elem: self.Elem}
-}
-
-// 替换空self类型
-func replaceEmptySelfType(t Type, to Type)Type{
-	switch tt := t.(type) {
-	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *BoolType:
-		return tt
-	case *PtrType:
-		return &PtrType{Elem: replaceEmptySelfType(t, to)}
-	case *RefType:
-		return &RefType{Elem: replaceEmptySelfType(t, to)}
-	case *FuncType:
-		return &FuncType{
-			Ret: replaceEmptySelfType(tt.Ret, to),
-			Params: stlslices.Map(tt.Params, func(_ int, e Type) Type {
-				return replaceEmptySelfType(e, to)
-			}),
-		}
-	case *ArrayType:
-		return &ArrayType{
-			Size: tt.Size,
-			Elem: replaceEmptySelfType(t, tt.Elem),
-		}
-	case *TupleType:
-		return &TupleType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return replaceEmptySelfType(e, to)
-		})}
-	case *StructType:
-		fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
-			e.Second.Type = replaceEmptySelfType(e.Second.Type, to)
-			return pair.NewPair[string, Field](e.First, e.Second)
-		})
-		return &StructType{
-			Pkg: tt.Pkg,
-			Public: tt.Public,
-			Name: tt.Name,
-			Fields: fields,
-			Methods: tt.Methods,
-		}
-	case *UnionType:
-		return &UnionType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return replaceEmptySelfType(e, to)
-		})}
-	case *SelfType:
-		if tt.Self.IsNone(){
-			return to
-		}
-		return &SelfType{Self: util.Some(replaceEmptySelfType(tt.Self.MustValue(), to).(TypeDef))}
-	default:
-		panic("unreachable")
-	}
+	dstT := AsRefType(dst)
+	return self.Mut == dstT.Mut && self.Elem.EqualTo(dstT.Elem)
 }
 
 // SelfType Self类型

@@ -20,5 +20,3 @@ pub let false: bool = 1 != 1
 pub type str = str
 
 pub type byte = u8
-
-pub type ptr = *?u8

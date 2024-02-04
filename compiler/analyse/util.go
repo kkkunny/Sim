@@ -92,7 +92,7 @@ func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
 	switch tt := t.(type) {
 	case *hir.EmptyType, *hir.RefType, *hir.FuncType:
 		return false
-	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType, *hir.PtrType:
+	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType:
 		return true
 	case *hir.ArrayType:
 		return self.isTypeHasDefault(tt.Elem)
@@ -137,7 +137,7 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.PtrType, *hir.RefType:
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.RefType:
 	case *hir.ArrayType:
 		return self.checkTypeCircle(trace, typ.Elem)
 	case *hir.TupleType:

@@ -51,8 +51,6 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseJudgment(exprNode)
 	case *ast.Null:
 		return self.analyseNull(expect, exprNode)
-	case *ast.CheckNull:
-		return self.analyseCheckNull(expect, exprNode)
 	case *ast.StaticMethod:
 		return self.analyseStaticMethod(exprNode)
 	default:
@@ -313,7 +311,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 		}else if localVarDef, ok := value.(*hir.LocalVarDef); ok{
 			localVarDef.Escaped = true
 		}
-		return &hir.GetPtr{Value: value}
+		return &hir.GetRef{Value: value}
 	case token.MUL:
 		if expect != nil {
 			expect = &hir.RefType{Elem: expect}
@@ -468,9 +466,6 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 				Value: v,
 			}, true
 		}
-	case hir.IsRefType(vt) && hir.AsRefType(vt).ToPtrType().EqualTo(expect):
-		// *i8 -> *?i8
-		return &hir.WrapWithNull{Value: v}, true
 	default:
 		return v, false
 	}
@@ -649,26 +644,10 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 func (self *Analyser) analyseNull(expect hir.Type, node *ast.Null) *hir.Default {
 	if expect == nil {
 		errors.ThrowExpectPointerTypeError(node.Position(), hir.Empty)
-	}else if !hir.IsPtrType(expect) && !hir.IsFuncType(expect){
+	}else if !hir.IsPointer(expect){
 		errors.ThrowExpectPointerTypeError(node.Position(), expect)
 	}
 	return &hir.Default{Type: expect}
-}
-
-func (self *Analyser) analyseCheckNull(expect hir.Type, node *ast.CheckNull) *hir.CheckNull {
-	if expect != nil {
-		if hir.IsPtrType(expect){
-			expect = hir.AsPtrType(expect)
-		} else if hir.IsRefType(expect) {
-			expect = hir.AsRefType(expect).ToPtrType()
-		}
-	}
-	value := self.analyseExpr(expect, node.Value)
-	vt := value.GetType()
-	if !hir.IsPtrType(vt) {
-		errors.ThrowExpectPointerError(node.Value.Position(), vt)
-	}
-	return &hir.CheckNull{Value: value}
 }
 
 func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{

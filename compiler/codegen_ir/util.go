@@ -31,7 +31,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 	switch irType := hir.FlattenType(t).(type) {
 	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType:
 		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
-	case *hir.FuncType, *hir.PtrType, *hir.RefType:
+	case *hir.FuncType, *hir.RefType:
 		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
 	case *hir.ArrayType:
 		res := self.buildArrayEqual(irType, l, r)
@@ -325,18 +325,6 @@ func (self *CodeGenerator) buildPanic(s string){
 	fn := self.getExternFunction("sim_runtime_panic", self.ctx.NewFuncType(false, self.ctx.Void(), strType))
 	self.builder.BuildCall(fn, self.constString(s))
 	self.builder.BuildUnreachable()
-}
-
-func (self *CodeGenerator) buildCheckNull(v mir.Value){
-	cond := self.builder.BuildPtrEqual(mir.PtrEqualKindEQ, v, mir.NewZero(v.Type()))
-	f := self.builder.Current().Belong()
-	panicBlock, endBlock := f.NewBlock(), f.NewBlock()
-	self.builder.BuildCondJump(cond, panicBlock, endBlock)
-
-	self.builder.MoveTo(panicBlock)
-	self.buildPanic("null pointer exception")
-
-	self.builder.MoveTo(endBlock)
 }
 
 func (self *CodeGenerator) buildCheckZero(v mir.Value){

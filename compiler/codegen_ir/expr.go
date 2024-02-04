@@ -53,10 +53,6 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenTypeJudgment(expr)
 	case *hir.UnUnion:
 		return self.codegenUnUnion(expr)
-	case *hir.WrapWithNull:
-		return self.codegenWrapWithNull(expr, load)
-	case *hir.CheckNull:
-		return self.codegenCheckNull(expr)
 	case *hir.MethodDef:
 		// TODO: 闭包
 		panic("unreachable")
@@ -162,7 +158,7 @@ func (self *CodeGenerator) codegenUnary(ir hir.Unary, load bool) mir.Value {
 		return self.builder.BuildNeg(self.codegenExpr(ir.GetValue(), true))
 	case *hir.IntBitNegate, *hir.BoolNegate:
 		return self.builder.BuildNot(self.codegenExpr(ir.GetValue(), true))
-	case *hir.GetPtr:
+	case *hir.GetRef:
 		return self.codegenExpr(ir.GetValue(), false)
 	case *hir.GetValue:
 		ptr := self.codegenExpr(ir.GetValue(), true)
@@ -407,14 +403,4 @@ func (self *CodeGenerator) codegenUnUnion(ir *hir.UnUnion) mir.Value {
 	elemPtr := self.buildStructIndex(value, 0, true)
 	elemPtr = self.builder.BuildPtrToPtr(elemPtr, self.ctx.NewPtrType(self.codegenTypeOnly(ir.GetType())))
 	return self.builder.BuildLoad(elemPtr)
-}
-
-func (self *CodeGenerator) codegenWrapWithNull(ir *hir.WrapWithNull, load bool) mir.Value {
-	return self.codegenExpr(ir.Value, load)
-}
-
-func (self *CodeGenerator) codegenCheckNull(ir *hir.CheckNull) mir.Value {
-	ptr := self.codegenExpr(ir.Value, true)
-	self.buildCheckNull(ptr)
-	return ptr
 }

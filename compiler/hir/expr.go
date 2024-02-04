@@ -860,22 +860,22 @@ func (self *UnUnion) Mutable() bool {
 	return false
 }
 
-// GetPtr 取指针
-type GetPtr struct {
+// GetRef 取引用
+type GetRef struct {
 	Value Expr
 }
 
-func (self *GetPtr) stmt() {}
+func (self *GetRef) stmt() {}
 
-func (self *GetPtr) GetType() Type {
+func (self *GetRef) GetType() Type {
 	return &RefType{Elem: self.Value.GetType()}
 }
 
-func (self *GetPtr) Mutable() bool {
+func (self *GetRef) Mutable() bool {
 	return false
 }
 
-func (self *GetPtr) GetValue() Expr {
+func (self *GetRef) GetValue() Expr {
 	return self.Value
 }
 
@@ -896,36 +896,6 @@ func (self *GetValue) Mutable() bool {
 
 func (self *GetValue) GetValue() Expr {
 	return self.Value
-}
-
-// WrapWithNull 空包装
-type WrapWithNull struct {
-	Value Expr
-}
-
-func (self *WrapWithNull) stmt() {}
-
-func (self *WrapWithNull) GetType() Type {
-	return AsRefType(self.Value.GetType()).ToPtrType()
-}
-
-func (self *WrapWithNull) Mutable() bool {
-	return self.Value.Mutable()
-}
-
-// CheckNull 空指针检查
-type CheckNull struct {
-	Value Expr
-}
-
-func (self *CheckNull) stmt() {}
-
-func (self *CheckNull) GetType() Type {
-	return &RefType{Elem: AsPtrType(self.Value.GetType()).Elem}
-}
-
-func (self *CheckNull) Mutable() bool {
-	return self.Value.Mutable()
 }
 
 type MethodExpr interface {
