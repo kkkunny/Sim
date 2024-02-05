@@ -23,7 +23,7 @@ type CodeGenerator struct {
 	values               hashmap.HashMap[hir.Expr, mir.Value]
 	loops                hashmap.HashMap[hir.Loop, loop]
 	strings              hashmap.HashMap[string, *mir.Constant]
-	structs              hashmap.HashMap[hir.Type, pair.Pair[mir.StructType, *types.StructType]]
+	structs              hashmap.HashMap[*hir.StructType, pair.Pair[mir.StructType, *types.StructType]]
 	funcCache            hashmap.HashMap[string, *mir.Function]
 }
 

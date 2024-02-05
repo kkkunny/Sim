@@ -583,7 +583,7 @@ type Call struct {
 func (self *Call) stmt() {}
 
 func (self *Call) GetType() Type {
-	return AsFuncType(self.Func.GetType()).Ret
+	return AsType[*FuncType](self.Func.GetType()).Ret
 }
 
 func (self *Call) Mutable() bool {
@@ -700,7 +700,7 @@ type Index struct {
 func (self *Index) stmt() {}
 
 func (self *Index) GetType() Type {
-	return AsArrayType(self.From.GetType()).Elem
+	return AsType[*ArrayType](self.From.GetType()).Elem
 }
 
 func (self *Index) Mutable() bool {
@@ -739,7 +739,7 @@ type Extract struct {
 func (self *Extract) stmt() {}
 
 func (self *Extract) GetType() Type {
-	return AsTupleType(self.From.GetType()).Elems[self.Index]
+	return AsType[*TupleType](self.From.GetType()).Elems[self.Index]
 }
 
 func (self *Extract) Mutable() bool {
@@ -787,14 +787,14 @@ type GetField struct {
 func (self *GetField) stmt() {}
 
 func (self *GetField) GetType() Type {
-	return AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Type
+	return AsType[*StructType](self.From.GetType()).Fields.Values().Get(self.Index).Type
 }
 
 func (self *GetField) Mutable() bool {
 	if self.Internal{
 		return true
 	}
-	return self.From.Mutable() && AsStructType(self.From.GetType()).Fields.Values().Get(self.Index).Mutable
+	return self.From.Mutable() && AsType[*StructType](self.From.GetType()).Fields.Values().Get(self.Index).Mutable
 }
 
 // String 字符串
@@ -887,7 +887,7 @@ type GetValue struct {
 func (self *GetValue) stmt() {}
 
 func (self *GetValue) GetType() Type {
-	return AsRefType(self.Value.GetType()).Elem
+	return AsType[*RefType](self.Value.GetType()).Elem
 }
 
 func (self *GetValue) Mutable() bool {
@@ -916,7 +916,7 @@ func (self *Method) stmt() {}
 func (self *Method) GetScope()*StructDef{
 	if self.Self.IsLeft(){
 		value, _ := self.Self.Left()
-		return AsStructType(value.GetType())
+		return AsType[*StructType](value.GetType())
 	}else{
 		st, _ := self.Self.Right()
 		return st

@@ -79,7 +79,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 			Value: util.Some[hir.Expr](value),
 		}
 	} else {
-		if !ft.Ret.Equal(hir.Empty) {
+		if !ft.Ret.EqualTo(hir.Empty) {
 			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, hir.Empty)
 		}
 		return &hir.Return{
@@ -225,11 +225,11 @@ func (self *Analyser) analyseContinue(node *ast.Continue) *hir.Continue {
 func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 	iterator := self.analyseExpr(nil, node.Iterator)
 	iterType := iterator.GetType()
-	if !hir.IsArrayType(iterType) {
+	if !hir.IsType[*hir.ArrayType](iterType) {
 		errors.ThrowExpectArrayError(node.Iterator.Position(), iterType)
 	}
 
-	et := hir.AsArrayType(iterType).Elem
+	et := hir.AsType[*hir.ArrayType](iterType).Elem
 	loop := &hir.For{
 		Iterator: iterator,
 		Cursor: &hir.LocalVarDef{
@@ -258,17 +258,17 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 	value := self.analyseExpr(nil, node.Value)
 	vtObj := value.GetType()
-	if !hir.IsUnionType(vtObj) {
+	if !hir.IsType[*hir.UnionType](vtObj) {
 		errors.ThrowExpectUnionTypeError(node.Value.Position(), vtObj)
 	}
-	vt := hir.AsUnionType(vtObj)
+	vt := hir.AsType[*hir.UnionType](vtObj)
 
 	cases := make([]pair.Pair[hir.Type, *hir.Block], len(node.Cases))
 	for i, caseNode := range node.Cases {
 		caseCond := self.analyseType(caseNode.First)
 		if !vt.Contain(caseCond) {
 			errors.ThrowTypeMismatchError(caseNode.First.Position(), caseCond, vtObj)
-		} else if hir.IsUnionType(caseCond) {
+		} else if hir.IsType[*hir.UnionType](caseCond) {
 			errors.ThrowNotExpectUnionTypeError(caseNode.First.Position(), caseCond)
 		}
 		var newValue *hir.LocalVarDef

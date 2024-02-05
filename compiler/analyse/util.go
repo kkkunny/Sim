@@ -253,7 +253,7 @@ func (self *Analyser) analyseFuncBody(node *ast.Block)*hir.Block{
 	body, jump := self.analyseBlock(node, nil)
 	if jump != hir.BlockEofReturn {
 		retType := fn.GetFuncType().Ret
-		if !hir.IsEmptyType(retType) {
+		if !hir.IsType[*hir.EmptyType](retType) {
 			errors.ThrowMissingReturnValueError(node.Position(), retType)
 		}
 		body.Stmts.PushBack(&hir.Return{

@@ -314,7 +314,7 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 	switch rtt.(type) {
 	case *types.EmptyType, *types.FuncType, *types.RefType:
 		panic("unreachable")
-	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.PtrType, *types.UnionType:
+	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.UnionType:
 		return mir.NewZero(t)
 	case *types.StringType:
 		return self.constString("")
@@ -322,7 +322,7 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 		// TODO: 填充所有字段为默认值
 		return mir.NewZero(t)
 	case *types.TupleType:
-		elems := stlslices.Map(hir.AsTupleType(tir).Elems, func(_ int, e hir.Type) mir.Value {
+		elems := stlslices.Map(hir.AsType[*hir.TupleType](tir).Elems, func(_ int, e hir.Type) mir.Value {
 			return self.codegenDefault(e)
 		})
 		return self.builder.BuildPackStruct(t.(mir.StructType), elems...)

@@ -208,7 +208,7 @@ func (self *forRange) GetNextBlock() *mir.Block {
 
 func (self *CodeGenerator) codegenFor(ir *hir.For) {
 	// pre
-	size := hir.AsArrayType(ir.Iterator.GetType()).Size
+	size := hir.AsType[*hir.ArrayType](ir.Iterator.GetType()).Size
 	iter := self.codegenExpr(ir.Iterator, false)
 	indexPtr := self.builder.BuildAllocFromStack(self.ctx.Usize())
 	self.builder.BuildStore(mir.NewInt(indexPtr.ElemType().(mir.IntType), 0), indexPtr)

@@ -92,7 +92,7 @@ func (self *CodeGenerator) codegenBoolType() (mir.UintType, *types.BoolType) {
 
 func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) (mir.ArrayType, *types.ArrayType) {
 	elem, elemRt := self.codegenType(ir.Elem)
-	return self.ctx.NewArrayType(ir.Size, elem), types.NewArrayType(uint64(ir.Size), elemRt)
+	return self.ctx.NewArrayType(uint(ir.Size), elem), types.NewArrayType(ir.Size, elemRt)
 }
 
 func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) (mir.StructType, *types.TupleType) {
@@ -123,7 +123,7 @@ func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) (mir.StructType, 
 	for i, e := range ir.Elems{
 		var et mir.Type
 		et, elemRts[i] = self.codegenType(e)
-		if hir.IsUnionType(e){
+		if hir.IsType[*hir.UnionType](e){
 			et = et.(mir.StructType).Elems()[0]
 		}
 		if esize := et.Size(); esize > maxSize {
@@ -135,7 +135,7 @@ func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) (mir.StructType, 
 
 func (self *CodeGenerator) codegenRefType(ir *hir.RefType) (mir.PtrType, *types.RefType) {
 	elem, elemRt := self.codegenType(ir.Elem)
-	return self.ctx.NewPtrType(elem), types.NewRefType(elemRt)
+	return self.ctx.NewPtrType(elem), types.NewRefType(ir.Mut, elemRt)
 }
 func (self *CodeGenerator) codegenSelfType(ir *hir.SelfType)(mir.Type, types.Type){
 	return self.codegenType(ir.Self.MustValue())

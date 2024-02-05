@@ -166,42 +166,21 @@ func (self *FloatType) Equal(dst Type) bool {
 	return self.Bits == dt.Bits
 }
 
-// PtrType 指针类型
-type PtrType struct {
-	Elem Type
-}
-
-func NewPtrType(elem Type)*PtrType{
-	return &PtrType{Elem: elem}
-}
-
-func (self *PtrType) String() string {
-	return "*?" + self.Elem.String()
-}
-
-func (self *PtrType) Hash() uint64 {
-	return self.Elem.Hash() << 2
-}
-
-func (self *PtrType) Equal(dst Type) bool {
-	dt, ok := dst.(*PtrType)
-	if !ok || !self.Elem.Equal(dt.Elem) {
-		return false
-	}
-	return true
-}
-
 // RefType 引用类型
 type RefType struct {
+	Mut bool
 	Elem Type
 }
 
-func NewRefType(elem Type)*RefType{
-	return &RefType{Elem: elem}
+func NewRefType(mut bool, elem Type)*RefType{
+	return &RefType{
+		Mut: mut,
+		Elem: elem,
+	}
 }
 
 func (self *RefType) String() string {
-	return "*" + self.Elem.String()
+	return stlbasic.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
 }
 
 func (self *RefType) Hash() uint64 {
@@ -210,10 +189,10 @@ func (self *RefType) Hash() uint64 {
 
 func (self *RefType) Equal(dst Type) bool {
 	dt, ok := dst.(*RefType)
-	if !ok || !self.Elem.Equal(dt.Elem) {
+	if !ok {
 		return false
 	}
-	return true
+	return self.Mut == dt.Mut && self.Elem.Equal(dt.Elem)
 }
 
 // FuncType 函数类型

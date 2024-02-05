@@ -188,7 +188,7 @@ func (self *MethodDef) IsStatic() bool {
 		return true
 	}
 	selfRef := &RefType{Elem: self.GetSelfType()}
-	return !selfRef.Equal(self.Params[0].GetType())
+	return !selfRef.EqualTo(self.Params[0].GetType())
 }
 
 // TypeAliasDef 类型别名定义

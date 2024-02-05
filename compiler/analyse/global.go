@@ -168,7 +168,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		}
 	})
 	f.Ret = self.analyseOptionType(node.Ret)
-	if f.Name == "main" && !f.GetType().Equal(&hir.FuncType{Ret: hir.Empty}) {
+	if f.Name == "main" && !f.GetType().EqualTo(&hir.FuncType{Ret: hir.Empty}) {
 		errors.ThrowTypeMismatchError(node.Position(), f.GetType(), &hir.FuncType{Ret: hir.Empty})
 	}
 	if !self.pkgScope.SetValue(f.Name, f) {

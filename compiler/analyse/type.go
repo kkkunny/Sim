@@ -68,7 +68,7 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
 	}
 	elem := self.analyseType(node.Elem)
 	return &hir.ArrayType{
-		Size: uint(size.Uint64()),
+		Size: size.Uint64(),
 		Elem: elem,
 	}
 }
