@@ -529,7 +529,7 @@ func NewRefType(mut bool, elem Type)*RefType{
 }
 
 func (self *RefType) String() string {
-	return stlbasic.Ternary(self.Mut, "&"+self.Elem.String(), "&mut "+self.Elem.String())
+	return stlbasic.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
 }
 
 func (self *RefType) EqualTo(dst Type) bool {
@@ -695,11 +695,11 @@ func (self *CustomType) runtime(){}
 type AliasType = TypeAliasDef
 
 func (self *AliasType) String() string {
-	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
+	return self.Target.String()
 }
 
 func (self *AliasType) EqualTo(dst Type) bool {
-	return ToRuntimeType(self).EqualTo(dst)
+	return self.Target.EqualTo(dst)
 }
 
 func (self *AliasType) HasDefault()bool{

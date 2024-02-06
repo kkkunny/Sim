@@ -3,10 +3,10 @@ package types
 import (
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/linkedhashset"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
@@ -50,7 +50,7 @@ type Type interface {
 type EmptyType struct{}
 
 func (*EmptyType) String() string {
-	return "empty"
+	return ""
 }
 
 func (self *EmptyType) Hash() uint64 {
@@ -212,8 +212,7 @@ func (self *FuncType) String() string {
 	params := lo.Map(self.Params, func(item Type, _ int) string {
 		return item.String()
 	})
-	ret := stlbasic.Ternary(self.Ret.Equal(TypeEmpty), "", self.Ret.String())
-	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
+	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.Ret)
 }
 
 func (self *FuncType) Hash() uint64 {
@@ -308,15 +307,27 @@ func NewUnionType(elems ...Type)*UnionType{
 			return []Type{e}
 		}
 	})
-	elems = linkedhashset.NewLinkedHashSetWith(elems...).ToSlice().ToSlice()
-	return &UnionType{Elems: elems}
+	sort.Slice(elems, func(i, j int) bool {
+		return elems[i].String() < elems[j].String()
+	})
+
+	flatElems := make([]Type, 0, len(elems))
+loop:
+	for _, e := range elems{
+		for _, fe := range flatElems{
+			if e.Equal(fe){
+				continue loop
+			}
+		}
+		flatElems = append(flatElems, e)
+	}
+
+	return &UnionType{Elems: flatElems}
 }
 
 func (self *UnionType) String() string {
-	elemStrs := stlslices.Map(self.Elems, func(_ int, e Type) string {
-		return e.String()
-	})
-	return fmt.Sprintf("<%s>", strings.Join(elemStrs, ", "))
+	elems := stlslices.Map(self.Elems, func(_ int, e Type) string {return e.String()})
+	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
 }
 
 func (self *UnionType) Hash() uint64 {

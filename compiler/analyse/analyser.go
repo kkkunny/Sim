@@ -97,10 +97,10 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		switch node := v.(type) {
 		case *ast.TypeDef:
 			st, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
-			circle, name = self.checkTypeCircle(&trace, st), node.Name
+			circle, name = self.checkTypeDefCircle(&trace, st), node.Name
 		case *ast.TypeAlias:
 			tad, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
-			circle, name = self.checkTypeCircle(&trace, tad), node.Name
+			circle, name = self.checkTypeAliasCircle(&trace, tad), node.Name
 		}
 		if circle{
 			errors.ThrowCircularReference(name.Position, name)

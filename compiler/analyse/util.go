@@ -87,8 +87,8 @@ func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.
 	return &hir.Default{Type: t}
 }
 
-// 检查类型是否循环
-func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
+// 检查类型定义是否循环
+func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
 	if trace.Contain(t){
 		return true
 	}
@@ -98,37 +98,92 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.RefType:
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType, *hir.FuncType, *hir.RefType:
 	case *hir.ArrayType:
-		return self.checkTypeCircle(trace, typ.Elem)
+		return self.checkTypeDefCircle(trace, typ.Elem)
 	case *hir.TupleType:
 		for _, e := range typ.Elems{
-			if self.checkTypeCircle(trace, e){
+			if self.checkTypeDefCircle(trace, e){
 				return true
 			}
 		}
 	case *hir.StructType:
 		for iter:=typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeCircle(trace, iter.Value().Second.Type){
+			if self.checkTypeDefCircle(trace, iter.Value().Second.Type){
 				return true
 			}
 		}
 	case *hir.UnionType:
 		for _, e := range typ.Elems {
-			if self.checkTypeCircle(trace, e){
+			if self.checkTypeDefCircle(trace, e){
 				return true
 			}
 		}
 	case *hir.SelfType:
-		if self.checkTypeCircle(trace, typ.Self.MustValue()){
+		if self.checkTypeDefCircle(trace, typ.Self.MustValue()){
 			return true
 		}
 	case *hir.AliasType:
-		if self.checkTypeCircle(trace, typ.Target){
+		if self.checkTypeDefCircle(trace, typ.Target){
 			return true
 		}
 	case *hir.CustomType:
-		if self.checkTypeCircle(trace, typ.Target){
+		if self.checkTypeDefCircle(trace, typ.Target){
+			return true
+		}
+	default:
+		panic("unreachable")
+	}
+	return false
+}
+
+// 检查类型别名是否循环
+func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
+	if trace.Contain(t){
+		return true
+	}
+	trace.Add(t)
+	defer func() {
+		trace.Remove(t)
+	}()
+
+	switch typ := t.(type) {
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType, *hir.CustomType:
+	case *hir.FuncType:
+		for _, p := range typ.Params {
+			if self.checkTypeAliasCircle(trace, p){
+				return true
+			}
+		}
+		return self.checkTypeAliasCircle(trace, typ.Ret)
+	case *hir.RefType:
+		return self.checkTypeAliasCircle(trace, typ.Elem)
+	case *hir.ArrayType:
+		return self.checkTypeAliasCircle(trace, typ.Elem)
+	case *hir.TupleType:
+		for _, e := range typ.Elems{
+			if self.checkTypeAliasCircle(trace, e){
+				return true
+			}
+		}
+	case *hir.StructType:
+		for iter:=typ.Fields.Iterator(); iter.Next(); {
+			if self.checkTypeAliasCircle(trace, iter.Value().Second.Type){
+				return true
+			}
+		}
+	case *hir.UnionType:
+		for _, e := range typ.Elems {
+			if self.checkTypeAliasCircle(trace, e){
+				return true
+			}
+		}
+	case *hir.SelfType:
+		if self.checkTypeAliasCircle(trace, typ.Self.MustValue()){
+			return true
+		}
+	case *hir.AliasType:
+		if self.checkTypeAliasCircle(trace, typ.Target){
 			return true
 		}
 	default:
