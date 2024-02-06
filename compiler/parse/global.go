@@ -23,14 +23,12 @@ func (self *Parser) parseGlobal() ast.Global {
 	switch self.nextTok.Kind {
 	case token.FUNC:
 		return self.parseFuncDef(attrs, pub)
-	case token.STRUCT:
-		return self.parseStructDef(attrs, pub)
 	case token.LET:
 		return self.parseVariable(true, attrs, pub)
 	case token.IMPORT:
 		return self.parseImport(attrs)
 	case token.TYPE:
-		return self.parseTypeAlias(attrs, pub)
+		return self.parseTypeDefOrAlias(attrs, pub)
 	default:
 		errors.ThrowIllegalGlobal(self.nextTok.Position)
 		return nil
@@ -69,26 +67,6 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 		ParamEnd: paramEnd,
 		Ret:    ret,
 		Body:   body,
-	}
-}
-
-func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.StructDef {
-	expectAttrIn(attrs)
-
-	begin := self.expectNextIs(token.STRUCT).Position
-	if pub != nil {
-		begin = pub.Position
-	}
-	name := self.expectNextIs(token.IDENT)
-	self.expectNextIs(token.LBR)
-	fields := self.parseFieldList(token.RBR)
-	end := self.expectNextIs(token.RBR).Position
-	return &ast.StructDef{
-		Begin:  begin,
-		Public: pub != nil,
-		Name:   name,
-		Fields: fields,
-		End:    end,
 	}
 }
 
@@ -189,17 +167,28 @@ func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
 	}
 }
 
-func (self *Parser) parseTypeAlias(attrs []ast.Attr, pub *token.Token) *ast.TypeAlias {
+func (self *Parser) parseTypeDefOrAlias(attrs []ast.Attr, pub *token.Token) ast.Global {
 	expectAttrIn(attrs)
 
 	begin := self.expectNextIs(token.TYPE).Position
+	if pub != nil {
+		begin = pub.Position
+	}
 	name := self.expectNextIs(token.IDENT)
-	self.expectNextIs(token.ASS)
-	typ := self.parseType()
-	return &ast.TypeAlias{
-		Begin:  begin,
-		Public: pub != nil,
-		Name:   name,
-		Type:   typ,
+	isAlias := self.skipNextIs(token.ASS)
+	if isAlias{
+		return &ast.TypeAlias{
+			Begin:  begin,
+			Public: pub != nil,
+			Name:   name,
+			Target: self.parseType(),
+		}
+	}else{
+		return &ast.TypeDef{
+			Begin:  begin,
+			Public: pub != nil,
+			Name:   name,
+			Target: self.parseTypeWithStruct(),
+		}
 	}
 }

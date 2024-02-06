@@ -71,7 +71,7 @@ func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool
 	return hirs, importPackageErrorNone
 }
 
-func (self *Analyser) setSelfType(td hir.TypeDef)(callback func()){
+func (self *Analyser) setSelfType(td hir.GlobalType)(callback func()){
 	bk := self.selfType
 	self.selfType = td
 	return func() {
@@ -127,13 +127,17 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 		if self.checkTypeCircle(trace, typ.Target){
 			return true
 		}
+	case *hir.CustomType:
+		if self.checkTypeCircle(trace, typ.Target){
+			return true
+		}
 	default:
 		panic("unreachable")
 	}
 	return false
 }
 
-func (self *Analyser) isInDstStructScope(st *hir.StructType)bool{
+func (self *Analyser) isInDstStructScope(st *hir.CustomType)bool{
 	if self.selfType == nil{
 		return false
 	}

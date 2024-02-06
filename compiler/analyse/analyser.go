@@ -23,7 +23,7 @@ type Analyser struct {
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 
-	selfType  hir.TypeDef
+	selfType  hir.GlobalType
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
 }
@@ -73,8 +73,8 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	// 类型
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
-		case *ast.StructDef:
-			self.declStructDef(node)
+		case *ast.TypeDef:
+			self.declTypeDef(node)
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
 		}
@@ -82,8 +82,8 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	})
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
-		case *ast.StructDef:
-			meanNodes.PushBack(self.defStructDef(node))
+		case *ast.TypeDef:
+			meanNodes.PushBack(self.defTypeDef(node))
 		case *ast.TypeAlias:
 			meanNodes.PushBack(self.defTypeAlias(node))
 		}
@@ -95,7 +95,7 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		var circle bool
 		var name token.Token
 		switch node := v.(type) {
-		case *ast.StructDef:
+		case *ast.TypeDef:
 			st, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
 			circle, name = self.checkTypeCircle(&trace, st), node.Name
 		case *ast.TypeAlias:

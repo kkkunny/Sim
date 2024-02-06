@@ -9,7 +9,6 @@ import (
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
@@ -69,7 +68,7 @@ func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 }
 
 func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) mir.Value {
-	t := self.codegenTypeOnly(ir.Type)
+	t := self.codegenType(ir.Type)
 	var ptr mir.Value
 	if !ir.Escaped {
 		ptr = self.builder.BuildAllocFromStack(t)
@@ -266,8 +265,8 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 		return
 	}
 
-	vtObj, vtRtObj := self.codegenType(ir.Value.GetType())
-	vt, vtRt := vtObj.(mir.StructType), vtRtObj.(*types.UnionType)
+	vtObj := self.codegenType(ir.Value.GetType())
+	vt := vtObj.(mir.StructType)
 	value := self.codegenExpr(ir.Value, true)
 	index := self.buildStructIndex(value, 1)
 
@@ -277,8 +276,7 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 	existConds := hashset.NewHashSet[int]()
 	cases := make([]pair.Pair[mir.Const, *mir.Block], 0, len(ir.Cases))
 	for _, c := range ir.Cases {
-		_, caseTypeRtObj := self.codegenType(c.First)
-		caseIndex := vtRt.IndexElem(caseTypeRtObj)
+		caseIndex := hir.AsType[*hir.UnionType](ir.Value.GetType()).IndexElem(ir.Value.GetType())
 		if existConds.Contain(caseIndex) {
 			continue
 		}

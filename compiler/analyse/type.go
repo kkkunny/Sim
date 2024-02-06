@@ -3,6 +3,7 @@ package analyse
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/ast"
@@ -27,6 +28,8 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 		return self.analyseRefType(typeNode)
 	case *ast.SelfType:
 		return self.analyseSelfType(typeNode)
+	case *ast.StructType:
+		return self.analyseStructType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -90,4 +93,20 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
 	return hir.NewSelfType(self.selfType)
+}
+
+func (self *Analyser) analyseStructType(node *ast.StructType)*hir.StructType{
+	fields := linkedhashmap.NewLinkedHashMap[string, hir.Field]()
+	for _, f := range node.Fields {
+		if fields.ContainKey(f.Name.Source()){
+			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
+		}
+		fields.Set(f.Name.Source(), hir.Field{
+			Public:  f.Public,
+			Mutable: f.Mutable,
+			Name: f.Name.Source(),
+			Type:    self.analyseType(f.Type),
+		})
+	}
+	return hir.NewStructType(self.pkgScope.pkg, fields)
 }

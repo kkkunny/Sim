@@ -39,6 +39,13 @@ func (self *Parser) parseType() ast.Type {
 	return t
 }
 
+func (self *Parser) parseTypeWithStruct() ast.Type {
+	if self.nextIs(token.STRUCT){
+		return self.parseStructType()
+	}
+	return self.parseType()
+}
+
 func (self *Parser) parseFuncType() *ast.FuncType {
 	begin := self.expectNextIs(token.FUNC).Position
 	self.expectNextIs(token.LPA)
@@ -102,4 +109,16 @@ func (self *Parser) parseRefType() ast.Type {
 
 func (self *Parser) parseSelfType()*ast.SelfType{
 	return &ast.SelfType{Token: self.expectNextIs(token.SELF)}
+}
+
+func (self *Parser) parseStructType()*ast.StructType{
+	begin := self.expectNextIs(token.STRUCT).Position
+	self.expectNextIs(token.LBR)
+	fields := self.parseFieldList(token.RBR)
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.StructType{
+		Begin:  begin,
+		Fields: fields,
+		End:    end,
+	}
 }

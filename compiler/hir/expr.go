@@ -900,23 +900,23 @@ func (self *GetValue) GetValue() Expr {
 
 type MethodExpr interface {
 	Expr
-	GetScope()*StructDef
+	GetScope()*TypeDef
 	GetDefine()GlobalMethod
 	GetSelf()(Expr, bool)
 }
 
 // Method 方法
 type Method struct {
-	Self   either.Either[Expr, *StructType]
+	Self   either.Either[Expr, *CustomType]
 	Define *MethodDef
 }
 
 func (self *Method) stmt() {}
 
-func (self *Method) GetScope()*StructDef{
+func (self *Method) GetScope()*TypeDef {
 	if self.Self.IsLeft(){
 		value, _ := self.Self.Left()
-		return AsType[*StructType](value.GetType())
+		return AsCustomType(value.GetType())
 	}else{
 		st, _ := self.Self.Right()
 		return st

@@ -9,7 +9,6 @@ import (
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
@@ -64,12 +63,12 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenInteger(ir *hir.Integer) mir.Int {
-	return mir.NewInt(self.codegenTypeOnly(ir.Type).(mir.IntType), ir.Value.Int64())
+	return mir.NewInt(self.codegenType(ir.Type).(mir.IntType), ir.Value.Int64())
 }
 
 func (self *CodeGenerator) codegenFloat(ir *hir.Float) *mir.Float {
 	v, _ := ir.Value.Float64()
-	return mir.NewFloat(self.codegenTypeOnly(ir.Type).(mir.FloatType), v)
+	return mir.NewFloat(self.codegenType(ir.Type).(mir.FloatType), v)
 }
 
 func (self *CodeGenerator) codegenBool(ir *hir.Boolean) *mir.Uint {
@@ -224,28 +223,26 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 	switch ir.(type) {
 	case *hir.Num2Num:
 		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenTypeOnly(ir.GetType())
+		to := self.codegenType(ir.GetType())
 		return self.builder.BuildNumberCovert(from, to.(mir.NumberType))
 	case *hir.Pointer2Pointer:
 		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenTypeOnly(ir.GetType())
+		to := self.codegenType(ir.GetType())
 		return self.builder.BuildPtrToPtr(from, to.(mir.PtrType))
 	case *hir.Pointer2Usize:
 		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenTypeOnly(ir.GetType())
+		to := self.codegenType(ir.GetType())
 		return self.builder.BuildPtrToUint(from, to.(mir.UintType))
 	case *hir.Usize2Pointer:
 		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenTypeOnly(ir.GetType())
+		to := self.codegenType(ir.GetType())
 		return self.builder.BuildUintToPtr(from, to.(mir.GenericPtrType))
 	case *hir.ShrinkUnion:
-		_, srcRt := self.codegenType(ir.GetFrom().GetType())
-		dst, dstRt := self.codegenType(ir.GetType())
 		from := self.codegenExpr(ir.GetFrom(), false)
 		srcData := self.buildStructIndex(from, 0, false)
 		srcIndex := self.buildStructIndex(from, 1, false)
-		newIndex := self.buildCovertUnionIndex(srcRt.(*types.UnionType), dstRt.(*types.UnionType), srcIndex)
-		ptr := self.builder.BuildAllocFromStack(dst)
+		newIndex := self.buildCovertUnionIndex(hir.AsType[*hir.UnionType](ir.GetFrom().GetType()), hir.AsType[*hir.UnionType](ir.GetType()), srcIndex)
+		ptr := self.builder.BuildAllocFromStack(self.codegenType(ir.GetType()))
 		newDataPtr := self.builder.BuildPtrToPtr(self.buildStructIndex(ptr, 0, true), self.ctx.NewPtrType(srcData.Type()))
 		self.builder.BuildStore(srcData, newDataPtr)
 		newIndexPtr := self.buildStructIndex(ptr, 1, true)
@@ -255,13 +252,11 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 		}
 		return self.builder.BuildLoad(ptr)
 	case *hir.ExpandUnion:
-		_, srcRt := self.codegenType(ir.GetFrom().GetType())
-		dst, dstRt := self.codegenType(ir.GetType())
 		from := self.codegenExpr(ir.GetFrom(), false)
 		srcData := self.buildStructIndex(from, 0, false)
 		srcIndex := self.buildStructIndex(from, 1, false)
-		newIndex := self.buildCovertUnionIndex(srcRt.(*types.UnionType), dstRt.(*types.UnionType), srcIndex)
-		ptr := self.builder.BuildAllocFromStack(dst)
+		newIndex := self.buildCovertUnionIndex(hir.AsType[*hir.UnionType](ir.GetFrom().GetType()), hir.AsType[*hir.UnionType](ir.GetType()), srcIndex)
+		ptr := self.builder.BuildAllocFromStack(self.codegenType(ir.GetType()))
 		newDataPtr := self.builder.BuildPtrToPtr(self.buildStructIndex(ptr, 0, true), self.ctx.NewPtrType(srcData.Type()))
 		self.builder.BuildStore(srcData, newDataPtr)
 		newIndexPtr := self.buildStructIndex(ptr, 1, true)
@@ -279,11 +274,11 @@ func (self *CodeGenerator) codegenArray(ir *hir.Array) mir.Value {
 	elems := lo.Map(ir.Elems, func(item hir.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.BuildPackArray(self.codegenTypeOnly(ir.GetType()).(mir.ArrayType), elems...)
+	return self.builder.BuildPackArray(self.codegenType(ir.GetType()).(mir.ArrayType), elems...)
 }
 
 func (self *CodeGenerator) codegenIndex(ir *hir.Index, load bool) mir.Value {
-	at := self.codegenTypeOnly(ir.From.GetType()).(mir.ArrayType)
+	at := self.codegenType(ir.From.GetType()).(mir.ArrayType)
 	index := self.codegenExpr(ir.Index, true)
 	self.buildCheckIndex(index, uint64(at.Length()))
 	from := self.codegenExpr(ir.From, false)
@@ -298,7 +293,7 @@ func (self *CodeGenerator) codegenTuple(ir *hir.Tuple) mir.Value {
 	elems := lo.Map(ir.Elems, func(item hir.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.BuildPackStruct(self.codegenTypeOnly(ir.GetType()).(mir.StructType), elems...)
+	return self.builder.BuildPackStruct(self.codegenType(ir.GetType()).(mir.StructType), elems...)
 }
 
 func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value {
@@ -310,30 +305,28 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 	return ptr
 }
 
-func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
-	t, rtt := self.codegenType(tir)
-
-	switch rtt.(type) {
-	case *types.EmptyType, *types.RefType:
+func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
+	switch tir := hir.ToRuntimeType(ir).(type) {
+	case *hir.EmptyType, *hir.RefType:
 		panic("unreachable")
-	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType:
-		return mir.NewZero(t)
-	case *types.StringType:
+	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType:
+		return mir.NewZero(self.codegenType(ir))
+	case *hir.StringType:
 		return self.constString("")
-	case *types.ArrayType:
+	case *hir.ArrayType:
 		// TODO: 填充所有字段为默认值
-		return mir.NewZero(t)
-	case *types.TupleType:
+		return mir.NewZero(self.codegenType(tir))
+	case *hir.TupleType:
 		elems := stlslices.Map(hir.AsType[*hir.TupleType](tir).Elems, func(_ int, e hir.Type) mir.Value {
 			return self.codegenDefault(e)
 		})
-		return self.builder.BuildPackStruct(t.(mir.StructType), elems...)
-	case *types.StructType:
+		return self.builder.BuildPackStruct(self.codegenTupleType(tir), elems...)
+	case *hir.CustomType:
 		// TODO: 填充所有字段为默认值
-		return mir.NewZero(t)
-	case *types.FuncType:
-		ft, rft := t.(mir.FuncType), rtt.(*types.FuncType)
-		key := fmt.Sprintf("default:%s", rft.String())
+		return mir.NewZero(self.codegenType(tir))
+	case *hir.FuncType:
+		ft := self.codegenFuncType(tir)
+		key := fmt.Sprintf("default:%s", tir.String())
 		var fn *mir.Function
 		if !self.funcCache.ContainKey(key){
 			curBlock := self.builder.Current()
@@ -350,8 +343,8 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 			fn = self.funcCache.Get(key)
 		}
 		return fn
-	case *types.UnionType:
-		ut := t.(mir.StructType)
+	case *hir.UnionType:
+		ut := self.codegenUnionType(tir)
 		val := self.codegenDefault(hir.AsType[*hir.UnionType](tir).Elems[0])
 		index := mir.NewInt(ut.Elems()[1].(mir.IntType), 0)
 		return self.builder.BuildPackStruct(ut, val, index)
@@ -364,7 +357,7 @@ func (self *CodeGenerator) codegenStruct(ir *hir.Struct) mir.Value {
 	fields := lo.Map(ir.Fields, func(item hir.Expr, _ int) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.BuildPackStruct(self.codegenTypeOnly(ir.Type).(mir.StructType), fields...)
+	return self.builder.BuildPackStruct(self.codegenType(ir.Type).(mir.StructType), fields...)
 }
 
 func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) mir.Value {
@@ -381,9 +374,7 @@ func (self *CodeGenerator) codegenString(ir *hir.String) mir.Value {
 }
 
 func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
-	utObj, utRtObj := self.codegenType(ir.Type)
-	ut, utRt := utObj.(mir.StructType), utRtObj.(*types.UnionType)
-	_, vtRtObj := self.codegenType(ir.Value.GetType())
+	ut := self.codegenType(ir.Type).(mir.StructType)
 
 	value := self.codegenExpr(ir.Value, true)
 	ptr := self.builder.BuildAllocFromStack(ut)
@@ -391,7 +382,7 @@ func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
 	dataPtr = self.builder.BuildPtrToPtr(dataPtr, self.ctx.NewPtrType(value.Type()))
 	self.builder.BuildStore(value, dataPtr)
 
-	index := utRt.IndexElem(vtRtObj)
+	index := hir.AsType[*hir.UnionType](ir.Type).IndexElem(ir.Value.GetType())
 	self.builder.BuildStore(
 		mir.NewInt(ut.Elems()[1].(mir.UintType), int64(index)),
 		self.buildStructIndex(ptr, 1, true),
@@ -404,29 +395,28 @@ func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenTypeJudgment(ir *hir.TypeJudgment) mir.Value {
-	_, dstTRtObj := self.codegenType(ir.Type)
-	srcTObj, srcTRtObj := self.codegenType(ir.Value.GetType())
+	srcTObj := self.codegenType(ir.Value.GetType())
 	switch {
-	case stlbasic.Is[*types.UnionType](srcTRtObj) && srcTRtObj.(*types.UnionType).Contain(dstTRtObj):
-		srcT, srcRt := srcTObj.(mir.StructType), srcTRtObj.(*types.UnionType)
+	case hir.IsType[*hir.UnionType](ir.Value.GetType()) && hir.AsType[*hir.UnionType](ir.Value.GetType()).Contain(ir.Type):
+		srcT := srcTObj.(mir.StructType)
 
 		from := self.codegenExpr(ir.Value, false)
 		srcIndex := self.buildStructIndex(from, 1, false)
 
-		if dstRt, ok := dstTRtObj.(*types.UnionType); ok {
-			return self.buildCheckUnionType(srcRt, dstRt, srcIndex)
+		if dstUt, ok := hir.TryType[*hir.UnionType](ir.Type); ok {
+			return self.buildCheckUnionType(hir.AsType[*hir.UnionType](ir.Value.GetType()), dstUt, srcIndex)
 		} else {
-			targetIndex := srcRt.IndexElem(dstTRtObj)
+			targetIndex := hir.AsType[*hir.UnionType](ir.Value.GetType()).IndexElem(ir.Type)
 			return self.builder.BuildCmp(mir.CmpKindEQ, srcIndex, mir.NewInt(srcT.Elems()[1].(mir.IntType), int64(targetIndex)))
 		}
 	default:
-		return mir.Bool(self.ctx, srcTRtObj.Equal(dstTRtObj))
+		return mir.Bool(self.ctx, ir.Value.GetType().EqualTo(ir.Type))
 	}
 }
 
 func (self *CodeGenerator) codegenUnUnion(ir *hir.UnUnion) mir.Value {
 	value := self.codegenExpr(ir.Value, false)
 	elemPtr := self.buildStructIndex(value, 0, true)
-	elemPtr = self.builder.BuildPtrToPtr(elemPtr, self.ctx.NewPtrType(self.codegenTypeOnly(ir.GetType())))
+	elemPtr = self.builder.BuildPtrToPtr(elemPtr, self.ctx.NewPtrType(self.codegenType(ir.GetType())))
 	return self.builder.BuildLoad(elemPtr)
 }

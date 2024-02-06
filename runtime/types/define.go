@@ -383,34 +383,73 @@ func NewMethod(t *FuncType, name string)Method{
 	}
 }
 
+// StructType 结构体类型
 type StructType struct {
-	Pkg    string
-	Name   string
+	Pkg string
 	Fields []Field
-	Methods []Method
 }
 
-func NewStructType(pkg, name string, fields []Field, methods []Method)*StructType{
+func NewStructType(pkg string, fields ...Field)*StructType {
 	return &StructType{
 		Pkg: pkg,
-		Name: name,
 		Fields: fields,
-		Methods: methods,
 	}
 }
 
 func (self *StructType) String() string {
-	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+	return fmt.Sprintf("{%s}", stlslices.Map(self.Fields, func(_ int, e Field) string {
+		return fmt.Sprintf("%s: %s", e.Name, e.Type)
+	}))
 }
 
 func (self *StructType) Hash() uint64 {
-	return stlbasic.Hash(self.String())
+	return stlbasic.Hash(stlslices.Map(self.Fields, func(_ int, e Field) string {
+		return fmt.Sprintf("%s: %s", e.Name, e.Type)
+	}))
 }
 
 func (self *StructType) Equal(dst Type) bool {
 	dt, ok := dst.(*StructType)
-	if !ok || self.Pkg != dt.Pkg || self.Name != dt.Name {
+	if !ok || self.Pkg != dt.Pkg || len(self.Fields) != len(dt.Fields) {
 		return false
 	}
+	for i, f := range self.Fields{
+		if f.Name != dt.Fields[i].Name || !f.Type.Equal(dt.Fields[i].Type){
+			return false
+		}
+	}
 	return true
+}
+
+// CustomType 自定义类型
+type CustomType struct {
+	Pkg    string
+	Name   string
+	Target Type
+	Methods []Method
+}
+
+func NewCustomType(pkg, name string, target Type, methods []Method)*CustomType {
+	return &CustomType{
+		Pkg: pkg,
+		Name: name,
+		Target: target,
+		Methods: methods,
+	}
+}
+
+func (self *CustomType) String() string {
+	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+}
+
+func (self *CustomType) Hash() uint64 {
+	return stlbasic.Hash(self.String())
+}
+
+func (self *CustomType) Equal(dst Type) bool {
+	dt, ok := dst.(*CustomType)
+	if !ok {
+		return false
+	}
+	return self.Pkg == dt.Pkg && self.Name == dt.Name
 }

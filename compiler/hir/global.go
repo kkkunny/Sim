@@ -2,7 +2,6 @@ package hir
 
 import (
 	"github.com/kkkunny/stl/container/hashmap"
-	"github.com/kkkunny/stl/container/linkedhashmap"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/util"
@@ -12,42 +11,6 @@ import (
 type Global interface {
 	GetPackage() Package
 	GetPublic() bool
-}
-
-// TypeDef 类型定义
-type TypeDef interface {
-	Global
-	Type
-	GetName() string
-}
-
-type Field struct {
-	Public  bool
-	Mutable bool
-	Type    Type
-}
-
-// StructDef 结构体定义
-type StructDef struct {
-	Pkg     Package
-	Public  bool
-	Name    string
-	Fields  linkedhashmap.LinkedHashMap[string, Field]
-	Methods hashmap.HashMap[string, GlobalMethod]
-
-	genericArgs []Type // 泛型结构体实例化时使用，为泛型结构体方法实例化提供泛型参数
-}
-
-func (self *StructDef) GetPackage() Package {
-	return self.Pkg
-}
-
-func (self *StructDef) GetPublic() bool {
-	return self.Public
-}
-
-func (self *StructDef) GetName() string {
-	return self.Name
 }
 
 // GlobalVarDef 全局变量定义
@@ -143,18 +106,18 @@ func (*FuncDef) globalFunc() {}
 
 type GlobalMethod interface {
 	GlobalFuncOrMethod
-	GetSelfType() TypeDef
+	GetSelfType() GlobalType
 	GetMethodType() *FuncType
 	IsStatic() bool
 }
 
 // MethodDef 方法定义
 type MethodDef struct {
-	Scope *StructDef
+	Scope *TypeDef
 	FuncDef
 }
 
-func (self *MethodDef) GetSelfType() TypeDef {
+func (self *MethodDef) GetSelfType() GlobalType {
 	return self.Scope
 }
 
@@ -172,6 +135,34 @@ func (self *MethodDef) IsStatic() bool {
 	}
 	selfRef := NewRefType(false, self.GetSelfType())
 	return !selfRef.EqualTo(self.Params[0].GetType())
+}
+
+// GlobalType 类型定义
+type GlobalType interface {
+	Global
+	Type
+	GetName() string
+}
+
+// TypeDef 类型定义
+type TypeDef struct {
+	Pkg     Package
+	Public  bool
+	Name    string
+	Target Type
+	Methods hashmap.HashMap[string, GlobalMethod]
+}
+
+func (self *TypeDef) GetPackage() Package {
+	return self.Pkg
+}
+
+func (self *TypeDef) GetPublic() bool {
+	return self.Public
+}
+
+func (self *TypeDef) GetName() string {
+	return self.Name
 }
 
 // TypeAliasDef 类型别名定义

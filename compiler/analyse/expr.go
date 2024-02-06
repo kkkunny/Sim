@@ -2,6 +2,7 @@ package analyse
 
 import (
 	"math/big"
+	"slices"
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
@@ -541,10 +542,10 @@ func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *hir.Ex
 
 func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 	stObj := self.analyseType(node.Type)
-	if !hir.IsType[*hir.StructType](stObj){
+	st, ok := hir.TryType[*hir.StructType](stObj)
+	if !ok{
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
-	st := hir.AsType[*hir.StructType](stObj)
 
 	existedFields := make(map[string]hir.Expr)
 	for _, nf := range node.Fields {
@@ -574,44 +575,43 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 
 func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 	fieldName := node.Index.Source()
+	fromObj := self.analyseExpr(nil, node.From)
+	ft := fromObj.GetType()
 
-	var from hir.Expr
-	if fromObj := self.analyseExpr(nil, node.From); hir.IsType[*hir.StructType](fromObj.GetType()){
-		from = fromObj
-	}else if ft := fromObj.GetType(); hir.IsType[*hir.RefType](ft) && hir.IsType[*hir.StructType](hir.AsType[*hir.RefType](ft).Elem){
-		from = &hir.GetValue{Value: fromObj}
-	}else{
-		errors.ThrowExpectStructError(node.From.Position(), ft)
+	// 方法
+	var customFrom hir.Expr
+	if hir.IsCustomType(fromObj.GetType()){
+		customFrom = fromObj
+	}else if hir.IsType[*hir.RefType](ft) && hir.IsCustomType(hir.AsType[*hir.RefType](ft).Elem){
+		customFrom = &hir.GetValue{Value: fromObj}
 	}
-	st := hir.AsType[*hir.StructType](from.GetType())
-
-	// 方法 or 泛型方法
-	if methodObj := st.Methods.Get(fieldName); methodObj != nil && !methodObj.IsStatic() && (methodObj.GetPublic() || st.Pkg == self.pkgScope.pkg){
-		switch method := methodObj.(type) {
-		case *hir.MethodDef:
-			return &hir.Method{
-				Self:   either.Left[hir.Expr, *hir.StructType](from),
-				Define: method,
+	if customFrom != nil{
+		customType := hir.AsCustomType(customFrom.GetType())
+		if methodObj := customType.Methods.Get(fieldName); methodObj != nil && !methodObj.IsStatic() && (methodObj.GetPublic() || customType.Pkg == self.pkgScope.pkg){
+			switch method := methodObj.(type) {
+			case *hir.MethodDef:
+				return &hir.Method{
+					Self:   either.Left[hir.Expr, *hir.CustomType](customFrom),
+					Define: method,
+				}
+			default:
+				panic("unreachable")
 			}
-		default:
-			panic("unreachable")
 		}
 	}
 
 	// 字段
-	for i, iter := 0, st.Fields.Iterator(); iter.Next(); i++ {
-		field := iter.Value()
-		if field.First == fieldName && (field.Second.Public || self.pkgScope.pkg.Equal(st.Pkg)) {
-			return &hir.GetField{
-				Internal: self.pkgScope.pkg.Equal(st.Pkg),
-				From:  from,
-				Index: uint(i),
-			}
-		}
+	st, ok := hir.TryType[*hir.StructType](ft)
+	if !ok{
+		errors.ThrowExpectStructError(node.From.Position(), ft)
+	} else if field := st.Fields.Get(fieldName); !st.Fields.ContainKey(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Pkg)){
+		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
-
-	errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-	return nil
+	return &hir.GetField{
+		Internal: self.pkgScope.pkg.Equal(st.Pkg),
+		From:     fromObj,
+		Index: uint(slices.Index(st.Fields.Keys().ToSlice(), fieldName)),
+	}
 }
 
 func (self *Analyser) analyseString(node *ast.String) *hir.String {
@@ -637,13 +637,13 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 }
 
 func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{
-	stObj := self.analyseType(node.Type)
-	if !hir.IsType[*hir.StructType](stObj){
-		errors.ThrowExpectStructError(node.Type.Position(), stObj)
+	tdObj := self.analyseType(node.Type)
+	td, ok := hir.TryCustomType(tdObj)
+	if !ok{
+		errors.ThrowExpectStructError(node.Type.Position(), tdObj)
 	}
-	st := hir.AsType[*hir.StructType](stObj)
 
-	f := st.Methods.Get(node.Name.Source())
+	f := td.Methods.Get(node.Name.Source())
 	if f == nil || (!f.GetPublic() && !self.pkgScope.pkg.Equal(f.GetPackage())){
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
@@ -651,7 +651,7 @@ func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{
 	switch method := f.(type) {
 	case *hir.MethodDef:
 		return &hir.Method{
-			Self:   either.Right[hir.Expr, *hir.StructType](st),
+			Self:   either.Right[hir.Expr, *hir.CustomType](td),
 			Define: method,
 		}
 	default:

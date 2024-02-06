@@ -53,8 +53,8 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.
 	return hirs
 }
 
-func (self *Analyser) declStructDef(node *ast.StructDef) {
-	st := &hir.StructDef{
+func (self *Analyser) declTypeDef(node *ast.TypeDef) {
+	st := &hir.TypeDef{
 		Pkg:    self.pkgScope.pkg,
 		Public: node.Public,
 		Name:   node.Name.Source(),
@@ -76,34 +76,25 @@ func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
 	}
 }
 
-func (self *Analyser) defStructDef(node *ast.StructDef) *hir.StructDef {
-	td, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
+func (self *Analyser) defTypeDef(node *ast.TypeDef) *hir.TypeDef {
+	gt, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	st := td.(*hir.StructDef)
+	td := gt.(*hir.TypeDef)
 
-	for _, fn := range node.Fields {
-		if st.Fields.ContainKey(fn.Name.Source()){
-			errors.ThrowIdentifierDuplicationError(fn.Name.Position, fn.Name)
-		}
-		st.Fields.Set(fn.Name.Source(), hir.Field{
-			Public:  fn.Public,
-			Mutable: fn.Mutable,
-			Type:    self.analyseType(fn.Type),
-		})
-	}
-	return st
+	td.Target = self.analyseType(node.Target)
+	return td
 }
 
 func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
-	td, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
+	gt, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	tad := td.(*hir.TypeAliasDef)
+	tad := gt.(*hir.TypeAliasDef)
 
-	tad.Target = self.analyseType(node.Type)
+	tad.Target = self.analyseType(node.Target)
 	return tad
 }
 
@@ -119,7 +110,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
 		self.declMultiGlobalVariable(global)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
+	case *ast.TypeDef, *ast.Import, *ast.TypeAlias:
 	default:
 		panic("unreachable")
 	}
@@ -200,10 +191,10 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 	}
 
 	td, ok := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
-	if !ok || !stlbasic.Is[*hir.StructDef](td) {
+	if !ok || !stlbasic.Is[*hir.TypeDef](td) {
 		errors.ThrowUnknownIdentifierError(node.SelfType.MustValue().Position, node.SelfType.MustValue())
 	}
-	f.Scope = td.(*hir.StructDef)
+	f.Scope = td.(*hir.TypeDef)
 
 	defer self.setSelfType(f.Scope)()
 
@@ -223,7 +214,7 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 		}
 	})
 	f.Ret = self.analyseOptionType(node.Ret)
-	if f.Scope.Fields.ContainKey(f.Name) || f.Scope.Methods.ContainKey(f.Name) {
+	if f.Scope.Methods.ContainKey(f.Name) || (hir.IsType[*hir.StructType](f.Scope.Target) && hir.AsType[*hir.StructType](f.Scope.Target).Fields.ContainKey(f.Name)) {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
 	f.Scope.Methods.Set(f.Name, f)
@@ -274,7 +265,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
 		return self.defMultiGlobalVariable(global)
-	case *ast.StructDef, *ast.Import, *ast.TypeAlias:
+	case *ast.TypeDef, *ast.Import, *ast.TypeAlias:
 		return nil
 	default:
 		panic("unreachable")
@@ -309,7 +300,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 
 func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
 	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
-	st := td.(*hir.StructDef)
+	st := td.(*hir.TypeDef)
 	f := st.Methods.Get(node.Name.Source()).(*hir.MethodDef)
 
 	self.localScope = _NewFuncScope(self.pkgScope, f)
