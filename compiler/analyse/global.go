@@ -110,9 +110,11 @@ func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch global := node.(type) {
 	case *ast.FuncDef:
-		self.declFuncDef(global)
-	case *ast.MethodDef:
-		self.declMethodDef(global)
+		if global.SelfType.IsNone(){
+			self.declFuncDef(global)
+		}else{
+			self.declMethodDef(global)
+		}
 	case *ast.SingleVariableDef:
 		self.declSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
@@ -176,7 +178,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	}
 }
 
-func (self *Analyser) declMethodDef(node *ast.MethodDef) {
+func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 	f := &hir.MethodDef{
 		FuncDef: hir.FuncDef{
 			Pkg:    self.pkgScope.pkg,
@@ -197,9 +199,9 @@ func (self *Analyser) declMethodDef(node *ast.MethodDef) {
 		}
 	}
 
-	td, ok := self.pkgScope.getLocalTypeDef(node.SelfType.Source())
+	td, ok := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
 	if !ok || !stlbasic.Is[*hir.StructDef](td) {
-		errors.ThrowUnknownIdentifierError(node.SelfType.Position, node.SelfType)
+		errors.ThrowUnknownIdentifierError(node.SelfType.MustValue().Position, node.SelfType.MustValue())
 	}
 	f.Scope = td.(*hir.StructDef)
 
@@ -263,9 +265,11 @@ func (self *Analyser) declMultiGlobalVariable(node *ast.MultipleVariableDef) {
 func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 	switch global := node.(type) {
 	case *ast.FuncDef:
-		return self.defFuncDef(global)
-	case *ast.MethodDef:
-		return self.defMethodDef(global)
+		if global.SelfType.IsNone(){
+			return self.defFuncDef(global)
+		}else{
+			return self.defMethodDef(global)
+		}
 	case *ast.SingleVariableDef:
 		return self.defSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
@@ -303,8 +307,8 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 	return f
 }
 
-func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
-	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.Source())
+func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
+	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
 	st := td.(*hir.StructDef)
 	f := st.Methods.Get(node.Name.Source()).(*hir.MethodDef)
 
@@ -320,7 +324,7 @@ func (self *Analyser) defMethodDef(node *ast.MethodDef) *hir.MethodDef {
 		}
 	}
 
-	f.Body = util.Some(self.analyseFuncBody(node.Body))
+	f.Body = util.Some(self.analyseFuncBody(node.Body.MustValue()))
 	return f
 }
 

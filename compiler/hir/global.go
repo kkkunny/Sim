@@ -97,11 +97,6 @@ type GlobalFuncOrMethod interface {
 	GetFuncType() *FuncType
 }
 
-type GlobalFunc interface {
-	GlobalFuncOrMethod
-	globalFunc()
-}
-
 // FuncDef 函数定义
 type FuncDef struct {
 	Pkg        Package

@@ -133,6 +133,7 @@ type FuncDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
+	SelfType util.Option[token.Token]
 	Name     token.Token
 	Params   []Param
 	ParamEnd reader.Position
@@ -151,21 +152,3 @@ func (self *FuncDef) Position() reader.Position {
 }
 
 func (*FuncDef) global() {}
-
-// MethodDef 方法定义
-type MethodDef struct {
-	Attrs    []Attr
-	Begin    reader.Position
-	Public   bool
-	SelfType token.Token
-	Name     token.Token
-	Params   []Param
-	Ret      util.Option[Type]
-	Body     *Block
-}
-
-func (self *MethodDef) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Body.Position())
-}
-
-func (*MethodDef) global() {}
