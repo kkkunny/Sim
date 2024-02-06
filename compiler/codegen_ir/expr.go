@@ -316,7 +316,7 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 	switch rtt.(type) {
 	case *types.EmptyType, *types.RefType:
 		panic("unreachable")
-	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.UnionType:
+	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType:
 		return mir.NewZero(t)
 	case *types.StringType:
 		return self.constString("")
@@ -332,8 +332,8 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 		// TODO: 填充所有字段为默认值
 		return mir.NewZero(t)
 	case *types.FuncType:
-		ft, _ := t.(mir.FuncType), rtt.(*types.FuncType)
-		key := fmt.Sprintf("default:%s", rtt.String())
+		ft, rft := t.(mir.FuncType), rtt.(*types.FuncType)
+		key := fmt.Sprintf("default:%s", rft.String())
 		var fn *mir.Function
 		if !self.funcCache.ContainKey(key){
 			curBlock := self.builder.Current()
@@ -350,6 +350,11 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 			fn = self.funcCache.Get(key)
 		}
 		return fn
+	case *types.UnionType:
+		ut := t.(mir.StructType)
+		val := self.codegenDefault(hir.AsType[*hir.UnionType](tir).Elems[0])
+		index := mir.NewInt(ut.Elems()[1].(mir.IntType), 0)
+		return self.builder.BuildPackStruct(ut, val, index)
 	default:
 		panic("unreachable")
 	}

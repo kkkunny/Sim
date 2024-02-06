@@ -1,6 +1,6 @@
 import std::os
 
 func main(){
-    let v: func()u8
-    os::exit(v())
+    let v: <func()u8>
+    os::exit((v as func()u8)())
 }

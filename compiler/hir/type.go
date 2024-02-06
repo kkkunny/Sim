@@ -470,9 +470,6 @@ func (self *UnionType) EqualTo(dst Type) bool {
 }
 
 func (self *UnionType) HasDefault()bool{
-	if len(self.Elems) == 0{
-		return true
-	}
 	return self.Elems[0].HasDefault()
 }
 
