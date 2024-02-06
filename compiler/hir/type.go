@@ -2,6 +2,7 @@ package hir
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
@@ -46,19 +47,33 @@ type Type interface {
 
 // ToRuntimeType 转换成运行时类型
 func ToRuntimeType(t Type)runtimeType.Type{
-	return FlattenType(t).ToRuntimeType()
+	return ToActualType(t).ToRuntimeType()
 }
 
-// ActualType 实际的类型
+// ActualType 真实类型
 // 该类型和运行时类型是1对1关系
 type ActualType interface {
 	Type
 	ToRuntimeType()runtimeType.Type
 }
 
+// ToActualType 转换成真实类型
+func ToActualType(t Type)ActualType{
+	switch tt := t.(type) {
+	case ActualType:
+		return tt
+	case *SelfType:
+		return ToActualType(tt.Self.MustValue())
+	case *AliasType:
+		return ToActualType(tt.Target)
+	default:
+		panic("unreachable")
+	}
+}
+
 // TryType 尝试断言为指定类型
 func TryType[T ActualType](t Type)(T, bool){
-	at, ok := FlattenType(t).(T)
+	at, ok := ToActualType(t).(T)
 	return at, ok
 }
 
@@ -80,19 +95,6 @@ func AsType[T ActualType](t Type)T{
 func IsNumberType(t Type)bool{return IsIntType(t) || IsType[*FloatType](t)}
 func IsIntType(t Type)bool{return IsType[*SintType](t) || IsType[*UintType](t)}
 func IsPointer(t Type)bool{return IsType[*RefType](t) || IsType[*FuncType](t)}
-
-func FlattenType(t Type)ActualType{
-	switch tt := t.(type) {
-	case ActualType:
-		return tt
-	case *SelfType:
-		return FlattenType(tt.Self.MustValue())
-	case *AliasType:
-		return FlattenType(tt.Target)
-	default:
-		panic("unreachable")
-	}
-}
 
 // EmptyType 空类型
 type EmptyType struct{}
@@ -211,6 +213,13 @@ type FuncType struct {
 	Params []Type
 }
 
+func NewFuncType(ret Type, params ...Type)*FuncType{
+	return &FuncType{
+		Ret: ret,
+		Params: params,
+	}
+}
+
 func (self *FuncType) String() string {
 	params := stlslices.Map(self.Params, func(_ int, e Type) string { return e.String() })
 	ret := stlbasic.Ternary(self.Ret.EqualTo(Empty), "", self.Ret.String())
@@ -260,6 +269,13 @@ type ArrayType struct {
 	Elem Type
 }
 
+func NewArrayType(size uint64, elem Type)*ArrayType{
+	return &ArrayType{
+		Size: size,
+		Elem: elem,
+	}
+}
+
 func (self *ArrayType) String() string {
 	return fmt.Sprintf("[%d]%s", self.Size, self.Elem)
 }
@@ -279,6 +295,12 @@ func (self *ArrayType) ToRuntimeType()runtimeType.Type{
 // TupleType 元组型
 type TupleType struct {
 	Elems []Type
+}
+
+func NewTupleType(elem ...Type)*TupleType{
+	return &TupleType{
+		Elems: elem,
+	}
 }
 
 func (self *TupleType) String() string {
@@ -352,6 +374,32 @@ type UnionType struct {
 	Elems []Type
 }
 
+func NewUnionType(elems ...Type)*UnionType{
+	elems = stlslices.FlatMap(elems, func(_ int, e Type) []Type {
+		if at, ok := TryType[*UnionType](e); ok{
+			return at.Elems
+		}else{
+			return []Type{e}
+		}
+	})
+	sort.Slice(elems, func(i, j int) bool {
+		return elems[i].String() < elems[j].String()
+	})
+
+	flatElems := make([]Type, 0, len(elems))
+loop:
+	for _, e := range elems{
+		for _, fe := range flatElems{
+			if e.EqualTo(fe){
+				continue loop
+			}
+		}
+		flatElems = append(flatElems, e)
+	}
+
+	return &UnionType{Elems: flatElems}
+}
+
 func (self *UnionType) String() string {
 	elems := stlslices.Map(self.Elems, func(_ int, e Type) string {return e.String()})
 	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
@@ -381,20 +429,12 @@ func (self *UnionType) ToRuntimeType()runtimeType.Type{
 
 // Contain 是否包含类型
 func (self *UnionType) Contain(dst Type) bool {
-	if IsType[*UnionType](dst){
-		return stlslices.All(AsType[*UnionType](dst).Elems, func(_ int, de Type) bool {
-			return self.Contain(de)
-		})
+	if ut, ok := TryType[*UnionType](dst); ok{
+		return stlslices.All(ut.Elems, func(_ int, e Type) bool {return self.Contain(e)})
 	}else{
 		for _, e := range self.Elems {
-			if IsType[*UnionType](e){
-				if AsType[*UnionType](e).Contain(dst){
-					return true
-				}
-			}else{
-				if e.EqualTo(dst){
-					return true
-				}
+			if e.EqualTo(dst){
+				return true
 			}
 		}
 		return false
@@ -405,6 +445,13 @@ func (self *UnionType) Contain(dst Type) bool {
 type RefType struct {
 	Mut bool
 	Elem Type
+}
+
+func NewRefType(mut bool, elem Type)*RefType{
+	return &RefType{
+		Mut: mut,
+		Elem: elem,
+	}
 }
 
 func (self *RefType) String() string {
@@ -428,12 +475,18 @@ type SelfType struct{
 	Self util.Option[TypeDef]
 }
 
+func NewSelfType(self TypeDef)*SelfType{
+	return &SelfType{
+		Self: util.Some(self),
+	}
+}
+
 func (self *SelfType) String() string {
 	return self.Self.MustValue().String()
 }
 
 func (self *SelfType) EqualTo(dst Type) bool {
-	return FlattenType(self).EqualTo(dst)
+	return ToActualType(self).EqualTo(dst)
 }
 
 // AliasType 别名类型
@@ -444,5 +497,5 @@ func (self *AliasType) String() string {
 }
 
 func (self *AliasType) EqualTo(dst Type) bool {
-	return FlattenType(self).EqualTo(dst)
+	return ToActualType(self).EqualTo(dst)
 }

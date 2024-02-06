@@ -28,7 +28,7 @@ func (self *CodeGenerator) getExternFunction(name string, t mir.FuncType)*mir.Fu
 }
 
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
-	switch irType := hir.FlattenType(t).(type) {
+	switch irType := hir.ToActualType(t).(type) {
 	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType:
 		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
 	case *hir.FuncType, *hir.RefType:

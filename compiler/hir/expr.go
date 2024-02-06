@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	"github.com/kkkunny/stl/container/either"
-	"github.com/samber/lo"
+	stlslices "github.com/kkkunny/stl/slices"
 )
 
 // Expr 表达式
@@ -715,10 +715,10 @@ type Tuple struct {
 func (self *Tuple) stmt() {}
 
 func (self *Tuple) GetType() Type {
-	ets := lo.Map(self.Elems, func(item Expr, index int) Type {
-		return item.GetType()
+	ets := stlslices.Map(self.Elems, func(_ int, e Expr) Type {
+		return e.GetType()
 	})
-	return &TupleType{Elems: ets}
+	return NewTupleType(ets...)
 }
 
 func (self *Tuple) Mutable() bool {
@@ -868,7 +868,7 @@ type GetRef struct {
 func (self *GetRef) stmt() {}
 
 func (self *GetRef) GetType() Type {
-	return &RefType{Elem: self.Value.GetType()}
+	return NewRefType(false, self.Value.GetType())
 }
 
 func (self *GetRef) Mutable() bool {

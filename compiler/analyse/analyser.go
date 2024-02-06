@@ -24,7 +24,6 @@ type Analyser struct {
 	localScope _LocalScope
 
 	selfType  hir.TypeDef
-	inTrait bool
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
 }

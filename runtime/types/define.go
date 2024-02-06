@@ -353,9 +353,7 @@ func (self *UnionType) Elem(i uint)Type{
 
 func (self *UnionType) Contain(t Type)bool{
 	if ut, ok := t.(*UnionType); ok{
-		return stlslices.All[Type](ut.Elems, func(_ int, e Type) bool {
-			return self.Contain(e)
-		})
+		return stlslices.All[Type](ut.Elems, func(_ int, e Type) bool {return self.Contain(e)})
 	}else{
 		return stlslices.Contain(self.Elems, t)
 	}

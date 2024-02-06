@@ -314,7 +314,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 		return &hir.GetRef{Value: value}
 	case token.MUL:
 		if expect != nil {
-			expect = &hir.RefType{Elem: expect}
+			expect = hir.NewRefType(false, expect)
 		}
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
@@ -491,10 +491,7 @@ func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array 
 	}
 	return &hir.Array{
 		Type: stlbasic.TernaryAction(len(elems)!=0, func() hir.Type {
-			return &hir.ArrayType{
-				Size: uint64(len(elems)),
-				Elem: elems[0].GetType(),
-			}
+			return hir.NewArrayType(uint64(len(elems)), elems[0].GetType())
 		}, func() hir.Type {return expectArray}),
 		Elems: elems,
 	}

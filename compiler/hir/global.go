@@ -3,7 +3,7 @@ package hir
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashmap"
-	"github.com/samber/lo"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/util"
 )
@@ -19,13 +19,6 @@ type TypeDef interface {
 	Global
 	Type
 	GetName() string
-}
-
-// GlobalStruct 全局结构体
-type GlobalStruct interface {
-	Global
-	GetName() string
-	globalStruct()
 }
 
 type Field struct {
@@ -56,8 +49,6 @@ func (self *StructDef) GetPublic() bool {
 func (self *StructDef) GetName() string {
 	return self.Name
 }
-
-func (*StructDef) globalStruct() {}
 
 // GlobalVarDef 全局变量定义
 type GlobalVarDef struct {
@@ -137,13 +128,10 @@ func (self *FuncDef) GetPublic() bool {
 func (*FuncDef) stmt() {}
 
 func (self *FuncDef) GetFuncType() *FuncType {
-	params := lo.Map(self.Params, func(item *Param, index int) Type {
-		return item.GetType()
+	params := stlslices.Map(self.Params, func(_ int, e *Param) Type {
+		return e.GetType()
 	})
-	return &FuncType{
-		Ret:    self.Ret,
-		Params: params,
-	}
+	return NewFuncType(self.Ret, params...)
 }
 
 func (self *FuncDef) GetType() Type {
@@ -187,7 +175,7 @@ func (self *MethodDef) IsStatic() bool {
 	if len(self.Params) == 0 {
 		return true
 	}
-	selfRef := &RefType{Elem: self.GetSelfType()}
+	selfRef := NewRefType(false, self.GetSelfType())
 	return !selfRef.EqualTo(self.Params[0].GetType())
 }
 
