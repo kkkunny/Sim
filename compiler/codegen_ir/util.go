@@ -195,6 +195,8 @@ func (self *CodeGenerator) buildUnionEqual(irType *hir.UnionType, l, r mir.Value
 				self.builder.MoveTo(nextBlock)
 			}
 		}
+
+		self.funcCache.Set(key, f)
 		self.builder.MoveTo(curBlock)
 	}else{
 		f = self.funcCache.Get(key)

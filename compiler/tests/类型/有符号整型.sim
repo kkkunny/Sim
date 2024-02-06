@@ -1,8 +1,9 @@
+import std::os
+
 func main(){
-    let v1: i8 = 0
-    let v2: i16 = 0
-    let v3: i32 = 0
-    let v4: i64 = 0
-    let v5: i64 = 0
-    return
+    let v1: i8
+    if v1 == 0{
+        os::exit(0)
+    }
+    os::exit(1)
 }

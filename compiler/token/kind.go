@@ -71,7 +71,6 @@ const (
 	IMPORT
 	IS
 	PUBLIC
-	NULL
 	TYPE
 	SELF
 	OTHER
@@ -137,7 +136,6 @@ var kindNames = [...]string{
 	IMPORT:   "import",
 	IS:       "is",
 	PUBLIC:   "pub",
-	NULL:     "null",
 	TYPE:     "type",
 	SELF:     "Self",
 	OTHER: "other",

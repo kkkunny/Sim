@@ -49,8 +49,6 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseString(exprNode)
 	case *ast.Judgment:
 		return self.analyseJudgment(exprNode)
-	case *ast.Null:
-		return self.analyseNull(expect, exprNode)
 	case *ast.StaticMethod:
 		return self.analyseStaticMethod(exprNode)
 	default:
@@ -636,15 +634,6 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 			Type:  target,
 		}
 	}
-}
-
-func (self *Analyser) analyseNull(expect hir.Type, node *ast.Null) *hir.Default {
-	if expect == nil {
-		errors.ThrowExpectPointerTypeError(node.Position(), hir.Empty)
-	}else if !hir.IsPointer(expect){
-		errors.ThrowExpectPointerTypeError(node.Position(), expect)
-	}
-	return &hir.Default{Type: expect}
 }
 
 func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{

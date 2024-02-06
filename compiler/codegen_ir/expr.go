@@ -1,6 +1,8 @@
 package codegen_ir
 
 import (
+	"fmt"
+
 	stlbasic "github.com/kkkunny/stl/basic"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
@@ -312,7 +314,7 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 	t, rtt := self.codegenType(tir)
 
 	switch rtt.(type) {
-	case *types.EmptyType, *types.FuncType, *types.RefType:
+	case *types.EmptyType, *types.RefType:
 		panic("unreachable")
 	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.UnionType:
 		return mir.NewZero(t)
@@ -329,6 +331,25 @@ func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
 	case *types.StructType:
 		// TODO: 填充所有字段为默认值
 		return mir.NewZero(t)
+	case *types.FuncType:
+		ft, _ := t.(mir.FuncType), rtt.(*types.FuncType)
+		key := fmt.Sprintf("default:%s", rtt.String())
+		var fn *mir.Function
+		if !self.funcCache.ContainKey(key){
+			curBlock := self.builder.Current()
+			fn = self.module.NewFunction("", ft)
+			self.builder.MoveTo(fn.NewBlock())
+			if ft.Ret().Equal(self.ctx.Void()){
+				self.builder.BuildReturn()
+			}else{
+				self.builder.BuildReturn(self.codegenDefault(hir.AsType[*hir.FuncType](tir).Ret))
+			}
+			self.funcCache.Set(key, fn)
+			self.builder.MoveTo(curBlock)
+		}else{
+			fn = self.funcCache.Get(key)
+		}
+		return fn
 	default:
 		panic("unreachable")
 	}

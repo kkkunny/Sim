@@ -81,49 +81,10 @@ func (self *Analyser) setSelfType(td hir.TypeDef)(callback func()){
 
 // 获取类型默认值
 func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default{
-	if !self.isTypeHasDefault(t){
+	if !t.HasDefault(){
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return &hir.Default{Type: t}
-}
-
-// 类型是否有默认值
-func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
-	switch tt := t.(type) {
-	case *hir.EmptyType, *hir.RefType, *hir.FuncType:
-		return false
-	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType:
-		return true
-	case *hir.ArrayType:
-		return self.isTypeHasDefault(tt.Elem)
-	case *hir.TupleType:
-		for _, e := range tt.Elems{
-			if !self.isTypeHasDefault(e){
-				return false
-			}
-		}
-		return true
-	case *hir.StructType:
-		for iter:=tt.Fields.Values().Iterator(); iter.Next(); {
-			if !self.isTypeHasDefault(iter.Value().Type){
-				return false
-			}
-		}
-		return true
-	case *hir.UnionType:
-		for _, e := range tt.Elems {
-			if !self.isTypeHasDefault(e){
-				return false
-			}
-		}
-		return true
-	case *hir.SelfType:
-		return self.isTypeHasDefault(tt.Self.MustValue())
-	case *hir.AliasType:
-		return self.isTypeHasDefault(tt.Target)
-	default:
-		panic("unreachable")
-	}
 }
 
 // 检查类型是否循环

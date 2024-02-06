@@ -1,3 +1,5 @@
+import std::os
+
 struct a{
     pub v: u8
 }
@@ -5,7 +7,9 @@ struct a{
 struct b{}
 
 func main(){
-    let v1: a = a{v: 1}
-    let v2: b = b{}
-    return
+    let v1: a
+    if v1.v == 0{
+        os::exit(0)
+    }
+    os::exit(1)
 }

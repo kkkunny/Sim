@@ -43,6 +43,7 @@ var (
 type Type interface {
 	fmt.Stringer
 	EqualTo(dst Type) bool
+	HasDefault()bool
 }
 
 // ToRuntimeType 转换成运行时类型
@@ -107,6 +108,10 @@ func (self *EmptyType) EqualTo(dst Type) bool {
 	return IsType[*EmptyType](dst)
 }
 
+func (self *EmptyType) HasDefault()bool{
+	return false
+}
+
 func (self *EmptyType) ToRuntimeType()runtimeType.Type{
 	return runtimeType.TypeEmpty
 }
@@ -126,6 +131,10 @@ func (self *SintType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Bits == at.Bits
+}
+
+func (self *SintType) HasDefault()bool{
+	return true
 }
 
 func (self *SintType) ToRuntimeType()runtimeType.Type{
@@ -162,6 +171,10 @@ func (self *UintType) EqualTo(dst Type) bool {
 	return self.Bits == at.Bits
 }
 
+func (self *UintType) HasDefault()bool{
+	return true
+}
+
 func (self *UintType) ToRuntimeType()runtimeType.Type{
 	switch self.Bits {
 	case 0:
@@ -194,6 +207,10 @@ func (self *FloatType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Bits == at.Bits
+}
+
+func (self *FloatType) HasDefault()bool{
+	return true
 }
 
 func (self *FloatType) ToRuntimeType()runtimeType.Type{
@@ -242,6 +259,13 @@ func (self *FuncType) EqualTo(dst Type) bool {
 	return true
 }
 
+func (self *FuncType) HasDefault()bool{
+	if self.Ret.EqualTo(Empty){
+		return true
+	}
+	return self.Ret.HasDefault()
+}
+
 func (self *FuncType) ToRuntimeType()runtimeType.Type{
 	return runtimeType.NewFuncType(ToRuntimeType(self.Ret), stlslices.Map(self.Params, func(_ int, e Type) runtimeType.Type {
 		return ToRuntimeType(e)
@@ -257,6 +281,10 @@ func (*BoolType) String() string {
 
 func (self *BoolType) EqualTo(dst Type) bool {
 	return IsType[*BoolType](dst)
+}
+
+func (self *BoolType) HasDefault()bool{
+	return true
 }
 
 func (self *BoolType) ToRuntimeType()runtimeType.Type{
@@ -286,6 +314,10 @@ func (self *ArrayType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Size == at.Size && self.Elem.EqualTo(at.Elem)
+}
+
+func (self *ArrayType) HasDefault()bool{
+	return self.Elem.HasDefault()
 }
 
 func (self *ArrayType) ToRuntimeType()runtimeType.Type{
@@ -324,6 +356,12 @@ func (self *TupleType) EqualTo(dst Type) bool {
 	return true
 }
 
+func (self *TupleType) HasDefault()bool{
+	return stlslices.All(self.Elems, func(_ int, e Type) bool {
+		return e.HasDefault()
+	})
+}
+
 func (self *TupleType) ToRuntimeType()runtimeType.Type{
 	return runtimeType.NewTupleType(stlslices.Map(self.Elems, func(_ int, e Type) runtimeType.Type {
 		return ToRuntimeType(e)
@@ -342,6 +380,12 @@ func (self *StructType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Pkg == at.Pkg && self.Name == at.Name
+}
+
+func (self *StructType) HasDefault()bool{
+	return stliter.All(self.Fields, func(e pair.Pair[string, Field]) bool {
+		return e.Second.Type.HasDefault()
+	})
 }
 
 func (self *StructType) ToRuntimeType()runtimeType.Type{
@@ -363,6 +407,10 @@ func (*StringType) String() string {
 
 func (self *StringType) EqualTo(dst Type) bool {
 	return IsType[*StringType](dst)
+}
+
+func (self *StringType) HasDefault()bool{
+	return true
 }
 
 func (self *StringType) ToRuntimeType()runtimeType.Type{
@@ -421,6 +469,13 @@ func (self *UnionType) EqualTo(dst Type) bool {
 	return true
 }
 
+func (self *UnionType) HasDefault()bool{
+	if len(self.Elems) == 0{
+		return true
+	}
+	return self.Elems[0].HasDefault()
+}
+
 func (self *UnionType) ToRuntimeType()runtimeType.Type{
 	return runtimeType.NewUnionType(stlslices.Map(self.Elems, func(_ int, e Type) runtimeType.Type {
 		return ToRuntimeType(e)
@@ -466,6 +521,10 @@ func (self *RefType) EqualTo(dst Type) bool {
 	return self.Mut == at.Mut && self.Elem.EqualTo(at.Elem)
 }
 
+func (self *RefType) HasDefault()bool{
+	return false
+}
+
 func (self *RefType) ToRuntimeType()runtimeType.Type{
 	return runtimeType.NewRefType(self.Mut, ToRuntimeType(self.Elem))
 }
@@ -489,6 +548,10 @@ func (self *SelfType) EqualTo(dst Type) bool {
 	return ToActualType(self).EqualTo(dst)
 }
 
+func (self *SelfType) HasDefault()bool{
+	return self.Self.MustValue().HasDefault()
+}
+
 // AliasType 别名类型
 type AliasType = TypeAliasDef
 
@@ -498,4 +561,8 @@ func (self *AliasType) String() string {
 
 func (self *AliasType) EqualTo(dst Type) bool {
 	return ToActualType(self).EqualTo(dst)
+}
+
+func (self *AliasType) HasDefault()bool{
+	return self.Target.HasDefault()
 }
