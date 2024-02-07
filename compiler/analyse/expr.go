@@ -301,17 +301,22 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 			return nil
 		}
-	case token.AND:
+	case token.AND, token.AND_WITH_MUT:
 		if expect != nil && hir.IsType[*hir.RefType](expect) {
 			expect = hir.AsType[*hir.RefType](expect).Elem
 		}
 		value := self.analyseExpr(expect, node.Value)
 		if !stlbasic.Is[hir.Ident](value) {
 			errors.ThrowCanNotGetPointer(node.Value.Position())
+		}else if node.Opera.Is(token.AND_WITH_MUT) && !value.Mutable(){
+			errors.ThrowNotMutableError(node.Value.Position())
 		}else if localVarDef, ok := value.(*hir.LocalVarDef); ok{
 			localVarDef.Escaped = true
 		}
-		return &hir.GetRef{Value: value}
+		return &hir.GetRef{
+			Mut: node.Opera.Is(token.AND_WITH_MUT),
+			Value: value,
+		}
 	case token.MUL:
 		if expect != nil {
 			expect = hir.NewRefType(false, expect)
@@ -321,7 +326,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 		if !hir.IsType[*hir.RefType](vt) {
 			errors.ThrowExpectReferenceError(node.Value.Position(), vt)
 		}
-		return &hir.GetValue{Value: value}
+		return &hir.DeRef{Value: value}
 	default:
 		panic("unreachable")
 	}
@@ -454,6 +459,15 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 				Value: v,
 			}, true
 		}
+	case hir.IsType[*hir.RefType](vt) && hir.AsType[*hir.RefType](vt).Elem.EqualTo(expect):
+		// &i8 -> i8
+		return &hir.DeRef{Value: v}, true
+	case hir.IsType[*hir.RefType](vt) && hir.IsType[*hir.RefType](expect) && hir.NewRefType(false, hir.AsType[*hir.RefType](vt).Elem).EqualTo(expect):
+		// &mut i8 -> &i8
+		return &hir.DoNothingCovert{
+			From: v,
+			To: expect,
+		}, true
 	default:
 		return v, false
 	}
@@ -569,10 +583,10 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 
 	// 方法
 	var customFrom hir.Expr
-	if hir.IsCustomType(fromObj.GetType()){
+	if hir.IsCustomType(ft){
 		customFrom = fromObj
 	}else if hir.IsType[*hir.RefType](ft) && hir.IsCustomType(hir.AsType[*hir.RefType](ft).Elem){
-		customFrom = &hir.GetValue{Value: fromObj}
+		customFrom = &hir.DeRef{Value: fromObj}
 	}
 	if customFrom != nil{
 		customType := hir.AsCustomType(customFrom.GetType())
@@ -590,15 +604,21 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 	}
 
 	// 字段
-	st, ok := hir.TryType[*hir.StructType](ft)
-	if !ok{
+	var structVal hir.Expr
+	if hir.IsType[*hir.StructType](ft){
+		structVal = fromObj
+	}else if hir.IsType[*hir.RefType](ft) && hir.IsType[*hir.StructType](hir.AsType[*hir.RefType](ft).Elem){
+		structVal = &hir.DeRef{Value: fromObj}
+	}else{
 		errors.ThrowExpectStructError(node.From.Position(), ft)
-	} else if field := st.Fields.Get(fieldName); !st.Fields.ContainKey(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Pkg)){
+	}
+	st := hir.AsType[*hir.StructType](structVal.GetType())
+	if field := st.Fields.Get(fieldName); !st.Fields.ContainKey(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Pkg)){
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
 	return &hir.GetField{
 		Internal: self.pkgScope.pkg.Equal(st.Pkg),
-		From:     fromObj,
+		From:     structVal,
 		Index: uint(slices.Index(st.Fields.Keys().ToSlice(), fieldName)),
 	}
 }

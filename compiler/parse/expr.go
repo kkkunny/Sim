@@ -89,6 +89,9 @@ func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[ast.Expr]
 	case token.SUB, token.NOT, token.AND, token.MUL:
 		self.next()
 		opera := self.curTok
+		if self.curTok.Is(token.AND) && self.skipNextIs(token.MUT){
+			opera.Kind = token.AND_WITH_MUT
+		}
 		value := self.mustExpr(self.parseOptionUnary(canStruct))
 		return util.Some[ast.Expr](&ast.Unary{
 			Opera: opera,

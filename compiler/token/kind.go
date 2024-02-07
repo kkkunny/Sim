@@ -17,6 +17,7 @@ const (
 	ASS
 
 	AND
+	AND_WITH_MUT
 	OR
 	XOR
 	NOT
@@ -89,6 +90,7 @@ var kindNames = [...]string{
 	COMMENT: "comment",
 	ASS:      "ass",
 	AND:      "and",
+	AND_WITH_MUT: "and",
 	OR:       "or",
 	XOR:      "xor",
 	NOT:      "not",
@@ -172,7 +174,7 @@ func (self Kind) Priority() uint8 {
 		return 8
 	case EQ, NE:
 		return 7
-	case AND:
+	case AND, AND_WITH_MUT:
 		return 6
 	case XOR:
 		return 5

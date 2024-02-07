@@ -161,7 +161,7 @@ func (self *CodeGenerator) codegenUnary(ir hir.Unary, load bool) mir.Value {
 		return self.builder.BuildNot(self.codegenExpr(ir.GetValue(), true))
 	case *hir.GetRef:
 		return self.codegenExpr(ir.GetValue(), false)
-	case *hir.GetValue:
+	case *hir.DeRef:
 		ptr := self.codegenExpr(ir.GetValue(), true)
 		if !load {
 			return ptr

@@ -740,7 +740,7 @@ func (self *Default) Mutable() bool {
 
 // GetField 取字段
 type GetField struct {
-	Internal bool
+	Internal bool  // 是否在包内部，不受字段可变性影响
 	From  Expr
 	Index uint
 }
@@ -823,39 +823,40 @@ func (self *UnUnion) Mutable() bool {
 
 // GetRef 取引用
 type GetRef struct {
+	Mut bool
 	Value Expr
 }
 
 func (self *GetRef) stmt() {}
 
 func (self *GetRef) GetType() Type {
-	return NewRefType(false, self.Value.GetType())
+	return NewRefType(self.Mut, self.Value.GetType())
 }
 
 func (self *GetRef) Mutable() bool {
-	return false
+	return self.Mut
 }
 
 func (self *GetRef) GetValue() Expr {
 	return self.Value
 }
 
-// GetValue 取值
-type GetValue struct {
+// DeRef 解引用
+type DeRef struct {
 	Value Expr
 }
 
-func (self *GetValue) stmt() {}
+func (self *DeRef) stmt() {}
 
-func (self *GetValue) GetType() Type {
+func (self *DeRef) GetType() Type {
 	return AsType[*RefType](self.Value.GetType()).Elem
 }
 
-func (self *GetValue) Mutable() bool {
-	return self.Value.Mutable()
+func (self *DeRef) Mutable() bool {
+	return AsType[*RefType](self.Value.GetType()).Mut && self.Value.Mutable()
 }
 
-func (self *GetValue) GetValue() Expr {
+func (self *DeRef) GetValue() Expr {
 	return self.Value
 }
 
