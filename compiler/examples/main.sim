@@ -1,12 +1,9 @@
-import std::os
+type string str
 
-type A struct{}
-
-func (A) get(self: &Self, v: u8)u8{
-    return v
+func print(s: string){
+    debug(s as str)
 }
 
 func main(){
-    let a = A{}
-    os::exit(a.get(0))
+    print("123")
 }

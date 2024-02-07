@@ -7,6 +7,7 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
 	stlerror "github.com/kkkunny/stl/error"
+	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/ast"
@@ -345,7 +346,7 @@ func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
 	if (!vararg && len(node.Args) != len(ft.Params)) || (vararg && len(node.Args) < len(ft.Params)) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ft.Params)), uint(len(node.Args)))
 	}
-	args := lo.Map(node.Args, func(item ast.Expr, index int) hir.Expr {
+	args := stlslices.Map(node.Args, func(index int, item ast.Expr) hir.Expr {
 		if vararg && index >= len(ft.Params){
 			return self.analyseExpr(nil, item)
 		}else{
@@ -391,6 +392,11 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 	}
 
 	switch {
+	case hir.ToBuildInType(ft).EqualTo(hir.ToBuildInType(tt)):
+		return &hir.DoNothingCovert{
+			From: from,
+			To: tt,
+		}
 	case hir.IsNumberType(ft) && hir.IsNumberType(tt):
 		// i8 -> u8
 		return &hir.Num2Num{
@@ -410,23 +416,6 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 				Type:  tt,
 				Value: from,
 			}
-		}
-	case hir.IsPointer(ft) && hir.IsPointer(tt):
-		// *u8 | *?u8 | func() -> *u8 | *?u8 | func()
-		return &hir.Pointer2Pointer{
-			From: from,
-			To:   tt,
-		}
-	case hir.IsPointer(ft) && tt.EqualTo(hir.Usize):
-		// *u8 | *?u8 | func() -> usize
-		return &hir.Pointer2Usize{
-			From: from,
-		}
-	case ft.EqualTo(hir.Usize) && hir.IsPointer(tt):
-		// usize -> *u8 | *?u8 | func()
-		return &hir.Usize2Pointer{
-			From: from,
-			To: tt,
 		}
 	default:
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)

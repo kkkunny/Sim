@@ -54,12 +54,6 @@ type RuntimeType interface {
 	runtime()
 }
 
-// BuildInType 运行时类型去掉自定义类型
-type BuildInType interface {
-	RuntimeType
-	buildin()
-}
-
 func ToRuntimeType(t Type) RuntimeType {
 	switch tt := t.(type) {
 	case RuntimeType:
@@ -68,6 +62,27 @@ func ToRuntimeType(t Type) RuntimeType {
 		return ToRuntimeType(tt.Self.MustValue())
 	case *AliasType:
 		return ToRuntimeType(tt.Target)
+	default:
+		panic("unreachable")
+	}
+}
+
+// BuildInType 运行时类型去掉自定义类型
+type BuildInType interface {
+	RuntimeType
+	buildin()
+}
+
+func ToBuildInType(t Type) BuildInType {
+	switch tt := t.(type) {
+	case BuildInType:
+		return tt
+	case *CustomType:
+		return ToBuildInType(tt.Target)
+	case *SelfType:
+		return ToBuildInType(tt.Self.MustValue())
+	case *AliasType:
+		return ToBuildInType(tt.Target)
 	default:
 		panic("unreachable")
 	}
@@ -118,7 +133,7 @@ func (*EmptyType) String() string {
 }
 
 func (self *EmptyType) EqualTo(dst Type) bool {
-	return IsType[*EmptyType](dst)
+	return stlbasic.Is[*EmptyType](ToRuntimeType(dst))
 }
 
 func (self *EmptyType) HasDefault()bool{
@@ -142,7 +157,7 @@ func (self *SintType) String() string {
 }
 
 func (self *SintType) EqualTo(dst Type) bool {
-	at, ok := TryType[*SintType](dst)
+	at, ok := ToRuntimeType(dst).(*SintType)
 	if !ok{
 		return false
 	}
@@ -183,7 +198,7 @@ func (self *UintType) String() string {
 }
 
 func (self *UintType) EqualTo(dst Type) bool {
-	at, ok := TryType[*UintType](dst)
+	at, ok := ToRuntimeType(dst).(*UintType)
 	if !ok{
 		return false
 	}
@@ -224,7 +239,7 @@ func (self *FloatType) String() string {
 }
 
 func (self *FloatType) EqualTo(dst Type) bool {
-	at, ok := TryType[*FloatType](dst)
+	at, ok := ToRuntimeType(dst).(*FloatType)
 	if !ok{
 		return false
 	}
@@ -268,7 +283,7 @@ func (self *FuncType) String() string {
 }
 
 func (self *FuncType) EqualTo(dst Type) bool {
-	at, ok := TryType[*FuncType](dst)
+	at, ok := ToRuntimeType(dst).(*FuncType)
 	if !ok{
 		return false
 	}
@@ -307,7 +322,7 @@ func (*BoolType) String() string {
 }
 
 func (self *BoolType) EqualTo(dst Type) bool {
-	return IsType[*BoolType](dst)
+	return stlbasic.Is[*BoolType](ToRuntimeType(dst))
 }
 
 func (self *BoolType) HasDefault()bool{
@@ -339,7 +354,7 @@ func (self *ArrayType) String() string {
 }
 
 func (self *ArrayType) EqualTo(dst Type) bool {
-	at, ok := TryType[*ArrayType](dst)
+	at, ok := ToRuntimeType(dst).(*ArrayType)
 	if !ok{
 		return false
 	}
@@ -374,7 +389,7 @@ func (self *TupleType) String() string {
 }
 
 func (self *TupleType) EqualTo(dst Type) bool {
-	at, ok := TryType[*TupleType](dst)
+	at, ok := ToRuntimeType(dst).(*TupleType)
 	if !ok{
 		return false
 	}
@@ -412,7 +427,7 @@ func (*StringType) String() string {
 }
 
 func (self *StringType) EqualTo(dst Type) bool {
-	return IsType[*StringType](dst)
+	return stlbasic.Is[*StringType](ToRuntimeType(dst))
 }
 
 func (self *StringType) HasDefault()bool{
@@ -463,7 +478,7 @@ func (self *UnionType) String() string {
 }
 
 func (self *UnionType) EqualTo(dst Type) bool {
-	at, ok := TryType[*UnionType](dst)
+	at, ok := ToRuntimeType(dst).(*UnionType)
 	if !ok{
 		return false
 	}
@@ -533,7 +548,7 @@ func (self *RefType) String() string {
 }
 
 func (self *RefType) EqualTo(dst Type) bool {
-	at, ok := TryType[*RefType](dst)
+	at, ok := ToRuntimeType(dst).(*RefType)
 	if !ok{
 		return false
 	}
@@ -579,7 +594,7 @@ func (self *StructType) String() string {
 }
 
 func (self *StructType) EqualTo(dst Type) bool {
-	at, ok := TryType[*StructType](dst)
+	at, ok := ToRuntimeType(dst).(*StructType)
 	if !ok || !self.Pkg.Equal(at.Pkg){
 		return false
 	}
@@ -624,7 +639,7 @@ func (self *SelfType) String() string {
 }
 
 func (self *SelfType) EqualTo(dst Type) bool {
-	return ToRuntimeType(self).EqualTo(dst)
+	return self.Self.MustValue().EqualTo(dst)
 }
 
 func (self *SelfType) HasDefault()bool{
@@ -671,7 +686,7 @@ func (self *CustomType) String() string {
 }
 
 func (self *CustomType) EqualTo(dst Type) bool {
-	at, ok := TryCustomType(dst)
+	at, ok := ToRuntimeType(dst).(*CustomType)
 	if !ok{
 		return false
 	}

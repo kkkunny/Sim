@@ -188,8 +188,8 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
-	args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
-		return self.codegenExpr(item, true)
+	args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) mir.Value {
+		return self.codegenExpr(e, true)
 	})
 	var f, selfValue mir.Value
 	switch fnIr := ir.Func.(type) {
@@ -221,22 +221,12 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 
 func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value {
 	switch ir.(type) {
+	case *hir.DoNothingCovert:
+		return self.codegenExpr(ir.GetFrom(), load)
 	case *hir.Num2Num:
 		from := self.codegenExpr(ir.GetFrom(), true)
 		to := self.codegenType(ir.GetType())
 		return self.builder.BuildNumberCovert(from, to.(mir.NumberType))
-	case *hir.Pointer2Pointer:
-		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenType(ir.GetType())
-		return self.builder.BuildPtrToPtr(from, to.(mir.PtrType))
-	case *hir.Pointer2Usize:
-		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenType(ir.GetType())
-		return self.builder.BuildPtrToUint(from, to.(mir.UintType))
-	case *hir.Usize2Pointer:
-		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenType(ir.GetType())
-		return self.builder.BuildUintToPtr(from, to.(mir.GenericPtrType))
 	case *hir.ShrinkUnion:
 		from := self.codegenExpr(ir.GetFrom(), false)
 		srcData := self.buildStructIndex(from, 0, false)

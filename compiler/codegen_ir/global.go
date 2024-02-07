@@ -10,11 +10,18 @@ import (
 )
 
 func (self *CodeGenerator) declTypeDef(ir *hir.TypeDef) {
-	// TODO: 支持除结构体之外的类型
-	self.types.Set(ir, self.module.NewNamedStructType(""))
+	if stlbasic.Is[*hir.StructType](ir.Target){
+		self.types.Set(ir, self.module.NewNamedStructType(""))
+	}else{
+		// TODO: 支持除结构体之外的类型循环
+		self.types.Set(ir, self.codegenType(ir.Target))
+	}
 }
 
 func (self *CodeGenerator) defTypeDef(ir *hir.TypeDef) {
+	if !stlbasic.Is[*hir.StructType](ir.Target){
+		return
+	}
 	td := self.types.Get(ir)
 	target := self.codegenType(ir.Target).(mir.StructType)
 	td.(mir.StructType).SetElems(target.Elems()...)
