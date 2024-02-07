@@ -2,10 +2,11 @@ import std::os
 
 type A struct{}
 
-func (A) get(v: u8)u8{
-    return v
+func (A) get()u8{
+    return 0
 }
 
 func main(){
-    os::exit(A:get(0))
+    let i: A
+    os::exit(A.get() + i.get())
 }

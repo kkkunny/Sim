@@ -3,6 +3,7 @@ package hir
 import (
 	"math/big"
 
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
 )
@@ -860,13 +861,6 @@ func (self *DeRef) GetValue() Expr {
 	return self.Value
 }
 
-type MethodExpr interface {
-	Expr
-	GetScope()*TypeDef
-	GetDefine()GlobalMethod
-	GetSelf()(Expr, bool)
-}
-
 // Method 方法
 type Method struct {
 	Self   either.Either[Expr, *CustomType]
@@ -876,12 +870,10 @@ type Method struct {
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope()*TypeDef {
-	if self.Self.IsLeft(){
-		value, _ := self.Self.Left()
-		return AsCustomType(value.GetType())
+	if left, ok := self.Self.Left(); ok{
+		return AsCustomType(left.GetType())
 	}else{
-		st, _ := self.Self.Right()
-		return st
+		return stlbasic.IgnoreWith(self.Self.Right())
 	}
 }
 
@@ -889,15 +881,11 @@ func (self *Method) GetDefine()GlobalMethod{
 	return self.Define
 }
 
-func (self *Method) GetSelf()(Expr, bool){
-	return self.Self.Left()
-}
-
 func (self *Method) GetType() Type {
-	if self.Self.IsLeft(){
-		return self.Define.GetMethodType()
-	}else{
+	if self.Define.IsStatic(){
 		return self.Define.GetFuncType()
+	}else{
+		return self.Define.GetMethodType()
 	}
 }
 

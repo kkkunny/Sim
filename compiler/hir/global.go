@@ -133,8 +133,10 @@ func (self *MethodDef) IsStatic() bool {
 	if len(self.Params) == 0 {
 		return true
 	}
-	selfRef := NewRefType(false, self.GetSelfType())
-	return !selfRef.EqualTo(self.Params[0].GetType())
+	firstParam := self.Params[0]
+	return firstParam.Name != "self" ||
+		(!NewRefType(false, self.GetSelfType()).EqualTo(firstParam.GetType()) &&
+		!NewRefType(true, self.GetSelfType()).EqualTo(firstParam.GetType()))
 }
 
 // GlobalType 类型定义

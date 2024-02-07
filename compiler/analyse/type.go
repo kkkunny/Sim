@@ -3,6 +3,7 @@ package analyse
 import (
 	"math/big"
 
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	stlslices "github.com/kkkunny/stl/slices"
 
@@ -48,8 +49,7 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	if typ.IsNone(){
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	t, _ := typ.MustValue().Right()
-	return t
+	return stlbasic.IgnoreWith(typ.MustValue().Left())
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType) *hir.FuncType {

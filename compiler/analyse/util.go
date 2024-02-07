@@ -209,7 +209,8 @@ func (self *Analyser) isInDstStructScope(st *hir.CustomType)bool{
 	return self.selfType.GetPackage().Equal(st.GetPackage()) && selfName == stName
 }
 
-func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[either.Either[hir.Expr, hir.Type]] {
+// 分析标识符，类型优先
+func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[either.Either[hir.Type, hir.Expr]] {
 	var pkgName string
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()
@@ -222,37 +223,37 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		// 类型
 		switch name := node.Name.Source(); name {
 		case "isize":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.Isize))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.Isize))
 		case "i8":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.I8))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.I8))
 		case "i16":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.I16))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.I16))
 		case "i32":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.I32))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.I32))
 		case "i64":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.I64))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.I64))
 		case "usize":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.Usize))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.Usize))
 		case "u8":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.U8))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.U8))
 		case "u16":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.U16))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.U16))
 		case "u32":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.U32))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.U32))
 		case "u64":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.U64))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.U64))
 		case "f32":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.F32))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.F32))
 		case "f64":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.F64))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.F64))
 		case "bool":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.Bool))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.Bool))
 		case "str":
-			return util.Some(either.Right[hir.Expr, hir.Type](hir.Str))
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.Str))
 		default:
 			// 类型定义
 			if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
-				return util.Some(either.Right[hir.Expr, hir.Type](td))
+				return util.Some(either.Left[hir.Type, hir.Expr](td))
 			}
 		}
 	}
@@ -262,10 +263,10 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		// 标识符表达式
 		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
 		if ok {
-			return util.Some(either.Left[hir.Expr, hir.Type](value))
+			return util.Some(either.Right[hir.Type, hir.Expr](value))
 		}
 	}
-	return util.None[either.Either[hir.Expr, hir.Type]]()
+	return util.None[either.Either[hir.Type, hir.Expr]]()
 }
 
 func (self *Analyser) analyseFuncBody(node *ast.Block)*hir.Block{

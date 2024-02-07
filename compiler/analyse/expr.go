@@ -45,14 +45,12 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseExtract(expect, exprNode)
 	case *ast.Struct:
 		return self.analyseStruct(exprNode)
-	case *ast.GetField:
-		return self.analyseGetField(exprNode)
+	case *ast.Dot:
+		return self.analyseDot(exprNode)
 	case *ast.String:
 		return self.analyseString(exprNode)
 	case *ast.Judgment:
 		return self.analyseJudgment(exprNode)
-	case *ast.StaticMethod:
-		return self.analyseStaticMethod(exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -337,8 +335,7 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Expr {
 	if expr.IsNone(){
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	value, _ := expr.MustValue().Left()
-	return value
+	return stlbasic.IgnoreWith(expr.MustValue().Right())
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
@@ -576,9 +573,24 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 	}
 }
 
-func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
+func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 	fieldName := node.Index.Source()
-	fromObj := self.analyseExpr(nil, node.From)
+	var fromObj hir.Expr
+	if identNode, ok := node.From.(*ast.IdentExpr); ok{
+		// 静态方法
+		ident := self.analyseIdent((*ast.Ident)(identNode))
+		identItem, ok := ident.Value()
+		if !ok{
+			errors.ThrowUnknownIdentifierError(identNode.Position(), identNode.Name)
+		}
+		if t, ok := identItem.Left(); ok{
+			return self.analyseStaticMethod((*ast.IdentType)(identNode), t, node.Index)
+		}else{
+			fromObj = stlbasic.IgnoreWith(identItem.Right())
+		}
+	}else{
+		fromObj = self.analyseExpr(nil, node.From)
+	}
 	ft := fromObj.GetType()
 
 	// 方法
@@ -590,7 +602,7 @@ func (self *Analyser) analyseGetField(node *ast.GetField) hir.Expr {
 	}
 	if customFrom != nil{
 		customType := hir.AsCustomType(customFrom.GetType())
-		if methodObj := customType.Methods.Get(fieldName); methodObj != nil && !methodObj.IsStatic() && (methodObj.GetPublic() || customType.Pkg == self.pkgScope.pkg){
+		if methodObj := customType.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || customType.Pkg == self.pkgScope.pkg){
 			switch method := methodObj.(type) {
 			case *hir.MethodDef:
 				return &hir.Method{
@@ -645,16 +657,15 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	}
 }
 
-func (self *Analyser) analyseStaticMethod(node *ast.StaticMethod)hir.Expr{
-	tdObj := self.analyseType(node.Type)
-	td, ok := hir.TryCustomType(tdObj)
+func (self *Analyser) analyseStaticMethod(typeNode *ast.IdentType, t hir.Type, name token.Token)hir.Expr{
+	td, ok := hir.TryCustomType(t)
 	if !ok{
-		errors.ThrowExpectStructError(node.Type.Position(), tdObj)
+		errors.ThrowExpectStructError(typeNode.Position(), t)
 	}
 
-	f := td.Methods.Get(node.Name.Source())
+	f := td.Methods.Get(name.Source())
 	if f == nil || (!f.GetPublic() && !self.pkgScope.pkg.Equal(f.GetPackage())){
-		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+		errors.ThrowUnknownIdentifierError(name.Position, name)
 	}
 
 	switch method := f.(type) {

@@ -193,16 +193,11 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	})
 	var f, selfValue mir.Value
 	switch fnIr := ir.Func.(type) {
-	case hir.MethodExpr:
-		if selfValueIr, ok := fnIr.GetSelf(); ok {
-			selfValue = self.codegenExpr(selfValueIr, false)
+	case *hir.Method:
+		if !fnIr.Define.IsStatic(){
+			selfValue = self.codegenExpr(stlbasic.IgnoreWith(fnIr.Self.Left()), false)
 		}
-		switch method := fnIr.(type) {
-		case *hir.Method:
-			f = self.values.Get(&method.Define.FuncDef)
-		default:
-			panic("unreachable")
-		}
+		f = self.values.Get(&fnIr.Define.FuncDef)
 	default:
 		f = self.codegenExpr(ir.Func, true)
 	}
