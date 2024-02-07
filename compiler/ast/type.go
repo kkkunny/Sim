@@ -98,3 +98,15 @@ func (self *SelfType) Position() reader.Position {
 }
 
 func (self *SelfType) typ() {}
+
+type StructType struct {
+	Begin  reader.Position
+	Fields []Field
+	End    reader.Position
+}
+
+func (self *StructType) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *StructType) typ() {}

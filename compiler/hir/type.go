@@ -8,6 +8,7 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 
@@ -39,53 +40,80 @@ var (
 )
 
 // Type 类型
-// 除了运行时类型外，还有一些编译器需要用到的工具类型
+// 运行时类型+编译时的工具类型
 type Type interface {
 	fmt.Stringer
 	EqualTo(dst Type) bool
 	HasDefault()bool
+	Runtime()runtimeType.Type
 }
 
-// ToRuntimeType 转换成运行时类型
-func ToRuntimeType(t Type)runtimeType.Type{
-	return ToActualType(t).ToRuntimeType()
-}
-
-// ActualType 真实类型
-// 该类型和运行时类型是1对1关系
-type ActualType interface {
+// RuntimeType 可映射为运行时类型的类型
+type RuntimeType interface {
 	Type
-	ToRuntimeType()runtimeType.Type
+	runtime()
 }
 
-// ToActualType 转换成真实类型
-func ToActualType(t Type)ActualType{
+func ToRuntimeType(t Type) RuntimeType {
 	switch tt := t.(type) {
-	case ActualType:
+	case RuntimeType:
 		return tt
 	case *SelfType:
-		return ToActualType(tt.Self.MustValue())
+		return ToRuntimeType(tt.Self.MustValue())
 	case *AliasType:
-		return ToActualType(tt.Target)
+		return ToRuntimeType(tt.Target)
+	default:
+		panic("unreachable")
+	}
+}
+
+// BuildInType 运行时类型去掉自定义类型
+type BuildInType interface {
+	RuntimeType
+	buildin()
+}
+
+func ToBuildInType(t Type) BuildInType {
+	switch tt := t.(type) {
+	case BuildInType:
+		return tt
+	case *CustomType:
+		return ToBuildInType(tt.Target)
+	case *SelfType:
+		return ToBuildInType(tt.Self.MustValue())
+	case *AliasType:
+		return ToBuildInType(tt.Target)
 	default:
 		panic("unreachable")
 	}
 }
 
 // TryType 尝试断言为指定类型
-func TryType[T ActualType](t Type)(T, bool){
-	at, ok := ToActualType(t).(T)
-	return at, ok
+func TryType[T BuildInType](t Type)(T, bool){
+	switch tt := t.(type) {
+	case T:
+		return tt, true
+	case BuildInType:
+		return stlbasic.Default[T](), false
+	case *SelfType:
+		return TryType[T](tt.Self.MustValue())
+	case *AliasType:
+		return TryType[T](tt.Target)
+	case *CustomType:
+		return TryType[T](tt.Target)
+	default:
+		panic("unreachable")
+	}
 }
 
 // IsType 是否可以断言为指定类型
-func IsType[T ActualType](t Type)bool{
+func IsType[T BuildInType](t Type)bool{
 	_, ok := TryType[T](t)
 	return ok
 }
 
 // AsType 断言为指定类型
-func AsType[T ActualType](t Type)T{
+func AsType[T BuildInType](t Type)T{
 	at, ok := TryType[T](t)
 	if !ok{
 		panic("unreachable")
@@ -101,20 +129,23 @@ func IsPointer(t Type)bool{return IsType[*RefType](t) || IsType[*FuncType](t)}
 type EmptyType struct{}
 
 func (*EmptyType) String() string {
-	return "empty"
+	return ""
 }
 
 func (self *EmptyType) EqualTo(dst Type) bool {
-	return IsType[*EmptyType](dst)
+	return stlbasic.Is[*EmptyType](ToRuntimeType(dst))
 }
 
 func (self *EmptyType) HasDefault()bool{
 	return false
 }
 
-func (self *EmptyType) ToRuntimeType()runtimeType.Type{
+func (self *EmptyType) Runtime()runtimeType.Type{
 	return runtimeType.TypeEmpty
 }
+
+func (self *EmptyType) buildin(){}
+func (self *EmptyType) runtime(){}
 
 // SintType 有符号整型
 type SintType struct {
@@ -126,7 +157,7 @@ func (self *SintType) String() string {
 }
 
 func (self *SintType) EqualTo(dst Type) bool {
-	at, ok := TryType[*SintType](dst)
+	at, ok := ToRuntimeType(dst).(*SintType)
 	if !ok{
 		return false
 	}
@@ -137,7 +168,7 @@ func (self *SintType) HasDefault()bool{
 	return true
 }
 
-func (self *SintType) ToRuntimeType()runtimeType.Type{
+func (self *SintType) Runtime()runtimeType.Type{
 	switch self.Bits {
 	case 0:
 		return runtimeType.TypeIsize
@@ -154,6 +185,9 @@ func (self *SintType) ToRuntimeType()runtimeType.Type{
 	}
 }
 
+func (self *SintType) buildin(){}
+func (self *SintType) runtime(){}
+
 // UintType 无符号整型
 type UintType struct {
 	Bits uint
@@ -164,7 +198,7 @@ func (self *UintType) String() string {
 }
 
 func (self *UintType) EqualTo(dst Type) bool {
-	at, ok := TryType[*UintType](dst)
+	at, ok := ToRuntimeType(dst).(*UintType)
 	if !ok{
 		return false
 	}
@@ -175,7 +209,7 @@ func (self *UintType) HasDefault()bool{
 	return true
 }
 
-func (self *UintType) ToRuntimeType()runtimeType.Type{
+func (self *UintType) Runtime()runtimeType.Type{
 	switch self.Bits {
 	case 0:
 		return runtimeType.TypeUsize
@@ -192,6 +226,9 @@ func (self *UintType) ToRuntimeType()runtimeType.Type{
 	}
 }
 
+func (self *UintType) buildin(){}
+func (self *UintType) runtime(){}
+
 // FloatType 浮点型
 type FloatType struct {
 	Bits uint
@@ -202,7 +239,7 @@ func (self *FloatType) String() string {
 }
 
 func (self *FloatType) EqualTo(dst Type) bool {
-	at, ok := TryType[*FloatType](dst)
+	at, ok := ToRuntimeType(dst).(*FloatType)
 	if !ok{
 		return false
 	}
@@ -213,7 +250,7 @@ func (self *FloatType) HasDefault()bool{
 	return true
 }
 
-func (self *FloatType) ToRuntimeType()runtimeType.Type{
+func (self *FloatType) Runtime()runtimeType.Type{
 	switch self.Bits {
 	case 32:
 		return runtimeType.TypeF32
@@ -223,6 +260,9 @@ func (self *FloatType) ToRuntimeType()runtimeType.Type{
 		panic("unreachable")
 	}
 }
+
+func (self *FloatType) buildin(){}
+func (self *FloatType) runtime(){}
 
 // FuncType 函数类型
 type FuncType struct {
@@ -239,12 +279,11 @@ func NewFuncType(ret Type, params ...Type)*FuncType{
 
 func (self *FuncType) String() string {
 	params := stlslices.Map(self.Params, func(_ int, e Type) string { return e.String() })
-	ret := stlbasic.Ternary(self.Ret.EqualTo(Empty), "", self.Ret.String())
-	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
+	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.Ret)
 }
 
 func (self *FuncType) EqualTo(dst Type) bool {
-	at, ok := TryType[*FuncType](dst)
+	at, ok := ToRuntimeType(dst).(*FuncType)
 	if !ok{
 		return false
 	}
@@ -266,11 +305,14 @@ func (self *FuncType) HasDefault()bool{
 	return self.Ret.HasDefault()
 }
 
-func (self *FuncType) ToRuntimeType()runtimeType.Type{
-	return runtimeType.NewFuncType(ToRuntimeType(self.Ret), stlslices.Map(self.Params, func(_ int, e Type) runtimeType.Type {
-		return ToRuntimeType(e)
+func (self *FuncType) Runtime()runtimeType.Type{
+	return runtimeType.NewFuncType(self.Ret.Runtime(), stlslices.Map(self.Params, func(_ int, e Type) runtimeType.Type {
+		return e.Runtime()
 	})...)
 }
+
+func (self *FuncType) buildin(){}
+func (self *FuncType) runtime(){}
 
 // BoolType 布尔型
 type BoolType struct{}
@@ -280,16 +322,19 @@ func (*BoolType) String() string {
 }
 
 func (self *BoolType) EqualTo(dst Type) bool {
-	return IsType[*BoolType](dst)
+	return stlbasic.Is[*BoolType](ToRuntimeType(dst))
 }
 
 func (self *BoolType) HasDefault()bool{
 	return true
 }
 
-func (self *BoolType) ToRuntimeType()runtimeType.Type{
+func (self *BoolType) Runtime()runtimeType.Type{
 	return runtimeType.TypeBool
 }
+
+func (self *BoolType) buildin(){}
+func (self *BoolType) runtime(){}
 
 // ArrayType 数组型
 type ArrayType struct {
@@ -309,7 +354,7 @@ func (self *ArrayType) String() string {
 }
 
 func (self *ArrayType) EqualTo(dst Type) bool {
-	at, ok := TryType[*ArrayType](dst)
+	at, ok := ToRuntimeType(dst).(*ArrayType)
 	if !ok{
 		return false
 	}
@@ -320,9 +365,12 @@ func (self *ArrayType) HasDefault()bool{
 	return self.Elem.HasDefault()
 }
 
-func (self *ArrayType) ToRuntimeType()runtimeType.Type{
-	return runtimeType.NewArrayType(self.Size, ToRuntimeType(self.Elem))
+func (self *ArrayType) Runtime()runtimeType.Type{
+	return runtimeType.NewArrayType(self.Size, self.Elem.Runtime())
 }
+
+func (self *ArrayType) buildin(){}
+func (self *ArrayType) runtime(){}
 
 // TupleType 元组型
 type TupleType struct {
@@ -341,7 +389,7 @@ func (self *TupleType) String() string {
 }
 
 func (self *TupleType) EqualTo(dst Type) bool {
-	at, ok := TryType[*TupleType](dst)
+	at, ok := ToRuntimeType(dst).(*TupleType)
 	if !ok{
 		return false
 	}
@@ -362,41 +410,14 @@ func (self *TupleType) HasDefault()bool{
 	})
 }
 
-func (self *TupleType) ToRuntimeType()runtimeType.Type{
+func (self *TupleType) Runtime()runtimeType.Type{
 	return runtimeType.NewTupleType(stlslices.Map(self.Elems, func(_ int, e Type) runtimeType.Type {
-		return ToRuntimeType(e)
+		return e.Runtime()
 	})...)
 }
 
-type StructType = StructDef
-
-func (self *StructType) String() string {
-	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
-}
-
-func (self *StructType) EqualTo(dst Type) bool {
-	at, ok := TryType[*StructType](dst)
-	if !ok{
-		return false
-	}
-	return self.Pkg == at.Pkg && self.Name == at.Name
-}
-
-func (self *StructType) HasDefault()bool{
-	return stliter.All(self.Fields, func(e pair.Pair[string, Field]) bool {
-		return e.Second.Type.HasDefault()
-	})
-}
-
-func (self *StructType) ToRuntimeType()runtimeType.Type{
-	fields := stliter.Map[pair.Pair[string, Field], runtimeType.Field, dynarray.DynArray[runtimeType.Field]](self.Fields, func(e pair.Pair[string, Field]) runtimeType.Field {
-		return runtimeType.NewField(ToRuntimeType(e.Second.Type), e.First)
-	}).ToSlice()
-	methods := stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
-		return runtimeType.NewMethod(ToRuntimeType(e.Second.GetFuncType()).(*runtimeType.FuncType), e.First)
-	}).ToSlice()
-	return runtimeType.NewStructType(self.Pkg.String(), self.Name, fields, methods)
-}
+func (self *TupleType) buildin(){}
+func (self *TupleType) runtime(){}
 
 // StringType 字符串型
 type StringType struct{}
@@ -406,16 +427,19 @@ func (*StringType) String() string {
 }
 
 func (self *StringType) EqualTo(dst Type) bool {
-	return IsType[*StringType](dst)
+	return stlbasic.Is[*StringType](ToRuntimeType(dst))
 }
 
 func (self *StringType) HasDefault()bool{
 	return true
 }
 
-func (self *StringType) ToRuntimeType()runtimeType.Type{
+func (self *StringType) Runtime()runtimeType.Type{
 	return runtimeType.TypeStr
 }
+
+func (self *StringType) buildin(){}
+func (self *StringType) runtime(){}
 
 // UnionType 联合类型
 type UnionType struct {
@@ -454,7 +478,7 @@ func (self *UnionType) String() string {
 }
 
 func (self *UnionType) EqualTo(dst Type) bool {
-	at, ok := TryType[*UnionType](dst)
+	at, ok := ToRuntimeType(dst).(*UnionType)
 	if !ok{
 		return false
 	}
@@ -473,10 +497,23 @@ func (self *UnionType) HasDefault()bool{
 	return self.Elems[0].HasDefault()
 }
 
-func (self *UnionType) ToRuntimeType()runtimeType.Type{
+func (self *UnionType) Runtime()runtimeType.Type{
 	return runtimeType.NewUnionType(stlslices.Map(self.Elems, func(_ int, e Type) runtimeType.Type {
-		return ToRuntimeType(e)
+		return e.Runtime()
 	})...)
+}
+
+func (self *UnionType) buildin(){}
+func (self *UnionType) runtime(){}
+
+// IndexElem 取元素下标
+func (self *UnionType) IndexElem(t Type)int{
+	for i, elem := range self.Elems{
+		if elem.EqualTo(t){
+			return i
+		}
+	}
+	return -1
 }
 
 // Contain 是否包含类型
@@ -507,11 +544,11 @@ func NewRefType(mut bool, elem Type)*RefType{
 }
 
 func (self *RefType) String() string {
-	return stlbasic.Ternary(self.Mut, "&"+self.Elem.String(), "&mut "+self.Elem.String())
+	return stlbasic.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
 }
 
 func (self *RefType) EqualTo(dst Type) bool {
-	at, ok := TryType[*RefType](dst)
+	at, ok := ToRuntimeType(dst).(*RefType)
 	if !ok{
 		return false
 	}
@@ -522,16 +559,76 @@ func (self *RefType) HasDefault()bool{
 	return false
 }
 
-func (self *RefType) ToRuntimeType()runtimeType.Type{
-	return runtimeType.NewRefType(self.Mut, ToRuntimeType(self.Elem))
+func (self *RefType) Runtime()runtimeType.Type{
+	return runtimeType.NewRefType(self.Mut, self.Elem.Runtime())
 }
+
+func (self *RefType) buildin(){}
+func (self *RefType) runtime(){}
+
+// Field 字段
+type Field struct {
+	Public  bool
+	Mutable bool
+	Name string
+	Type    Type
+}
+
+// StructType 结构体类型
+type StructType struct {
+	Pkg Package
+	Fields  linkedhashmap.LinkedHashMap[string, Field]
+}
+
+func NewStructType(pkg Package, fields linkedhashmap.LinkedHashMap[string, Field])*StructType{
+	return &StructType{
+		Pkg: pkg,
+		Fields: fields,
+	}
+}
+
+func (self *StructType) String() string {
+	return fmt.Sprintf("{%s}", strings.Join(stliter.Map[pair.Pair[string, Field], string, dynarray.DynArray[string]](self.Fields, func(e pair.Pair[string, Field]) string {
+		return fmt.Sprintf("%s: %s", e.Second.Name, e.Second.Type.String())
+	}).ToSlice(), ", "))
+}
+
+func (self *StructType) EqualTo(dst Type) bool {
+	at, ok := ToRuntimeType(dst).(*StructType)
+	if !ok || !self.Pkg.Equal(at.Pkg){
+		return false
+	}
+	for iter1, iter2:=self.Fields.Iterator(), at.Fields.Iterator(); iter1.Next()&&iter2.Next(); {
+		f1, f2 := iter1.Value().Second, iter2.Value().Second
+		if f1.Public != f2.Public || f1.Mutable != f2.Mutable || f1.Name != f2.Name || !f1.Type.EqualTo(f2.Type){
+			return false
+		}
+	}
+	return true
+}
+
+func (self *StructType) HasDefault()bool{
+	return stliter.All(self.Fields, func(e pair.Pair[string, Field]) bool {
+		return e.Second.Type.HasDefault()
+	})
+}
+
+func (self *StructType) Runtime()runtimeType.Type{
+	fields := stliter.Map[pair.Pair[string, Field], runtimeType.Field, dynarray.DynArray[runtimeType.Field]](self.Fields, func(e pair.Pair[string, Field]) runtimeType.Field {
+		return runtimeType.NewField(e.Second.Type.Runtime(), e.First)
+	}).ToSlice()
+	return runtimeType.NewStructType(self.Pkg.String(), fields...)
+}
+
+func (self *StructType) buildin(){}
+func (self *StructType) runtime(){}
 
 // SelfType Self类型
 type SelfType struct{
-	Self util.Option[TypeDef]
+	Self util.Option[GlobalType]
 }
 
-func NewSelfType(self TypeDef)*SelfType{
+func NewSelfType(self GlobalType)*SelfType{
 	return &SelfType{
 		Self: util.Some(self),
 	}
@@ -542,24 +639,88 @@ func (self *SelfType) String() string {
 }
 
 func (self *SelfType) EqualTo(dst Type) bool {
-	return ToActualType(self).EqualTo(dst)
+	return self.Self.MustValue().EqualTo(dst)
 }
 
 func (self *SelfType) HasDefault()bool{
 	return self.Self.MustValue().HasDefault()
 }
 
+func (self *SelfType) Runtime()runtimeType.Type{
+	return self.Self.MustValue().Runtime()
+}
+
+// CustomType 自定义类型
+type CustomType = TypeDef
+
+func TryCustomType(t Type)(*CustomType, bool){
+	switch tt := t.(type) {
+	case *CustomType:
+		return tt, true
+	case BuildInType:
+		return nil, false
+	case *SelfType:
+		return TryCustomType(tt.Self.MustValue())
+	case *AliasType:
+		return TryCustomType(tt.Target)
+	default:
+		panic("unreachable")
+	}
+}
+
+func IsCustomType(t Type)bool{
+	_, ok := TryCustomType(t)
+	return ok
+}
+
+func AsCustomType(t Type)*CustomType{
+	ct, ok := TryCustomType(t)
+	if !ok{
+		panic("unreachable")
+	}
+	return ct
+}
+
+func (self *CustomType) String() string {
+	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
+}
+
+func (self *CustomType) EqualTo(dst Type) bool {
+	at, ok := ToRuntimeType(dst).(*CustomType)
+	if !ok{
+		return false
+	}
+	return self.Pkg == at.Pkg && self.Name == at.Name
+}
+
+func (self *CustomType) HasDefault()bool{
+	return self.Target.HasDefault()
+}
+
+func (self *CustomType) Runtime()runtimeType.Type{
+	methods := stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
+		return runtimeType.NewMethod(e.Second.GetFuncType().Runtime().(*runtimeType.FuncType), e.First)
+	}).ToSlice()
+	return runtimeType.NewCustomType(self.Pkg.String(), self.Name, self.Target.Runtime(), methods)
+}
+
+func (self *CustomType) runtime(){}
+
 // AliasType 别名类型
 type AliasType = TypeAliasDef
 
 func (self *AliasType) String() string {
-	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
+	return self.Target.String()
 }
 
 func (self *AliasType) EqualTo(dst Type) bool {
-	return ToActualType(self).EqualTo(dst)
+	return self.Target.EqualTo(dst)
 }
 
 func (self *AliasType) HasDefault()bool{
 	return self.Target.HasDefault()
+}
+
+func (self *AliasType) Runtime()runtimeType.Type{
+	return self.Target.Runtime()
 }

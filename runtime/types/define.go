@@ -3,10 +3,10 @@ package types
 import (
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/linkedhashset"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
@@ -50,7 +50,7 @@ type Type interface {
 type EmptyType struct{}
 
 func (*EmptyType) String() string {
-	return "empty"
+	return ""
 }
 
 func (self *EmptyType) Hash() uint64 {
@@ -212,8 +212,7 @@ func (self *FuncType) String() string {
 	params := lo.Map(self.Params, func(item Type, _ int) string {
 		return item.String()
 	})
-	ret := stlbasic.Ternary(self.Ret.Equal(TypeEmpty), "", self.Ret.String())
-	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
+	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.Ret)
 }
 
 func (self *FuncType) Hash() uint64 {
@@ -308,15 +307,27 @@ func NewUnionType(elems ...Type)*UnionType{
 			return []Type{e}
 		}
 	})
-	elems = linkedhashset.NewLinkedHashSetWith(elems...).ToSlice().ToSlice()
-	return &UnionType{Elems: elems}
+	sort.Slice(elems, func(i, j int) bool {
+		return elems[i].String() < elems[j].String()
+	})
+
+	flatElems := make([]Type, 0, len(elems))
+loop:
+	for _, e := range elems{
+		for _, fe := range flatElems{
+			if e.Equal(fe){
+				continue loop
+			}
+		}
+		flatElems = append(flatElems, e)
+	}
+
+	return &UnionType{Elems: flatElems}
 }
 
 func (self *UnionType) String() string {
-	elemStrs := stlslices.Map(self.Elems, func(_ int, e Type) string {
-		return e.String()
-	})
-	return fmt.Sprintf("<%s>", strings.Join(elemStrs, ", "))
+	elems := stlslices.Map(self.Elems, func(_ int, e Type) string {return e.String()})
+	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
 }
 
 func (self *UnionType) Hash() uint64 {
@@ -383,34 +394,73 @@ func NewMethod(t *FuncType, name string)Method{
 	}
 }
 
+// StructType 结构体类型
 type StructType struct {
-	Pkg    string
-	Name   string
+	Pkg string
 	Fields []Field
-	Methods []Method
 }
 
-func NewStructType(pkg, name string, fields []Field, methods []Method)*StructType{
+func NewStructType(pkg string, fields ...Field)*StructType {
 	return &StructType{
 		Pkg: pkg,
-		Name: name,
 		Fields: fields,
-		Methods: methods,
 	}
 }
 
 func (self *StructType) String() string {
-	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+	return fmt.Sprintf("{%s}", stlslices.Map(self.Fields, func(_ int, e Field) string {
+		return fmt.Sprintf("%s: %s", e.Name, e.Type)
+	}))
 }
 
 func (self *StructType) Hash() uint64 {
-	return stlbasic.Hash(self.String())
+	return stlbasic.Hash(stlslices.Map(self.Fields, func(_ int, e Field) string {
+		return fmt.Sprintf("%s: %s", e.Name, e.Type)
+	}))
 }
 
 func (self *StructType) Equal(dst Type) bool {
 	dt, ok := dst.(*StructType)
-	if !ok || self.Pkg != dt.Pkg || self.Name != dt.Name {
+	if !ok || self.Pkg != dt.Pkg || len(self.Fields) != len(dt.Fields) {
 		return false
 	}
+	for i, f := range self.Fields{
+		if f.Name != dt.Fields[i].Name || !f.Type.Equal(dt.Fields[i].Type){
+			return false
+		}
+	}
 	return true
+}
+
+// CustomType 自定义类型
+type CustomType struct {
+	Pkg    string
+	Name   string
+	Target Type
+	Methods []Method
+}
+
+func NewCustomType(pkg, name string, target Type, methods []Method)*CustomType {
+	return &CustomType{
+		Pkg: pkg,
+		Name: name,
+		Target: target,
+		Methods: methods,
+	}
+}
+
+func (self *CustomType) String() string {
+	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+}
+
+func (self *CustomType) Hash() uint64 {
+	return stlbasic.Hash(self.String())
+}
+
+func (self *CustomType) Equal(dst Type) bool {
+	dt, ok := dst.(*CustomType)
+	if !ok {
+		return false
+	}
+	return self.Pkg == dt.Pkg && self.Name == dt.Name
 }

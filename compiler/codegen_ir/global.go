@@ -2,37 +2,29 @@ package codegen_ir
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/pair"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/types"
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *CodeGenerator) declStructDef(ir *hir.StructDef) {
-	self.structs.Set(ir, pair.NewPair[mir.StructType, *types.StructType](self.module.NewNamedStructType(""), types.NewStructType(ir.Pkg.String(), ir.Name, nil, nil)))
+func (self *CodeGenerator) declTypeDef(ir *hir.TypeDef) {
+	if stlbasic.Is[*hir.StructType](ir.Target){
+		self.types.Set(ir, self.module.NewNamedStructType(""))
+	}else{
+		// TODO: 支持除结构体之外的类型循环
+		self.types.Set(ir, self.codegenType(ir.Target))
+	}
 }
 
-func (self *CodeGenerator) defStructDef(ir *hir.StructDef) {
-	stPair := self.structs.Get(ir)
-	fields, fieldRts := make([]mir.Type, ir.Fields.Length()), make([]types.Field, ir.Fields.Length())
-	for i, iter := 0, ir.Fields.Values().Iterator(); iter.Next(); i++ {
-		f, fRt := self.codegenType(iter.Value().Type)
-		fields[i], fieldRts[i] = f, types.NewField(fRt, ir.Name)
+func (self *CodeGenerator) defTypeDef(ir *hir.TypeDef) {
+	if !stlbasic.Is[*hir.StructType](ir.Target){
+		return
 	}
-	stPair.First.SetElems(fields...)
-	stPair.Second.Fields = fieldRts
-	methodRts := make([]types.Method, 0, ir.Methods.Length())
-	for iter := ir.Methods.Values().Iterator(); iter.Next(); {
-		switch method := iter.Value().(type) {
-		case *hir.MethodDef:
-			_, ft := self.codegenFuncType(method.GetFuncType())
-			methodRts = append(methodRts, types.NewMethod(ft, method.Name))
-		}
-	}
-	stPair.Second.Methods = methodRts
+	td := self.types.Get(ir)
+	target := self.codegenType(ir.Target).(mir.StructType)
+	td.(mir.StructType).SetElems(target.Elems()...)
 }
 
 func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
@@ -45,14 +37,14 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiGlobalVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.StructDef, *hir.TypeAliasDef:
+	case *hir.TypeDef, *hir.TypeAliasDef:
 	default:
 		panic("unreachable")
 	}
 }
 
 func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
-	ftObj, _ := self.codegenType(ir.GetType())
+	ftObj := self.codegenType(ir.GetType())
 	ft := ftObj.(mir.FuncType)
 	if ir.VarArg{
 		ft.SetVarArg(true)
@@ -72,7 +64,7 @@ func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
 }
 
 func (self *CodeGenerator) declGlobalVariable(ir *hir.GlobalVarDef) {
-	t, _ := self.codegenType(ir.Type)
+	t := self.codegenType(ir.Type)
 	v := self.module.NewGlobalVariable(ir.ExternName, t, nil)
 	self.values.Set(ir, v)
 }
@@ -93,8 +85,8 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		}
 	case *hir.MethodDef:
 		self.defMethodDef(global)
-	case *hir.StructDef:
-		self.defStructDef(global)
+	case *hir.TypeDef:
+		self.defTypeDef(global)
 	case *hir.GlobalVarDef:
 		if global.Value.IsNone(){
 			self.defGlobalVariableDecl(global)

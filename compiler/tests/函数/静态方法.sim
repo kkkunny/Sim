@@ -1,6 +1,6 @@
 import std::os
 
-struct A{}
+type A struct{}
 
 func (A) get(v: u8)u8{
     return v

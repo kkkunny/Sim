@@ -4,11 +4,9 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
-	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/types"
 )
 
 // CodeGenerator 代码生成器
@@ -21,10 +19,10 @@ type CodeGenerator struct {
 	builder *mir.Builder
 
 	values               hashmap.HashMap[hir.Expr, mir.Value]
+	types     hashmap.HashMap[*hir.CustomType, mir.Type]
 	loops                hashmap.HashMap[hir.Loop, loop]
-	strings              hashmap.HashMap[string, *mir.Constant]
-	structs              hashmap.HashMap[*hir.StructType, pair.Pair[mir.StructType, *types.StructType]]
-	funcCache            hashmap.HashMap[string, *mir.Function]
+	strings   hashmap.HashMap[string, *mir.Constant]
+	funcCache hashmap.HashMap[string, *mir.Function]
 }
 
 func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {
@@ -42,9 +40,9 @@ func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerato
 func (self *CodeGenerator) Codegen() *mir.Module {
 	// 类型声明
 	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
-		st, ok := v.(*hir.StructDef)
+		st, ok := v.(*hir.TypeDef)
 		if ok {
-			self.declStructDef(st)
+			self.declTypeDef(st)
 		}
 		return true
 	})

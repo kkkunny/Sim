@@ -15,20 +15,21 @@ type Global interface {
 	global()
 }
 
-// StructDef 结构体定义
-type StructDef struct {
-	Begin  reader.Position
-	Public bool
-	Name   token.Token
-	Fields []Field
-	End    reader.Position
+// Import 包导入
+type Import struct {
+	Begin reader.Position
+	Paths dynarray.DynArray[token.Token]
+	Alias util.Option[token.Token]
 }
 
-func (self *StructDef) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
+func (self *Import) Position() reader.Position {
+	if alias, ok := self.Alias.Value(); ok {
+		return reader.MixPosition(self.Begin, alias.Position)
+	}
+	return reader.MixPosition(self.Begin, self.Paths.Back().Position)
 }
 
-func (*StructDef) global() {}
+func (*Import) global() {}
 
 
 type VariableDef interface {
@@ -98,36 +99,6 @@ func (self *MultipleVariableDef) ToSingleList()[]*SingleVariableDef{
 	})
 }
 
-// Import 包导入
-type Import struct {
-	Begin reader.Position
-	Paths dynarray.DynArray[token.Token]
-	Alias util.Option[token.Token]
-}
-
-func (self *Import) Position() reader.Position {
-	if alias, ok := self.Alias.Value(); ok {
-		return reader.MixPosition(self.Begin, alias.Position)
-	}
-	return reader.MixPosition(self.Begin, self.Paths.Back().Position)
-}
-
-func (*Import) global() {}
-
-// TypeAlias 类型别名
-type TypeAlias struct {
-	Begin  reader.Position
-	Public bool
-	Name   token.Token
-	Type   Type
-}
-
-func (self *TypeAlias) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Type.Position())
-}
-
-func (*TypeAlias) global() {}
-
 // FuncDef 函数定义
 type FuncDef struct {
 	Attrs    []Attr
@@ -152,3 +123,32 @@ func (self *FuncDef) Position() reader.Position {
 }
 
 func (*FuncDef) global() {}
+
+
+// TypeDef 类型定义
+type TypeDef struct {
+	Begin  reader.Position
+	Public bool
+	Name   token.Token
+	Target Type
+}
+
+func (self *TypeDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Target.Position())
+}
+
+func (*TypeDef) global() {}
+
+// TypeAlias 类型别名
+type TypeAlias struct {
+	Begin  reader.Position
+	Public bool
+	Name   token.Token
+	Target Type
+}
+
+func (self *TypeAlias) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Target.Position())
+}
+
+func (*TypeAlias) global() {}

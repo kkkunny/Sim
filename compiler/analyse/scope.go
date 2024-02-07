@@ -20,7 +20,7 @@ type _PkgScope struct {
 	links   linkedhashset.LinkedHashSet[*_PkgScope]
 
 	valueDefs         hashmap.HashMap[string, hir.Ident]
-	typeDefs          hashmap.HashMap[string, hir.TypeDef]
+	typeDefs          hashmap.HashMap[string, hir.GlobalType]
 }
 
 func _NewPkgScope(pkg hir.Package) *_PkgScope {
@@ -29,7 +29,7 @@ func _NewPkgScope(pkg hir.Package) *_PkgScope {
 		externs:           hashmap.NewHashMap[string, *_PkgScope](),
 		links:             linkedhashset.NewLinkedHashSet[*_PkgScope](),
 		valueDefs:         hashmap.NewHashMap[string, hir.Ident](),
-		typeDefs:          hashmap.NewHashMap[string, hir.TypeDef](),
+		typeDefs:          hashmap.NewHashMap[string, hir.GlobalType](),
 	}
 }
 
@@ -74,7 +74,7 @@ func (self *_PkgScope) GetValue(pkg, name string) (hir.Ident, bool) {
 	return v, true
 }
 
-func (self *_PkgScope) SetTypeDef(td hir.TypeDef) bool {
+func (self *_PkgScope) SetTypeDef(td hir.GlobalType) bool {
 	if _, ok := self.getTypeDef(td.GetName()); ok {
 		return false
 	}
@@ -82,11 +82,11 @@ func (self *_PkgScope) SetTypeDef(td hir.TypeDef) bool {
 	return true
 }
 
-func (self *_PkgScope) getLocalTypeDef(name string) (hir.TypeDef, bool) {
+func (self *_PkgScope) getLocalTypeDef(name string) (hir.GlobalType, bool) {
 	return self.typeDefs.Get(name), self.typeDefs.ContainKey(name)
 }
 
-func (self *_PkgScope) getTypeDef(name string) (hir.TypeDef, bool) {
+func (self *_PkgScope) getTypeDef(name string) (hir.GlobalType, bool) {
 	td, ok := self.getLocalTypeDef(name)
 	if ok {
 		return td, true
@@ -100,7 +100,7 @@ func (self *_PkgScope) getTypeDef(name string) (hir.TypeDef, bool) {
 	return nil, false
 }
 
-func (self *_PkgScope) GetTypeDef(pkg, name string) (hir.TypeDef, bool) {
+func (self *_PkgScope) GetTypeDef(pkg, name string) (hir.GlobalType, bool) {
 	if pkg == "" {
 		return self.getTypeDef(name)
 	}

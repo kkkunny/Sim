@@ -616,62 +616,23 @@ func (self *Num2Num) GetFrom() Expr {
 	return self.From
 }
 
-// Pointer2Pointer 指针转指针
-type Pointer2Pointer struct {
+// DoNothingCovert 什么事都不做的转换
+type DoNothingCovert struct {
 	From Expr
 	To   Type
 }
 
-func (self *Pointer2Pointer) stmt() {}
+func (self *DoNothingCovert) stmt() {}
 
-func (self *Pointer2Pointer) GetType() Type {
+func (self *DoNothingCovert) GetType() Type {
 	return self.To
 }
 
-func (self *Pointer2Pointer) Mutable() bool {
-	return self.From.Mutable()
-}
-
-func (self *Pointer2Pointer) GetFrom() Expr {
-	return self.From
-}
-
-// Pointer2Usize 指针转usize
-type Pointer2Usize struct {
-	From Expr
-}
-
-func (self *Pointer2Usize) stmt() {}
-
-func (self *Pointer2Usize) GetType() Type {
-	return Usize
-}
-
-func (*Pointer2Usize) Mutable() bool {
+func (*DoNothingCovert) Mutable() bool {
 	return false
 }
 
-func (self *Pointer2Usize) GetFrom() Expr {
-	return self.From
-}
-
-// Usize2Pointer usize转指针
-type Usize2Pointer struct {
-	From Expr
-	To Type
-}
-
-func (self *Usize2Pointer) stmt() {}
-
-func (self *Usize2Pointer) GetType() Type {
-	return self.To
-}
-
-func (self *Usize2Pointer) Mutable() bool {
-	return self.From.Mutable()
-}
-
-func (self *Usize2Pointer) GetFrom() Expr {
+func (self *DoNothingCovert) GetFrom() Expr {
 	return self.From
 }
 
@@ -900,23 +861,23 @@ func (self *GetValue) GetValue() Expr {
 
 type MethodExpr interface {
 	Expr
-	GetScope()*StructDef
+	GetScope()*TypeDef
 	GetDefine()GlobalMethod
 	GetSelf()(Expr, bool)
 }
 
 // Method 方法
 type Method struct {
-	Self   either.Either[Expr, *StructType]
+	Self   either.Either[Expr, *CustomType]
 	Define *MethodDef
 }
 
 func (self *Method) stmt() {}
 
-func (self *Method) GetScope()*StructDef{
+func (self *Method) GetScope()*TypeDef {
 	if self.Self.IsLeft(){
 		value, _ := self.Self.Left()
-		return AsType[*StructType](value.GetType())
+		return AsCustomType(value.GetType())
 	}else{
 		st, _ := self.Self.Right()
 		return st

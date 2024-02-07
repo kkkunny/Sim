@@ -1,10 +1,10 @@
 import std::os
 
-struct a{
+type a struct{
     pub v: u8
 }
 
-struct b{}
+type b struct{}
 
 func main(){
     let v1: a
