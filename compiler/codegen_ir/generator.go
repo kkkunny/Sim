@@ -3,7 +3,6 @@ package codegen_ir
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
-	"github.com/kkkunny/stl/container/linkedlist"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
@@ -11,7 +10,7 @@ import (
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	irs linkedlist.LinkedList[hir.Global]
+	hir *hir.Result
 
 	target  mir.Target
 	ctx     *mir.Context
@@ -25,10 +24,10 @@ type CodeGenerator struct {
 	funcCache hashmap.HashMap[string, *mir.Function]
 }
 
-func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {
+func New(target mir.Target, ir *hir.Result) *CodeGenerator {
 	ctx := mir.NewContext(target)
 	return &CodeGenerator{
-		irs:     irs,
+		hir: ir,
 		target:  target,
 		ctx:     ctx,
 		module:  ctx.NewModule(),
@@ -39,7 +38,7 @@ func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerato
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() *mir.Module {
 	// 类型声明
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
+	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
 		st, ok := v.(*hir.TypeDef)
 		if ok {
 			self.declTypeDef(st)
@@ -47,12 +46,12 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		return true
 	})
 	// 值声明
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
+	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
 		self.codegenGlobalDecl(v)
 		return true
 	})
 	// 值定义
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
+	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
 		self.codegenGlobalDef(v)
 		return true
 	})
@@ -64,7 +63,7 @@ func (self *CodeGenerator) Codegen() *mir.Module {
 		}
 	}
 	// 主函数
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
+	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
 		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {
 			f := self.values.Get(funcNode).(*mir.Function)
 			self.builder.MoveTo(self.getMainFunction().Blocks().Front().Value)

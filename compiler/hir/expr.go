@@ -315,13 +315,14 @@ func (self *NumRemNum) GetRight() Expr {
 
 // NumLtNum 数字小于数字
 type NumLtNum struct {
+	BoolType Type
 	Left, Right Expr
 }
 
 func (self *NumLtNum) stmt() {}
 
 func (self *NumLtNum) GetType() Type {
-	return Bool
+	return self.BoolType
 }
 
 func (self *NumLtNum) Mutable() bool {
@@ -338,13 +339,14 @@ func (self *NumLtNum) GetRight() Expr {
 
 // NumGtNum 数字大于数字
 type NumGtNum struct {
+	BoolType Type
 	Left, Right Expr
 }
 
 func (self *NumGtNum) stmt() {}
 
 func (self *NumGtNum) GetType() Type {
-	return Bool
+	return self.BoolType
 }
 
 func (self *NumGtNum) Mutable() bool {
@@ -361,13 +363,14 @@ func (self *NumGtNum) GetRight() Expr {
 
 // NumLeNum 数字小于等于数字
 type NumLeNum struct {
+	BoolType Type
 	Left, Right Expr
 }
 
 func (self *NumLeNum) stmt() {}
 
 func (self *NumLeNum) GetType() Type {
-	return Bool
+	return self.BoolType
 }
 
 func (self *NumLeNum) Mutable() bool {
@@ -384,13 +387,14 @@ func (self *NumLeNum) GetRight() Expr {
 
 // NumGeNum 数字大于等于数字
 type NumGeNum struct {
+	BoolType Type
 	Left, Right Expr
 }
 
 func (self *NumGeNum) stmt() {}
 
 func (self *NumGeNum) GetType() Type {
-	return Bool
+	return self.BoolType
 }
 
 func (self *NumGeNum) Mutable() bool {
@@ -407,13 +411,14 @@ func (self *NumGeNum) GetRight() Expr {
 
 // Equal 比较相等
 type Equal struct {
+	BoolType Type
 	Left, Right Expr
 }
 
 func (self *Equal) stmt() {}
 
 func (self *Equal) GetType() Type {
-	return Bool
+	return self.BoolType
 }
 
 func (self *Equal) Mutable() bool {
@@ -430,13 +435,14 @@ func (self *Equal) GetRight() Expr {
 
 // NotEqual 比较不相等
 type NotEqual struct {
+	BoolType Type
 	Left, Right Expr
 }
 
 func (self *NotEqual) stmt() {}
 
 func (self *NotEqual) GetType() Type {
-	return Bool
+	return self.BoolType
 }
 
 func (self *NotEqual) Mutable() bool {
@@ -459,7 +465,7 @@ type BoolAndBool struct {
 func (self *BoolAndBool) stmt() {}
 
 func (self *BoolAndBool) GetType() Type {
-	return Bool
+	return self.Left.GetType()
 }
 
 func (self *BoolAndBool) Mutable() bool {
@@ -482,7 +488,7 @@ type BoolOrBool struct {
 func (self *BoolOrBool) stmt() {}
 
 func (self *BoolOrBool) GetType() Type {
-	return Bool
+	return self.Left.GetType()
 }
 
 func (self *BoolOrBool) Mutable() bool {
@@ -549,7 +555,7 @@ type BoolNegate struct {
 func (self *BoolNegate) stmt() {}
 
 func (self *BoolNegate) GetType() Type {
-	return Bool
+	return self.Value.GetType()
 }
 
 func (self *BoolNegate) Mutable() bool {
@@ -562,13 +568,14 @@ func (self *BoolNegate) GetValue() Expr {
 
 // Boolean 布尔值
 type Boolean struct {
+	BoolType Type
 	Value bool
 }
 
 func (self *Boolean) stmt() {}
 
 func (self *Boolean) GetType() Type {
-	return Bool
+	return self.BoolType
 }
 
 func (self *Boolean) Mutable() bool {
@@ -761,13 +768,14 @@ func (self *GetField) Mutable() bool {
 
 // String 字符串
 type String struct {
+	StrType Type
 	Value string
 }
 
 func (self *String) stmt() {}
 
 func (self *String) GetType() Type {
-	return Str
+	return self.StrType
 }
 
 func (self *String) Mutable() bool {
@@ -792,6 +800,7 @@ func (self *Union) Mutable() bool {
 
 // TypeJudgment 类型判断
 type TypeJudgment struct {
+	BoolType Type
 	Value Expr
 	Type  Type
 }
@@ -799,7 +808,7 @@ type TypeJudgment struct {
 func (self *TypeJudgment) stmt() {}
 
 func (self *TypeJudgment) GetType() Type {
-	return Bool
+	return self.BoolType
 }
 
 func (self *TypeJudgment) Mutable() bool {

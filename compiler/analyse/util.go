@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	"strconv"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
@@ -81,7 +82,7 @@ func (self *Analyser) setSelfType(td hir.GlobalType)(callback func()){
 
 // 获取类型默认值
 func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default{
-	if !t.HasDefault(){
+	if !t.HasDefault() && !t.EqualTo(self.pkgScope.Str()){
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return &hir.Default{Type: t}
@@ -98,7 +99,7 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType, *hir.FuncType, *hir.RefType:
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType:
 	case *hir.ArrayType:
 		return self.checkTypeDefCircle(trace, typ.Elem)
 	case *hir.TupleType:
@@ -148,7 +149,7 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType, *hir.CustomType:
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType:
 	case *hir.FuncType:
 		for _, p := range typ.Params {
 			if self.checkTypeAliasCircle(trace, p){
@@ -221,40 +222,27 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 
 	if len(flag) == 0 || !flag[0]{
 		// 类型
-		switch name := node.Name.Source(); name {
-		case "isize":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.Isize))
-		case "i8":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.I8))
-		case "i16":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.I16))
-		case "i32":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.I32))
-		case "i64":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.I64))
-		case "usize":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.Usize))
-		case "u8":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.U8))
-		case "u16":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.U16))
-		case "u32":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.U32))
-		case "u64":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.U64))
-		case "f32":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.F32))
-		case "f64":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.F64))
-		case "bool":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.Bool))
-		case "str":
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.Str))
-		default:
-			// 类型定义
-			if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
-				return util.Some(either.Left[hir.Type, hir.Expr](td))
+		name := node.Name.Source()
+		// 内置类型
+		if strings.HasPrefix(name, "__buildin_i"){
+			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
+			if err == nil && bits > 0 && bits <= 128{
+				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewSintType(uint8(bits))))
 			}
+		}else if strings.HasPrefix(name, "__buildin_u"){
+			bits, err := strconv.ParseUint(name[len("__buildin_u"):], 10, 8)
+			if err == nil && bits > 0 && bits <= 128{
+				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewUintType(uint8(bits))))
+			}
+		}else if strings.HasPrefix(name, "__buildin_f"){
+			bits, err := strconv.ParseUint(name[len("__buildin_f"):], 10, 8)
+			if err == nil && (bits == 16 || bits == 32 || bits == 64 || bits == 128){
+				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewFloatType(uint8(bits))))
+			}
+		}
+		// 类型定义
+		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
+			return util.Some(either.Left[hir.Type, hir.Expr](td))
 		}
 	}
 
@@ -286,10 +274,10 @@ func (self *Analyser) analyseFuncBody(node *ast.Block)*hir.Block{
 }
 
 // Analyse 语义分析
-func Analyse(path stlos.FilePath) (linkedlist.LinkedList[hir.Global], stlerror.Error) {
+func Analyse(path stlos.FilePath) (*hir.Result, stlerror.Error) {
 	asts, err := parse.Parse(path)
 	if err != nil{
-		return linkedlist.LinkedList[hir.Global]{}, err
+		return nil, err
 	}
 	return New(asts).Analyse(), nil
 }
@@ -301,5 +289,5 @@ func analyseSonPackage(parent *Analyser, pkg hir.Package) (linkedlist.LinkedList
 		return linkedlist.LinkedList[hir.Global]{}, nil, err
 	}
 	analyser := newSon(parent, asts)
-	return analyser.Analyse(), analyser.pkgScope, nil
+	return analyser.Analyse().Globals, analyser.pkgScope, nil
 }

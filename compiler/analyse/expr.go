@@ -58,7 +58,7 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 
 func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.Expr {
 	if expect == nil || !hir.IsNumberType(expect) {
-		expect = hir.Isize
+		expect = self.pkgScope.Isize()
 	}
 	switch {
 	case hir.IsIntType(expect):
@@ -83,7 +83,7 @@ func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.Exp
 
 func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.Expr {
 	if expect == nil || !hir.IsNumberType(expect) {
-		expect = hir.I32
+		expect = self.pkgScope.I32()
 	}
 	s := node.Value.Source()
 	char := util.ParseEscapeCharacter(s[1:len(s)-1], `\'`, `'`)[0]
@@ -107,7 +107,7 @@ func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.Expr {
 
 func (self *Analyser) analyseFloat(expect hir.Type, node *ast.Float) *hir.Float {
 	if expect == nil || !hir.IsType[*hir.FloatType](expect) {
-		expect = hir.F64
+		expect = self.pkgScope.F64()
 	}
 	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
 	return &hir.Float{
@@ -215,6 +215,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 		if lt.EqualTo(rt) {
 			if !hir.IsType[*hir.EmptyType](lt){
 				return &hir.Equal{
+					BoolType: self.pkgScope.Bool(),
 					Left:  left,
 					Right: right,
 				}
@@ -223,6 +224,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 	case token.NE:
 		if !hir.IsType[*hir.EmptyType](lt){
 			return &hir.NotEqual{
+				BoolType: self.pkgScope.Bool(),
 				Left:  left,
 				Right: right,
 			}
@@ -230,6 +232,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 	case token.LT:
 		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLtNum{
+				BoolType: self.pkgScope.Bool(),
 				Left:  left,
 				Right: right,
 			}
@@ -237,6 +240,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 	case token.GT:
 		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGtNum{
+				BoolType: self.pkgScope.Bool(),
 				Left:  left,
 				Right: right,
 			}
@@ -244,6 +248,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 	case token.LE:
 		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLeNum{
+				BoolType: self.pkgScope.Bool(),
 				Left:  left,
 				Right: right,
 			}
@@ -251,19 +256,20 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 	case token.GE:
 		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGeNum{
+				BoolType: self.pkgScope.Bool(),
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LAND:
-		if lt.EqualTo(rt) && hir.IsType[*hir.BoolType](lt) {
+		if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
 			return &hir.BoolAndBool{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LOR:
-		if lt.EqualTo(rt) && hir.IsType[*hir.BoolType](lt) {
+		if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
 			return &hir.BoolOrBool{
 				Left:  left,
 				Right: right,
@@ -293,7 +299,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 		switch {
 		case hir.IsIntType(vt):
 			return &hir.IntBitNegate{Value: value}
-		case hir.IsType[*hir.BoolType](vt):
+		case vt.EqualTo(self.pkgScope.Bool()):
 			return &hir.BoolNegate{Value: value}
 		default:
 			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
@@ -502,7 +508,7 @@ func (self *Analyser) analyseIndex(node *ast.Index) *hir.Index {
 		errors.ThrowExpectArrayError(node.From.Position(), from.GetType())
 	}
 	at := hir.AsType[*hir.ArrayType](from.GetType())
-	index := self.expectExpr(hir.Usize, node.Index)
+	index := self.expectExpr(self.pkgScope.Usize(), node.Index)
 	if stlbasic.Is[*hir.Integer](index) && index.(*hir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0{
 		errors.ThrowIndexOutOfRange(node.Index.Position())
 	}
@@ -638,7 +644,10 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 func (self *Analyser) analyseString(node *ast.String) *hir.String {
 	s := node.Value.Source()
 	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
-	return &hir.String{Value: s}
+	return &hir.String{
+		StrType: self.pkgScope.Str(),
+		Value: s,
+	}
 }
 
 func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
@@ -648,9 +657,13 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 
 	switch {
 	case vt.EqualTo(target):
-		return &hir.Boolean{Value: true}
+		return &hir.Boolean{
+			BoolType: self.pkgScope.Bool(),
+			Value: true,
+		}
 	default:
 		return &hir.TypeJudgment{
+			BoolType: self.pkgScope.Bool(),
 			Value: value,
 			Type:  target,
 		}

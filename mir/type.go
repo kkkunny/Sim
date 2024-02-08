@@ -241,12 +241,20 @@ func (self *Context) newFloatType(size stlos.Size)FloatType {
 	}
 }
 
+func (self *Context) F16()FloatType {
+	return self.newFloatType(2*stlos.Byte)
+}
+
 func (self *Context) F32()FloatType {
 	return self.newFloatType(4*stlos.Byte)
 }
 
 func (self *Context) F64()FloatType {
 	return self.newFloatType(8*stlos.Byte)
+}
+
+func (self *Context) F128()FloatType {
+	return self.newFloatType(16*stlos.Byte)
 }
 
 func (self *floatType) String()string{

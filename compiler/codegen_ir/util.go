@@ -29,7 +29,7 @@ func (self *CodeGenerator) getExternFunction(name string, t mir.FuncType)*mir.Fu
 
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
 	switch irType := hir.ToRuntimeType(t).(type) {
-	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType:
+	case *hir.SintType, *hir.UintType, *hir.FloatType:
 		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
 	case *hir.FuncType, *hir.RefType:
 		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
@@ -45,19 +45,6 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 			res = self.builder.BuildNot(res)
 		}
 		return res
-	case *hir.StringType:
-		name := "sim_runtime_str_eq_str"
-		ft := self.ctx.NewFuncType(false, self.ctx.Bool(), l.Type(), r.Type())
-		var f *mir.Function
-		var ok bool
-		if f, ok = self.module.NamedFunction(name); !ok {
-			f = self.module.NewFunction(name, ft)
-		}
-		var res mir.Value = self.builder.BuildCall(f, l, r)
-		if not {
-			res = self.builder.BuildNot(res)
-		}
-		return res
 	case *hir.UnionType:
 		res := self.buildUnionEqual(irType, l, r)
 		if not {
@@ -65,7 +52,23 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 		}
 		return res
 	case *hir.CustomType:
-		return self.buildEqual(irType.Target, l, r, not)
+		switch {
+		case irType.EqualTo(self.hir.BuildinTypes.Str):
+			name := "sim_runtime_str_eq_str"
+			ft := self.ctx.NewFuncType(false, self.ctx.Bool(), l.Type(), r.Type())
+			var f *mir.Function
+			var ok bool
+			if f, ok = self.module.NamedFunction(name); !ok {
+				f = self.module.NewFunction(name, ft)
+			}
+			var res mir.Value = self.builder.BuildCall(f, l, r)
+			if not {
+				res = self.builder.BuildNot(res)
+			}
+			return res
+		default:
+			return self.buildEqual(irType.Target, l, r, not)
+		}
 	default:
 		panic("unreachable")
 	}
@@ -265,7 +268,7 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 }
 
 func (self *CodeGenerator) constString(s string) mir.Const {
-	st := self.codegenStringType()
+	st := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
 	if !self.strings.ContainKey(s) {
 		self.strings.Set(s, self.module.NewConstant("", mir.NewString(self.ctx, s)))
 	}
@@ -277,12 +280,10 @@ func (self *CodeGenerator) constString(s string) mir.Const {
 }
 
 func (self *CodeGenerator) buildCovertUnionIndex(src, dst *hir.UnionType, index mir.Value)mir.Value{
-	strType := self.codegenStringType()
+	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
 	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(false, self.ctx.U8(), strType, strType, self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
-	gob.Register(new(types.BoolType))
-	gob.Register(new(types.StringType))
 	gob.Register(new(types.SintType))
 	gob.Register(new(types.UintType))
 	gob.Register(new(types.FloatType))
@@ -300,12 +301,10 @@ func (self *CodeGenerator) buildCovertUnionIndex(src, dst *hir.UnionType, index 
 }
 
 func (self *CodeGenerator) buildCheckUnionType(src, dst *hir.UnionType, index mir.Value)mir.Value{
-	strType := self.codegenStringType()
+	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
 	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(false, self.ctx.Bool(), strType, strType, self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
-	gob.Register(new(types.BoolType))
-	gob.Register(new(types.StringType))
 	gob.Register(new(types.SintType))
 	gob.Register(new(types.UintType))
 	gob.Register(new(types.FloatType))
@@ -323,7 +322,7 @@ func (self *CodeGenerator) buildCheckUnionType(src, dst *hir.UnionType, index mi
 }
 
 func (self *CodeGenerator) buildPanic(s string){
-	strType := self.codegenStringType()
+	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
 	fn := self.getExternFunction("sim_runtime_panic", self.ctx.NewFuncType(false, self.ctx.Void(), strType))
 	self.builder.BuildCall(fn, self.constString(s))
 	self.builder.BuildUnreachable()

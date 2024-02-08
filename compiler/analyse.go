@@ -16,8 +16,8 @@ import (
 )
 
 func main() {
-	means := stlerror.MustWith(analyse.Analyse(stlos.NewFilePath(os.Args[1])))
-	stliter.Foreach(means, func(v hir.Global) bool {
+	res := stlerror.MustWith(analyse.Analyse(stlos.NewFilePath(os.Args[1])))
+	stliter.Foreach(res.Globals, func(v hir.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())
 		return true
 	})

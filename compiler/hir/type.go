@@ -18,25 +18,6 @@ import (
 
 var (
 	Empty = &EmptyType{}
-
-	Isize = &SintType{Bits: 0}
-	I8    = &SintType{Bits: 8}
-	I16   = &SintType{Bits: 16}
-	I32   = &SintType{Bits: 32}
-	I64   = &SintType{Bits: 64}
-
-	Usize = &UintType{Bits: 0}
-	U8    = &UintType{Bits: 8}
-	U16   = &UintType{Bits: 16}
-	U32   = &UintType{Bits: 32}
-	U64   = &UintType{Bits: 64}
-
-	F32 = &FloatType{Bits: 32}
-	F64 = &FloatType{Bits: 64}
-
-	Bool = &BoolType{}
-
-	Str = &StringType{}
 )
 
 // Type 类型
@@ -149,11 +130,15 @@ func (self *EmptyType) runtime(){}
 
 // SintType 有符号整型
 type SintType struct {
-	Bits uint
+	Bits uint8
+}
+
+func NewSintType(bits uint8)*SintType{
+	return &SintType{Bits: bits}
 }
 
 func (self *SintType) String() string {
-	return stlbasic.Ternary(self.Bits==0, "isize", fmt.Sprintf("i%d", self.Bits))
+	return fmt.Sprintf("__buildin_i%d", self.Bits)
 }
 
 func (self *SintType) EqualTo(dst Type) bool {
@@ -169,20 +154,7 @@ func (self *SintType) HasDefault()bool{
 }
 
 func (self *SintType) Runtime()runtimeType.Type{
-	switch self.Bits {
-	case 0:
-		return runtimeType.TypeIsize
-	case 8:
-		return runtimeType.TypeI8
-	case 16:
-		return runtimeType.TypeI16
-	case 32:
-		return runtimeType.TypeI32
-	case 64:
-		return runtimeType.TypeI64
-	default:
-		panic("unreachable")
-	}
+	return runtimeType.NewSintType(self.Bits)
 }
 
 func (self *SintType) buildin(){}
@@ -190,11 +162,15 @@ func (self *SintType) runtime(){}
 
 // UintType 无符号整型
 type UintType struct {
-	Bits uint
+	Bits uint8
+}
+
+func NewUintType(bits uint8)*UintType{
+	return &UintType{Bits: bits}
 }
 
 func (self *UintType) String() string {
-	return stlbasic.Ternary(self.Bits==0, "usize", fmt.Sprintf("u%d", self.Bits))
+	return fmt.Sprintf("__buildin_u%d", self.Bits)
 }
 
 func (self *UintType) EqualTo(dst Type) bool {
@@ -210,20 +186,7 @@ func (self *UintType) HasDefault()bool{
 }
 
 func (self *UintType) Runtime()runtimeType.Type{
-	switch self.Bits {
-	case 0:
-		return runtimeType.TypeUsize
-	case 8:
-		return runtimeType.TypeU8
-	case 16:
-		return runtimeType.TypeU16
-	case 32:
-		return runtimeType.TypeU32
-	case 64:
-		return runtimeType.TypeU64
-	default:
-		panic("unreachable")
-	}
+	return runtimeType.NewUintType(self.Bits)
 }
 
 func (self *UintType) buildin(){}
@@ -231,11 +194,15 @@ func (self *UintType) runtime(){}
 
 // FloatType 浮点型
 type FloatType struct {
-	Bits uint
+	Bits uint8
+}
+
+func NewFloatType(bits uint8)*FloatType{
+	return &FloatType{Bits: bits}
 }
 
 func (self *FloatType) String() string {
-	return fmt.Sprintf("f%d", self.Bits)
+	return fmt.Sprintf("__buildin_f%d", self.Bits)
 }
 
 func (self *FloatType) EqualTo(dst Type) bool {
@@ -251,14 +218,7 @@ func (self *FloatType) HasDefault()bool{
 }
 
 func (self *FloatType) Runtime()runtimeType.Type{
-	switch self.Bits {
-	case 32:
-		return runtimeType.TypeF32
-	case 64:
-		return runtimeType.TypeF64
-	default:
-		panic("unreachable")
-	}
+	return runtimeType.NewFloatType(self.Bits)
 }
 
 func (self *FloatType) buildin(){}
@@ -313,28 +273,6 @@ func (self *FuncType) Runtime()runtimeType.Type{
 
 func (self *FuncType) buildin(){}
 func (self *FuncType) runtime(){}
-
-// BoolType 布尔型
-type BoolType struct{}
-
-func (*BoolType) String() string {
-	return "bool"
-}
-
-func (self *BoolType) EqualTo(dst Type) bool {
-	return stlbasic.Is[*BoolType](ToRuntimeType(dst))
-}
-
-func (self *BoolType) HasDefault()bool{
-	return true
-}
-
-func (self *BoolType) Runtime()runtimeType.Type{
-	return runtimeType.TypeBool
-}
-
-func (self *BoolType) buildin(){}
-func (self *BoolType) runtime(){}
 
 // ArrayType 数组型
 type ArrayType struct {
@@ -418,28 +356,6 @@ func (self *TupleType) Runtime()runtimeType.Type{
 
 func (self *TupleType) buildin(){}
 func (self *TupleType) runtime(){}
-
-// StringType 字符串型
-type StringType struct{}
-
-func (*StringType) String() string {
-	return "str"
-}
-
-func (self *StringType) EqualTo(dst Type) bool {
-	return stlbasic.Is[*StringType](ToRuntimeType(dst))
-}
-
-func (self *StringType) HasDefault()bool{
-	return true
-}
-
-func (self *StringType) Runtime()runtimeType.Type{
-	return runtimeType.TypeStr
-}
-
-func (self *StringType) buildin(){}
-func (self *StringType) runtime(){}
 
 // UnionType 联合类型
 type UnionType struct {

@@ -20,16 +20,12 @@ func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 		return self.codegenFloatType(t)
 	case *hir.FuncType:
 		return self.codegenFuncType(t)
-	case *hir.BoolType:
-		return self.codegenBoolType()
 	case *hir.ArrayType:
 		return self.codegenArrayType(t)
 	case *hir.TupleType:
 		return self.codegenTupleType(t)
 	case *hir.CustomType:
 		return self.codegenCustomType(t)
-	case *hir.StringType:
-		return self.codegenStringType()
 	case *hir.UnionType:
 		return self.codegenUnionType(t)
 	case *hir.RefType:
@@ -46,25 +42,23 @@ func (self *CodeGenerator) codegenEmptyType() mir.VoidType {
 }
 
 func (self *CodeGenerator) codegenSintType(ir *hir.SintType) mir.SintType {
-	if ir.Bits == 0{
-		return self.ctx.Isize()
-	}
 	return self.ctx.NewSintType(stlos.Size(ir.Bits))
 }
 
 func (self *CodeGenerator) codegenUintType(ir *hir.UintType) mir.UintType {
-	if ir.Bits == 0{
-		return self.ctx.Usize()
-	}
 	return self.ctx.NewUintType(stlos.Size(ir.Bits))
 }
 
 func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) mir.FloatType {
 	switch ir.Bits {
+	case 16:
+		return self.ctx.F32()
 	case 32:
 		return self.ctx.F32()
 	case 64:
 		return self.ctx.F64()
+	case 128:
+		return self.ctx.F128()
 	default:
 		panic("unreachable")
 	}
@@ -77,10 +71,6 @@ func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) mir.FuncType {
 		params[i] = self.codegenType(p)
 	}
 	return self.ctx.NewFuncType(false, ret, params...)
-}
-
-func (self *CodeGenerator) codegenBoolType() mir.UintType {
-	return self.ctx.NewUintType(1)
 }
 
 func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) mir.ArrayType {
@@ -105,14 +95,6 @@ func (self *CodeGenerator) codegenStructType(ir *hir.StructType) mir.StructType 
 		return self.codegenType(e.Type)
 	})
 	return self.ctx.NewStructType(fields...)
-}
-
-func (self *CodeGenerator) codegenStringType() mir.StructType {
-	st, ok := self.module.NamedStructType("str")
-	if ok {
-		return st
-	}
-	return self.module.NewNamedStructType("str", self.ctx.NewPtrType(self.ctx.U8()), self.ctx.Usize())
 }
 
 func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) mir.StructType {

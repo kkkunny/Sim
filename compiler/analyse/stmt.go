@@ -169,7 +169,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 
 func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof) {
 	if condNode, ok := node.Cond.Value(); ok {
-		cond := self.expectExpr(hir.Bool, condNode)
+		cond := self.expectExpr(self.pkgScope.Bool(), condNode)
 		body, jump := self.analyseBlock(node.Body, nil)
 
 		var next util.Option[*hir.IfElse]
@@ -193,7 +193,7 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof
 }
 
 func (self *Analyser) analyseWhile(node *ast.While) (*hir.While, hir.BlockEof) {
-	cond := self.expectExpr(hir.Bool, node.Cond)
+	cond := self.expectExpr(self.pkgScope.Bool(), node.Cond)
 	loop := &hir.While{Cond: cond}
 	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {
 		scope.SetLoop(loop)

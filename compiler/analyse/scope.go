@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashset"
 
@@ -114,6 +115,21 @@ func (self *_PkgScope) GetTypeDef(pkg, name string) (hir.GlobalType, bool) {
 	}
 	return td, true
 }
+
+func (self *_PkgScope) Isize()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("isize")) }
+func (self *_PkgScope) I8()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i8")) }
+func (self *_PkgScope) I16()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i16")) }
+func (self *_PkgScope) I32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i32")) }
+func (self *_PkgScope) I64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i64")) }
+func (self *_PkgScope) Usize()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("usize")) }
+func (self *_PkgScope) U8()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u8")) }
+func (self *_PkgScope) U16()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u16")) }
+func (self *_PkgScope) U32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u32")) }
+func (self *_PkgScope) U64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u64")) }
+func (self *_PkgScope) F32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("f32")) }
+func (self *_PkgScope) F64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("f64")) }
+func (self *_PkgScope) Bool()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("bool")) }
+func (self *_PkgScope) Str()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("str")) }
 
 // 本地作用域
 type _LocalScope interface {

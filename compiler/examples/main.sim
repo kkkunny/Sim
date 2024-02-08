@@ -1,12 +1,9 @@
 import std::os
 
-type A struct{}
-
-func (A) get()u8{
-    return 1
-}
-
 func main(){
-    let i: A
-    os::exit(i.get())
+    let v: str
+    if v.len != 0{
+        return
+    }
+    debug("123")
 }
