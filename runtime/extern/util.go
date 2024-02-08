@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unsafe"
 
+	stlbasic "github.com/kkkunny/stl/basic"
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/runtime/types"
@@ -36,13 +37,13 @@ func StrEqStr(l, r types.Str) types.Bool {
 // CheckNull 检查空指针
 func CheckNull(p types.Ptr) types.Ptr {
 	if p == nil {
-		Panic(types.NewStr("zero exception"))
+		Panic(stlbasic.Ptr(types.NewStr("zero exception")))
 	}
 	return p
 }
 
 // CovertUnionIndex 获取原联合值实际类型在新联合类型中的下标
-func CovertUnionIndex(srcStr, dstStr types.Str, index types.U8)types.U8{
+func CovertUnionIndex(srcStr, dstStr *types.Str, index types.U8)types.U8{
 	src, dst := new(types.UnionType), new(types.UnionType)
 
 	stlerror.Must(gob.NewDecoder(strings.NewReader(srcStr.String())).Decode(src))
@@ -56,7 +57,7 @@ func CovertUnionIndex(srcStr, dstStr types.Str, index types.U8)types.U8{
 }
 
 // CheckUnionType 检查原联合值实际类型是否属于新联合类型
-func CheckUnionType(srcStr, dstStr types.Str, index types.U8)types.Bool{
+func CheckUnionType(srcStr, dstStr *types.Str, index types.U8)types.Bool{
 	src, dst := new(types.UnionType), new(types.UnionType)
 
 	stlerror.Must(gob.NewDecoder(strings.NewReader(srcStr.String())).Decode(src))

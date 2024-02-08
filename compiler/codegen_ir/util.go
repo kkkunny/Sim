@@ -267,21 +267,25 @@ func (self *CodeGenerator) getInitFunction() *mir.Function {
 	return initFn
 }
 
-func (self *CodeGenerator) constString(s string) mir.Const {
-	st := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
+func (self *CodeGenerator) constStringPtr(s string) mir.Const {
 	if !self.strings.ContainKey(s) {
-		self.strings.Set(s, self.module.NewConstant("", mir.NewString(self.ctx, s)))
+		st := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
+		dataPtr := stlbasic.TernaryAction(s=="", func() mir.Const {
+			return mir.NewZero(st.Elems()[0])
+		}, func() mir.Const {
+			return mir.NewArrayIndex(
+				self.module.NewConstant("", mir.NewString(self.ctx, s)),
+				mir.NewInt(self.ctx.Usize(), 0),
+			)
+		})
+		self.strings.Set(s, self.module.NewConstant("", mir.NewStruct( st, dataPtr, mir.NewInt(self.ctx.Usize(), int64(len(s))))))
 	}
-	return mir.NewStruct(
-		st,
-		mir.NewArrayIndex(self.strings.Get(s), mir.NewInt(self.ctx.Usize(), 0)),
-		mir.NewInt(self.ctx.Usize(), int64(len(s))),
-	)
+	return self.strings.Get(s)
 }
 
 func (self *CodeGenerator) buildCovertUnionIndex(src, dst *hir.UnionType, index mir.Value)mir.Value{
 	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
-	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(false, self.ctx.U8(), strType, strType, self.ctx.U8()))
+	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(false, self.ctx.U8(), self.ctx.NewPtrType(strType), self.ctx.NewPtrType(strType), self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
 	gob.Register(new(types.SintType))
@@ -297,12 +301,12 @@ func (self *CodeGenerator) buildCovertUnionIndex(src, dst *hir.UnionType, index 
 	var srcStr, dstStr bytes.Buffer
 	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src.Runtime()))
 	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst.Runtime()))
-	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
+	return self.builder.BuildCall(fn, self.constStringPtr(srcStr.String()), self.constStringPtr(dstStr.String()), index)
 }
 
 func (self *CodeGenerator) buildCheckUnionType(src, dst *hir.UnionType, index mir.Value)mir.Value{
 	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
-	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(false, self.ctx.Bool(), strType, strType, self.ctx.U8()))
+	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(false, self.ctx.Bool(), self.ctx.NewPtrType(strType), self.ctx.NewPtrType(strType), self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
 	gob.Register(new(types.SintType))
@@ -318,13 +322,13 @@ func (self *CodeGenerator) buildCheckUnionType(src, dst *hir.UnionType, index mi
 	var srcStr, dstStr bytes.Buffer
 	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src.Runtime()))
 	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst.Runtime()))
-	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
+	return self.builder.BuildCall(fn, self.constStringPtr(srcStr.String()), self.constStringPtr(dstStr.String()), index)
 }
 
 func (self *CodeGenerator) buildPanic(s string){
 	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
-	fn := self.getExternFunction("sim_runtime_panic", self.ctx.NewFuncType(false, self.ctx.Void(), strType))
-	self.builder.BuildCall(fn, self.constString(s))
+	fn := self.getExternFunction("sim_runtime_panic", self.ctx.NewFuncType(false, self.ctx.Void(), self.ctx.NewPtrType(strType)))
+	self.builder.BuildCall(fn, self.constStringPtr(s))
 	self.builder.BuildUnreachable()
 }
 

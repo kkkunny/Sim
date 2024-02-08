@@ -82,7 +82,7 @@ func (self *Analyser) setSelfType(td hir.GlobalType)(callback func()){
 
 // 获取类型默认值
 func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default{
-	if !t.HasDefault() && !t.EqualTo(self.pkgScope.Str()){
+	if !t.HasDefault() && !t.EqualTo(hir.NewRefType(false, self.pkgScope.Str())){
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return &hir.Default{Type: t}

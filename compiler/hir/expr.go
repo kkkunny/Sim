@@ -315,7 +315,7 @@ func (self *NumRemNum) GetRight() Expr {
 
 // NumLtNum 数字小于数字
 type NumLtNum struct {
-	BoolType Type
+	BoolType    Type
 	Left, Right Expr
 }
 
@@ -339,7 +339,7 @@ func (self *NumLtNum) GetRight() Expr {
 
 // NumGtNum 数字大于数字
 type NumGtNum struct {
-	BoolType Type
+	BoolType    Type
 	Left, Right Expr
 }
 
@@ -363,7 +363,7 @@ func (self *NumGtNum) GetRight() Expr {
 
 // NumLeNum 数字小于等于数字
 type NumLeNum struct {
-	BoolType Type
+	BoolType    Type
 	Left, Right Expr
 }
 
@@ -387,7 +387,7 @@ func (self *NumLeNum) GetRight() Expr {
 
 // NumGeNum 数字大于等于数字
 type NumGeNum struct {
-	BoolType Type
+	BoolType    Type
 	Left, Right Expr
 }
 
@@ -411,7 +411,7 @@ func (self *NumGeNum) GetRight() Expr {
 
 // Equal 比较相等
 type Equal struct {
-	BoolType Type
+	BoolType    Type
 	Left, Right Expr
 }
 
@@ -435,7 +435,7 @@ func (self *Equal) GetRight() Expr {
 
 // NotEqual 比较不相等
 type NotEqual struct {
-	BoolType Type
+	BoolType    Type
 	Left, Right Expr
 }
 
@@ -569,7 +569,7 @@ func (self *BoolNegate) GetValue() Expr {
 // Boolean 布尔值
 type Boolean struct {
 	BoolType Type
-	Value bool
+	Value    bool
 }
 
 func (self *Boolean) stmt() {}
@@ -646,7 +646,7 @@ func (self *DoNothingCovert) GetFrom() Expr {
 
 // Array 数组
 type Array struct {
-	Type Type
+	Type  Type
 	Elems []Expr
 }
 
@@ -748,9 +748,9 @@ func (self *Default) Mutable() bool {
 
 // GetField 取字段
 type GetField struct {
-	Internal bool  // 是否在包内部，不受字段可变性影响
-	From  Expr
-	Index uint
+	Internal bool // 是否在包内部，不受字段可变性影响
+	From     Expr
+	Index    uint
 }
 
 func (self *GetField) stmt() {}
@@ -760,7 +760,7 @@ func (self *GetField) GetType() Type {
 }
 
 func (self *GetField) Mutable() bool {
-	if self.Internal{
+	if self.Internal {
 		return true
 	}
 	return self.From.Mutable() && AsType[*StructType](self.From.GetType()).Fields.Values().Get(self.Index).Mutable
@@ -768,14 +768,14 @@ func (self *GetField) Mutable() bool {
 
 // String 字符串
 type String struct {
-	StrType Type
+	Type  Type
 	Value string
 }
 
 func (self *String) stmt() {}
 
 func (self *String) GetType() Type {
-	return self.StrType
+	return self.Type
 }
 
 func (self *String) Mutable() bool {
@@ -801,8 +801,8 @@ func (self *Union) Mutable() bool {
 // TypeJudgment 类型判断
 type TypeJudgment struct {
 	BoolType Type
-	Value Expr
-	Type  Type
+	Value    Expr
+	Type     Type
 }
 
 func (self *TypeJudgment) stmt() {}
@@ -833,7 +833,7 @@ func (self *UnUnion) Mutable() bool {
 
 // GetRef 取引用
 type GetRef struct {
-	Mut bool
+	Mut   bool
 	Value Expr
 }
 
@@ -878,22 +878,22 @@ type Method struct {
 
 func (self *Method) stmt() {}
 
-func (self *Method) GetScope()*TypeDef {
-	if left, ok := self.Self.Left(); ok{
+func (self *Method) GetScope() *TypeDef {
+	if left, ok := self.Self.Left(); ok {
 		return AsCustomType(left.GetType())
-	}else{
+	} else {
 		return stlbasic.IgnoreWith(self.Self.Right())
 	}
 }
 
-func (self *Method) GetDefine()GlobalMethod{
+func (self *Method) GetDefine() GlobalMethod {
 	return self.Define
 }
 
 func (self *Method) GetType() Type {
-	if self.Define.IsStatic(){
+	if self.Define.IsStatic() {
 		return self.Define.GetFuncType()
-	}else{
+	} else {
 		return self.Define.GetMethodType()
 	}
 }
@@ -920,7 +920,7 @@ func (self *ShrinkUnion) Mutable() bool {
 	return false
 }
 
-func (self *ShrinkUnion) GetFrom() Expr{
+func (self *ShrinkUnion) GetFrom() Expr {
 	return self.Value
 }
 
@@ -940,6 +940,6 @@ func (self *ExpandUnion) Mutable() bool {
 	return false
 }
 
-func (self *ExpandUnion) GetFrom() Expr{
+func (self *ExpandUnion) GetFrom() Expr {
 	return self.Value
 }

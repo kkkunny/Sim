@@ -17,6 +17,14 @@ pub type bool __buildin_u1
 pub let true: bool = 1
 pub let false: bool = 0
 
+pub func (bool) as_string(self: &Self)&str{
+    if self{
+        return "true"
+    }else{
+        return "false"
+    }
+}
+
 pub type str struct{
     pub ptr: &byte,
     pub len: usize,

@@ -1,9 +1,5 @@
 import std::os
 
 func main(){
-    let v: str
-    if v.len != 0{
-        return
-    }
-    debug("123")
+    debug(true.as_string())
 }

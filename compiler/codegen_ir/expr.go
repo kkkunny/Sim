@@ -292,7 +292,12 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 
 func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 	switch tir := hir.ToRuntimeType(ir).(type) {
-	case *hir.EmptyType, *hir.RefType:
+	case *hir.EmptyType:
+		panic("unreachable")
+	case *hir.RefType:
+		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str){
+			return self.constStringPtr("")
+		}
 		panic("unreachable")
 	case *hir.SintType, *hir.UintType, *hir.FloatType:
 		return mir.NewZero(self.codegenType(ir))
@@ -305,13 +310,8 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 		})
 		return self.builder.BuildPackStruct(self.codegenTupleType(tir), elems...)
 	case *hir.CustomType:
-		switch {
-		case tir.EqualTo(self.hir.BuildinTypes.Str):
-			return self.constString("")
-		default:
-			// TODO: 填充所有字段为默认值
-			return mir.NewZero(self.codegenType(tir))
-		}
+		// TODO: 填充所有字段为默认值
+		return mir.NewZero(self.codegenType(tir))
 	case *hir.FuncType:
 		ft := self.codegenFuncType(tir)
 		key := fmt.Sprintf("default:%s", tir.String())
@@ -358,7 +358,7 @@ func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenString(ir *hir.String) mir.Value {
-	return self.constString(ir.Value)
+	return self.constStringPtr(ir.Value)
 }
 
 func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
