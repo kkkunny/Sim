@@ -33,15 +33,15 @@ const (
 
 // importPackage 导入包
 func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool) (hirs linkedlist.LinkedList[hir.Global], err importPackageErrorKind) {
-	name = stlbasic.Ternary(name!="", name, pkg.GetPackageName())
+	name = stlbasic.Ternary(name != "", name, pkg.GetPackageName())
 
-	if !importAll && self.pkgScope.externs.ContainKey(name){
+	if !importAll && self.pkgScope.externs.ContainKey(name) {
 		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorDuplication
 	}
 
 	var scope *_PkgScope
 	defer func() {
-		if err != importPackageErrorNone{
+		if err != importPackageErrorNone {
 			return
 		}
 		// 关联包
@@ -52,10 +52,10 @@ func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool
 		}
 	}()
 
-	if scope = self.pkgs.Get(pkg); self.pkgs.ContainKey(pkg) && scope == nil{
+	if scope = self.pkgs.Get(pkg); self.pkgs.ContainKey(pkg) && scope == nil {
 		// 循环导入
 		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorCircular
-	} else if self.pkgs.ContainKey(pkg) && scope != nil{
+	} else if self.pkgs.ContainKey(pkg) && scope != nil {
 		// 导入过该包，有缓存，不再追加该包的语句
 		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorNone
 	}
@@ -65,14 +65,14 @@ func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool
 	// 分析并追加该包的语句
 	var analyseError stlerror.Error
 	hirs, scope, analyseError = analyseSonPackage(self, pkg)
-	if analyseError != nil && hirs.Empty(){
+	if analyseError != nil && hirs.Empty() {
 		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorInvalid
 	}
 	self.pkgs.Set(pkg, scope)
 	return hirs, importPackageErrorNone
 }
 
-func (self *Analyser) setSelfType(td hir.GlobalType)(callback func()){
+func (self *Analyser) setSelfType(td hir.GlobalType) (callback func()) {
 	bk := self.selfType
 	self.selfType = td
 	return func() {
@@ -81,16 +81,16 @@ func (self *Analyser) setSelfType(td hir.GlobalType)(callback func()){
 }
 
 // 获取类型默认值
-func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default{
-	if !t.HasDefault() && !t.EqualTo(hir.NewRefType(false, self.pkgScope.Str())){
+func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default {
+	if !t.HasDefault() && !t.EqualTo(hir.NewRefType(false, self.pkgScope.Str())) {
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return &hir.Default{Type: t}
 }
 
 // 检查类型定义是否循环
-func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
-	if trace.Contain(t){
+func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir.Type) bool {
+	if trace.Contain(t) {
 		return true
 	}
 	trace.Add(t)
@@ -99,37 +99,37 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType, *hir.NoReturnType:
+	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType, *hir.NoReturnType:
 	case *hir.ArrayType:
 		return self.checkTypeDefCircle(trace, typ.Elem)
 	case *hir.TupleType:
-		for _, e := range typ.Elems{
-			if self.checkTypeDefCircle(trace, e){
+		for _, e := range typ.Elems {
+			if self.checkTypeDefCircle(trace, e) {
 				return true
 			}
 		}
 	case *hir.StructType:
-		for iter:=typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeDefCircle(trace, iter.Value().Second.Type){
+		for iter := typ.Fields.Iterator(); iter.Next(); {
+			if self.checkTypeDefCircle(trace, iter.Value().Second.Type) {
 				return true
 			}
 		}
 	case *hir.UnionType:
 		for _, e := range typ.Elems {
-			if self.checkTypeDefCircle(trace, e){
+			if self.checkTypeDefCircle(trace, e) {
 				return true
 			}
 		}
 	case *hir.SelfType:
-		if self.checkTypeDefCircle(trace, typ.Self.MustValue()){
+		if self.checkTypeDefCircle(trace, typ.Self.MustValue()) {
 			return true
 		}
 	case *hir.AliasType:
-		if self.checkTypeDefCircle(trace, typ.Target){
+		if self.checkTypeDefCircle(trace, typ.Target) {
 			return true
 		}
 	case *hir.CustomType:
-		if self.checkTypeDefCircle(trace, typ.Target){
+		if self.checkTypeDefCircle(trace, typ.Target) {
 			return true
 		}
 	default:
@@ -139,8 +139,8 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 }
 
 // 检查类型别名是否循环
-func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
-	if trace.Contain(t){
+func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t hir.Type) bool {
+	if trace.Contain(t) {
 		return true
 	}
 	trace.Add(t)
@@ -149,10 +149,10 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType, *hir.NoReturnType:
+	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType, *hir.NoReturnType:
 	case *hir.FuncType:
 		for _, p := range typ.Params {
-			if self.checkTypeAliasCircle(trace, p){
+			if self.checkTypeAliasCircle(trace, p) {
 				return true
 			}
 		}
@@ -162,29 +162,29 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	case *hir.ArrayType:
 		return self.checkTypeAliasCircle(trace, typ.Elem)
 	case *hir.TupleType:
-		for _, e := range typ.Elems{
-			if self.checkTypeAliasCircle(trace, e){
+		for _, e := range typ.Elems {
+			if self.checkTypeAliasCircle(trace, e) {
 				return true
 			}
 		}
 	case *hir.StructType:
-		for iter:=typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeAliasCircle(trace, iter.Value().Second.Type){
+		for iter := typ.Fields.Iterator(); iter.Next(); {
+			if self.checkTypeAliasCircle(trace, iter.Value().Second.Type) {
 				return true
 			}
 		}
 	case *hir.UnionType:
 		for _, e := range typ.Elems {
-			if self.checkTypeAliasCircle(trace, e){
+			if self.checkTypeAliasCircle(trace, e) {
 				return true
 			}
 		}
 	case *hir.SelfType:
-		if self.checkTypeAliasCircle(trace, typ.Self.MustValue()){
+		if self.checkTypeAliasCircle(trace, typ.Self.MustValue()) {
 			return true
 		}
 	case *hir.AliasType:
-		if self.checkTypeAliasCircle(trace, typ.Target){
+		if self.checkTypeAliasCircle(trace, typ.Target) {
 			return true
 		}
 	default:
@@ -193,8 +193,8 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	return false
 }
 
-func (self *Analyser) isInDstStructScope(st *hir.CustomType)bool{
-	if self.selfType == nil{
+func (self *Analyser) isInDstStructScope(st *hir.CustomType) bool {
+	if self.selfType == nil {
 		return false
 	}
 	selfName := stlbasic.TernaryAction(!strings.Contains(self.selfType.GetName(), "::"), func() string {
@@ -220,25 +220,25 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		}
 	}
 
-	if len(flag) == 0 || !flag[0]{
+	if len(flag) == 0 || !flag[0] {
 		// 类型
 		name := node.Name.Source()
 		// 内置类型
-		if name == "X"{
+		if name == "X" {
 			return util.Some(either.Left[hir.Type, hir.Expr](hir.NoReturn))
-		}else if strings.HasPrefix(name, "__buildin_i"){
+		} else if strings.HasPrefix(name, "__buildin_i") {
 			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
-			if err == nil && bits > 0 && bits <= 128{
+			if err == nil && bits > 0 && bits <= 128 {
 				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewSintType(uint8(bits))))
 			}
-		}else if strings.HasPrefix(name, "__buildin_u"){
+		} else if strings.HasPrefix(name, "__buildin_u") {
 			bits, err := strconv.ParseUint(name[len("__buildin_u"):], 10, 8)
-			if err == nil && bits > 0 && bits <= 128{
+			if err == nil && bits > 0 && bits <= 128 {
 				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewUintType(uint8(bits))))
 			}
-		}else if strings.HasPrefix(name, "__buildin_f"){
+		} else if strings.HasPrefix(name, "__buildin_f") {
 			bits, err := strconv.ParseUint(name[len("__buildin_f"):], 10, 8)
-			if err == nil && (bits == 16 || bits == 32 || bits == 64 || bits == 128){
+			if err == nil && (bits == 16 || bits == 32 || bits == 64 || bits == 128) {
 				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewFloatType(uint8(bits))))
 			}
 		}
@@ -248,7 +248,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		}
 	}
 
-	if len(flag) == 0 || flag[0]{
+	if len(flag) == 0 || flag[0] {
 		// 表达式
 		// 标识符表达式
 		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
@@ -259,12 +259,12 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 	return util.None[either.Either[hir.Type, hir.Expr]]()
 }
 
-func (self *Analyser) analyseFuncBody(node *ast.Block)*hir.Block{
+func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {
 	fn := self.localScope.GetFunc()
 	body, jump := self.analyseBlock(node, nil)
 	if jump != hir.BlockEofReturn {
 		retType := fn.GetFuncType().Ret
-		if !hir.IsType[*hir.EmptyType](retType) {
+		if !hir.IsType[*hir.NoThingType](retType) {
 			errors.ThrowMissingReturnValueError(node.Position(), retType)
 		}
 		body.Stmts.PushBack(&hir.Return{
@@ -278,7 +278,7 @@ func (self *Analyser) analyseFuncBody(node *ast.Block)*hir.Block{
 // Analyse 语义分析
 func Analyse(path stlos.FilePath) (*hir.Result, stlerror.Error) {
 	asts, err := parse.Parse(path)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	return New(asts).Analyse(), nil
@@ -287,7 +287,7 @@ func Analyse(path stlos.FilePath) (*hir.Result, stlerror.Error) {
 // 语义分析子包
 func analyseSonPackage(parent *Analyser, pkg hir.Package) (linkedlist.LinkedList[hir.Global], *_PkgScope, stlerror.Error) {
 	asts, err := parse.Parse(pkg.Path())
-	if err != nil{
+	if err != nil {
 		return linkedlist.LinkedList[hir.Global]{}, nil, err
 	}
 	analyser := newSon(parent, asts)

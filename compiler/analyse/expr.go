@@ -213,7 +213,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 		}
 	case token.EQ:
 		if lt.EqualTo(rt) {
-			if !hir.IsType[*hir.EmptyType](lt) {
+			if !hir.IsType[*hir.NoThingType](lt) {
 				return &hir.Equal{
 					BoolType: self.pkgScope.Bool(),
 					Left:     left,
@@ -222,7 +222,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.NE:
-		if !hir.IsType[*hir.EmptyType](lt) {
+		if !hir.IsType[*hir.NoThingType](lt) {
 			return &hir.NotEqual{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
@@ -490,7 +490,7 @@ func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array 
 		expectElem = expectArray.Elem
 	}
 	if expectArray == nil && len(node.Elems) == 0 {
-		errors.ThrowExpectArrayTypeError(node.Position(), hir.Empty)
+		errors.ThrowExpectArrayTypeError(node.Position(), hir.NoThing)
 	}
 	elems := make([]hir.Expr, len(node.Elems))
 	for i, elemNode := range node.Elems {

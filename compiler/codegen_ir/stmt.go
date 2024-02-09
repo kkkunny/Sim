@@ -61,7 +61,12 @@ func (self *CodeGenerator) codegenBlock(ir *hir.Block, afterBlockCreate func(blo
 
 func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 	if vir, ok := ir.Value.Value(); ok {
-		self.builder.BuildReturn(self.codegenExpr(vir, true))
+		v := self.codegenExpr(vir, true)
+		if v.Type().Equal(self.ctx.Void()){
+			self.builder.BuildReturn()
+		}else{
+			self.builder.BuildReturn(v)
+		}
 	} else {
 		self.builder.BuildReturn()
 	}

@@ -10,7 +10,7 @@ import (
 
 func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 	switch t := hir.ToRuntimeType(t).(type) {
-	case *hir.EmptyType, *hir.NoReturnType:
+	case *hir.NoThingType, *hir.NoReturnType:
 		return self.codegenEmptyType()
 	case *hir.SintType:
 		return self.codegenSintType(t)
@@ -67,7 +67,7 @@ func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) mir.FloatType {
 func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) mir.FuncType {
 	ret := self.codegenType(ir.Ret)
 	params := make([]mir.Type, len(ir.Params))
-	for i, p := range ir.Params{
+	for i, p := range ir.Params {
 		params[i] = self.codegenType(p)
 	}
 	return self.ctx.NewFuncType(false, ret, params...)
@@ -80,7 +80,7 @@ func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) mir.ArrayType {
 
 func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) mir.StructType {
 	elems := make([]mir.Type, len(ir.Elems))
-	for i, e := range ir.Elems{
+	for i, e := range ir.Elems {
 		elems[i] = self.codegenType(e)
 	}
 	return self.ctx.NewStructType(elems...)
@@ -100,7 +100,7 @@ func (self *CodeGenerator) codegenStructType(ir *hir.StructType) mir.StructType 
 func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) mir.StructType {
 	var maxSizeType mir.Type
 	var maxSize stlos.Size
-	for _, e := range ir.Elems{
+	for _, e := range ir.Elems {
 		et := self.codegenType(e)
 		if esize := et.Size(); esize > maxSize {
 			maxSizeType, maxSize = et, esize

@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	TypeEmpty = new(EmptyType)
+	TypeNoThing  = new(NoThingType)
 	TypeNoReturn = new(NoReturnType)
 )
 
@@ -29,19 +29,19 @@ type Type interface {
 	stlbasic.Comparable[Type]
 }
 
-// EmptyType 空类型
-type EmptyType struct{}
+// NoThingType 无返回值类型
+type NoThingType struct{}
 
-func (*EmptyType) String() string {
+func (*NoThingType) String() string {
 	return ""
 }
 
-func (self *EmptyType) Hash() uint64 {
+func (self *NoThingType) Hash() uint64 {
 	return emptyTypeHash
 }
 
-func (self *EmptyType) Equal(dst Type) bool {
-	return stlbasic.Is[*EmptyType](dst)
+func (self *NoThingType) Equal(dst Type) bool {
+	return stlbasic.Is[*NoThingType](dst)
 }
 
 // NoReturnType 无返回类型
@@ -64,7 +64,7 @@ type SintType struct {
 	Bits uint8
 }
 
-func NewSintType(bits uint8)*SintType{
+func NewSintType(bits uint8) *SintType {
 	return &SintType{Bits: bits}
 }
 
@@ -89,7 +89,7 @@ type UintType struct {
 	Bits uint8
 }
 
-func NewUintType(bits uint8)*UintType{
+func NewUintType(bits uint8) *UintType {
 	return &UintType{Bits: bits}
 }
 
@@ -114,7 +114,7 @@ type FloatType struct {
 	Bits uint8
 }
 
-func NewFloatType(bits uint8)*FloatType{
+func NewFloatType(bits uint8) *FloatType {
 	return &FloatType{Bits: bits}
 }
 
@@ -136,13 +136,13 @@ func (self *FloatType) Equal(dst Type) bool {
 
 // RefType 引用类型
 type RefType struct {
-	Mut bool
+	Mut  bool
 	Elem Type
 }
 
-func NewRefType(mut bool, elem Type)*RefType{
+func NewRefType(mut bool, elem Type) *RefType {
 	return &RefType{
-		Mut: mut,
+		Mut:  mut,
 		Elem: elem,
 	}
 }
@@ -169,9 +169,9 @@ type FuncType struct {
 	Params []Type
 }
 
-func NewFuncType(ret Type, params ...Type)*FuncType{
+func NewFuncType(ret Type, params ...Type) *FuncType {
 	return &FuncType{
-		Ret: ret,
+		Ret:    ret,
 		Params: params,
 	}
 }
@@ -206,7 +206,7 @@ type ArrayType struct {
 	Elem Type
 }
 
-func NewArrayType(size uint64, elem Type)*ArrayType{
+func NewArrayType(size uint64, elem Type) *ArrayType {
 	return &ArrayType{
 		Size: size,
 		Elem: elem,
@@ -234,7 +234,7 @@ type TupleType struct {
 	Elems []Type
 }
 
-func NewTupleType(elems ...Type)*TupleType{
+func NewTupleType(elems ...Type) *TupleType {
 	return &TupleType{Elems: elems}
 }
 
@@ -267,11 +267,11 @@ type UnionType struct {
 	Elems []Type
 }
 
-func NewUnionType(elems ...Type)*UnionType{
+func NewUnionType(elems ...Type) *UnionType {
 	elems = stlslices.FlatMap(elems, func(_ int, e Type) []Type {
-		if ue, ok := e.(*UnionType); ok{
+		if ue, ok := e.(*UnionType); ok {
 			return ue.Elems
-		}else{
+		} else {
 			return []Type{e}
 		}
 	})
@@ -281,9 +281,9 @@ func NewUnionType(elems ...Type)*UnionType{
 
 	flatElems := make([]Type, 0, len(elems))
 loop:
-	for _, e := range elems{
-		for _, fe := range flatElems{
-			if e.Equal(fe){
+	for _, e := range elems {
+		for _, fe := range flatElems {
+			if e.Equal(fe) {
 				continue loop
 			}
 		}
@@ -294,7 +294,7 @@ loop:
 }
 
 func (self *UnionType) String() string {
-	elems := stlslices.Map(self.Elems, func(_ int, e Type) string {return e.String()})
+	elems := stlslices.Map(self.Elems, func(_ int, e Type) string { return e.String() })
 	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
 }
 
@@ -317,23 +317,23 @@ func (self *UnionType) Equal(dst Type) bool {
 	return true
 }
 
-func (self *UnionType) IndexElem(t Type)int{
-	for i, elem := range self.Elems{
-		if elem.Equal(t){
+func (self *UnionType) IndexElem(t Type) int {
+	for i, elem := range self.Elems {
+		if elem.Equal(t) {
 			return i
 		}
 	}
 	return -1
 }
 
-func (self *UnionType) Elem(i uint)Type{
+func (self *UnionType) Elem(i uint) Type {
 	return self.Elems[i]
 }
 
-func (self *UnionType) Contain(t Type)bool{
-	if ut, ok := t.(*UnionType); ok{
-		return stlslices.All[Type](ut.Elems, func(_ int, e Type) bool {return self.Contain(e)})
-	}else{
+func (self *UnionType) Contain(t Type) bool {
+	if ut, ok := t.(*UnionType); ok {
+		return stlslices.All[Type](ut.Elems, func(_ int, e Type) bool { return self.Contain(e) })
+	} else {
 		return stlslices.Contain(self.Elems, t)
 	}
 }
@@ -343,7 +343,7 @@ type Field struct {
 	Name string
 }
 
-func NewField(t Type, name string)Field{
+func NewField(t Type, name string) Field {
 	return Field{
 		Type: t,
 		Name: name,
@@ -355,7 +355,7 @@ type Method struct {
 	Name string
 }
 
-func NewMethod(t *FuncType, name string)Method{
+func NewMethod(t *FuncType, name string) Method {
 	return Method{
 		Type: t,
 		Name: name,
@@ -364,13 +364,13 @@ func NewMethod(t *FuncType, name string)Method{
 
 // StructType 结构体类型
 type StructType struct {
-	Pkg string
+	Pkg    string
 	Fields []Field
 }
 
-func NewStructType(pkg string, fields ...Field)*StructType {
+func NewStructType(pkg string, fields ...Field) *StructType {
 	return &StructType{
-		Pkg: pkg,
+		Pkg:    pkg,
 		Fields: fields,
 	}
 }
@@ -392,8 +392,8 @@ func (self *StructType) Equal(dst Type) bool {
 	if !ok || self.Pkg != dt.Pkg || len(self.Fields) != len(dt.Fields) {
 		return false
 	}
-	for i, f := range self.Fields{
-		if f.Name != dt.Fields[i].Name || !f.Type.Equal(dt.Fields[i].Type){
+	for i, f := range self.Fields {
+		if f.Name != dt.Fields[i].Name || !f.Type.Equal(dt.Fields[i].Type) {
 			return false
 		}
 	}
@@ -402,17 +402,17 @@ func (self *StructType) Equal(dst Type) bool {
 
 // CustomType 自定义类型
 type CustomType struct {
-	Pkg    string
-	Name   string
-	Target Type
+	Pkg     string
+	Name    string
+	Target  Type
 	Methods []Method
 }
 
-func NewCustomType(pkg, name string, target Type, methods []Method)*CustomType {
+func NewCustomType(pkg, name string, target Type, methods []Method) *CustomType {
 	return &CustomType{
-		Pkg: pkg,
-		Name: name,
-		Target: target,
+		Pkg:     pkg,
+		Name:    name,
+		Target:  target,
 		Methods: methods,
 	}
 }

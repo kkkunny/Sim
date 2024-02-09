@@ -68,7 +68,7 @@ type Assign struct {
 func (self *Assign) stmt() {}
 
 func (self *Assign) GetType() Type {
-	return Empty
+	return NoThing
 }
 
 func (self *Assign) Mutable() bool {

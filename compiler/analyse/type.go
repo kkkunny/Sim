@@ -39,14 +39,14 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
 	t, ok := node.Value()
 	if !ok {
-		return hir.Empty
+		return hir.NoThing
 	}
 	return self.analyseType(t)
 }
 
 func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	typ := self.analyseIdent((*ast.Ident)(node), false)
-	if typ.IsNone(){
+	if typ.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
 	return stlbasic.IgnoreWith(typ.MustValue().Left())
@@ -88,23 +88,23 @@ func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
 	return hir.NewRefType(node.Mut, self.analyseType(node.Elem))
 }
 
-func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
-	if self.selfType == nil{
+func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type {
+	if self.selfType == nil {
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	}
 	return hir.NewSelfType(self.selfType)
 }
 
-func (self *Analyser) analyseStructType(node *ast.StructType)*hir.StructType{
+func (self *Analyser) analyseStructType(node *ast.StructType) *hir.StructType {
 	fields := linkedhashmap.NewLinkedHashMap[string, hir.Field]()
 	for _, f := range node.Fields {
-		if fields.ContainKey(f.Name.Source()){
+		if fields.ContainKey(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
 		fields.Set(f.Name.Source(), hir.Field{
 			Public:  f.Public,
 			Mutable: f.Mutable,
-			Name: f.Name.Source(),
+			Name:    f.Name.Source(),
 			Type:    self.analyseType(f.Type),
 		})
 	}

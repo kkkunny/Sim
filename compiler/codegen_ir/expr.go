@@ -194,7 +194,7 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	var f, selfValue mir.Value
 	switch fnIr := ir.Func.(type) {
 	case *hir.Method:
-		if !fnIr.Define.IsStatic(){
+		if !fnIr.Define.IsStatic() {
 			selfValue = self.codegenExpr(stlbasic.IgnoreWith(fnIr.Self.Left()), false)
 		}
 		f = self.values.Get(&fnIr.Define.FuncDef)
@@ -203,10 +203,10 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	}
 	if selfValue != nil {
 		var selfRef mir.Value
-		if expectSelfRefType := f.Type().(mir.FuncType).Params()[0]; !selfValue.Type().Equal(expectSelfRefType){
+		if expectSelfRefType := f.Type().(mir.FuncType).Params()[0]; !selfValue.Type().Equal(expectSelfRefType) {
 			selfRef = self.builder.BuildAllocFromStack(selfValue.Type())
 			self.builder.BuildStore(selfValue, selfRef)
-		}else{
+		} else {
 			selfRef = selfValue
 		}
 		args = append([]mir.Value{selfRef}, args...)
@@ -296,10 +296,10 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 
 func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 	switch tir := hir.ToRuntimeType(ir).(type) {
-	case *hir.EmptyType:
+	case *hir.NoThingType:
 		panic("unreachable")
 	case *hir.RefType:
-		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str){
+		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str) {
 			return self.constStringPtr("")
 		}
 		panic("unreachable")
@@ -320,18 +320,18 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 		ft := self.codegenFuncType(tir)
 		key := fmt.Sprintf("default:%s", tir.String())
 		var fn *mir.Function
-		if !self.funcCache.ContainKey(key){
+		if !self.funcCache.ContainKey(key) {
 			curBlock := self.builder.Current()
 			fn = self.module.NewFunction("", ft)
 			self.builder.MoveTo(fn.NewBlock())
-			if ft.Ret().Equal(self.ctx.Void()){
+			if ft.Ret().Equal(self.ctx.Void()) {
 				self.builder.BuildReturn()
-			}else{
+			} else {
 				self.builder.BuildReturn(self.codegenDefault(hir.AsType[*hir.FuncType](tir).Ret))
 			}
 			self.funcCache.Set(key, fn)
 			self.builder.MoveTo(curBlock)
-		}else{
+		} else {
 			fn = self.funcCache.Get(key)
 		}
 		return fn

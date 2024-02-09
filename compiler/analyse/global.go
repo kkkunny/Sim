@@ -101,9 +101,9 @@ func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch global := node.(type) {
 	case *ast.FuncDef:
-		if global.SelfType.IsNone(){
+		if global.SelfType.IsNone() {
 			self.declFuncDef(global)
-		}else{
+		} else {
 			self.declMethodDef(global)
 		}
 	case *ast.SingleVariableDef:
@@ -159,8 +159,8 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		}
 	})
 	f.Ret = self.analyseOptionType(node.Ret)
-	if f.Name == "main" && !f.GetType().EqualTo(&hir.FuncType{Ret: hir.Empty}) {
-		errors.ThrowTypeMismatchError(node.Position(), f.GetType(), &hir.FuncType{Ret: hir.Empty})
+	if f.Name == "main" && !f.GetType().EqualTo(&hir.FuncType{Ret: hir.NoThing}) {
+		errors.ThrowTypeMismatchError(node.Position(), f.GetType(), &hir.FuncType{Ret: hir.NoThing})
 	}
 	if !self.pkgScope.SetValue(f.Name, f) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
@@ -252,9 +252,9 @@ func (self *Analyser) declMultiGlobalVariable(node *ast.MultipleVariableDef) {
 func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 	switch global := node.(type) {
 	case *ast.FuncDef:
-		if global.SelfType.IsNone(){
+		if global.SelfType.IsNone() {
 			return self.defFuncDef(global)
-		}else{
+		} else {
 			return self.defMethodDef(global)
 		}
 	case *ast.SingleVariableDef:
@@ -324,7 +324,7 @@ func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *hir.
 
 	if valueNode, ok := node.Value.Value(); ok {
 		v.Value = util.Some(self.expectExpr(v.Type, valueNode))
-	} else if v.ExternName == ""{
+	} else if v.ExternName == "" {
 		v.Value = util.Some[hir.Expr](self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type))
 	}
 	return v
