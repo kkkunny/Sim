@@ -644,6 +644,26 @@ func (self *DoNothingCovert) GetFrom() Expr {
 	return self.From
 }
 
+// NoReturn2Any 无返回转任意类型
+type NoReturn2Any struct {
+	From Expr
+	To   Type
+}
+
+func (self *NoReturn2Any) stmt() {}
+
+func (self *NoReturn2Any) GetType() Type {
+	return self.To
+}
+
+func (*NoReturn2Any) Mutable() bool {
+	return false
+}
+
+func (self *NoReturn2Any) GetFrom() Expr {
+	return self.From
+}
+
 // Array 数组
 type Array struct {
 	Type  Type

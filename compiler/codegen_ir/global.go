@@ -50,7 +50,7 @@ func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 		ft.SetVarArg(true)
 	}
 	f := self.module.NewFunction(ir.ExternName, ft)
-	if ir.NoReturn {
+	if hir.IsType[*hir.NoReturnType](ir.Ret) {
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
 	}
 	if inline, ok := ir.InlineControl.Value(); ok {

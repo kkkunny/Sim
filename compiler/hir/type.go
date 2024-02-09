@@ -18,6 +18,7 @@ import (
 
 var (
 	Empty = &EmptyType{}
+	NoReturn = &NoReturnType{}
 )
 
 // Type 类型
@@ -127,6 +128,28 @@ func (self *EmptyType) Runtime()runtimeType.Type{
 
 func (self *EmptyType) buildin(){}
 func (self *EmptyType) runtime(){}
+
+// NoReturnType 空类型
+type NoReturnType struct{}
+
+func (*NoReturnType) String() string {
+	return "X"
+}
+
+func (self *NoReturnType) EqualTo(dst Type) bool {
+	return stlbasic.Is[*NoReturnType](ToRuntimeType(dst))
+}
+
+func (self *NoReturnType) HasDefault()bool{
+	return false
+}
+
+func (self *NoReturnType) Runtime()runtimeType.Type{
+	return runtimeType.TypeNoReturn
+}
+
+func (self *NoReturnType) buildin(){}
+func (self *NoReturnType) runtime(){}
 
 // SintType 有符号整型
 type SintType struct {

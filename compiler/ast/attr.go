@@ -25,19 +25,6 @@ func (self *Extern) AttrName() string {
 	return "extern"
 }
 
-type NoReturn struct {
-	Begin reader.Position
-	End   reader.Position
-}
-
-func (self *NoReturn) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
-}
-
-func (self *NoReturn) AttrName() string {
-	return "noreturn"
-}
-
 type Inline struct {
 	Begin reader.Position
 	End   reader.Position

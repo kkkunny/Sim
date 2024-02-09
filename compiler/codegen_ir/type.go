@@ -10,7 +10,7 @@ import (
 
 func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 	switch t := hir.ToRuntimeType(t).(type) {
-	case *hir.EmptyType:
+	case *hir.EmptyType, *hir.NoReturnType:
 		return self.codegenEmptyType()
 	case *hir.SintType:
 		return self.codegenSintType(t)

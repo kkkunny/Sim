@@ -36,14 +36,14 @@ func (self *Parser) parseGlobal() ast.Global {
 }
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global {
-	expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
+	expectAttrIn(attrs, new(ast.Extern), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
 	begin := self.expectNextIs(token.FUNC).Position
 	if pub != nil {
 		begin = pub.Position
 	}
 	var selfType util.Option[token.Token]
 	if self.skipNextIs(token.LPA){
-		expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
+		expectAttrIn(attrs, new(ast.Inline), new(ast.NoInline))
 		selfType = util.Some(self.expectNextIs(token.IDENT))
 		self.expectNextIs(token.RPA)
 	}

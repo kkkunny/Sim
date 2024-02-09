@@ -1,6 +1,6 @@
 import std::c
 
 // 退出程序
-pub func exit(code: u8){
-    c::exit(code as c::int)
+pub func exit(code: u8)X{
+    return c::exit(code as c::int)
 }

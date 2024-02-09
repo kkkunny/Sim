@@ -99,7 +99,7 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType:
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType, *hir.NoReturnType:
 	case *hir.ArrayType:
 		return self.checkTypeDefCircle(trace, typ.Elem)
 	case *hir.TupleType:
@@ -149,7 +149,7 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType:
+	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType, *hir.NoReturnType:
 	case *hir.FuncType:
 		for _, p := range typ.Params {
 			if self.checkTypeAliasCircle(trace, p){
@@ -224,7 +224,9 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		// 类型
 		name := node.Name.Source()
 		// 内置类型
-		if strings.HasPrefix(name, "__buildin_i"){
+		if name == "X"{
+			return util.Some(either.Left[hir.Type, hir.Expr](hir.NoReturn))
+		}else if strings.HasPrefix(name, "__buildin_i"){
 			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
 			if err == nil && bits > 0 && bits <= 128{
 				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewSintType(uint8(bits))))

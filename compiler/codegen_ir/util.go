@@ -288,6 +288,7 @@ func (self *CodeGenerator) buildCovertUnionIndex(src, dst *hir.UnionType, index 
 	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(false, self.ctx.U8(), self.ctx.NewPtrType(strType), self.ctx.NewPtrType(strType), self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
+	gob.Register(new(types.NoReturnType))
 	gob.Register(new(types.SintType))
 	gob.Register(new(types.UintType))
 	gob.Register(new(types.FloatType))
@@ -309,6 +310,7 @@ func (self *CodeGenerator) buildCheckUnionType(src, dst *hir.UnionType, index mi
 	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(false, self.ctx.Bool(), self.ctx.NewPtrType(strType), self.ctx.NewPtrType(strType), self.ctx.U8()))
 
 	gob.Register(new(types.EmptyType))
+	gob.Register(new(types.NoReturnType))
 	gob.Register(new(types.SintType))
 	gob.Register(new(types.UintType))
 	gob.Register(new(types.FloatType))

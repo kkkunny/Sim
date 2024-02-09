@@ -70,7 +70,6 @@ type FuncDef struct {
 	Ret        Type
 	Body       util.Option[*Block]
 
-	NoReturn      bool
 	InlineControl util.Option[bool]
 	VarArg bool
 }

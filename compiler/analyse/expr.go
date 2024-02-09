@@ -471,6 +471,12 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 			From: v,
 			To:   expect,
 		}, true
+	case hir.IsType[*hir.NoReturnType](vt):
+		// X -> any
+		return &hir.NoReturn2Any{
+			From: v,
+			To:   expect,
+		}, true
 	default:
 		return v, false
 	}

@@ -13,13 +13,13 @@ import (
 
 var (
 	TypeEmpty = new(EmptyType)
+	TypeNoReturn = new(NoReturnType)
 )
 
 const (
 	_ uint64 = iota
 	emptyTypeHash
-	boolTypeHash
-	stringTypeHash
+	noReturnTypeHash
 )
 
 // Type 类型描述
@@ -42,6 +42,21 @@ func (self *EmptyType) Hash() uint64 {
 
 func (self *EmptyType) Equal(dst Type) bool {
 	return stlbasic.Is[*EmptyType](dst)
+}
+
+// NoReturnType 无返回类型
+type NoReturnType struct{}
+
+func (*NoReturnType) String() string {
+	return "X"
+}
+
+func (self *NoReturnType) Hash() uint64 {
+	return noReturnTypeHash
+}
+
+func (self *NoReturnType) Equal(dst Type) bool {
+	return stlbasic.Is[*NoReturnType](dst)
 }
 
 // SintType 有符号整型

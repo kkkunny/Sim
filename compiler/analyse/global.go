@@ -128,8 +128,6 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		case *ast.Extern:
 			temp := attr.Name.Source()
 			f.ExternName = util.ParseEscapeCharacter(temp[1:len(temp)-1], `\"`, `"`)
-		case *ast.NoReturn:
-			f.NoReturn = true
 		case *ast.Inline:
 			f.InlineControl = util.Some[bool](true)
 		case *ast.NoInline:
@@ -179,8 +177,6 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 	}
 	for _, attrObj := range node.Attrs {
 		switch attrObj.(type) {
-		case *ast.NoReturn:
-			f.NoReturn = true
 		case *ast.Inline:
 			f.InlineControl = util.Some[bool](true)
 		case *ast.NoInline:

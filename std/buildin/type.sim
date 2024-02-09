@@ -1,3 +1,5 @@
+pub type X = X
+
 pub type isize __buildin_i64
 pub type i8 __buildin_i8
 pub type i16 __buildin_i16

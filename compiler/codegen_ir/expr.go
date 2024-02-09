@@ -250,6 +250,10 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 			return ptr
 		}
 		return self.builder.BuildLoad(ptr)
+	case *hir.NoReturn2Any:
+		self.codegenExpr(ir.GetFrom(), false)
+		self.builder.BuildUnreachable()
+		return mir.NewZero(self.codegenType(ir.GetType()))
 	default:
 		panic("unreachable")
 	}
