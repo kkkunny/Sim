@@ -1,9 +1,12 @@
-func b(){}
+import std::os
 
-func a(){
-    return b()
+type a isize
+
+func (a) get(self: Self)u8{
+    return self as u8
 }
 
 func main(){
-    a()
+    let a: a = 1
+    os::exit(a.get())
 }

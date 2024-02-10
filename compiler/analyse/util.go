@@ -210,8 +210,8 @@ func (self *Analyser) isInDstStructScope(st *hir.CustomType) bool {
 	return self.selfType.GetPackage().Equal(st.GetPackage()) && selfName == stName
 }
 
-// 分析标识符，类型优先
-func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[either.Either[hir.Type, hir.Expr]] {
+// 分析标识符，表达式优先
+func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[either.Either[hir.Expr, hir.Type]] {
 	var pkgName string
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()
@@ -220,43 +220,43 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		}
 	}
 
-	if len(flag) == 0 || !flag[0] {
-		// 类型
-		name := node.Name.Source()
-		// 内置类型
-		if name == "X" {
-			return util.Some(either.Left[hir.Type, hir.Expr](hir.NoReturn))
-		} else if strings.HasPrefix(name, "__buildin_i") {
-			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
-			if err == nil && bits > 0 && bits <= 128 {
-				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewSintType(uint8(bits))))
-			}
-		} else if strings.HasPrefix(name, "__buildin_u") {
-			bits, err := strconv.ParseUint(name[len("__buildin_u"):], 10, 8)
-			if err == nil && bits > 0 && bits <= 128 {
-				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewUintType(uint8(bits))))
-			}
-		} else if strings.HasPrefix(name, "__buildin_f") {
-			bits, err := strconv.ParseUint(name[len("__buildin_f"):], 10, 8)
-			if err == nil && (bits == 16 || bits == 32 || bits == 64 || bits == 128) {
-				return util.Some(either.Left[hir.Type, hir.Expr](hir.NewFloatType(uint8(bits))))
-			}
-		}
-		// 类型定义
-		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
-			return util.Some(either.Left[hir.Type, hir.Expr](td))
-		}
-	}
-
 	if len(flag) == 0 || flag[0] {
 		// 表达式
 		// 标识符表达式
 		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
 		if ok {
-			return util.Some(either.Right[hir.Type, hir.Expr](value))
+			return util.Some(either.Left[hir.Expr, hir.Type](value))
 		}
 	}
-	return util.None[either.Either[hir.Type, hir.Expr]]()
+
+	if len(flag) == 0 || !flag[0] {
+		// 类型
+		name := node.Name.Source()
+		// 内置类型
+		if name == "X" {
+			return util.Some(either.Right[hir.Expr, hir.Type](hir.NoReturn))
+		} else if strings.HasPrefix(name, "__buildin_i") {
+			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
+			if err == nil && bits > 0 && bits <= 128 {
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.NewSintType(uint8(bits))))
+			}
+		} else if strings.HasPrefix(name, "__buildin_u") {
+			bits, err := strconv.ParseUint(name[len("__buildin_u"):], 10, 8)
+			if err == nil && bits > 0 && bits <= 128 {
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.NewUintType(uint8(bits))))
+			}
+		} else if strings.HasPrefix(name, "__buildin_f") {
+			bits, err := strconv.ParseUint(name[len("__buildin_f"):], 10, 8)
+			if err == nil && (bits == 16 || bits == 32 || bits == 64 || bits == 128) {
+				return util.Some(either.Right[hir.Expr, hir.Type](hir.NewFloatType(uint8(bits))))
+			}
+		}
+		// 类型定义
+		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
+			return util.Some(either.Right[hir.Expr, hir.Type](td))
+		}
+	}
+	return util.None[either.Either[hir.Expr, hir.Type]]()
 }
 
 func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {

@@ -341,7 +341,7 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Expr {
 	if expr.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlbasic.IgnoreWith(expr.MustValue().Right())
+	return stlbasic.IgnoreWith(expr.MustValue().Left())
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
@@ -595,10 +595,10 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 		if !ok {
 			errors.ThrowUnknownIdentifierError(identNode.Position(), identNode.Name)
 		}
-		if t, ok := identItem.Left(); ok {
+		if t, ok := identItem.Right(); ok {
 			return self.analyseStaticMethod((*ast.IdentType)(identNode), t, node.Index)
 		} else {
-			fromObj = stlbasic.IgnoreWith(identItem.Right())
+			fromObj = stlbasic.IgnoreWith(identItem.Left())
 		}
 	} else {
 		fromObj = self.analyseExpr(nil, node.From)

@@ -54,9 +54,6 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenTypeJudgment(expr)
 	case *hir.UnUnion:
 		return self.codegenUnUnion(expr)
-	case *hir.MethodDef:
-		// TODO: 闭包
-		panic("unreachable")
 	default:
 		panic("unreachable")
 	}
@@ -182,6 +179,9 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 			return p
 		}
 		return self.builder.BuildLoad(p)
+	case *hir.Method:
+		// TODO: 闭包
+		panic("unreachable")
 	default:
 		panic("unreachable")
 	}
@@ -195,7 +195,7 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 	switch fnIr := ir.Func.(type) {
 	case *hir.Method:
 		if !fnIr.Define.IsStatic() {
-			selfValue = self.codegenExpr(stlbasic.IgnoreWith(fnIr.Self.Left()), false)
+			selfValue = self.codegenExpr(stlbasic.IgnoreWith(fnIr.Self.Left()), !hir.IsType[*hir.RefType](fnIr.Define.Params[0].GetType()))
 		}
 		f = self.values.Get(&fnIr.Define.FuncDef)
 	default:

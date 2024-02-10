@@ -1,6 +1,7 @@
 package hir
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/slices"
 
@@ -132,10 +133,14 @@ func (self *MethodDef) IsStatic() bool {
 	if len(self.Params) == 0 {
 		return true
 	}
+	selfType := self.GetSelfType()
 	firstParam := self.Params[0]
-	return firstParam.Name != "self" ||
-		(!NewRefType(false, self.GetSelfType()).EqualTo(firstParam.GetType()) &&
-		!NewRefType(true, self.GetSelfType()).EqualTo(firstParam.GetType()))
+	firstParamType := stlbasic.TernaryAction(IsType[*RefType](firstParam.GetType()), func () Type {
+		return AsType[*RefType](firstParam.GetType()).Elem
+	}, func () Type {
+		return firstParam.GetType()
+	})
+	return firstParam.Name != "self" || !selfType.EqualTo(firstParamType)
 }
 
 // GlobalType 类型定义

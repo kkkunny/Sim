@@ -49,7 +49,7 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	if typ.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlbasic.IgnoreWith(typ.MustValue().Left())
+	return stlbasic.IgnoreWith(typ.MustValue().Right())
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType) *hir.FuncType {
