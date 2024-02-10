@@ -21,7 +21,7 @@ func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
 		self.codegenMultiLocalVariable(stmt)
 	case *hir.IfElse:
 		self.codegenIfElse(stmt)
-	case hir.Expr:
+	case hir.ExprStmt:
 		self.codegenExpr(stmt, false)
 	case *hir.While:
 		self.codegenWhile(stmt)
@@ -62,9 +62,9 @@ func (self *CodeGenerator) codegenBlock(ir *hir.Block, afterBlockCreate func(blo
 func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 	if vir, ok := ir.Value.Value(); ok {
 		v := self.codegenExpr(vir, true)
-		if v.Type().Equal(self.ctx.Void()){
+		if v.Type().Equal(self.ctx.Void()) {
 			self.builder.BuildReturn()
-		}else{
+		} else {
 			self.builder.BuildReturn(v)
 		}
 	} else {
@@ -147,7 +147,7 @@ type loop interface {
 
 type whileLoop struct {
 	Cond *mir.Block
-	Out       *mir.Block
+	Out  *mir.Block
 }
 
 func (self *whileLoop) SetOutBlock(block *mir.Block) {
@@ -164,7 +164,7 @@ func (self *whileLoop) GetNextBlock() *mir.Block {
 
 func (self *CodeGenerator) codegenWhile(ir *hir.While) {
 	f := self.builder.Current().Belong()
-	condBlock, endBlock := f.NewBlock(),  f.NewBlock()
+	condBlock, endBlock := f.NewBlock(), f.NewBlock()
 
 	self.builder.BuildUnCondJump(condBlock)
 	self.builder.MoveTo(condBlock)

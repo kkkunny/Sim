@@ -2,7 +2,7 @@ package codegen_ir
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/samber/lo"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
@@ -10,16 +10,16 @@ import (
 )
 
 func (self *CodeGenerator) declTypeDef(ir *hir.TypeDef) {
-	if stlbasic.Is[*hir.StructType](ir.Target){
+	if stlbasic.Is[*hir.StructType](ir.Target) {
 		self.types.Set(ir, self.module.NewNamedStructType(""))
-	}else{
+	} else {
 		// TODO: 支持除结构体之外的类型循环
 		self.types.Set(ir, self.codegenType(ir.Target))
 	}
 }
 
 func (self *CodeGenerator) defTypeDef(ir *hir.TypeDef) {
-	if !stlbasic.Is[*hir.StructType](ir.Target){
+	if !stlbasic.Is[*hir.StructType](ir.Target) {
 		return
 	}
 	td := self.types.Get(ir)
@@ -46,7 +46,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 	ftObj := self.codegenType(ir.GetType())
 	ft := ftObj.(mir.FuncType)
-	if ir.VarArg{
+	if ir.VarArg {
 		ft.SetVarArg(true)
 	}
 	f := self.module.NewFunction(ir.ExternName, ft)
@@ -88,9 +88,9 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 	case *hir.TypeDef:
 		self.defTypeDef(global)
 	case *hir.GlobalVarDef:
-		if global.Value.IsNone(){
+		if global.Value.IsNone() {
 			self.defGlobalVariableDecl(global)
-		}else{
+		} else {
 			self.defGlobalVariableDef(global)
 		}
 	case *hir.MultiGlobalVarDef:
@@ -142,8 +142,6 @@ func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 		}
 	} else {
 		self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
-		self.codegenUnTuple(ir.Value, lo.Map(ir.Vars, func(item *hir.GlobalVarDef, _ int) hir.Expr {
-			return item
-		}))
+		self.codegenUnTuple(ir.Value, stlslices.Map(ir.Vars, func(_ int, item *hir.GlobalVarDef) hir.Expr {return item}))
 	}
 }

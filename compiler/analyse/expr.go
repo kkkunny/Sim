@@ -56,7 +56,7 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 	}
 }
 
-func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.Expr {
+func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.ExprStmt {
 	if expect == nil || !hir.IsNumberType(expect) {
 		expect = self.pkgScope.Isize()
 	}
@@ -81,7 +81,7 @@ func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.Exp
 	}
 }
 
-func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.Expr {
+func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.ExprStmt {
 	if expect == nil || !hir.IsNumberType(expect) {
 		expect = self.pkgScope.I32()
 	}
@@ -336,7 +336,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 	}
 }
 
-func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Expr {
+func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
 	expr := self.analyseIdent((*ast.Ident)(node), true)
 	if expr.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
@@ -656,7 +656,7 @@ func (self *Analyser) analyseString(node *ast.String) *hir.String {
 	}
 }
 
-func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
+func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.ExprStmt {
 	target := self.analyseType(node.Type)
 	value := self.analyseExpr(target, node.Value)
 	vt := value.GetType()
@@ -676,7 +676,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	}
 }
 
-func (self *Analyser) analyseStaticMethod(typeNode *ast.IdentType, t hir.Type, name token.Token) hir.Expr {
+func (self *Analyser) analyseStaticMethod(typeNode *ast.IdentType, t hir.Type, name token.Token) hir.ExprStmt {
 	td, ok := hir.TryCustomType(t)
 	if !ok {
 		errors.ThrowExpectStructError(typeNode.Position(), t)

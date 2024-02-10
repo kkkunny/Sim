@@ -5,7 +5,6 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	stlslices "github.com/kkkunny/stl/slices"
-	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
@@ -260,7 +259,7 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 }
 
 func (self *CodeGenerator) codegenArray(ir *hir.Array) mir.Value {
-	elems := lo.Map(ir.Elems, func(item hir.Expr, _ int) mir.Value {
+	elems := stlslices.Map(ir.Elems, func(_ int, item hir.Expr) mir.Value {
 		return self.codegenExpr(item, true)
 	})
 	return self.builder.BuildPackArray(self.codegenType(ir.GetType()).(mir.ArrayType), elems...)
@@ -279,7 +278,7 @@ func (self *CodeGenerator) codegenIndex(ir *hir.Index, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenTuple(ir *hir.Tuple) mir.Value {
-	elems := lo.Map(ir.Elems, func(item hir.Expr, _ int) mir.Value {
+	elems := stlslices.Map(ir.Elems, func(_ int, item hir.Expr) mir.Value {
 		return self.codegenExpr(item, true)
 	})
 	return self.builder.BuildPackStruct(self.codegenType(ir.GetType()).(mir.StructType), elems...)
@@ -346,7 +345,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 }
 
 func (self *CodeGenerator) codegenStruct(ir *hir.Struct) mir.Value {
-	fields := lo.Map(ir.Fields, func(item hir.Expr, _ int) mir.Value {
+	fields := stlslices.Map(ir.Fields, func(_ int, item hir.Expr) mir.Value {
 		return self.codegenExpr(item, true)
 	})
 	return self.builder.BuildPackStruct(self.codegenType(ir.Type).(mir.StructType), fields...)

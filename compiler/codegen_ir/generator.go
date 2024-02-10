@@ -17,9 +17,9 @@ type CodeGenerator struct {
 	module  *mir.Module
 	builder *mir.Builder
 
-	values               hashmap.HashMap[hir.Expr, mir.Value]
+	values    hashmap.HashMap[hir.Expr, mir.Value]
 	types     hashmap.HashMap[*hir.CustomType, mir.Type]
-	loops                hashmap.HashMap[hir.Loop, loop]
+	loops     hashmap.HashMap[hir.Loop, loop]
 	strings   hashmap.HashMap[string, *mir.Constant]
 	funcCache hashmap.HashMap[string, *mir.Function]
 }
@@ -27,7 +27,7 @@ type CodeGenerator struct {
 func New(target mir.Target, ir *hir.Result) *CodeGenerator {
 	ctx := mir.NewContext(target)
 	return &CodeGenerator{
-		hir: ir,
+		hir:     ir,
 		target:  target,
 		ctx:     ctx,
 		module:  ctx.NewModule(),

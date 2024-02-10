@@ -31,10 +31,6 @@ func (self *GlobalVarDef) GetPublic() bool {
 	return self.Public
 }
 
-func (*GlobalVarDef) stmt() {}
-
-func (*GlobalVarDef) ident() {}
-
 // MultiGlobalVarDef 多全局变量定义
 type MultiGlobalVarDef struct {
 	Vars  []*GlobalVarDef
@@ -72,7 +68,7 @@ type FuncDef struct {
 	Body       util.Option[*Block]
 
 	InlineControl util.Option[bool]
-	VarArg bool
+	VarArg        bool
 }
 
 func (self *FuncDef) GetPackage() Package {
@@ -82,8 +78,6 @@ func (self *FuncDef) GetPackage() Package {
 func (self *FuncDef) GetPublic() bool {
 	return self.Public
 }
-
-func (*FuncDef) stmt() {}
 
 func (self *FuncDef) GetFuncType() *FuncType {
 	params := stlslices.Map(self.Params, func(_ int, e *Param) Type {
@@ -100,9 +94,11 @@ func (self *FuncDef) Mutable() bool {
 	return false
 }
 
-func (*FuncDef) ident() {}
-
 func (*FuncDef) globalFunc() {}
+
+func (self *FuncDef) GetName() string {
+	return self.Name
+}
 
 type GlobalMethod interface {
 	GlobalFuncOrMethod
@@ -135,9 +131,9 @@ func (self *MethodDef) IsStatic() bool {
 	}
 	selfType := self.GetSelfType()
 	firstParam := self.Params[0]
-	firstParamType := stlbasic.TernaryAction(IsType[*RefType](firstParam.GetType()), func () Type {
+	firstParamType := stlbasic.TernaryAction(IsType[*RefType](firstParam.GetType()), func() Type {
 		return AsType[*RefType](firstParam.GetType()).Elem
-	}, func () Type {
+	}, func() Type {
 		return firstParam.GetType()
 	})
 	return firstParam.Name != "self" || !selfType.EqualTo(firstParamType)
@@ -155,7 +151,7 @@ type TypeDef struct {
 	Pkg     Package
 	Public  bool
 	Name    string
-	Target Type
+	Target  Type
 	Methods hashmap.HashMap[string, GlobalMethod]
 }
 

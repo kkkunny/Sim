@@ -118,8 +118,6 @@ type LocalVarDef struct {
 
 func (*LocalVarDef) stmt() {}
 
-func (*LocalVarDef) ident() {}
-
 // MultiLocalVarDef 多局部变量定义
 type MultiLocalVarDef struct {
 	Vars  []*LocalVarDef

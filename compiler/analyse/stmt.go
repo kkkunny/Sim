@@ -26,7 +26,7 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
 	case *ast.IfElse:
 		return self.analyseIfElse(stmtNode)
 	case ast.Expr:
-		return self.analyseExpr(nil, stmtNode), hir.BlockEofNone
+		return self.analyseExpr(nil, stmtNode).(hir.ExprStmt), hir.BlockEofNone
 	case *ast.While:
 		return self.analyseWhile(stmtNode)
 	case *ast.Break:
