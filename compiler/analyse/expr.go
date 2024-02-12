@@ -125,7 +125,9 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 	switch node.Opera.Kind {
 	case token.ASS:
 		if lt.EqualTo(rt) {
-			if !left.Mutable() {
+			if left.Temporary() {
+				errors.ThrowExprTemporaryError(node.Left.Position())
+			}else if !left.Mutable() {
 				errors.ThrowNotMutableError(node.Left.Position())
 			}
 			return &hir.Assign{
@@ -310,8 +312,8 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 			expect = hir.AsType[*hir.RefType](expect).Elem
 		}
 		value := self.analyseExpr(expect, node.Value)
-		if !stlbasic.Is[hir.Ident](value) {
-			errors.ThrowCanNotGetPointer(node.Value.Position())
+		if value.Temporary() {
+			errors.ThrowExprTemporaryError(node.Value.Position())
 		} else if node.Opera.Is(token.AND_WITH_MUT) && !value.Mutable() {
 			errors.ThrowNotMutableError(node.Value.Position())
 		} else if localVarDef, ok := value.(*hir.LocalVarDef); ok {
@@ -606,15 +608,34 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 	ft := fromObj.GetType()
 
 	// 方法
-	var customFrom hir.Expr
+	var customType *hir.CustomType
 	if hir.IsCustomType(ft) {
-		customFrom = fromObj
+		customType = hir.AsCustomType(ft)
 	} else if hir.IsType[*hir.RefType](ft) && hir.IsCustomType(hir.AsType[*hir.RefType](ft).Elem) {
-		customFrom = &hir.DeRef{Value: fromObj}
+		customType = hir.AsCustomType(hir.AsType[*hir.RefType](ft).Elem)
 	}
-	if customFrom != nil {
-		customType := hir.AsCustomType(customFrom.GetType())
+	if customType != nil {
 		if methodObj := customType.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || customType.Pkg == self.pkgScope.pkg) {
+			var customFrom hir.Expr
+			if methodObj.IsStatic(){
+			}else if methodObj.IsRef() && hir.IsCustomType(ft){
+				if fromObj.Temporary(){
+					errors.ThrowExprTemporaryError(node.From.Position())
+				}
+				customFrom = &hir.GetRef{
+					Mut: methodObj.GetSelfParam().MustValue().Mutable(),
+					Value: fromObj,
+				}
+			}else if methodObj.IsRef() && !hir.IsCustomType(ft){
+				customFrom = fromObj
+			}else if !methodObj.IsRef() && hir.IsCustomType(ft){
+				customFrom = fromObj
+			}else if !methodObj.IsRef() && !hir.IsCustomType(ft){
+				customFrom = &hir.DeRef{Value: fromObj}
+			}else{
+				panic("unreachable")
+			}
+			
 			switch method := methodObj.(type) {
 			case *hir.MethodDef:
 				return &hir.Method{

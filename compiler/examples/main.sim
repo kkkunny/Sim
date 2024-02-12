@@ -2,8 +2,8 @@ import std::os
 
 type a isize
 
-func (a) get(self: Self)u8{
-    return self as u8
+func (a) get(self: &mut Self)u8{
+    return *self as u8
 }
 
 func main(){

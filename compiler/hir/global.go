@@ -50,8 +50,6 @@ func (self *MultiGlobalVarDef) GetPublic() bool {
 	return true
 }
 
-func (*MultiGlobalVarDef) stmt() {}
-
 type GlobalFuncOrMethod interface {
 	Global
 	GetFuncType() *FuncType
@@ -90,7 +88,7 @@ func (self *FuncDef) GetType() Type {
 	return self.GetFuncType()
 }
 
-func (self *FuncDef) Mutable() bool {
+func (*FuncDef) Mutable() bool {
 	return false
 }
 
@@ -100,11 +98,17 @@ func (self *FuncDef) GetName() string {
 	return self.Name
 }
 
+func (*FuncDef) Temporary() bool{
+	return true
+}
+
 type GlobalMethod interface {
 	GlobalFuncOrMethod
-	GetSelfType() GlobalType
+	GetSelfType() *TypeDef
 	GetMethodType() *FuncType
+	GetSelfParam() util.Option[*Param]
 	IsStatic() bool
+	IsRef()bool
 }
 
 // MethodDef 方法定义
@@ -113,7 +117,7 @@ type MethodDef struct {
 	FuncDef
 }
 
-func (self *MethodDef) GetSelfType() GlobalType {
+func (self *MethodDef) GetSelfType() *TypeDef {
 	return self.Scope
 }
 
@@ -125,9 +129,9 @@ func (self *MethodDef) GetMethodType() *FuncType {
 	return ft
 }
 
-func (self *MethodDef) IsStatic() bool {
-	if len(self.Params) == 0 {
-		return true
+func (self *MethodDef) GetSelfParam() util.Option[*Param]{
+	if len(self.Params) == 0{
+		return util.None[*Param]()
 	}
 	selfType := self.GetSelfType()
 	firstParam := self.Params[0]
@@ -136,7 +140,22 @@ func (self *MethodDef) IsStatic() bool {
 	}, func() Type {
 		return firstParam.GetType()
 	})
-	return firstParam.Name != "self" || !selfType.EqualTo(firstParamType)
+	if firstParam.Name != "self" || !selfType.EqualTo(firstParamType){
+		return util.None[*Param]()
+	}
+	return util.Some(firstParam)
+}
+
+func (self *MethodDef) IsStatic() bool {
+	return self.GetSelfParam().IsNone()
+}
+
+func (self *MethodDef) IsRef()bool{
+	selfParam, ok := self.GetSelfParam().Value()
+	if !ok{
+		return false
+	}
+	return IsType[*RefType](selfParam.GetType())
 }
 
 // GlobalType 类型定义

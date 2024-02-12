@@ -4,6 +4,7 @@ package hir
 type Expr interface {
 	GetType() Type
 	Mutable() bool
+	Temporary() bool
 }
 
 // Ident 标识符
@@ -38,6 +39,10 @@ func (self *VarDecl) Mutable() bool {
 }
 
 func (*VarDecl) variable(){}
+
+func (*VarDecl) Temporary() bool{
+	return false
+}
 
 // Param 参数
 type Param struct {
