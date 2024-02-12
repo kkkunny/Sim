@@ -121,7 +121,6 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		Pkg:    self.pkgScope.pkg,
 		Public: node.Public,
 		Name:   node.Name.Source(),
-		Body:   util.None[*hir.Block](),
 	}
 	for _, attrObj := range node.Attrs {
 		switch attr := attrObj.(type) {
@@ -176,14 +175,23 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 		},
 	}
 	for _, attrObj := range node.Attrs {
-		switch attrObj.(type) {
+		switch attr := attrObj.(type) {
+		case *ast.Extern:
+			temp := attr.Name.Source()
+			f.ExternName = util.ParseEscapeCharacter(temp[1:len(temp)-1], `\"`, `"`)
 		case *ast.Inline:
 			f.InlineControl = util.Some[bool](true)
 		case *ast.NoInline:
 			f.InlineControl = util.Some[bool](false)
+		case *ast.VarArg:
+			f.VarArg = true
 		default:
 			panic("unreachable")
 		}
+	}
+
+	if node.Body.IsNone() && f.ExternName == "" {
+		errors.ThrowExpectAttribute(node.Position(), new(ast.Extern))
 	}
 
 	td, ok := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
@@ -191,7 +199,6 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 		errors.ThrowUnknownIdentifierError(node.SelfType.MustValue().Position, node.SelfType.MustValue())
 	}
 	f.Scope = td.(*hir.TypeDef)
-
 	defer self.setSelfType(f.Scope)()
 
 	paramNameSet := hashset.NewHashSetWith[string]()
@@ -295,9 +302,14 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 }
 
 func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
+	// TODO: 方法可变参数
 	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
 	st := td.(*hir.TypeDef)
 	f := st.Methods.Get(node.Name.Source()).(*hir.MethodDef)
+
+	if node.Body.IsNone() {
+		return f
+	}
 
 	self.localScope = _NewFuncScope(self.pkgScope, f)
 	defer func() {

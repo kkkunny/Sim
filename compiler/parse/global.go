@@ -43,7 +43,6 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 	}
 	var selfType util.Option[token.Token]
 	if self.skipNextIs(token.LPA){
-		expectAttrIn(attrs, new(ast.Inline), new(ast.NoInline))
 		selfType = util.Some(self.expectNextIs(token.IDENT))
 		self.expectNextIs(token.RPA)
 	}
@@ -52,7 +51,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 	params := self.parseParamList(token.RPA)
 	paramEnd := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
-	body := stlbasic.TernaryAction(selfType.IsSome()||self.nextIs(token.LBR), func() util.Option[*ast.Block] {
+	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
 	}, func() util.Option[*ast.Block] {
 		return util.None[*ast.Block]()
