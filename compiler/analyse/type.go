@@ -3,7 +3,9 @@ package analyse
 import (
 	"math/big"
 
-	"github.com/samber/lo"
+	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/linkedhashmap"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
@@ -23,12 +25,12 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 		return self.analyseTupleType(typeNode)
 	case *ast.UnionType:
 		return self.analyseUnionType(typeNode)
-	case *ast.PtrType:
-		return self.analysePtrType(typeNode)
 	case *ast.RefType:
 		return self.analyseRefType(typeNode)
 	case *ast.SelfType:
 		return self.analyseSelfType(typeNode)
+	case *ast.StructType:
+		return self.analyseStructType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -37,28 +39,24 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
 	t, ok := node.Value()
 	if !ok {
-		return hir.Empty
+		return hir.NoThing
 	}
 	return self.analyseType(t)
 }
 
 func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	typ := self.analyseIdent((*ast.Ident)(node), false)
-	if typ.IsNone(){
-		errors.ThrowUnknownIdentifierError(node.Name.Position(), node.Name.Name)
+	if typ.IsNone() {
+		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	t, _ := typ.MustValue().Right()
-	return t
+	return stlbasic.IgnoreWith(typ.MustValue().Right())
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType) *hir.FuncType {
-	params := lo.Map(node.Params, func(item ast.Type, index int) hir.Type {
-		return self.analyseType(item)
+	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
+		return self.analyseType(e)
 	})
-	return &hir.FuncType{
-		Ret:    self.analyseOptionType(node.Ret),
-		Params: params,
-	}
+	return hir.NewFuncType(self.analyseOptionType(node.Ret), params...)
 }
 
 func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
@@ -69,38 +67,46 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
 		errors.ThrowIllegalInteger(node.Position(), node.Size)
 	}
 	elem := self.analyseType(node.Elem)
-	return &hir.ArrayType{
-		Size: uint(size.Uint64()),
-		Elem: elem,
-	}
+	return hir.NewArrayType(size.Uint64(), elem)
 }
 
 func (self *Analyser) analyseTupleType(node *ast.TupleType) *hir.TupleType {
-	elems := lo.Map(node.Elems, func(item ast.Type, index int) hir.Type {
-		return self.analyseType(item)
+	elems := stlslices.Map(node.Elems, func(_ int, e ast.Type) hir.Type {
+		return self.analyseType(e)
 	})
-	return &hir.TupleType{Elems: elems}
+	return hir.NewTupleType(elems...)
 }
 
 func (self *Analyser) analyseUnionType(node *ast.UnionType) *hir.UnionType {
-	return &hir.UnionType{Elems: lo.Map(node.Elems.ToSlice(), func(item ast.Type, _ int) hir.Type {
-		return self.analyseType(item)
-	})}
-}
-
-func (self *Analyser) analysePtrType(node *ast.PtrType) *hir.PtrType {
-	return &hir.PtrType{Elem: self.analyseType(node.Elem)}
+	elems := stlslices.Map(node.Elems.ToSlice(), func(_ int, e ast.Type) hir.Type {
+		return self.analyseType(e)
+	})
+	return hir.NewUnionType(elems...)
 }
 
 func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
-	return &hir.RefType{Elem: self.analyseType(node.Elem)}
+	return hir.NewRefType(node.Mut, self.analyseType(node.Elem))
 }
 
-func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type{
-	if self.selfType == nil && !self.inTrait{
+func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type {
+	if self.selfType == nil {
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
-	}else if self.inTrait{
-		return &hir.SelfType{Self: util.None[hir.TypeDef]()}
 	}
-	return &hir.SelfType{Self: util.Some(self.selfType)}
+	return hir.NewSelfType(self.selfType)
+}
+
+func (self *Analyser) analyseStructType(node *ast.StructType) *hir.StructType {
+	fields := linkedhashmap.NewLinkedHashMap[string, hir.Field]()
+	for _, f := range node.Fields {
+		if fields.ContainKey(f.Name.Source()) {
+			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
+		}
+		fields.Set(f.Name.Source(), hir.Field{
+			Public:  f.Public,
+			Mutable: f.Mutable,
+			Name:    f.Name.Source(),
+			Type:    self.analyseType(f.Type),
+		})
+	}
+	return hir.NewStructType(self.pkgScope.pkg, fields)
 }

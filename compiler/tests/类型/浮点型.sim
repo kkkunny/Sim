@@ -1,5 +1,9 @@
+import std::os
+
 func main(){
-    let v1: f32 = 0.1
-    let v2: f64 = 0.005
-    return
+    let v1: f32
+    if v1 == 0{
+        os::exit(0)
+    }
+    os::exit(1)
 }

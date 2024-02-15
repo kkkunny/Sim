@@ -26,7 +26,7 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
 	case *ast.IfElse:
 		return self.analyseIfElse(stmtNode)
 	case ast.Expr:
-		return self.analyseExpr(nil, stmtNode), hir.BlockEofNone
+		return self.analyseExpr(nil, stmtNode).(hir.ExprStmt), hir.BlockEofNone
 	case *ast.While:
 		return self.analyseWhile(stmtNode)
 	case *ast.Break:
@@ -79,8 +79,8 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 			Value: util.Some[hir.Expr](value),
 		}
 	} else {
-		if !ft.Ret.EqualTo(hir.Empty) {
-			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, hir.Empty)
+		if !ft.Ret.EqualTo(hir.NoThing) {
+			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, hir.NoThing)
 		}
 		return &hir.Return{
 			Func:  f,
@@ -169,7 +169,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 
 func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof) {
 	if condNode, ok := node.Cond.Value(); ok {
-		cond := self.expectExpr(hir.Bool, condNode)
+		cond := self.expectExpr(self.pkgScope.Bool(), condNode)
 		body, jump := self.analyseBlock(node.Body, nil)
 
 		var next util.Option[*hir.IfElse]
@@ -193,7 +193,7 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof
 }
 
 func (self *Analyser) analyseWhile(node *ast.While) (*hir.While, hir.BlockEof) {
-	cond := self.expectExpr(hir.Bool, node.Cond)
+	cond := self.expectExpr(self.pkgScope.Bool(), node.Cond)
 	loop := &hir.While{Cond: cond}
 	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {
 		scope.SetLoop(loop)
@@ -225,11 +225,11 @@ func (self *Analyser) analyseContinue(node *ast.Continue) *hir.Continue {
 func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 	iterator := self.analyseExpr(nil, node.Iterator)
 	iterType := iterator.GetType()
-	if !hir.IsArrayType(iterType) {
+	if !hir.IsType[*hir.ArrayType](iterType) {
 		errors.ThrowExpectArrayError(node.Iterator.Position(), iterType)
 	}
 
-	et := hir.AsArrayType(iterType).Elem
+	et := hir.AsType[*hir.ArrayType](iterType).Elem
 	loop := &hir.For{
 		Iterator: iterator,
 		Cursor: &hir.LocalVarDef{
@@ -258,17 +258,17 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 	value := self.analyseExpr(nil, node.Value)
 	vtObj := value.GetType()
-	if !hir.IsUnionType(vtObj) {
+	if !hir.IsType[*hir.UnionType](vtObj) {
 		errors.ThrowExpectUnionTypeError(node.Value.Position(), vtObj)
 	}
-	vt := hir.AsUnionType(vtObj)
+	vt := hir.AsType[*hir.UnionType](vtObj)
 
 	cases := make([]pair.Pair[hir.Type, *hir.Block], len(node.Cases))
 	for i, caseNode := range node.Cases {
 		caseCond := self.analyseType(caseNode.First)
 		if !vt.Contain(caseCond) {
 			errors.ThrowTypeMismatchError(caseNode.First.Position(), caseCond, vtObj)
-		} else if hir.IsUnionType(caseCond) {
+		} else if hir.IsType[*hir.UnionType](caseCond) {
 			errors.ThrowNotExpectUnionTypeError(caseNode.First.Position(), caseCond)
 		}
 		var newValue *hir.LocalVarDef

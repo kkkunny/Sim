@@ -17,6 +17,7 @@ const (
 	ASS
 
 	AND
+	AND_WITH_MUT
 	OR
 	XOR
 	NOT
@@ -71,12 +72,10 @@ const (
 	IMPORT
 	IS
 	PUBLIC
-	NULL
 	TYPE
 	SELF
 	OTHER
 	MATCH
-	TRAIT
 	_KeywordEnd
 )
 
@@ -91,6 +90,7 @@ var kindNames = [...]string{
 	COMMENT: "comment",
 	ASS:      "ass",
 	AND:      "and",
+	AND_WITH_MUT: "and",
 	OR:       "or",
 	XOR:      "xor",
 	NOT:      "not",
@@ -138,12 +138,10 @@ var kindNames = [...]string{
 	IMPORT:   "import",
 	IS:       "is",
 	PUBLIC:   "pub",
-	NULL:     "null",
 	TYPE:     "type",
 	SELF:     "Self",
 	OTHER: "other",
 	MATCH: "match",
-	TRAIT: "trait",
 }
 
 // Lookup 区分标识符和关键字
@@ -176,7 +174,7 @@ func (self Kind) Priority() uint8 {
 		return 8
 	case EQ, NE:
 		return 7
-	case AND:
+	case AND, AND_WITH_MUT:
 		return 6
 	case XOR:
 		return 5

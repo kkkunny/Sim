@@ -1,4 +1,9 @@
+import std::os
+
 func main(){
-    let v1: <u8, u8> = 1 as u8
-    return
+    let v1: <u8, u8>
+    if v1 as u8 == 0{
+        os::exit(0)
+    }
+    os::exit(1)
 }

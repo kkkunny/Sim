@@ -14,7 +14,7 @@ Sim是一门简洁的、强类型的编译型语言
 
 + [x] 基础语法（基础运算 / 流程控制 / 函数 / 变量）
 
-+ [x] 基本类型（int / uint / float / bool / pointer with null / pointer not with null / function / array / tuple / struct / union）
++ [x] 基本类型（int / uint / float / bool / reference / function / array / tuple / struct / union）
 
 + [x] 函数/变量导出 && 函数/变量链接
 
@@ -22,7 +22,7 @@ Sim是一门简洁的、强类型的编译型语言
 
 + [x] 方法定义与调用
 
-+ [x] 泛型（泛型函数 / 泛型结构体 / 泛型方法）
++ [ ] 泛型（泛型函数 / 泛型结构体 / 泛型方法）
 
 + [ ] trait
 
@@ -30,7 +30,7 @@ Sim是一门简洁的、强类型的编译型语言
 
 + [ ] defer
 
-+ [x] 异常处理
++ [ ] 异常处理
 
 + [ ] 垃圾回收
 
@@ -51,14 +51,12 @@ Sim是一门简洁的、强类型的编译型语言
 compiler/examples/hello_world.sim
 
 ```go
-import std::io
-
 func main(){
-    io::println("hello world")
+    debug("Hello World")
 }
 ```
 
 ```shell
 > make run TEST_FILE=$PWD/compiler/examples/hello_world.sim
-hello world
+Hello World
 ```

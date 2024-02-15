@@ -91,52 +91,14 @@ loop:
 	}
 }
 
-func (self *Parser) parseGenericNameDef(name token.Token)ast.GenericNameDef{
-	if !self.skipNextIs(token.LT){
-		return ast.GenericNameDef{Name: name}
-	}
-	begin := self.curTok.Position
-	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {return self.expectNextIs(token.IDENT)}, true)
-	end := self.expectNextIs(token.GT).Position
-	return ast.GenericNameDef{
-		Name: name,
-		Params: util.Some(ast.List[token.Token]{
-			Begin: begin,
-			Data: params,
-			End: end,
-		}),
-	}
-}
-
-func (self *Parser) parseGenericName(name token.Token, expectScope ...bool)ast.GenericName{
-	if len(expectScope) > 0 && expectScope[0] && !self.skipNextIs(token.SCOPE){
-		return ast.GenericName{Name: name}
-	}else if (len(expectScope) == 0 || !expectScope[0]) && !self.nextIs(token.LT){
-		return ast.GenericName{Name: name}
-	}
-	begin := self.expectNextIs(token.LT).Position
-	params := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {return self.parseType()}, true)
-	end := self.expectNextIs(token.GT).Position
-	return ast.GenericName{
-		Name: name,
-		Params: util.Some(ast.List[ast.Type]{
-			Begin: begin,
-			Data: params,
-			End: end,
-		}),
-	}
-}
-
 func (self *Parser) parseIdent() *ast.Ident {
 	var pkg util.Option[token.Token]
-	var name ast.GenericName
+	var name token.Token
 	pkgOrName := self.expectNextIs(token.IDENT)
 	if !self.skipNextIs(token.SCOPE) {
-		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName, true)
-	} else if !self.nextIs(token.LT){
-		pkg, name = util.Some(pkgOrName), self.parseGenericName(self.expectNextIs(token.IDENT))
+		pkg, name = util.None[token.Token](), pkgOrName
 	} else {
-		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName)
+		pkg, name = util.Some(pkgOrName), self.expectNextIs(token.IDENT)
 	}
 	return &ast.Ident{
 		Pkg:  pkg,

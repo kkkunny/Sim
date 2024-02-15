@@ -1,6 +1,5 @@
 @extern("sim_runtime_debug")
-pub func debug(s: str)
+pub func debug(s: &str)
 
-@noreturn
 @extern("sim_runtime_panic")
-pub func panic(s: str)
+pub func panic(s: &str)X

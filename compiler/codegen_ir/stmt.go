@@ -9,7 +9,6 @@ import (
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
@@ -22,7 +21,7 @@ func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
 		self.codegenMultiLocalVariable(stmt)
 	case *hir.IfElse:
 		self.codegenIfElse(stmt)
-	case hir.Expr:
+	case hir.ExprStmt:
 		self.codegenExpr(stmt, false)
 	case *hir.While:
 		self.codegenWhile(stmt)
@@ -61,15 +60,20 @@ func (self *CodeGenerator) codegenBlock(ir *hir.Block, afterBlockCreate func(blo
 }
 
 func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
-	if v, ok := ir.Value.Value(); ok {
-		self.builder.BuildReturn(self.codegenExpr(v, true))
+	if vir, ok := ir.Value.Value(); ok {
+		v := self.codegenExpr(vir, true)
+		if v.Type().Equal(self.ctx.Void()) {
+			self.builder.BuildReturn()
+		} else {
+			self.builder.BuildReturn(v)
+		}
 	} else {
 		self.builder.BuildReturn()
 	}
 }
 
 func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) mir.Value {
-	t := self.codegenTypeOnly(ir.Type)
+	t := self.codegenType(ir.Type)
 	var ptr mir.Value
 	if !ir.Escaped {
 		ptr = self.builder.BuildAllocFromStack(t)
@@ -143,7 +147,7 @@ type loop interface {
 
 type whileLoop struct {
 	Cond *mir.Block
-	Out       *mir.Block
+	Out  *mir.Block
 }
 
 func (self *whileLoop) SetOutBlock(block *mir.Block) {
@@ -160,7 +164,7 @@ func (self *whileLoop) GetNextBlock() *mir.Block {
 
 func (self *CodeGenerator) codegenWhile(ir *hir.While) {
 	f := self.builder.Current().Belong()
-	condBlock, endBlock := f.NewBlock(),  f.NewBlock()
+	condBlock, endBlock := f.NewBlock(), f.NewBlock()
 
 	self.builder.BuildUnCondJump(condBlock)
 	self.builder.MoveTo(condBlock)
@@ -208,7 +212,7 @@ func (self *forRange) GetNextBlock() *mir.Block {
 
 func (self *CodeGenerator) codegenFor(ir *hir.For) {
 	// pre
-	size := hir.AsArrayType(ir.Iterator.GetType()).Size
+	size := hir.AsType[*hir.ArrayType](ir.Iterator.GetType()).Size
 	iter := self.codegenExpr(ir.Iterator, false)
 	indexPtr := self.builder.BuildAllocFromStack(self.ctx.Usize())
 	self.builder.BuildStore(mir.NewInt(indexPtr.ElemType().(mir.IntType), 0), indexPtr)
@@ -266,8 +270,8 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 		return
 	}
 
-	vtObj, vtRtObj := self.codegenType(ir.Value.GetType())
-	vt, vtRt := vtObj.(mir.StructType), vtRtObj.(*types.UnionType)
+	vtObj := self.codegenType(ir.Value.GetType())
+	vt := vtObj.(mir.StructType)
 	value := self.codegenExpr(ir.Value, true)
 	index := self.buildStructIndex(value, 1)
 
@@ -277,8 +281,7 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 	existConds := hashset.NewHashSet[int]()
 	cases := make([]pair.Pair[mir.Const, *mir.Block], 0, len(ir.Cases))
 	for _, c := range ir.Cases {
-		_, caseTypeRtObj := self.codegenType(c.First)
-		caseIndex := vtRt.IndexElem(caseTypeRtObj)
+		caseIndex := hir.AsType[*hir.UnionType](ir.Value.GetType()).IndexElem(ir.Value.GetType())
 		if existConds.Contain(caseIndex) {
 			continue
 		}

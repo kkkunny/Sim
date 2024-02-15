@@ -2,178 +2,250 @@ package hir
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/dynarray"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
-	"github.com/samber/lo"
 
+	runtimeType "github.com/kkkunny/Sim/runtime/types"
 	"github.com/kkkunny/Sim/util"
 )
 
 var (
-	Empty = &EmptyType{}
-
-	Isize = &SintType{Bits: 0}
-	I8    = &SintType{Bits: 8}
-	I16   = &SintType{Bits: 16}
-	I32   = &SintType{Bits: 32}
-	I64   = &SintType{Bits: 64}
-
-	Usize = &UintType{Bits: 0}
-	U8    = &UintType{Bits: 8}
-	U16   = &UintType{Bits: 16}
-	U32   = &UintType{Bits: 32}
-	U64   = &UintType{Bits: 64}
-
-	F32 = &FloatType{Bits: 32}
-	F64 = &FloatType{Bits: 64}
-
-	Bool = &BoolType{}
-
-	Str = &StringType{}
+	NoThing  = &NoThingType{}
+	NoReturn = &NoReturnType{}
 )
 
 // Type 类型
+// 运行时类型+编译时的工具类型
 type Type interface {
 	fmt.Stringer
 	EqualTo(dst Type) bool
+	HasDefault() bool
+	Runtime() runtimeType.Type
 }
 
-func FlattenType(t Type)Type{
+// RuntimeType 可映射为运行时类型的类型
+type RuntimeType interface {
+	Type
+	runtime()
+}
+
+func ToRuntimeType(t Type) RuntimeType {
 	switch tt := t.(type) {
-	case *SelfType:
-		return FlattenType(tt.Self.MustValue())
-	case *AliasType:
-		return FlattenType(tt.Target)
-	case *GenericStructInst:
-		return tt.StructType()
-	default:
+	case RuntimeType:
 		return tt
+	case *SelfType:
+		return ToRuntimeType(tt.Self.MustValue())
+	case *AliasType:
+		return ToRuntimeType(tt.Target)
+	default:
+		panic("unreachable")
 	}
 }
 
-func IsEmptyType(t Type)bool{
-	return stlbasic.Is[*EmptyType](FlattenType(t))
+// BuildInType 运行时类型去掉自定义类型
+type BuildInType interface {
+	RuntimeType
+	buildin()
 }
 
-func AsEmptyType(t Type)*EmptyType{
-	return FlattenType(t).(*EmptyType)
+func ToBuildInType(t Type) BuildInType {
+	switch tt := t.(type) {
+	case BuildInType:
+		return tt
+	case *CustomType:
+		return ToBuildInType(tt.Target)
+	case *SelfType:
+		return ToBuildInType(tt.Self.MustValue())
+	case *AliasType:
+		return ToBuildInType(tt.Target)
+	default:
+		panic("unreachable")
+	}
 }
 
-// EmptyType 空类型
-type EmptyType struct{}
-
-func (*EmptyType) String() string {
-	return "empty"
+// TryType 尝试断言为指定类型
+func TryType[T BuildInType](t Type) (T, bool) {
+	switch tt := t.(type) {
+	case T:
+		return tt, true
+	case BuildInType:
+		return stlbasic.Default[T](), false
+	case *SelfType:
+		return TryType[T](tt.Self.MustValue())
+	case *AliasType:
+		return TryType[T](tt.Target)
+	case *CustomType:
+		return TryType[T](tt.Target)
+	default:
+		panic("unreachable")
+	}
 }
 
-func (self *EmptyType) EqualTo(dst Type) bool {
-	return IsEmptyType(dst)
+// IsType 是否可以断言为指定类型
+func IsType[T BuildInType](t Type) bool {
+	_, ok := TryType[T](t)
+	return ok
 }
 
-func IsNumberType(t Type)bool{
-	t = FlattenType(t)
-	return IsIntType(t) || IsFloatType(t)
+// AsType 断言为指定类型
+func AsType[T BuildInType](t Type) T {
+	at, ok := TryType[T](t)
+	if !ok {
+		panic("unreachable")
+	}
+	return at
 }
 
-func IsIntType(t Type)bool{
-	t = FlattenType(t)
-	return IsSintType(t) || IsUintType(t)
+func IsNumberType(t Type) bool { return IsIntType(t) || IsType[*FloatType](t) }
+func IsIntType(t Type) bool    { return IsType[*SintType](t) || IsType[*UintType](t) }
+func IsPointer(t Type) bool    { return IsType[*RefType](t) || IsType[*FuncType](t) }
+
+// NoThingType 无返回值类型
+type NoThingType struct{}
+
+func (*NoThingType) String() string {
+	return ""
 }
 
-func IsSintType(t Type)bool{
-	return stlbasic.Is[*SintType](FlattenType(t))
+func (self *NoThingType) EqualTo(dst Type) bool {
+	return stlbasic.Is[*NoThingType](ToRuntimeType(dst))
 }
 
-func AsSintType(t Type)*SintType{
-	return FlattenType(t).(*SintType)
+func (self *NoThingType) HasDefault() bool {
+	return false
 }
+
+func (self *NoThingType) Runtime() runtimeType.Type {
+	return runtimeType.TypeNoThing
+}
+
+func (self *NoThingType) buildin() {}
+func (self *NoThingType) runtime() {}
+
+// NoReturnType 空类型
+type NoReturnType struct{}
+
+func (*NoReturnType) String() string {
+	return "X"
+}
+
+func (self *NoReturnType) EqualTo(dst Type) bool {
+	return stlbasic.Is[*NoReturnType](ToRuntimeType(dst))
+}
+
+func (self *NoReturnType) HasDefault() bool {
+	return false
+}
+
+func (self *NoReturnType) Runtime() runtimeType.Type {
+	return runtimeType.TypeNoReturn
+}
+
+func (self *NoReturnType) buildin() {}
+func (self *NoReturnType) runtime() {}
 
 // SintType 有符号整型
 type SintType struct {
-	Bits uint
+	Bits uint8
+}
+
+func NewSintType(bits uint8) *SintType {
+	return &SintType{Bits: bits}
 }
 
 func (self *SintType) String() string {
-	if self.Bits == 0{
-		return "isize"
-	}
-	return fmt.Sprintf("i%d", self.Bits)
+	return fmt.Sprintf("__buildin_i%d", self.Bits)
 }
 
 func (self *SintType) EqualTo(dst Type) bool {
-	if !IsSintType(dst){
+	at, ok := ToRuntimeType(dst).(*SintType)
+	if !ok {
 		return false
 	}
-	dstType := AsSintType(dst)
-	return self.Bits == dstType.Bits
+	return self.Bits == at.Bits
 }
 
-func IsUintType(t Type)bool{
-	return stlbasic.Is[*UintType](FlattenType(t))
+func (self *SintType) HasDefault() bool {
+	return true
 }
 
-func AsUintType(t Type)*UintType{
-	return FlattenType(t).(*UintType)
+func (self *SintType) Runtime() runtimeType.Type {
+	return runtimeType.NewSintType(self.Bits)
 }
+
+func (self *SintType) buildin() {}
+func (self *SintType) runtime() {}
 
 // UintType 无符号整型
 type UintType struct {
-	Bits uint
+	Bits uint8
+}
+
+func NewUintType(bits uint8) *UintType {
+	return &UintType{Bits: bits}
 }
 
 func (self *UintType) String() string {
-	if self.Bits == 0{
-		return "usize"
-	}
-	return fmt.Sprintf("u%d", self.Bits)
+	return fmt.Sprintf("__buildin_u%d", self.Bits)
 }
 
 func (self *UintType) EqualTo(dst Type) bool {
-	if !IsUintType(dst){
+	at, ok := ToRuntimeType(dst).(*UintType)
+	if !ok {
 		return false
 	}
-	dstType := AsUintType(dst)
-	return self.Bits == dstType.Bits
+	return self.Bits == at.Bits
 }
 
-func IsFloatType(t Type)bool{
-	return stlbasic.Is[*FloatType](FlattenType(t))
+func (self *UintType) HasDefault() bool {
+	return true
 }
 
-func AsFloatType(t Type)*FloatType{
-	return FlattenType(t).(*FloatType)
+func (self *UintType) Runtime() runtimeType.Type {
+	return runtimeType.NewUintType(self.Bits)
 }
+
+func (self *UintType) buildin() {}
+func (self *UintType) runtime() {}
 
 // FloatType 浮点型
 type FloatType struct {
-	Bits uint
+	Bits uint8
+}
+
+func NewFloatType(bits uint8) *FloatType {
+	return &FloatType{Bits: bits}
 }
 
 func (self *FloatType) String() string {
-	return fmt.Sprintf("f%d", self.Bits)
+	return fmt.Sprintf("__buildin_f%d", self.Bits)
 }
 
 func (self *FloatType) EqualTo(dst Type) bool {
-	if !IsFloatType(dst){
+	at, ok := ToRuntimeType(dst).(*FloatType)
+	if !ok {
 		return false
 	}
-	dstType := AsFloatType(dst)
-	return self.Bits == dstType.Bits
+	return self.Bits == at.Bits
 }
 
-func IsFuncType(t Type)bool{
-	return stlbasic.Is[*FuncType](FlattenType(t))
+func (self *FloatType) HasDefault() bool {
+	return true
 }
 
-func AsFuncType(t Type)*FuncType{
-	return FlattenType(t).(*FuncType)
+func (self *FloatType) Runtime() runtimeType.Type {
+	return runtimeType.NewFloatType(self.Bits)
 }
+
+func (self *FloatType) buildin() {}
+func (self *FloatType) runtime() {}
 
 // FuncType 函数类型
 type FuncType struct {
@@ -181,61 +253,61 @@ type FuncType struct {
 	Params []Type
 }
 
+func NewFuncType(ret Type, params ...Type) *FuncType {
+	return &FuncType{
+		Ret:    ret,
+		Params: params,
+	}
+}
+
 func (self *FuncType) String() string {
-	params := lo.Map(self.Params, func(item Type, _ int) string {
-		return item.String()
-	})
-	ret := stlbasic.Ternary(self.Ret.EqualTo(Empty), "", self.Ret.String())
-	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
+	params := stlslices.Map(self.Params, func(_ int, e Type) string { return e.String() })
+	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.Ret)
 }
 
 func (self *FuncType) EqualTo(dst Type) bool {
-	if !IsFuncType(dst){
+	at, ok := ToRuntimeType(dst).(*FuncType)
+	if !ok {
 		return false
 	}
-	dstType := AsFuncType(dst)
-	if !self.Ret.EqualTo(dstType.Ret) || len(self.Params) != len(dstType.Params){
+	if !self.Ret.EqualTo(at.Ret) || len(self.Params) != len(at.Params) {
 		return false
 	}
-	for i, p := range self.Params{
-		if !p.EqualTo(dstType.Params[i]){
+	for i, p := range self.Params {
+		if !p.EqualTo(at.Params[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-func IsBoolType(t Type)bool{
-	return stlbasic.Is[*BoolType](FlattenType(t))
+func (self *FuncType) HasDefault() bool {
+	if self.Ret.EqualTo(NoThing) {
+		return true
+	}
+	return self.Ret.HasDefault()
 }
 
-func AsBoolType(t Type)*BoolType{
-	return FlattenType(t).(*BoolType)
+func (self *FuncType) Runtime() runtimeType.Type {
+	return runtimeType.NewFuncType(self.Ret.Runtime(), stlslices.Map(self.Params, func(_ int, e Type) runtimeType.Type {
+		return e.Runtime()
+	})...)
 }
 
-// BoolType 布尔型
-type BoolType struct{}
-
-func (*BoolType) String() string {
-	return "bool"
-}
-
-func (self *BoolType) EqualTo(dst Type) bool {
-	return IsBoolType(dst)
-}
-
-func IsArrayType(t Type)bool{
-	return stlbasic.Is[*ArrayType](FlattenType(t))
-}
-
-func AsArrayType(t Type)*ArrayType{
-	return FlattenType(t).(*ArrayType)
-}
+func (self *FuncType) buildin() {}
+func (self *FuncType) runtime() {}
 
 // ArrayType 数组型
 type ArrayType struct {
-	Size uint
+	Size uint64
 	Elem Type
+}
+
+func NewArrayType(size uint64, elem Type) *ArrayType {
+	return &ArrayType{
+		Size: size,
+		Elem: elem,
+	}
 }
 
 func (self *ArrayType) String() string {
@@ -243,273 +315,262 @@ func (self *ArrayType) String() string {
 }
 
 func (self *ArrayType) EqualTo(dst Type) bool {
-	if !IsArrayType(dst){
+	at, ok := ToRuntimeType(dst).(*ArrayType)
+	if !ok {
 		return false
 	}
-	dstType := AsArrayType(dst)
-	return self.Elem.EqualTo(dstType.Elem)
+	return self.Size == at.Size && self.Elem.EqualTo(at.Elem)
 }
 
-func IsTupleType(t Type)bool{
-	return stlbasic.Is[*TupleType](FlattenType(t))
+func (self *ArrayType) HasDefault() bool {
+	return self.Elem.HasDefault()
 }
 
-func AsTupleType(t Type)*TupleType{
-	return FlattenType(t).(*TupleType)
+func (self *ArrayType) Runtime() runtimeType.Type {
+	return runtimeType.NewArrayType(self.Size, self.Elem.Runtime())
 }
+
+func (self *ArrayType) buildin() {}
+func (self *ArrayType) runtime() {}
 
 // TupleType 元组型
 type TupleType struct {
 	Elems []Type
 }
 
+func NewTupleType(elem ...Type) *TupleType {
+	return &TupleType{
+		Elems: elem,
+	}
+}
+
 func (self *TupleType) String() string {
-	elems := lo.Map(self.Elems, func(item Type, _ int) string {
-		return item.String()
-	})
+	elems := stlslices.Map(self.Elems, func(_ int, e Type) string { return e.String() })
 	return fmt.Sprintf("(%s)", strings.Join(elems, ", "))
 }
 
 func (self *TupleType) EqualTo(dst Type) bool {
-	if !IsTupleType(dst){
+	at, ok := ToRuntimeType(dst).(*TupleType)
+	if !ok {
 		return false
 	}
-	dstType := AsTupleType(dst)
-	if len(self.Elems) != len(dstType.Elems){
+	if len(self.Elems) != len(at.Elems) {
 		return false
 	}
-	for i, e := range self.Elems{
-		if !e.EqualTo(dstType.Elems[i]){
+	for i, e := range self.Elems {
+		if !e.EqualTo(at.Elems[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-func IsStructType(t Type)bool{
-	return stlbasic.Is[*StructType](FlattenType(t))
+func (self *TupleType) HasDefault() bool {
+	return stlslices.All(self.Elems, func(_ int, e Type) bool {
+		return e.HasDefault()
+	})
 }
 
-func AsStructType(t Type)*StructType{
-	return FlattenType(t).(*StructType)
+func (self *TupleType) Runtime() runtimeType.Type {
+	return runtimeType.NewTupleType(stlslices.Map(self.Elems, func(_ int, e Type) runtimeType.Type {
+		return e.Runtime()
+	})...)
 }
 
-type StructType = StructDef
-
-func (self *StructType) String() string {
-	if self.Pkg.Equal(BuildInPackage){
-		return self.Name
-	}
-	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
-}
-
-func (self *StructType) EqualTo(dst Type) bool {
-	if !IsStructType(dst){
-		return false
-	}
-	dstType := AsStructType(dst)
-	return self.Pkg == dstType.Pkg && self.Name == dstType.Name
-}
-
-func IsStringType(t Type)bool{
-	return stlbasic.Is[*StringType](FlattenType(t))
-}
-
-func AsStringType(t Type)*StringType{
-	return FlattenType(t).(*StringType)
-}
-
-// StringType 字符串型
-type StringType struct{}
-
-func (*StringType) String() string {
-	return "str"
-}
-
-func (self *StringType) EqualTo(dst Type) bool {
-	return IsStringType(dst)
-}
-
-func IsUnionType(t Type)bool{
-	return stlbasic.Is[*UnionType](FlattenType(t))
-}
-
-func AsUnionType(t Type)*UnionType{
-	return FlattenType(t).(*UnionType)
-}
+func (self *TupleType) buildin() {}
+func (self *TupleType) runtime() {}
 
 // UnionType 联合类型
 type UnionType struct {
 	Elems []Type
 }
 
-func (self *UnionType) String() string {
-	elemStrs := lo.Map(self.Elems, func(item Type, _ int) string {
-		return item.String()
+func NewUnionType(elems ...Type) *UnionType {
+	elems = stlslices.FlatMap(elems, func(_ int, e Type) []Type {
+		if at, ok := TryType[*UnionType](e); ok {
+			return at.Elems
+		} else {
+			return []Type{e}
+		}
 	})
-	return fmt.Sprintf("<%s>", strings.Join(elemStrs, ", "))
+	sort.Slice(elems, func(i, j int) bool {
+		return elems[i].String() < elems[j].String()
+	})
+
+	flatElems := make([]Type, 0, len(elems))
+loop:
+	for _, e := range elems {
+		for _, fe := range flatElems {
+			if e.EqualTo(fe) {
+				continue loop
+			}
+		}
+		flatElems = append(flatElems, e)
+	}
+
+	return &UnionType{Elems: flatElems}
+}
+
+func (self *UnionType) String() string {
+	elems := stlslices.Map(self.Elems, func(_ int, e Type) string { return e.String() })
+	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
 }
 
 func (self *UnionType) EqualTo(dst Type) bool {
-	if !IsUnionType(dst){
+	at, ok := ToRuntimeType(dst).(*UnionType)
+	if !ok {
 		return false
 	}
-	dstType := AsUnionType(dst)
-	if len(self.Elems) != len(dstType.Elems){
+	if len(self.Elems) != len(at.Elems) {
 		return false
 	}
-	for i, e := range dstType.Elems{
-		if !e.EqualTo(dstType.Elems[i]){
+	for i, e := range self.Elems {
+		if !e.EqualTo(at.Elems[i]) {
 			return false
 		}
 	}
 	return true
 }
 
+func (self *UnionType) HasDefault() bool {
+	return self.Elems[0].HasDefault()
+}
+
+func (self *UnionType) Runtime() runtimeType.Type {
+	return runtimeType.NewUnionType(stlslices.Map(self.Elems, func(_ int, e Type) runtimeType.Type {
+		return e.Runtime()
+	})...)
+}
+
+func (self *UnionType) buildin() {}
+func (self *UnionType) runtime() {}
+
+// IndexElem 取元素下标
+func (self *UnionType) IndexElem(t Type) int {
+	for i, elem := range self.Elems {
+		if elem.EqualTo(t) {
+			return i
+		}
+	}
+	return -1
+}
+
 // Contain 是否包含类型
 func (self *UnionType) Contain(dst Type) bool {
-	if IsUnionType(dst){
-		return stlslices.All(AsUnionType(dst).Elems, func(_ int, de Type) bool {
-			return self.Contain(de)
-		})
-	}else{
+	if ut, ok := TryType[*UnionType](dst); ok {
+		return stlslices.All(ut.Elems, func(_ int, e Type) bool { return self.Contain(e) })
+	} else {
 		for _, e := range self.Elems {
-			if IsUnionType(e){
-				if AsUnionType(e).Contain(dst){
-					return true
-				}
-			}else{
-				if e.EqualTo(dst){
-					return true
-				}
+			if e.EqualTo(dst) {
+				return true
 			}
 		}
 		return false
 	}
 }
 
-func IsPointer(t Type)bool{
-	t = FlattenType(t)
-	return IsPtrType(t) || IsRefType(t) || IsFuncType(t)
-}
-
-func IsPtrType(t Type)bool{
-	return stlbasic.Is[*PtrType](FlattenType(t))
-}
-
-func AsPtrType(t Type)*PtrType{
-	return FlattenType(t).(*PtrType)
-}
-
-// PtrType 指针类型
-type PtrType struct {
-	Elem Type
-}
-
-func (self *PtrType) String() string {
-	return "*?" + self.Elem.String()
-}
-
-func (self *PtrType) EqualTo(dst Type) bool {
-	if !IsPtrType(dst){
-		return false
-	}
-	return self.Elem.EqualTo(AsPtrType(dst).Elem)
-}
-
-func (self *PtrType) ToRefType() *RefType {
-	return &RefType{Elem: self.Elem}
-}
-
-func IsRefType(t Type)bool{
-	return stlbasic.Is[*RefType](FlattenType(t))
-}
-
-func AsRefType(t Type)*RefType{
-	return FlattenType(t).(*RefType)
-}
-
 // RefType 引用类型
 type RefType struct {
+	Mut  bool
 	Elem Type
+}
+
+func NewRefType(mut bool, elem Type) *RefType {
+	return &RefType{
+		Mut:  mut,
+		Elem: elem,
+	}
 }
 
 func (self *RefType) String() string {
-	return "*" + self.Elem.String()
+	return stlbasic.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
 }
 
 func (self *RefType) EqualTo(dst Type) bool {
-	if !IsRefType(dst){
+	at, ok := ToRuntimeType(dst).(*RefType)
+	if !ok {
 		return false
 	}
-	return self.Elem.EqualTo(AsRefType(dst).Elem)
+	return self.Mut == at.Mut && self.Elem.EqualTo(at.Elem)
 }
 
-func (self *RefType) ToPtrType() *PtrType {
-	return &PtrType{Elem: self.Elem}
+func (self *RefType) HasDefault() bool {
+	return false
 }
 
-// 替换空self类型
-func replaceEmptySelfType(t Type, to Type)Type{
-	switch tt := t.(type) {
-	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *BoolType, *GenericIdentType:
-		return tt
-	case *PtrType:
-		return &PtrType{Elem: replaceEmptySelfType(t, to)}
-	case *RefType:
-		return &RefType{Elem: replaceEmptySelfType(t, to)}
-	case *FuncType:
-		return &FuncType{
-			Ret: replaceEmptySelfType(tt.Ret, to),
-			Params: stlslices.Map(tt.Params, func(_ int, e Type) Type {
-				return replaceEmptySelfType(e, to)
-			}),
-		}
-	case *ArrayType:
-		return &ArrayType{
-			Size: tt.Size,
-			Elem: replaceEmptySelfType(t, tt.Elem),
-		}
-	case *TupleType:
-		return &TupleType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return replaceEmptySelfType(e, to)
-		})}
-	case *StructType:
-		fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
-			e.Second.Type = replaceEmptySelfType(e.Second.Type, to)
-			return pair.NewPair[string, Field](e.First, e.Second)
-		})
-		return &StructType{
-			Pkg: tt.Pkg,
-			Public: tt.Public,
-			Name: tt.Name,
-			Fields: fields,
-			Methods: tt.Methods,
-		}
-	case *UnionType:
-		return &UnionType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return replaceEmptySelfType(e, to)
-		})}
-	case *SelfType:
-		if tt.Self.IsNone(){
-			return to
-		}
-		return &SelfType{Self: util.Some(replaceEmptySelfType(tt.Self.MustValue(), to).(TypeDef))}
-	case *GenericStructInst:
-		return &GenericStructInst{
-			Define: tt.Define,
-			Args: stlslices.Map(tt.Args, func(i int, e Type) Type {
-				return replaceEmptySelfType(e, to)
-			}),
-		}
-	default:
-		panic("unreachable")
+func (self *RefType) Runtime() runtimeType.Type {
+	return runtimeType.NewRefType(self.Mut, self.Elem.Runtime())
+}
+
+func (self *RefType) buildin() {}
+func (self *RefType) runtime() {}
+
+// Field 字段
+type Field struct {
+	Public  bool
+	Mutable bool
+	Name    string
+	Type    Type
+}
+
+// StructType 结构体类型
+type StructType struct {
+	Pkg    Package
+	Fields linkedhashmap.LinkedHashMap[string, Field]
+}
+
+func NewStructType(pkg Package, fields linkedhashmap.LinkedHashMap[string, Field]) *StructType {
+	return &StructType{
+		Pkg:    pkg,
+		Fields: fields,
 	}
 }
 
+func (self *StructType) String() string {
+	return fmt.Sprintf("{%s}", strings.Join(stliter.Map[pair.Pair[string, Field], string, dynarray.DynArray[string]](self.Fields, func(e pair.Pair[string, Field]) string {
+		return fmt.Sprintf("%s: %s", e.Second.Name, e.Second.Type.String())
+	}).ToSlice(), ", "))
+}
+
+func (self *StructType) EqualTo(dst Type) bool {
+	at, ok := ToRuntimeType(dst).(*StructType)
+	if !ok || !self.Pkg.Equal(at.Pkg) {
+		return false
+	}
+	for iter1, iter2 := self.Fields.Iterator(), at.Fields.Iterator(); iter1.Next() && iter2.Next(); {
+		f1, f2 := iter1.Value().Second, iter2.Value().Second
+		if f1.Public != f2.Public || f1.Mutable != f2.Mutable || f1.Name != f2.Name || !f1.Type.EqualTo(f2.Type) {
+			return false
+		}
+	}
+	return true
+}
+
+func (self *StructType) HasDefault() bool {
+	return stliter.All(self.Fields, func(e pair.Pair[string, Field]) bool {
+		return e.Second.Type.HasDefault()
+	})
+}
+
+func (self *StructType) Runtime() runtimeType.Type {
+	fields := stliter.Map[pair.Pair[string, Field], runtimeType.Field, dynarray.DynArray[runtimeType.Field]](self.Fields, func(e pair.Pair[string, Field]) runtimeType.Field {
+		return runtimeType.NewField(e.Second.Type.Runtime(), e.First)
+	}).ToSlice()
+	return runtimeType.NewStructType(self.Pkg.String(), fields...)
+}
+
+func (self *StructType) buildin() {}
+func (self *StructType) runtime() {}
+
 // SelfType Self类型
-type SelfType struct{
-	Self util.Option[TypeDef]
+type SelfType struct {
+	Self util.Option[GlobalType]
+}
+
+func NewSelfType(self GlobalType) *SelfType {
+	return &SelfType{
+		Self: util.Some(self),
+	}
 }
 
 func (self *SelfType) String() string {
@@ -520,154 +581,85 @@ func (self *SelfType) EqualTo(dst Type) bool {
 	return self.Self.MustValue().EqualTo(dst)
 }
 
+func (self *SelfType) HasDefault() bool {
+	return self.Self.MustValue().HasDefault()
+}
+
+func (self *SelfType) Runtime() runtimeType.Type {
+	return self.Self.MustValue().Runtime()
+}
+
+// CustomType 自定义类型
+type CustomType = TypeDef
+
+func TryCustomType(t Type) (*CustomType, bool) {
+	switch tt := t.(type) {
+	case *CustomType:
+		return tt, true
+	case BuildInType:
+		return nil, false
+	case *SelfType:
+		return TryCustomType(tt.Self.MustValue())
+	case *AliasType:
+		return TryCustomType(tt.Target)
+	default:
+		panic("unreachable")
+	}
+}
+
+func IsCustomType(t Type) bool {
+	_, ok := TryCustomType(t)
+	return ok
+}
+
+func AsCustomType(t Type) *CustomType {
+	ct, ok := TryCustomType(t)
+	if !ok {
+		panic("unreachable")
+	}
+	return ct
+}
+
+func (self *CustomType) String() string {
+	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
+}
+
+func (self *CustomType) EqualTo(dst Type) bool {
+	at, ok := ToRuntimeType(dst).(*CustomType)
+	if !ok {
+		return false
+	}
+	return self.Pkg == at.Pkg && self.Name == at.Name
+}
+
+func (self *CustomType) HasDefault() bool {
+	return self.Target.HasDefault()
+}
+
+func (self *CustomType) Runtime() runtimeType.Type {
+	methods := stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
+		return runtimeType.NewMethod(e.Second.GetFuncType().Runtime().(*runtimeType.FuncType), e.First)
+	}).ToSlice()
+	return runtimeType.NewCustomType(self.Pkg.String(), self.Name, self.Target.Runtime(), methods)
+}
+
+func (self *CustomType) runtime() {}
+
 // AliasType 别名类型
 type AliasType = TypeAliasDef
 
 func (self *AliasType) String() string {
-	if self.Pkg.Equal(BuildInPackage){
-		return self.Name
-	}
-	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+	return self.Target.String()
 }
 
 func (self *AliasType) EqualTo(dst Type) bool {
 	return self.Target.EqualTo(dst)
 }
 
-// ReplaceAllGenericIdent 替换所有泛型标识符类型
-func ReplaceAllGenericIdent(maps hashmap.HashMap[*GenericIdentType, Type], t Type)Type{
-	switch tt := t.(type) {
-	case *EmptyType, *SintType, *UintType, *FloatType, *StringType, *AliasType, *BoolType:
-		return tt
-	case *PtrType:
-		return &PtrType{Elem: ReplaceAllGenericIdent(maps, tt.Elem)}
-	case *RefType:
-		return &RefType{Elem: ReplaceAllGenericIdent(maps, tt.Elem)}
-	case *FuncType:
-		return &FuncType{
-			Ret: ReplaceAllGenericIdent(maps, tt.Ret),
-			Params: stlslices.Map(tt.Params, func(_ int, e Type) Type {
-				return ReplaceAllGenericIdent(maps, e)
-			}),
-		}
-	case *ArrayType:
-		return &ArrayType{
-			Size: tt.Size,
-			Elem: ReplaceAllGenericIdent(maps, tt.Elem),
-		}
-	case *TupleType:
-		return &TupleType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return ReplaceAllGenericIdent(maps, e)
-		})}
-	case *StructType:
-		fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
-			e.Second.Type = ReplaceAllGenericIdent(maps, e.Second.Type)
-			return pair.NewPair[string, Field](e.First, e.Second)
-		})
-		return &StructType{
-			Pkg: tt.Pkg,
-			Public: tt.Public,
-			Name: tt.Name,
-			Fields: fields,
-			Methods: tt.Methods,
-		}
-	case *UnionType:
-		return &UnionType{Elems: stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return ReplaceAllGenericIdent(maps, e)
-		})}
-	case *SelfType:
-		return &SelfType{Self: util.Some(ReplaceAllGenericIdent(maps, tt.Self.MustValue()).(TypeDef))}
-	case *GenericIdentType:
-		return maps.Get(tt)
-	case *GenericStructInst:
-		return &GenericStructInst{
-			Define: tt.Define,
-			Args: stlslices.Map(tt.Args, func(i int, e Type) Type {
-				return ReplaceAllGenericIdent(maps, e)
-			}),
-		}
-	default:
-		panic("unreachable")
-	}
+func (self *AliasType) HasDefault() bool {
+	return self.Target.HasDefault()
 }
 
-// GenericIdentType 泛型标识符类型
-type GenericIdentType struct {
-	Belong GlobalGenericDef
-	Name string
-}
-
-func (self *GenericIdentType) String() string {
-	return self.Name
-}
-
-func (self *GenericIdentType) EqualTo(dst Type) bool {
-	dstType, ok := FlattenType(dst).(*GenericIdentType)
-	if !ok{
-		return false
-	}
-	return self.Belong == dstType.Belong && self.Name == dstType.Name
-}
-
-// GenericStructInst 泛型结构体实例
-type GenericStructInst struct {
-	Define *GenericStructDef
-	Args   []Type
-}
-
-func (self *GenericStructInst) GetPackage()Package{
-	return self.Define.GetPackage()
-}
-func (self *GenericStructInst) GetPublic() bool{
-	return self.Define.GetPublic()
-}
-
-func (self *GenericStructInst) String() string {
-	if self.Define.Pkg.Equal(BuildInPackage){
-		return self.GetName()
-	}
-	return fmt.Sprintf("%s::%s", self.Define.Pkg, self.GetName())
-}
-
-func (self *GenericStructInst) EqualTo(dst Type) bool {
-	return self.StructType().EqualTo(dst)
-}
-
-func (self *GenericStructInst) GetName()string{
-	return fmt.Sprintf("%s::<%s>", self.Define.Name, strings.Join(stlslices.Map(self.Args, func(i int, e Type) string {
-		return e.String()
-	}), ", "))
-}
-
-func (self *GenericStructInst) StructType()*StructType{
-	maps := hashmap.NewHashMapWithCapacity[*GenericIdentType, Type](uint(len(self.Args)))
-	var i int
-	for iter:=self.Define.GenericParams.Iterator(); iter.Next(); {
-		maps.Set(iter.Value().Second, self.Args[i])
-		i++
-	}
-	fields := stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](self.Define.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
-		e.Second.Type = ReplaceAllGenericIdent(maps, e.Second.Type)
-		return pair.NewPair[string, Field](e.First, e.Second)
-	})
-	methods := stliter.Map[pair.Pair[string, *GenericStructMethodDef], pair.Pair[string, GlobalMethod], hashmap.HashMap[string, GlobalMethod]](self.Define.Methods, func(e pair.Pair[string, *GenericStructMethodDef]) pair.Pair[string, GlobalMethod] {
-		return pair.NewPair[string, GlobalMethod](e.First, e.Second)
-	})
-	st := &StructType{
-		Pkg:         self.Define.Pkg,
-		Public:      self.Define.Public,
-		Name:        self.GetName(),
-		Fields:      fields,
-		Methods:     methods,
-		genericArgs: self.Args,
-	}
-	return st
-}
-
-func (self *GenericStructInst) GetGenericParams()[]*GenericIdentType{
-	return self.Define.GenericParams.Values().ToSlice()
-}
-
-func (self *GenericStructInst) GetGenericArgs()[]Type{
-	return self.Args
+func (self *AliasType) Runtime() runtimeType.Type {
+	return self.Target.Runtime()
 }

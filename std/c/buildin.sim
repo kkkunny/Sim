@@ -1,5 +1,3 @@
-pub type voidptr = *?i8
-
 pub type char = i8
 pub type short = i16
 pub type int = i32
@@ -12,9 +10,3 @@ pub type unsigned_long = u64
 
 pub type float = f32
 pub type double = f64
-
-pub type string = *?char
-
-pub func str2cstring(s: str)string{
-    return *(&s as *string)
-}

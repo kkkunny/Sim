@@ -48,6 +48,11 @@ func ThrowUnknownIdentifierError(pos reader.Position, ident token.Token) {
 	ThrowError(pos, "identifier `%s` could not be found", ident.Source())
 }
 
+// ThrowExprTemporaryError 值必须不是临时的
+func ThrowExprTemporaryError(pos reader.Position) {
+	ThrowError(pos, "the value must not be temporary")
+}
+
 // ThrowNotMutableError 值必须是可变的
 func ThrowNotMutableError(pos reader.Position) {
 	ThrowError(pos, "the value must be mutable")
@@ -194,11 +199,6 @@ func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Toke
 		return v.Source()
 	})
 	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs.ToSlice(), "."))
-}
-
-// ThrowCanNotGetPointer 不能取指针
-func ThrowCanNotGetPointer(pos reader.Position) {
-	ThrowError(pos, "can not get the pointer of this expression")
 }
 
 // ThrowCircularReference 循环引用

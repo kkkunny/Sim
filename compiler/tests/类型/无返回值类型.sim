@@ -1,0 +1,9 @@
+func b(){}
+
+func a(){
+    return b()
+}
+
+func main(){
+    a()
+}

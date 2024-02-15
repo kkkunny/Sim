@@ -1554,7 +1554,7 @@ func (self *Builder) BuildReturn(v ...Value)Terminating{
 		value = v[0]
 	}
 	if value == nil && self.cur.f.t.Ret().Equal(self.ctx.Void()){
-	}else if value != nil && value.Type().Equal(self.cur.f.t.Ret()){
+	}else if value != nil && !value.Type().Equal(self.ctx.Void()) && value.Type().Equal(self.cur.f.t.Ret()){
 	}else{
 		panic("unreachable")
 	}

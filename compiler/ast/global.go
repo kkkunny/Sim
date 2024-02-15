@@ -15,20 +15,21 @@ type Global interface {
 	global()
 }
 
-// StructDef 结构体定义
-type StructDef struct {
-	Begin  reader.Position
-	Public bool
-	Name   GenericNameDef
-	Fields []Field
-	End    reader.Position
+// Import 包导入
+type Import struct {
+	Begin reader.Position
+	Paths dynarray.DynArray[token.Token]
+	Alias util.Option[token.Token]
 }
 
-func (self *StructDef) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
+func (self *Import) Position() reader.Position {
+	if alias, ok := self.Alias.Value(); ok {
+		return reader.MixPosition(self.Begin, alias.Position)
+	}
+	return reader.MixPosition(self.Begin, self.Paths.Back().Position)
 }
 
-func (*StructDef) global() {}
+func (*Import) global() {}
 
 
 type VariableDef interface {
@@ -98,42 +99,13 @@ func (self *MultipleVariableDef) ToSingleList()[]*SingleVariableDef{
 	})
 }
 
-// Import 包导入
-type Import struct {
-	Begin reader.Position
-	Paths dynarray.DynArray[token.Token]
-	Alias util.Option[token.Token]
-}
-
-func (self *Import) Position() reader.Position {
-	if alias, ok := self.Alias.Value(); ok {
-		return reader.MixPosition(self.Begin, alias.Position)
-	}
-	return reader.MixPosition(self.Begin, self.Paths.Back().Position)
-}
-
-func (*Import) global() {}
-
-// TypeAlias 类型别名
-type TypeAlias struct {
-	Begin  reader.Position
-	Public bool
-	Name   token.Token
-	Type   Type
-}
-
-func (self *TypeAlias) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Type.Position())
-}
-
-func (*TypeAlias) global() {}
-
 // FuncDef 函数定义
 type FuncDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
-	Name     GenericNameDef
+	SelfType util.Option[token.Token]
+	Name     token.Token
 	Params   []Param
 	ParamEnd reader.Position
 	Ret      util.Option[Type]
@@ -152,35 +124,31 @@ func (self *FuncDef) Position() reader.Position {
 
 func (*FuncDef) global() {}
 
-// MethodDef 方法定义
-type MethodDef struct {
-	Attrs    []Attr
-	Begin    reader.Position
-	Public   bool
-	SelfType GenericNameDef
-	Name     GenericNameDef
-	Params   []Param
-	Ret      util.Option[Type]
-	Body     *Block
+
+// TypeDef 类型定义
+type TypeDef struct {
+	Begin  reader.Position
+	Public bool
+	Name   token.Token
+	Target Type
 }
 
-func (self *MethodDef) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.Body.Position())
+func (self *TypeDef) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Target.Position())
 }
 
-func (*MethodDef) global() {}
+func (*TypeDef) global() {}
 
-// TraitDef 特性定义
-type TraitDef struct {
-	Begin    reader.Position
-	Public   bool
-	Name     token.Token
-	Methods []Field
-	End reader.Position
+// TypeAlias 类型别名
+type TypeAlias struct {
+	Begin  reader.Position
+	Public bool
+	Name   token.Token
+	Target Type
 }
 
-func (self *TraitDef) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
+func (self *TypeAlias) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Target.Position())
 }
 
-func (*TraitDef) global() {}
+func (*TypeAlias) global() {}

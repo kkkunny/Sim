@@ -34,8 +34,6 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		ident := (*ast.IdentExpr)(self.parseIdent())
 		if canStruct && self.nextIs(token.LBR){
 			return util.Some[ast.Expr](self.parseStruct((*ast.IdentType)(ident)))
-		}else if self.nextIs(token.COL){
-			return util.Some[ast.Expr](self.parseStaticMethod((*ast.IdentType)(ident)))
 		}else{
 			return util.Some[ast.Expr](ident)
 		}
@@ -45,15 +43,9 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 		return util.Some[ast.Expr](self.parseArray())
 	case token.STRING:
 		return util.Some[ast.Expr](self.parseString())
-	case token.NULL:
-		return util.Some[ast.Expr](self.parseNull())
 	case token.SELF:
 		st := &ast.SelfType{Token: self.expectNextIs(token.SELF)}
-		if self.nextIs(token.LBR){
-			return util.Some[ast.Expr](self.parseStruct(st))
-		}else{
-			return util.Some[ast.Expr](self.parseStaticMethod(st))
-		}
+		return util.Some[ast.Expr](self.parseStruct(st))
 	default:
 		return util.None[ast.Expr]()
 	}
@@ -75,10 +67,6 @@ func (self *Parser) parseFloat() *ast.Float {
 	return &ast.Float{Value: self.expectNextIs(token.FLOAT)}
 }
 
-func (self *Parser) parseNull() *ast.Null {
-	return &ast.Null{Token: self.expectNextIs(token.NULL)}
-}
-
 func (self *Parser) parseTuple() *ast.Tuple {
 	begin := self.expectNextIs(token.LPA).Position
 	elems := self.parseExprList(token.RPA)
@@ -95,6 +83,9 @@ func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[ast.Expr]
 	case token.SUB, token.NOT, token.AND, token.MUL:
 		self.next()
 		opera := self.curTok
+		if self.curTok.Is(token.AND) && self.skipNextIs(token.MUT){
+			opera.Kind = token.AND_WITH_MUT
+		}
 		value := self.mustExpr(self.parseOptionUnary(canStruct))
 		return util.Some[ast.Expr](&ast.Unary{
 			Opera: opera,
@@ -132,23 +123,20 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 	case token.DOT:
 		self.expectNextIs(token.DOT)
 		if self.skipNextIs(token.INTEGER) {
-			index := self.curTok
 			front = util.Some[ast.Expr](&ast.Extract{
 				From:  fv,
-				Index: index,
+				Index: self.curTok,
 			})
 		} else {
-			index := self.parseGenericName(self.expectNextIs(token.IDENT), true)
-			front = util.Some[ast.Expr](&ast.GetField{
+			front = util.Some[ast.Expr](&ast.Dot{
 				From:  fv,
-				Index: index,
+				Index: self.expectNextIs(token.IDENT),
 			})
 		}
 	case token.NOT:
-		end := self.expectNextIs(token.NOT).Position
 		front = util.Some[ast.Expr](&ast.CheckNull{
 			Value: fv,
-			End:   end,
+			End:   self.expectNextIs(token.NOT).Position,
 		})
 	default:
 		return front
@@ -239,14 +227,5 @@ func (self *Parser) parseStruct(st ast.Type) *ast.Struct {
 		Type:   st,
 		Fields: fields,
 		End:    end,
-	}
-}
-
-func (self *Parser) parseStaticMethod(st ast.Type)*ast.StaticMethod{
-	self.expectNextIs(token.COL)
-	name := self.parseGenericName(self.expectNextIs(token.IDENT))
-	return &ast.StaticMethod{
-		Type: st,
-		Name: name,
 	}
 }

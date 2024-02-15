@@ -91,6 +91,7 @@ func (self *_DeadVariablesElimination) walkStmt(ir mir.Stmt){
 	case *mir.Store:
 		readValues = []mir.Value{stmt.From()}
 		writeValues = []mir.Value{stmt.To()}
+		self.validMap.Add(stmt)
 	case *mir.Return:
 		if v, ok := stmt.Value(); ok{
 			readValues = []mir.Value{v}

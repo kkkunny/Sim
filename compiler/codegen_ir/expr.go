@@ -2,17 +2,12 @@ package codegen_ir
 
 import (
 	"fmt"
-	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
-	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/traits"
-	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
@@ -58,25 +53,18 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenTypeJudgment(expr)
 	case *hir.UnUnion:
 		return self.codegenUnUnion(expr)
-	case *hir.WrapWithNull:
-		return self.codegenWrapWithNull(expr, load)
-	case *hir.CheckNull:
-		return self.codegenCheckNull(expr)
-	case *hir.MethodDef, *hir.GenericStructMethodInst, *hir.GenericMethodInst, *hir.GenericStructGenericMethodInst:
-		// TODO: 闭包
-		panic("unreachable")
 	default:
 		panic("unreachable")
 	}
 }
 
 func (self *CodeGenerator) codegenInteger(ir *hir.Integer) mir.Int {
-	return mir.NewInt(self.codegenTypeOnly(ir.Type).(mir.IntType), ir.Value.Int64())
+	return mir.NewInt(self.codegenType(ir.Type).(mir.IntType), ir.Value.Int64())
 }
 
 func (self *CodeGenerator) codegenFloat(ir *hir.Float) *mir.Float {
 	v, _ := ir.Value.Float64()
-	return mir.NewFloat(self.codegenTypeOnly(ir.Type).(mir.FloatType), v)
+	return mir.NewFloat(self.codegenType(ir.Type).(mir.FloatType), v)
 }
 
 func (self *CodeGenerator) codegenBool(ir *hir.Boolean) *mir.Uint {
@@ -167,9 +155,9 @@ func (self *CodeGenerator) codegenUnary(ir hir.Unary, load bool) mir.Value {
 		return self.builder.BuildNeg(self.codegenExpr(ir.GetValue(), true))
 	case *hir.IntBitNegate, *hir.BoolNegate:
 		return self.builder.BuildNot(self.codegenExpr(ir.GetValue(), true))
-	case *hir.GetPtr:
+	case *hir.GetRef:
 		return self.codegenExpr(ir.GetValue(), false)
-	case *hir.GetValue:
+	case *hir.DeRef:
 		ptr := self.codegenExpr(ir.GetValue(), true)
 		if !load {
 			return ptr
@@ -190,44 +178,34 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 			return p
 		}
 		return self.builder.BuildLoad(p)
-	case *hir.GenericFuncInst:
-		return self.codegenGenericFuncInst(identNode)
+	case *hir.Method:
+		// TODO: 闭包
+		panic("unreachable")
 	default:
 		panic("unreachable")
 	}
 }
 
 func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
-	args := lo.Map(ir.Args, func(item hir.Expr, index int) mir.Value {
-		return self.codegenExpr(item, true)
+	args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) mir.Value {
+		return self.codegenExpr(e, true)
 	})
 	var f, selfValue mir.Value
 	switch fnIr := ir.Func.(type) {
-	case hir.MethodExpr:
-		if selfValueIr, ok := fnIr.GetSelf(); ok {
-			selfValue = self.codegenExpr(selfValueIr, false)
+	case *hir.Method:
+		if !fnIr.Define.IsStatic() {
+			selfValue = self.codegenExpr(stlbasic.IgnoreWith(fnIr.Self.Left()), !hir.IsType[*hir.RefType](fnIr.Define.Params[0].GetType()))
 		}
-		switch method := fnIr.(type) {
-		case *hir.Method:
-			f = self.values.Get(&method.Define.FuncDef)
-		case *hir.GenericStructMethodInst:
-			f = self.codegenGenericStructMethodInst(method)
-		case *hir.GenericMethodInst:
-			f = self.codegenGenericMethodInst(method)
-		case *hir.GenericStructGenericMethodInst:
-			f = self.codegenGenericStructGenericMethodInst(method)
-		default:
-			panic("unreachable")
-		}
+		f = self.values.Get(&fnIr.Define.FuncDef)
 	default:
 		f = self.codegenExpr(ir.Func, true)
 	}
 	if selfValue != nil {
 		var selfRef mir.Value
-		if expectSelfRefType := f.Type().(mir.FuncType).Params()[0]; !selfValue.Type().Equal(expectSelfRefType){
+		if expectSelfRefType := f.Type().(mir.FuncType).Params()[0]; !selfValue.Type().Equal(expectSelfRefType) {
 			selfRef = self.builder.BuildAllocFromStack(selfValue.Type())
 			self.builder.BuildStore(selfValue, selfRef)
-		}else{
+		} else {
 			selfRef = selfValue
 		}
 		args = append([]mir.Value{selfRef}, args...)
@@ -237,30 +215,18 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 
 func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value {
 	switch ir.(type) {
+	case *hir.DoNothingCovert:
+		return self.codegenExpr(ir.GetFrom(), load)
 	case *hir.Num2Num:
 		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenTypeOnly(ir.GetType())
+		to := self.codegenType(ir.GetType())
 		return self.builder.BuildNumberCovert(from, to.(mir.NumberType))
-	case *hir.Pointer2Pointer:
-		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenTypeOnly(ir.GetType())
-		return self.builder.BuildPtrToPtr(from, to.(mir.PtrType))
-	case *hir.Pointer2Usize:
-		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenTypeOnly(ir.GetType())
-		return self.builder.BuildPtrToUint(from, to.(mir.UintType))
-	case *hir.Usize2Pointer:
-		from := self.codegenExpr(ir.GetFrom(), true)
-		to := self.codegenTypeOnly(ir.GetType())
-		return self.builder.BuildUintToPtr(from, to.(mir.GenericPtrType))
 	case *hir.ShrinkUnion:
-		_, srcRt := self.codegenType(ir.GetFrom().GetType())
-		dst, dstRt := self.codegenType(ir.GetType())
 		from := self.codegenExpr(ir.GetFrom(), false)
 		srcData := self.buildStructIndex(from, 0, false)
 		srcIndex := self.buildStructIndex(from, 1, false)
-		newIndex := self.buildCovertUnionIndex(srcRt.(*types.UnionType), dstRt.(*types.UnionType), srcIndex)
-		ptr := self.builder.BuildAllocFromStack(dst)
+		newIndex := self.buildCovertUnionIndex(hir.AsType[*hir.UnionType](ir.GetFrom().GetType()), hir.AsType[*hir.UnionType](ir.GetType()), srcIndex)
+		ptr := self.builder.BuildAllocFromStack(self.codegenType(ir.GetType()))
 		newDataPtr := self.builder.BuildPtrToPtr(self.buildStructIndex(ptr, 0, true), self.ctx.NewPtrType(srcData.Type()))
 		self.builder.BuildStore(srcData, newDataPtr)
 		newIndexPtr := self.buildStructIndex(ptr, 1, true)
@@ -270,13 +236,11 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 		}
 		return self.builder.BuildLoad(ptr)
 	case *hir.ExpandUnion:
-		_, srcRt := self.codegenType(ir.GetFrom().GetType())
-		dst, dstRt := self.codegenType(ir.GetType())
 		from := self.codegenExpr(ir.GetFrom(), false)
 		srcData := self.buildStructIndex(from, 0, false)
 		srcIndex := self.buildStructIndex(from, 1, false)
-		newIndex := self.buildCovertUnionIndex(srcRt.(*types.UnionType), dstRt.(*types.UnionType), srcIndex)
-		ptr := self.builder.BuildAllocFromStack(dst)
+		newIndex := self.buildCovertUnionIndex(hir.AsType[*hir.UnionType](ir.GetFrom().GetType()), hir.AsType[*hir.UnionType](ir.GetType()), srcIndex)
+		ptr := self.builder.BuildAllocFromStack(self.codegenType(ir.GetType()))
 		newDataPtr := self.builder.BuildPtrToPtr(self.buildStructIndex(ptr, 0, true), self.ctx.NewPtrType(srcData.Type()))
 		self.builder.BuildStore(srcData, newDataPtr)
 		newIndexPtr := self.buildStructIndex(ptr, 1, true)
@@ -285,20 +249,24 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 			return ptr
 		}
 		return self.builder.BuildLoad(ptr)
+	case *hir.NoReturn2Any:
+		self.codegenExpr(ir.GetFrom(), false)
+		self.builder.BuildUnreachable()
+		return mir.NewZero(self.codegenType(ir.GetType()))
 	default:
 		panic("unreachable")
 	}
 }
 
 func (self *CodeGenerator) codegenArray(ir *hir.Array) mir.Value {
-	elems := lo.Map(ir.Elems, func(item hir.Expr, _ int) mir.Value {
+	elems := stlslices.Map(ir.Elems, func(_ int, item hir.Expr) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.BuildPackArray(self.codegenTypeOnly(ir.GetType()).(mir.ArrayType), elems...)
+	return self.builder.BuildPackArray(self.codegenType(ir.GetType()).(mir.ArrayType), elems...)
 }
 
 func (self *CodeGenerator) codegenIndex(ir *hir.Index, load bool) mir.Value {
-	at := self.codegenTypeOnly(ir.From.GetType()).(mir.ArrayType)
+	at := self.codegenType(ir.From.GetType()).(mir.ArrayType)
 	index := self.codegenExpr(ir.Index, true)
 	self.buildCheckIndex(index, uint64(at.Length()))
 	from := self.codegenExpr(ir.From, false)
@@ -310,10 +278,10 @@ func (self *CodeGenerator) codegenIndex(ir *hir.Index, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenTuple(ir *hir.Tuple) mir.Value {
-	elems := lo.Map(ir.Elems, func(item hir.Expr, _ int) mir.Value {
+	elems := stlslices.Map(ir.Elems, func(_ int, item hir.Expr) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.BuildPackStruct(self.codegenTypeOnly(ir.GetType()).(mir.StructType), elems...)
+	return self.builder.BuildPackStruct(self.codegenType(ir.GetType()).(mir.StructType), elems...)
 }
 
 func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value {
@@ -325,60 +293,62 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 	return ptr
 }
 
-func (self *CodeGenerator) codegenDefault(tir hir.Type) mir.Value {
-	t, rtt := self.codegenType(tir)
-
-	switch trt := rtt.(type) {
-	case *types.EmptyType, *types.FuncType, *types.RefType:
+func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
+	switch tir := hir.ToRuntimeType(ir).(type) {
+	case *hir.NoThingType:
 		panic("unreachable")
-	case *types.SintType, *types.UintType, *types.FloatType, *types.BoolType, *types.PtrType, *types.UnionType:
-		return mir.NewZero(t)
-	case *types.StringType:
-		return self.constString("")
-	case *types.ArrayType:
+	case *hir.RefType:
+		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str) {
+			return self.constStringPtr("")
+		}
+		panic("unreachable")
+	case *hir.SintType, *hir.UintType, *hir.FloatType:
+		return mir.NewZero(self.codegenType(ir))
+	case *hir.ArrayType:
 		// TODO: 填充所有字段为默认值
-		return mir.NewZero(t)
-	case *types.TupleType:
-		elems := stlslices.Map(hir.AsTupleType(tir).Elems, func(_ int, e hir.Type) mir.Value {
+		return mir.NewZero(self.codegenType(tir))
+	case *hir.TupleType:
+		elems := stlslices.Map(hir.AsType[*hir.TupleType](tir).Elems, func(_ int, e hir.Type) mir.Value {
 			return self.codegenDefault(e)
 		})
-		return self.builder.BuildPackStruct(t.(mir.StructType), elems...)
-	case *types.StructType:
-		defaultTrait := traits.NewDefault(trt)
-		if !defaultTrait.IsInst(trt){
-			// TODO: 填充所有字段为默认值
-			return mir.NewZero(t)
+		return self.builder.BuildPackStruct(self.codegenTupleType(tir), elems...)
+	case *hir.CustomType:
+		// TODO: 填充所有字段为默认值
+		return mir.NewZero(self.codegenType(tir))
+	case *hir.FuncType:
+		ft := self.codegenFuncType(tir)
+		key := fmt.Sprintf("default:%s", tir.String())
+		var fn *mir.Function
+		if !self.funcCache.ContainKey(key) {
+			curBlock := self.builder.Current()
+			fn = self.module.NewFunction("", ft)
+			self.builder.MoveTo(fn.NewBlock())
+			if ft.Ret().Equal(self.ctx.Void()) {
+				self.builder.BuildReturn()
+			} else {
+				self.builder.BuildReturn(self.codegenDefault(hir.AsType[*hir.FuncType](tir).Ret))
+			}
+			self.funcCache.Set(key, fn)
+			self.builder.MoveTo(curBlock)
+		} else {
+			fn = self.funcCache.Get(key)
 		}
-		st := hir.AsStructType(tir)
-		methodObj := st.Methods.Get(defaultTrait.Methods.Keys().Get(0))
-		switch method := methodObj.(type) {
-		case *hir.MethodDef:
-			return self.codegenCall(&hir.Call{
-				Func: &hir.Method{
-					Define: method,
-					Self: either.Right[hir.Expr, *hir.StructType](st),
-				},
-			})
-		case *hir.GenericStructMethodDef:
-			return self.codegenCall(&hir.Call{
-				Func: &hir.GenericStructMethodInst{
-					Define: method,
-					Self: either.Right[hir.Expr, *hir.StructType](st),
-				},
-			})
-		default:
-			panic("unreachable")
-		}
+		return fn
+	case *hir.UnionType:
+		ut := self.codegenUnionType(tir)
+		val := self.codegenDefault(hir.AsType[*hir.UnionType](tir).Elems[0])
+		index := mir.NewInt(ut.Elems()[1].(mir.IntType), 0)
+		return self.builder.BuildPackStruct(ut, val, index)
 	default:
 		panic("unreachable")
 	}
 }
 
 func (self *CodeGenerator) codegenStruct(ir *hir.Struct) mir.Value {
-	fields := lo.Map(ir.Fields, func(item hir.Expr, _ int) mir.Value {
+	fields := stlslices.Map(ir.Fields, func(_ int, item hir.Expr) mir.Value {
 		return self.codegenExpr(item, true)
 	})
-	return self.builder.BuildPackStruct(self.codegenTypeOnly(ir.Type).(mir.StructType), fields...)
+	return self.builder.BuildPackStruct(self.codegenType(ir.Type).(mir.StructType), fields...)
 }
 
 func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) mir.Value {
@@ -391,13 +361,11 @@ func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenString(ir *hir.String) mir.Value {
-	return self.constString(ir.Value)
+	return self.constStringPtr(ir.Value)
 }
 
 func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
-	utObj, utRtObj := self.codegenType(ir.Type)
-	ut, utRt := utObj.(mir.StructType), utRtObj.(*types.UnionType)
-	_, vtRtObj := self.codegenType(ir.Value.GetType())
+	ut := self.codegenType(ir.Type).(mir.StructType)
 
 	value := self.codegenExpr(ir.Value, true)
 	ptr := self.builder.BuildAllocFromStack(ut)
@@ -405,7 +373,7 @@ func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
 	dataPtr = self.builder.BuildPtrToPtr(dataPtr, self.ctx.NewPtrType(value.Type()))
 	self.builder.BuildStore(value, dataPtr)
 
-	index := utRt.IndexElem(vtRtObj)
+	index := hir.AsType[*hir.UnionType](ir.Type).IndexElem(ir.Value.GetType())
 	self.builder.BuildStore(
 		mir.NewInt(ut.Elems()[1].(mir.UintType), int64(index)),
 		self.buildStructIndex(ptr, 1, true),
@@ -418,117 +386,28 @@ func (self *CodeGenerator) codegenUnion(ir *hir.Union, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenTypeJudgment(ir *hir.TypeJudgment) mir.Value {
-	_, dstTRtObj := self.codegenType(ir.Type)
-	srcTObj, srcTRtObj := self.codegenType(ir.Value.GetType())
+	srcTObj := self.codegenType(ir.Value.GetType())
 	switch {
-	case stlbasic.Is[*types.UnionType](srcTRtObj) && srcTRtObj.(*types.UnionType).Contain(dstTRtObj):
-		srcT, srcRt := srcTObj.(mir.StructType), srcTRtObj.(*types.UnionType)
+	case hir.IsType[*hir.UnionType](ir.Value.GetType()) && hir.AsType[*hir.UnionType](ir.Value.GetType()).Contain(ir.Type):
+		srcT := srcTObj.(mir.StructType)
 
 		from := self.codegenExpr(ir.Value, false)
 		srcIndex := self.buildStructIndex(from, 1, false)
 
-		if dstRt, ok := dstTRtObj.(*types.UnionType); ok {
-			return self.buildCheckUnionType(srcRt, dstRt, srcIndex)
+		if dstUt, ok := hir.TryType[*hir.UnionType](ir.Type); ok {
+			return self.buildCheckUnionType(hir.AsType[*hir.UnionType](ir.Value.GetType()), dstUt, srcIndex)
 		} else {
-			targetIndex := srcRt.IndexElem(dstTRtObj)
+			targetIndex := hir.AsType[*hir.UnionType](ir.Value.GetType()).IndexElem(ir.Type)
 			return self.builder.BuildCmp(mir.CmpKindEQ, srcIndex, mir.NewInt(srcT.Elems()[1].(mir.IntType), int64(targetIndex)))
 		}
 	default:
-		return mir.Bool(self.ctx, srcTRtObj.Equal(dstTRtObj))
+		return mir.Bool(self.ctx, ir.Value.GetType().EqualTo(ir.Type))
 	}
 }
 
 func (self *CodeGenerator) codegenUnUnion(ir *hir.UnUnion) mir.Value {
 	value := self.codegenExpr(ir.Value, false)
 	elemPtr := self.buildStructIndex(value, 0, true)
-	elemPtr = self.builder.BuildPtrToPtr(elemPtr, self.ctx.NewPtrType(self.codegenTypeOnly(ir.GetType())))
+	elemPtr = self.builder.BuildPtrToPtr(elemPtr, self.ctx.NewPtrType(self.codegenType(ir.GetType())))
 	return self.builder.BuildLoad(elemPtr)
-}
-
-func (self *CodeGenerator) codegenWrapWithNull(ir *hir.WrapWithNull, load bool) mir.Value {
-	return self.codegenExpr(ir.Value, load)
-}
-
-func (self *CodeGenerator) codegenCheckNull(ir *hir.CheckNull) mir.Value {
-	ptr := self.codegenExpr(ir.Value, true)
-	self.buildCheckNull(ptr)
-	return ptr
-}
-
-func (self *CodeGenerator) codegenGenericFuncInst(ir *hir.GenericFuncInst) mir.Value {
-	cur := self.builder.Current()
-	defer func() {
-		self.builder.MoveTo(cur)
-	}()
-
-	key := fmt.Sprintf("generic_func(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","))
-	if f := self.funcCache.Get(key); f != nil {
-		return f
-	}
-
-	f := self.declGenericFuncDef(ir)
-	self.funcCache.Set(key, f)
-	self.defGenericFuncDef(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) codegenGenericStructMethodInst(ir *hir.GenericStructMethodInst) *mir.Function {
-	cur := self.builder.Current()
-	defer func() {
-		self.builder.MoveTo(cur)
-	}()
-
-	key := fmt.Sprintf("(%p<%s>)generic_method(%p)", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetGenericArgs(), func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","), ir.Define)
-	if f := self.funcCache.Get(key); f != nil {
-		return f
-	}
-
-	f := self.declGenericStructMethodDef(ir)
-	self.funcCache.Set(key, f)
-	self.defGenericStructMethodDef(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) codegenGenericMethodInst(ir *hir.GenericMethodInst) *mir.Function {
-	cur := self.builder.Current()
-	defer func() {
-		self.builder.MoveTo(cur)
-	}()
-
-	key := fmt.Sprintf("(%p)generic_method(%p)<%s>", ir.Define.Scope, ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","))
-	if f := self.funcCache.Get(key); f != nil {
-		return f
-	}
-
-	f := self.declGenericMethodDef(ir)
-	self.funcCache.Set(key, f)
-	self.defGenericMethodDef(ir, f)
-	return f
-}
-
-func (self *CodeGenerator) codegenGenericStructGenericMethodInst(ir *hir.GenericStructGenericMethodInst) *mir.Function {
-	cur := self.builder.Current()
-	defer func() {
-		self.builder.MoveTo(cur)
-	}()
-
-	key := fmt.Sprintf("(%p<%s>)generic_method(%p)<%s>", ir.Define.Scope, strings.Join(stlslices.Map(ir.GetScopeGenericArgs(), func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","), ir.Define, strings.Join(stlslices.Map(ir.Args, func(i int, e hir.Type) string {
-		return self.codegenTypeOnly(e).String()
-	}), ","))
-	if f := self.funcCache.Get(key); f != nil {
-		return f
-	}
-
-	f := self.declGenericStructGenericMethodDef(ir)
-	self.funcCache.Set(key, f)
-	self.defGenericStructGenericMethodDef(ir, f)
-	return f
 }

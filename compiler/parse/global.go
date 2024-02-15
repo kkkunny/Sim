@@ -22,47 +22,36 @@ func (self *Parser) parseGlobal() ast.Global {
 
 	switch self.nextTok.Kind {
 	case token.FUNC:
-		return self.parseFuncOrMethodDef(attrs, pub)
-	case token.STRUCT:
-		return self.parseStructDef(attrs, pub)
+		return self.parseFuncDef(attrs, pub)
 	case token.LET:
 		return self.parseVariable(true, attrs, pub)
 	case token.IMPORT:
 		return self.parseImport(attrs)
 	case token.TYPE:
-		return self.parseTypeAlias(attrs, pub)
-	case token.TRAIT:
-		return self.parseTraitDef(attrs, pub)
+		return self.parseTypeDefOrAlias(attrs, pub)
 	default:
 		errors.ThrowIllegalGlobal(self.nextTok.Position)
 		return nil
 	}
 }
 
-func (self *Parser) parseFuncOrMethodDef(attrs []ast.Attr, pub *token.Token) ast.Global {
+func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global {
+	expectAttrIn(attrs, new(ast.Extern), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
 	begin := self.expectNextIs(token.FUNC).Position
-	if self.nextIs(token.LPA){
-		return self.parseMethodDef(attrs, pub, begin)
-	}else{
-		return self.parseFuncDef(attrs, pub, begin)
-	}
-}
-
-func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) *ast.FuncDef {
 	if pub != nil {
 		begin = pub.Position
 	}
-	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
-	if name.Params.IsNone(){
-		expectAttrIn(attrs, new(ast.Extern), new(ast.NoReturn), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
-	}else{
-		expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
+	var selfType util.Option[token.Token]
+	if self.skipNextIs(token.LPA){
+		selfType = util.Some(self.expectNextIs(token.IDENT))
+		self.expectNextIs(token.RPA)
 	}
+	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
 	params := self.parseParamList(token.RPA)
 	paramEnd := self.expectNextIs(token.RPA).Position
 	ret := self.parseOptionType()
-	body := stlbasic.TernaryAction(name.Params.IsSome() || self.nextIs(token.LBR), func() util.Option[*ast.Block] {
+	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
 	}, func() util.Option[*ast.Block] {
 		return util.None[*ast.Block]()
@@ -71,58 +60,12 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token, begin reade
 		Attrs:  attrs,
 		Begin:  begin,
 		Public: pub != nil,
+		SelfType: selfType,
 		Name:   name,
 		Params: params,
 		ParamEnd: paramEnd,
 		Ret:    ret,
 		Body:   body,
-	}
-}
-
-func (self *Parser) parseMethodDef(attrs []ast.Attr, pub *token.Token, begin reader.Position) *ast.MethodDef {
-	expectAttrIn(attrs, new(ast.NoReturn), new(ast.Inline), new(ast.NoInline))
-
-	if pub != nil {
-		begin = pub.Position
-	}
-	self.expectNextIs(token.LPA)
-	scope := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
-	self.expectNextIs(token.RPA)
-	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
-	self.expectNextIs(token.LPA)
-	params := self.parseParamList(token.RPA)
-	self.expectNextIs(token.RPA)
-	ret := self.parseOptionType()
-	body := self.parseBlock()
-	return &ast.MethodDef{
-		Attrs:    attrs,
-		Begin:    begin,
-		Public:   pub != nil,
-		SelfType: scope,
-		Name:     name,
-		Params:   params,
-		Ret:      ret,
-		Body:     body,
-	}
-}
-
-func (self *Parser) parseStructDef(attrs []ast.Attr, pub *token.Token) *ast.StructDef {
-	expectAttrIn(attrs)
-
-	begin := self.expectNextIs(token.STRUCT).Position
-	if pub != nil {
-		begin = pub.Position
-	}
-	name := self.parseGenericNameDef(self.expectNextIs(token.IDENT))
-	self.expectNextIs(token.LBR)
-	fields := self.parseFieldList(token.RBR)
-	end := self.expectNextIs(token.RBR).Position
-	return &ast.StructDef{
-		Begin:  begin,
-		Public: pub != nil,
-		Name:   name,
-		Fields: fields,
-		End:    end,
 	}
 }
 
@@ -223,34 +166,28 @@ func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
 	}
 }
 
-func (self *Parser) parseTypeAlias(attrs []ast.Attr, pub *token.Token) *ast.TypeAlias {
+func (self *Parser) parseTypeDefOrAlias(attrs []ast.Attr, pub *token.Token) ast.Global {
 	expectAttrIn(attrs)
 
 	begin := self.expectNextIs(token.TYPE).Position
-	name := self.expectNextIs(token.IDENT)
-	self.expectNextIs(token.ASS)
-	typ := self.parseType()
-	return &ast.TypeAlias{
-		Begin:  begin,
-		Public: pub != nil,
-		Name:   name,
-		Type:   typ,
+	if pub != nil {
+		begin = pub.Position
 	}
-}
-
-func (self *Parser) parseTraitDef(attrs []ast.Attr, pub *token.Token)*ast.TraitDef{
-	expectAttrIn(attrs)
-
-	begin := self.expectNextIs(token.TRAIT).Position
 	name := self.expectNextIs(token.IDENT)
-	self.expectNextIs(token.LBR)
-	methods := self.parseFieldList(token.RBR)
-	end := self.expectNextIs(token.RBR).Position
-	return &ast.TraitDef{
-		Begin: begin,
-		Public: pub!=nil,
-		Name: name,
-		Methods: methods,
-		End: end,
+	isAlias := self.skipNextIs(token.ASS)
+	if isAlias{
+		return &ast.TypeAlias{
+			Begin:  begin,
+			Public: pub != nil,
+			Name:   name,
+			Target: self.parseType(),
+		}
+	}else{
+		return &ast.TypeDef{
+			Begin:  begin,
+			Public: pub != nil,
+			Name:   name,
+			Target: self.parseTypeWithStruct(),
+		}
 	}
 }

@@ -1,5 +1,9 @@
+import std::os
+
 func main(){
-    let v1: [2]i32 = [1, 2]
-    let v2: [0]i32 = []
-    return
+    let v1: [2]i32
+    if v1 == [0, 0]{
+        os::exit(0)
+    }
+    os::exit(1)
 }

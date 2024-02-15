@@ -194,19 +194,19 @@ func (self *Struct) stmt() {}
 
 func (self *Struct) expr() {}
 
-// GetField 取字段
-type GetField struct {
+// Dot 点
+type Dot struct {
 	From  Expr
-	Index GenericName
+	Index token.Token
 }
 
-func (self *GetField) Position() reader.Position {
-	return reader.MixPosition(self.From.Position(), self.Index.Position())
+func (self *Dot) Position() reader.Position {
+	return reader.MixPosition(self.From.Position(), self.Index.Position)
 }
 
-func (self *GetField) stmt() {}
+func (self *Dot) stmt() {}
 
-func (self *GetField) expr() {}
+func (self *Dot) expr() {}
 
 // String 字符串
 type String struct {
@@ -235,19 +235,6 @@ func (self *Judgment) stmt() {}
 
 func (self *Judgment) expr() {}
 
-// Null 空指针
-type Null struct {
-	Token token.Token
-}
-
-func (self *Null) Position() reader.Position {
-	return self.Token.Position
-}
-
-func (self *Null) stmt() {}
-
-func (self *Null) expr() {}
-
 // CheckNull 空指针检查
 type CheckNull struct {
 	Value Expr
@@ -261,17 +248,3 @@ func (self *CheckNull) Position() reader.Position {
 func (self *CheckNull) stmt() {}
 
 func (self *CheckNull) expr() {}
-
-// StaticMethod 静态方法
-type StaticMethod struct {
-	Type Type
-	Name GenericName
-}
-
-func (self *StaticMethod) Position() reader.Position {
-	return reader.MixPosition(self.Type.Position(), self.Name.Position())
-}
-
-func (self *StaticMethod) stmt() {}
-
-func (self *StaticMethod) expr() {}

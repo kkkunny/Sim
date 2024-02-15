@@ -1,3 +1,2 @@
 @extern("exit")
-@noreturn
-pub func exit(status: int)
+pub func exit(status: int)X

@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashset"
 
@@ -20,10 +21,7 @@ type _PkgScope struct {
 	links   linkedhashset.LinkedHashSet[*_PkgScope]
 
 	valueDefs         hashmap.HashMap[string, hir.Ident]
-	typeDefs          hashmap.HashMap[string, hir.TypeDef]
-	traitDefs         hashmap.HashMap[string, *hir.TraitDef]
-	genericFuncDefs   hashmap.HashMap[string, *hir.GenericFuncDef]
-	genericStructDefs hashmap.HashMap[string, *hir.GenericStructDef]
+	typeDefs          hashmap.HashMap[string, hir.GlobalType]
 }
 
 func _NewPkgScope(pkg hir.Package) *_PkgScope {
@@ -32,17 +30,12 @@ func _NewPkgScope(pkg hir.Package) *_PkgScope {
 		externs:           hashmap.NewHashMap[string, *_PkgScope](),
 		links:             linkedhashset.NewLinkedHashSet[*_PkgScope](),
 		valueDefs:         hashmap.NewHashMap[string, hir.Ident](),
-		typeDefs:          hashmap.NewHashMap[string, hir.TypeDef](),
-		genericFuncDefs:   hashmap.NewHashMap[string, *hir.GenericFuncDef](),
-		genericStructDefs: hashmap.NewHashMap[string, *hir.GenericStructDef](),
+		typeDefs:          hashmap.NewHashMap[string, hir.GlobalType](),
 	}
 }
 
 func (self *_PkgScope) SetValue(name string, v hir.Ident) bool {
 	if _, ok := self.getValue(name); ok {
-		return false
-	}
-	if _, ok := self.getGenericFuncDef(name); ok {
 		return false
 	}
 	self.valueDefs.Set(name, v)
@@ -82,22 +75,19 @@ func (self *_PkgScope) GetValue(pkg, name string) (hir.Ident, bool) {
 	return v, true
 }
 
-func (self *_PkgScope) SetTypeDef(td hir.TypeDef) bool {
+func (self *_PkgScope) SetTypeDef(td hir.GlobalType) bool {
 	if _, ok := self.getTypeDef(td.GetName()); ok {
-		return false
-	}
-	if _, ok := self.getGenericStructDef(td.GetName()); ok {
 		return false
 	}
 	self.typeDefs.Set(td.GetName(), td)
 	return true
 }
 
-func (self *_PkgScope) getLocalTypeDef(name string) (hir.TypeDef, bool) {
+func (self *_PkgScope) getLocalTypeDef(name string) (hir.GlobalType, bool) {
 	return self.typeDefs.Get(name), self.typeDefs.ContainKey(name)
 }
 
-func (self *_PkgScope) getTypeDef(name string) (hir.TypeDef, bool) {
+func (self *_PkgScope) getTypeDef(name string) (hir.GlobalType, bool) {
 	td, ok := self.getLocalTypeDef(name)
 	if ok {
 		return td, true
@@ -111,7 +101,7 @@ func (self *_PkgScope) getTypeDef(name string) (hir.TypeDef, bool) {
 	return nil, false
 }
 
-func (self *_PkgScope) GetTypeDef(pkg, name string) (hir.TypeDef, bool) {
+func (self *_PkgScope) GetTypeDef(pkg, name string) (hir.GlobalType, bool) {
 	if pkg == "" {
 		return self.getTypeDef(name)
 	}
@@ -126,134 +116,20 @@ func (self *_PkgScope) GetTypeDef(pkg, name string) (hir.TypeDef, bool) {
 	return td, true
 }
 
-func (self *_PkgScope) SetGenericFuncDef(def *hir.GenericFuncDef) bool {
-	if _, ok := self.getValue(def.Name); ok {
-		return false
-	}
-	if _, ok := self.getGenericFuncDef(def.Name); ok {
-		return false
-	}
-	self.genericFuncDefs.Set(def.Name, def)
-	return true
-}
-
-func (self *_PkgScope) getLocalGenericFuncDef(name string) (*hir.GenericFuncDef, bool) {
-	return self.genericFuncDefs.Get(name), self.genericFuncDefs.ContainKey(name)
-}
-
-func (self *_PkgScope) getGenericFuncDef(name string) (*hir.GenericFuncDef, bool) {
-	def, ok := self.getLocalGenericFuncDef(name)
-	if ok {
-		return def, true
-	}
-	for iter := self.links.Iterator(); iter.Next(); {
-		def, ok := iter.Value().getLocalGenericFuncDef(name)
-		if ok && def.GetPublic() {
-			return def, true
-		}
-	}
-	return nil, false
-}
-
-func (self *_PkgScope) GetGenericFuncDef(pkg, name string) (*hir.GenericFuncDef, bool) {
-	if pkg == "" {
-		return self.getGenericFuncDef(name)
-	}
-	pkgScope := self.externs.Get(pkg)
-	if pkgScope == nil {
-		return nil, false
-	}
-	def, ok := pkgScope.getLocalGenericFuncDef(name)
-	if !ok || !def.GetPublic() {
-		return nil, false
-	}
-	return def, true
-}
-
-func (self *_PkgScope) SetGenericStructDef(def *hir.GenericStructDef) bool {
-	if _, ok := self.getTypeDef(def.Name); ok {
-		return false
-	}
-	if _, ok := self.getGenericStructDef(def.Name); ok {
-		return false
-	}
-	self.genericStructDefs.Set(def.Name, def)
-	return true
-}
-
-func (self *_PkgScope) getLocalGenericStructDef(name string) (*hir.GenericStructDef, bool) {
-	return self.genericStructDefs.Get(name), self.genericStructDefs.ContainKey(name)
-}
-
-func (self *_PkgScope) getGenericStructDef(name string) (*hir.GenericStructDef, bool) {
-	def, ok := self.getLocalGenericStructDef(name)
-	if ok {
-		return def, true
-	}
-	for iter := self.links.Iterator(); iter.Next(); {
-		def, ok := iter.Value().getLocalGenericStructDef(name)
-		if ok && def.GetPublic() {
-			return def, true
-		}
-	}
-	return nil, false
-}
-
-func (self *_PkgScope) GetGenericStructDef(pkg, name string) (*hir.GenericStructDef, bool) {
-	if pkg == "" {
-		return self.getGenericStructDef(name)
-	}
-	pkgScope := self.externs.Get(pkg)
-	if pkgScope == nil {
-		return nil, false
-	}
-	def, ok := pkgScope.getLocalGenericStructDef(name)
-	if !ok || !def.GetPublic() {
-		return nil, false
-	}
-	return def, true
-}
-
-func (self *_PkgScope) SetTraitDef(def *hir.TraitDef) bool {
-	if _, ok := self.getTraitDef(def.Name); ok {
-		return false
-	}
-	self.traitDefs.Set(def.Name, def)
-	return true
-}
-
-func (self *_PkgScope) getLocalTraitDef(name string) (*hir.TraitDef, bool) {
-	return self.traitDefs.Get(name), self.traitDefs.ContainKey(name)
-}
-
-func (self *_PkgScope) getTraitDef(name string) (*hir.TraitDef, bool) {
-	def, ok := self.getLocalTraitDef(name)
-	if ok {
-		return def, true
-	}
-	for iter := self.links.Iterator(); iter.Next(); {
-		def, ok := iter.Value().getLocalTraitDef(name)
-		if ok && def.GetPublic() {
-			return def, true
-		}
-	}
-	return nil, false
-}
-
-func (self *_PkgScope) GetTraitDef(pkg, name string) (*hir.TraitDef, bool) {
-	if pkg == "" {
-		return self.getTraitDef(name)
-	}
-	pkgScope := self.externs.Get(pkg)
-	if pkgScope == nil {
-		return nil, false
-	}
-	def, ok := pkgScope.getLocalTraitDef(name)
-	if !ok || !def.GetPublic() {
-		return nil, false
-	}
-	return def, true
-}
+func (self *_PkgScope) Isize()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("isize")) }
+func (self *_PkgScope) I8()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i8")) }
+func (self *_PkgScope) I16()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i16")) }
+func (self *_PkgScope) I32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i32")) }
+func (self *_PkgScope) I64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i64")) }
+func (self *_PkgScope) Usize()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("usize")) }
+func (self *_PkgScope) U8()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u8")) }
+func (self *_PkgScope) U16()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u16")) }
+func (self *_PkgScope) U32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u32")) }
+func (self *_PkgScope) U64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u64")) }
+func (self *_PkgScope) F32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("f32")) }
+func (self *_PkgScope) F64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("f64")) }
+func (self *_PkgScope) Bool()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("bool")) }
+func (self *_PkgScope) Str()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("str")) }
 
 // 本地作用域
 type _LocalScope interface {

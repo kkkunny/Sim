@@ -34,39 +34,15 @@ func (self List[T]) Position() reader.Position{
 	return reader.MixPosition(self.Begin, self.End)
 }
 
-type GenericNameDef struct {
-	Name token.Token
-	Params util.Option[List[token.Token]]
-}
-
-func (self GenericNameDef) Position() reader.Position{
-	if params, ok := self.Params.Value(); ok{
-		return reader.MixPosition(self.Name.Position, params.Position())
-	}
-	return self.Name.Position
-}
-
-type GenericName struct {
-	Name token.Token
-	Params util.Option[List[Type]]
-}
-
-func (self GenericName) Position() reader.Position{
-	if params, ok := self.Params.Value(); ok{
-		return reader.MixPosition(self.Name.Position, params.Position())
-	}
-	return self.Name.Position
-}
-
 // Ident 标识符
 type Ident struct {
 	Pkg  util.Option[token.Token]
-	Name GenericName
+	Name token.Token
 }
 
 func (self *Ident) Position() reader.Position {
 	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.Name.Position())
+		return reader.MixPosition(pkg.Position, self.Name.Position)
 	}
-	return self.Name.Position()
+	return self.Name.Position
 }

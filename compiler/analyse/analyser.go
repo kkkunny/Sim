@@ -23,11 +23,9 @@ type Analyser struct {
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 
-	selfType  hir.TypeDef
-	inTrait bool
+	selfType  hir.GlobalType
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
-	genericIdentMap hashmap.HashMap[string, *hir.GenericIdentType]
 }
 
 func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
@@ -57,17 +55,17 @@ func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser 
 }
 
 // Analyse 分析语义
-func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
-	meanNodes := linkedlist.NewLinkedList[hir.Global]()
+func (self *Analyser) Analyse() *hir.Result {
+	globalIrs := linkedlist.NewLinkedList[hir.Global]()
 
 	// 包
 	if self.pkgScope.pkg != hir.BuildInPackage {
 		hirs, _ := self.importPackage(hir.BuildInPackage, "", true)
-		meanNodes.Append(hirs)
+		globalIrs.Append(hirs)
 	}
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		if im, ok := v.(*ast.Import); ok {
-			meanNodes.Append(self.analyseImport(im))
+			globalIrs.Append(self.analyseImport(im))
 		}
 		return true
 	})
@@ -75,31 +73,19 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	// 类型
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
-		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				self.declStructDef(node)
-			}else{
-				self.declGenericStructDef(node)
-			}
+		case *ast.TypeDef:
+			self.declTypeDef(node)
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
-		case *ast.TraitDef:
-			self.declTraitDef(node)
 		}
 		return true
 	})
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		switch node := v.(type) {
-		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				meanNodes.PushBack(self.defStructDef(node))
-			}else{
-				meanNodes.PushBack(self.defGenericStructDef(node))
-			}
+		case *ast.TypeDef:
+			globalIrs.PushBack(self.defTypeDef(node))
 		case *ast.TypeAlias:
-			meanNodes.PushBack(self.defTypeAlias(node))
-		case *ast.TraitDef:
-			meanNodes.PushBack(self.defTraitDef(node))
+			globalIrs.PushBack(self.defTypeAlias(node))
 		}
 		return true
 	})
@@ -109,14 +95,12 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 		var circle bool
 		var name token.Token
 		switch node := v.(type) {
-		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				st, _ := self.pkgScope.getLocalTypeDef(node.Name.Name.Source())
-				circle, name = self.checkTypeCircle(&trace, st), node.Name.Name
-			}
+		case *ast.TypeDef:
+			st, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
+			circle, name = self.checkTypeDefCircle(&trace, st), node.Name
 		case *ast.TypeAlias:
 			tad, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
-			circle, name = self.checkTypeCircle(&trace, tad), node.Name
+			circle, name = self.checkTypeAliasCircle(&trace, tad), node.Name
 		}
 		if circle{
 			errors.ThrowCircularReference(name.Position, name)
@@ -131,9 +115,27 @@ func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
 	})
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
 		if global := self.analyseGlobalDef(v); global != nil {
-			meanNodes.PushBack(global)
+			globalIrs.PushBack(global)
 		}
 		return true
 	})
-	return meanNodes
+	return &hir.Result{
+		Globals: globalIrs,
+		BuildinTypes: struct{Isize hir.Type; I8 hir.Type; I16 hir.Type; I32 hir.Type; I64 hir.Type; Usize hir.Type; U8 hir.Type; U16 hir.Type; U32 hir.Type; U64 hir.Type; F32 hir.Type; F64 hir.Type; Bool hir.Type; Str hir.Type}{
+			Isize: self.pkgScope.Isize(),
+			I8: self.pkgScope.I8(),
+			I16: self.pkgScope.I16(),
+			I32: self.pkgScope.I32(),
+			I64: self.pkgScope.I64(),
+			Usize: self.pkgScope.Usize(),
+			U8: self.pkgScope.U8(),
+			U16: self.pkgScope.U16(),
+			U32: self.pkgScope.U32(),
+			U64: self.pkgScope.U64(),
+			F32: self.pkgScope.F32(),
+			F64: self.pkgScope.F64(),
+			Bool: self.pkgScope.Bool(),
+			Str: self.pkgScope.Str(),
+		},
+	}
 }

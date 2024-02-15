@@ -1,0 +1,16 @@
+import std::os
+
+func a(v: &u8)u8{
+    return v
+}
+
+func b(mut v: &mut u8, to: u8){
+    *v = to
+}
+
+func main(){
+    let mut i: u8 = 1
+    let j = &mut i
+    b(j, 0)
+    os::exit(a(j))
+}

@@ -22,8 +22,8 @@ func (self *Parser) parseOptionType() util.Option[ast.Type] {
 		return util.Some[ast.Type](self.parseTupleType())
 	case token.LT:
 		return util.Some[ast.Type](self.parseUnionType())
-	case token.MUL:
-		return util.Some[ast.Type](self.parsePtrOrRefType())
+	case token.AND:
+		return util.Some[ast.Type](self.parseRefType())
 	case token.SELF:
 		return util.Some[ast.Type](self.parseSelfType())
 	default:
@@ -37,6 +37,13 @@ func (self *Parser) parseType() ast.Type {
 		errors.ThrowIllegalType(self.nextTok.Position)
 	}
 	return t
+}
+
+func (self *Parser) parseTypeWithStruct() ast.Type {
+	if self.nextIs(token.STRUCT){
+		return self.parseStructType()
+	}
+	return self.parseType()
 }
 
 func (self *Parser) parseFuncType() *ast.FuncType {
@@ -90,22 +97,28 @@ func (self *Parser) parseUnionType() *ast.UnionType {
 	}
 }
 
-func (self *Parser) parsePtrOrRefType() ast.Type {
-	begin := self.expectNextIs(token.MUL).Position
-	if self.skipNextIs(token.QUE){
-		elem := self.parseType()
-		return &ast.PtrType{
-			Begin: begin,
-			Elem:  elem,
-		}
-	}else{
-		return &ast.RefType{
-			Begin: begin,
-			Elem:  self.parseType(),
-		}
+func (self *Parser) parseRefType() ast.Type {
+	begin := self.expectNextIs(token.AND).Position
+	mut := self.skipNextIs(token.MUT)
+	return &ast.RefType{
+		Begin: begin,
+		Mut: mut,
+		Elem:  self.parseType(),
 	}
 }
 
 func (self *Parser) parseSelfType()*ast.SelfType{
 	return &ast.SelfType{Token: self.expectNextIs(token.SELF)}
+}
+
+func (self *Parser) parseStructType()*ast.StructType{
+	begin := self.expectNextIs(token.STRUCT).Position
+	self.expectNextIs(token.LBR)
+	fields := self.parseFieldList(token.RBR)
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.StructType{
+		Begin:  begin,
+		Fields: fields,
+		End:    end,
+	}
 }

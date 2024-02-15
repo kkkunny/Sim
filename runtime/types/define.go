@@ -3,40 +3,23 @@ package types
 import (
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/linkedhashset"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
 
 var (
-	TypeEmpty = new(EmptyType)
-	TypeBool = new(BoolType)
-	TypeStr = new(StringType)
-
-	TypeI8 = NewSintType(8)
-	TypeI16 = NewSintType(16)
-	TypeI32 = NewSintType(32)
-	TypeI64 = NewSintType(64)
-	TypeIsize = TypeI64
-
-	TypeU8 = NewUintType(8)
-	TypeU16 = NewUintType(16)
-	TypeU32 = NewUintType(32)
-	TypeU64 = NewUintType(64)
-	TypeUsize = TypeU64
-
-	TypeF32 = NewFloatType(32)
-	TypeF64 = NewFloatType(64)
+	TypeNoThing  = new(NoThingType)
+	TypeNoReturn = new(NoReturnType)
 )
 
 const (
 	_ uint64 = iota
 	emptyTypeHash
-	boolTypeHash
-	stringTypeHash
+	noReturnTypeHash
 )
 
 // Type 类型描述
@@ -46,57 +29,42 @@ type Type interface {
 	stlbasic.Comparable[Type]
 }
 
-// EmptyType 空类型
-type EmptyType struct{}
+// NoThingType 无返回值类型
+type NoThingType struct{}
 
-func (*EmptyType) String() string {
-	return "empty"
+func (*NoThingType) String() string {
+	return ""
 }
 
-func (self *EmptyType) Hash() uint64 {
+func (self *NoThingType) Hash() uint64 {
 	return emptyTypeHash
 }
 
-func (self *EmptyType) Equal(dst Type) bool {
-	return stlbasic.Is[*EmptyType](dst)
+func (self *NoThingType) Equal(dst Type) bool {
+	return stlbasic.Is[*NoThingType](dst)
 }
 
-// BoolType 布尔型
-type BoolType struct{}
+// NoReturnType 无返回类型
+type NoReturnType struct{}
 
-func (*BoolType) String() string {
-	return "bool"
+func (*NoReturnType) String() string {
+	return "X"
 }
 
-func (self *BoolType) Hash() uint64 {
-	return boolTypeHash
+func (self *NoReturnType) Hash() uint64 {
+	return noReturnTypeHash
 }
 
-func (self *BoolType) Equal(dst Type) bool {
-	return stlbasic.Is[*BoolType](dst)
-}
-
-// StringType 字符串型
-type StringType struct{}
-
-func (*StringType) String() string {
-	return "str"
-}
-
-func (self *StringType) Hash() uint64 {
-	return stringTypeHash
-}
-
-func (self *StringType) Equal(dst Type) bool {
-	return stlbasic.Is[*StringType](dst)
+func (self *NoReturnType) Equal(dst Type) bool {
+	return stlbasic.Is[*NoReturnType](dst)
 }
 
 // SintType 有符号整型
 type SintType struct {
-	Bits uint64
+	Bits uint8
 }
 
-func NewSintType(bits uint64)*SintType{
+func NewSintType(bits uint8) *SintType {
 	return &SintType{Bits: bits}
 }
 
@@ -105,7 +73,7 @@ func (self *SintType) String() string {
 }
 
 func (self *SintType) Hash() uint64 {
-	return self.Bits
+	return uint64(self.Bits)
 }
 
 func (self *SintType) Equal(dst Type) bool {
@@ -118,10 +86,10 @@ func (self *SintType) Equal(dst Type) bool {
 
 // UintType 无符号整型
 type UintType struct {
-	Bits uint64
+	Bits uint8
 }
 
-func NewUintType(bits uint64)*UintType{
+func NewUintType(bits uint8) *UintType {
 	return &UintType{Bits: bits}
 }
 
@@ -130,7 +98,7 @@ func (self *UintType) String() string {
 }
 
 func (self *UintType) Hash() uint64 {
-	return self.Bits
+	return uint64(self.Bits)
 }
 
 func (self *UintType) Equal(dst Type) bool {
@@ -143,10 +111,10 @@ func (self *UintType) Equal(dst Type) bool {
 
 // FloatType 浮点型
 type FloatType struct {
-	Bits uint64
+	Bits uint8
 }
 
-func NewFloatType(bits uint64)*FloatType{
+func NewFloatType(bits uint8) *FloatType {
 	return &FloatType{Bits: bits}
 }
 
@@ -155,7 +123,7 @@ func (self *FloatType) String() string {
 }
 
 func (self *FloatType) Hash() uint64 {
-	return self.Bits
+	return uint64(self.Bits)
 }
 
 func (self *FloatType) Equal(dst Type) bool {
@@ -166,42 +134,21 @@ func (self *FloatType) Equal(dst Type) bool {
 	return self.Bits == dt.Bits
 }
 
-// PtrType 指针类型
-type PtrType struct {
-	Elem Type
-}
-
-func NewPtrType(elem Type)*PtrType{
-	return &PtrType{Elem: elem}
-}
-
-func (self *PtrType) String() string {
-	return "*?" + self.Elem.String()
-}
-
-func (self *PtrType) Hash() uint64 {
-	return self.Elem.Hash() << 2
-}
-
-func (self *PtrType) Equal(dst Type) bool {
-	dt, ok := dst.(*PtrType)
-	if !ok || !self.Elem.Equal(dt.Elem) {
-		return false
-	}
-	return true
-}
-
 // RefType 引用类型
 type RefType struct {
+	Mut  bool
 	Elem Type
 }
 
-func NewRefType(elem Type)*RefType{
-	return &RefType{Elem: elem}
+func NewRefType(mut bool, elem Type) *RefType {
+	return &RefType{
+		Mut:  mut,
+		Elem: elem,
+	}
 }
 
 func (self *RefType) String() string {
-	return "*" + self.Elem.String()
+	return stlbasic.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
 }
 
 func (self *RefType) Hash() uint64 {
@@ -210,10 +157,10 @@ func (self *RefType) Hash() uint64 {
 
 func (self *RefType) Equal(dst Type) bool {
 	dt, ok := dst.(*RefType)
-	if !ok || !self.Elem.Equal(dt.Elem) {
+	if !ok {
 		return false
 	}
-	return true
+	return self.Mut == dt.Mut && self.Elem.Equal(dt.Elem)
 }
 
 // FuncType 函数类型
@@ -222,9 +169,9 @@ type FuncType struct {
 	Params []Type
 }
 
-func NewFuncType(ret Type, params ...Type)*FuncType{
+func NewFuncType(ret Type, params ...Type) *FuncType {
 	return &FuncType{
-		Ret: ret,
+		Ret:    ret,
 		Params: params,
 	}
 }
@@ -233,8 +180,7 @@ func (self *FuncType) String() string {
 	params := lo.Map(self.Params, func(item Type, _ int) string {
 		return item.String()
 	})
-	ret := stlbasic.Ternary(self.Ret.Equal(TypeEmpty), "", self.Ret.String())
-	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
+	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.Ret)
 }
 
 func (self *FuncType) Hash() uint64 {
@@ -260,7 +206,7 @@ type ArrayType struct {
 	Elem Type
 }
 
-func NewArrayType(size uint64, elem Type)*ArrayType{
+func NewArrayType(size uint64, elem Type) *ArrayType {
 	return &ArrayType{
 		Size: size,
 		Elem: elem,
@@ -288,7 +234,7 @@ type TupleType struct {
 	Elems []Type
 }
 
-func NewTupleType(elems ...Type)*TupleType{
+func NewTupleType(elems ...Type) *TupleType {
 	return &TupleType{Elems: elems}
 }
 
@@ -321,23 +267,35 @@ type UnionType struct {
 	Elems []Type
 }
 
-func NewUnionType(elems ...Type)*UnionType{
+func NewUnionType(elems ...Type) *UnionType {
 	elems = stlslices.FlatMap(elems, func(_ int, e Type) []Type {
-		if ue, ok := e.(*UnionType); ok{
+		if ue, ok := e.(*UnionType); ok {
 			return ue.Elems
-		}else{
+		} else {
 			return []Type{e}
 		}
 	})
-	elems = linkedhashset.NewLinkedHashSetWith(elems...).ToSlice().ToSlice()
-	return &UnionType{Elems: elems}
+	sort.Slice(elems, func(i, j int) bool {
+		return elems[i].String() < elems[j].String()
+	})
+
+	flatElems := make([]Type, 0, len(elems))
+loop:
+	for _, e := range elems {
+		for _, fe := range flatElems {
+			if e.Equal(fe) {
+				continue loop
+			}
+		}
+		flatElems = append(flatElems, e)
+	}
+
+	return &UnionType{Elems: flatElems}
 }
 
 func (self *UnionType) String() string {
-	elemStrs := stlslices.Map(self.Elems, func(_ int, e Type) string {
-		return e.String()
-	})
-	return fmt.Sprintf("<%s>", strings.Join(elemStrs, ", "))
+	elems := stlslices.Map(self.Elems, func(_ int, e Type) string { return e.String() })
+	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
 }
 
 func (self *UnionType) Hash() uint64 {
@@ -359,25 +317,23 @@ func (self *UnionType) Equal(dst Type) bool {
 	return true
 }
 
-func (self *UnionType) IndexElem(t Type)int{
-	for i, elem := range self.Elems{
-		if elem.Equal(t){
+func (self *UnionType) IndexElem(t Type) int {
+	for i, elem := range self.Elems {
+		if elem.Equal(t) {
 			return i
 		}
 	}
 	return -1
 }
 
-func (self *UnionType) Elem(i uint)Type{
+func (self *UnionType) Elem(i uint) Type {
 	return self.Elems[i]
 }
 
-func (self *UnionType) Contain(t Type)bool{
-	if ut, ok := t.(*UnionType); ok{
-		return stlslices.All[Type](ut.Elems, func(_ int, e Type) bool {
-			return self.Contain(e)
-		})
-	}else{
+func (self *UnionType) Contain(t Type) bool {
+	if ut, ok := t.(*UnionType); ok {
+		return stlslices.All[Type](ut.Elems, func(_ int, e Type) bool { return self.Contain(e) })
+	} else {
 		return stlslices.Contain(self.Elems, t)
 	}
 }
@@ -387,7 +343,7 @@ type Field struct {
 	Name string
 }
 
-func NewField(t Type, name string)Field{
+func NewField(t Type, name string) Field {
 	return Field{
 		Type: t,
 		Name: name,
@@ -399,41 +355,80 @@ type Method struct {
 	Name string
 }
 
-func NewMethod(t *FuncType, name string)Method{
+func NewMethod(t *FuncType, name string) Method {
 	return Method{
 		Type: t,
 		Name: name,
 	}
 }
 
+// StructType 结构体类型
 type StructType struct {
 	Pkg    string
-	Name   string
 	Fields []Field
-	Methods []Method
 }
 
-func NewStructType(pkg, name string, fields []Field, methods []Method)*StructType{
+func NewStructType(pkg string, fields ...Field) *StructType {
 	return &StructType{
-		Pkg: pkg,
-		Name: name,
+		Pkg:    pkg,
 		Fields: fields,
-		Methods: methods,
 	}
 }
 
 func (self *StructType) String() string {
-	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+	return fmt.Sprintf("{%s}", stlslices.Map(self.Fields, func(_ int, e Field) string {
+		return fmt.Sprintf("%s: %s", e.Name, e.Type)
+	}))
 }
 
 func (self *StructType) Hash() uint64 {
-	return stlbasic.Hash(self.String())
+	return stlbasic.Hash(stlslices.Map(self.Fields, func(_ int, e Field) string {
+		return fmt.Sprintf("%s: %s", e.Name, e.Type)
+	}))
 }
 
 func (self *StructType) Equal(dst Type) bool {
 	dt, ok := dst.(*StructType)
-	if !ok || self.Pkg != dt.Pkg || self.Name != dt.Name {
+	if !ok || self.Pkg != dt.Pkg || len(self.Fields) != len(dt.Fields) {
 		return false
 	}
+	for i, f := range self.Fields {
+		if f.Name != dt.Fields[i].Name || !f.Type.Equal(dt.Fields[i].Type) {
+			return false
+		}
+	}
 	return true
+}
+
+// CustomType 自定义类型
+type CustomType struct {
+	Pkg     string
+	Name    string
+	Target  Type
+	Methods []Method
+}
+
+func NewCustomType(pkg, name string, target Type, methods []Method) *CustomType {
+	return &CustomType{
+		Pkg:     pkg,
+		Name:    name,
+		Target:  target,
+		Methods: methods,
+	}
+}
+
+func (self *CustomType) String() string {
+	return fmt.Sprintf("%s::%s", self.Pkg, self.Name)
+}
+
+func (self *CustomType) Hash() uint64 {
+	return stlbasic.Hash(self.String())
+}
+
+func (self *CustomType) Equal(dst Type) bool {
+	dt, ok := dst.(*CustomType)
+	if !ok {
+		return false
+	}
+	return self.Pkg == dt.Pkg && self.Name == dt.Name
 }
