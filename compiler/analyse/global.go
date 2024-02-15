@@ -302,7 +302,6 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 }
 
 func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
-	// TODO: 方法可变参数
 	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
 	st := td.(*hir.TypeDef)
 	f := st.Methods.Get(node.Name.Source()).(*hir.MethodDef)

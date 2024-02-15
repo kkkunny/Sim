@@ -1,12 +1,3 @@
-import std::os
-
-type a isize
-
-func (a) get(self: &mut Self)u8{
-    return *self as u8
-}
-
 func main(){
-    let a: a = 1
-    os::exit(a.get())
+    debug("hello world")
 }
