@@ -31,7 +31,6 @@ func (self *Import) Position() reader.Position {
 
 func (*Import) global() {}
 
-
 type VariableDef interface {
 	Global
 	Stmt
@@ -46,17 +45,17 @@ type VarDef struct {
 
 // SingleVariableDef 单变量定义
 type SingleVariableDef struct {
-	Attrs   []Attr
-	Begin   reader.Position
+	Attrs  []Attr
+	Begin  reader.Position
 	Public bool
 	Var    VarDef
 	Value  util.Option[Expr]
 }
 
 func (self *SingleVariableDef) Position() reader.Position {
-	if v, ok := self.Value.Value(); ok{
+	if v, ok := self.Value.Value(); ok {
 		return reader.MixPosition(self.Begin, v.Position())
-	}else{
+	} else {
 		return reader.MixPosition(self.Begin, self.Var.Type.MustValue().Position())
 	}
 }
@@ -69,12 +68,12 @@ func (*SingleVariableDef) variable() {}
 
 // MultipleVariableDef 多变量定义
 type MultipleVariableDef struct {
-	Attrs   []Attr
-	Begin   reader.Position
-	Public  bool
-	Vars []VarDef
-	Value   util.Option[Expr]
-	End reader.Position
+	Attrs  []Attr
+	Begin  reader.Position
+	Public bool
+	Vars   []VarDef
+	Value  util.Option[Expr]
+	End    reader.Position
 }
 
 func (self *MultipleVariableDef) Position() reader.Position {
@@ -87,14 +86,14 @@ func (*MultipleVariableDef) global() {}
 
 func (*MultipleVariableDef) variable() {}
 
-func (self *MultipleVariableDef) ToSingleList()[]*SingleVariableDef{
+func (self *MultipleVariableDef) ToSingleList() []*SingleVariableDef {
 	return lo.Map(self.Vars, func(item VarDef, _ int) *SingleVariableDef {
 		return &SingleVariableDef{
-			Attrs: self.Attrs,
-			Begin: self.Begin,
+			Attrs:  self.Attrs,
+			Begin:  self.Begin,
 			Public: self.Public,
-			Var: item,
-			Value: util.None[Expr](),
+			Var:    item,
+			Value:  util.None[Expr](),
 		}
 	})
 }
@@ -105,25 +104,19 @@ type FuncDef struct {
 	Begin    reader.Position
 	Public   bool
 	SelfType util.Option[token.Token]
-	Name     token.Token
-	Params   []Param
-	ParamEnd reader.Position
-	Ret      util.Option[Type]
-	Body     util.Option[*Block]
+	FuncDecl
+	Body util.Option[*Block]
 }
 
 func (self *FuncDef) Position() reader.Position {
 	if b, ok := self.Body.Value(); ok {
 		return reader.MixPosition(self.Begin, b.Position())
-	} else if r, ok := self.Ret.Value(); ok {
-		return reader.MixPosition(self.Begin, r.Position())
 	} else {
-		return reader.MixPosition(self.Begin, self.ParamEnd)
+		return reader.MixPosition(self.Begin, self.FuncDecl.End)
 	}
 }
 
 func (*FuncDef) global() {}
-
 
 // TypeDef 类型定义
 type TypeDef struct {
@@ -152,3 +145,18 @@ func (self *TypeAlias) Position() reader.Position {
 }
 
 func (*TypeAlias) global() {}
+
+// Trait 特征
+type Trait struct {
+	Begin   reader.Position
+	Public  bool
+	Name    token.Token
+	Methods []*FuncDecl
+	End     reader.Position
+}
+
+func (self *Trait) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (*Trait) global() {}

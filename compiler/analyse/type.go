@@ -88,10 +88,7 @@ func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
 	return hir.NewRefType(node.Mut, self.analyseType(node.Elem))
 }
 
-func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type {
-	if self.selfType == nil {
-		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
-	}
+func (self *Analyser) analyseSelfType(_ *ast.SelfType) hir.Type {
 	return hir.NewSelfType(self.selfType)
 }
 

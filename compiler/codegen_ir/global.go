@@ -37,7 +37,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiGlobalVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.TypeDef, *hir.TypeAliasDef:
+	case *hir.TypeDef, *hir.TypeAliasDef, *hir.Trait:
 	default:
 		panic("unreachable")
 	}
@@ -95,7 +95,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		}
 	case *hir.MultiGlobalVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef:
+	case *hir.TypeAliasDef, *hir.Trait:
 	default:
 		panic("unreachable")
 	}
@@ -142,6 +142,6 @@ func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 		}
 	} else {
 		self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
-		self.codegenUnTuple(ir.Value, stlslices.Map(ir.Vars, func(_ int, item *hir.GlobalVarDef) hir.Expr {return item}))
+		self.codegenUnTuple(ir.Value, stlslices.Map(ir.Vars, func(_ int, item *hir.GlobalVarDef) hir.Expr { return item }))
 	}
 }

@@ -1,3 +1,16 @@
+import std::os
+
+trait Default{
+    func default()Self
+}
+
+type A i32
+
+func (A) default()Self{
+    return 1
+}
+
 func main(){
-    debug("hello world")
+    let a: A
+    os::exit(a as u8)
 }
