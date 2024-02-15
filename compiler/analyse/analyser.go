@@ -23,7 +23,8 @@ type Analyser struct {
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 
-	selfType hir.GlobalType
+	selfCanBeNil bool
+	selfType     *hir.CustomType
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
 }
@@ -126,35 +127,37 @@ func (self *Analyser) Analyse() *hir.Result {
 	return &hir.Result{
 		Globals: globalIrs,
 		BuildinTypes: struct {
-			Isize hir.Type
-			I8    hir.Type
-			I16   hir.Type
-			I32   hir.Type
-			I64   hir.Type
-			Usize hir.Type
-			U8    hir.Type
-			U16   hir.Type
-			U32   hir.Type
-			U64   hir.Type
-			F32   hir.Type
-			F64   hir.Type
-			Bool  hir.Type
-			Str   hir.Type
+			Isize   hir.Type
+			I8      hir.Type
+			I16     hir.Type
+			I32     hir.Type
+			I64     hir.Type
+			Usize   hir.Type
+			U8      hir.Type
+			U16     hir.Type
+			U32     hir.Type
+			U64     hir.Type
+			F32     hir.Type
+			F64     hir.Type
+			Bool    hir.Type
+			Str     hir.Type
+			Default *hir.Trait
 		}{
-			Isize: self.pkgScope.Isize(),
-			I8:    self.pkgScope.I8(),
-			I16:   self.pkgScope.I16(),
-			I32:   self.pkgScope.I32(),
-			I64:   self.pkgScope.I64(),
-			Usize: self.pkgScope.Usize(),
-			U8:    self.pkgScope.U8(),
-			U16:   self.pkgScope.U16(),
-			U32:   self.pkgScope.U32(),
-			U64:   self.pkgScope.U64(),
-			F32:   self.pkgScope.F32(),
-			F64:   self.pkgScope.F64(),
-			Bool:  self.pkgScope.Bool(),
-			Str:   self.pkgScope.Str(),
+			Isize:   self.pkgScope.Isize(),
+			I8:      self.pkgScope.I8(),
+			I16:     self.pkgScope.I16(),
+			I32:     self.pkgScope.I32(),
+			I64:     self.pkgScope.I64(),
+			Usize:   self.pkgScope.Usize(),
+			U8:      self.pkgScope.U8(),
+			U16:     self.pkgScope.U16(),
+			U32:     self.pkgScope.U32(),
+			U64:     self.pkgScope.U64(),
+			F32:     self.pkgScope.F32(),
+			F64:     self.pkgScope.F64(),
+			Bool:    self.pkgScope.Bool(),
+			Str:     self.pkgScope.Str(),
+			Default: self.pkgScope.Default(),
 		},
 	}
 }

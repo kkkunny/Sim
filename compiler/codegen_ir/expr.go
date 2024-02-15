@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
@@ -313,8 +314,18 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 		})
 		return self.builder.BuildPackStruct(self.codegenTupleType(tir), elems...)
 	case *hir.CustomType:
-		// TODO: 填充所有字段为默认值
-		return mir.NewZero(self.codegenType(tir))
+		if self.hir.BuildinTypes.Default.HasBeImpled(tir) {
+			return self.codegenCall(&hir.Call{Func: &hir.Method{
+				Self:   either.Right[hir.Expr, *hir.CustomType](tir),
+				Define: tir.Methods.Get(self.hir.BuildinTypes.Default.Methods.Values().Front().Name).(*hir.MethodDef),
+			}})
+		}
+		return self.codegenDefault(tir.Target)
+	case *hir.StructType:
+		elems := stlslices.Map(hir.AsType[*hir.StructType](tir).Fields.Values().ToSlice(), func(_ int, e hir.Field) mir.Value {
+			return self.codegenDefault(e.Type)
+		})
+		return self.builder.BuildPackStruct(self.codegenStructType(tir), elems...)
 	case *hir.FuncType:
 		ft := self.codegenFuncType(tir)
 		key := fmt.Sprintf("default:%s", tir.String())

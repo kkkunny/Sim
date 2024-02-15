@@ -3,10 +3,10 @@ import std::os
 type A i32
 
 func (A) default()Self{
-return 1
+	return 1
 }
 
 func main(){
-let v: A
-os::exit(v as u8 - 1)
+	let v: A
+	os::exit(v as u8 - 1)
 }

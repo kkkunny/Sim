@@ -174,6 +174,7 @@ func (self *_PkgScope) F32() hir.GlobalType   { return stlbasic.IgnoreWith(self.
 func (self *_PkgScope) F64() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("f64")) }
 func (self *_PkgScope) Bool() hir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("bool")) }
 func (self *_PkgScope) Str() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("str")) }
+func (self *_PkgScope) Default() *hir.Trait   { return stlbasic.IgnoreWith(self.getTrait("Default")) }
 
 // 本地作用域
 type _LocalScope interface {

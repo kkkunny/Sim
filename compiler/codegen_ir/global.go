@@ -9,24 +9,6 @@ import (
 	"github.com/kkkunny/Sim/util"
 )
 
-func (self *CodeGenerator) declTypeDef(ir *hir.TypeDef) {
-	if stlbasic.Is[*hir.StructType](ir.Target) {
-		self.types.Set(ir, self.module.NewNamedStructType(""))
-	} else {
-		// TODO: 支持除结构体之外的类型循环
-		self.types.Set(ir, self.codegenType(ir.Target))
-	}
-}
-
-func (self *CodeGenerator) defTypeDef(ir *hir.TypeDef) {
-	if !stlbasic.Is[*hir.StructType](ir.Target) {
-		return
-	}
-	td := self.types.Get(ir)
-	target := self.codegenType(ir.Target).(mir.StructType)
-	td.(mir.StructType).SetElems(target.Elems()...)
-}
-
 func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 	switch global := ir.(type) {
 	case *hir.FuncDef:
@@ -85,8 +67,6 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		}
 	case *hir.MethodDef:
 		self.defMethodDef(global)
-	case *hir.TypeDef:
-		self.defTypeDef(global)
 	case *hir.GlobalVarDef:
 		if global.Value.IsNone() {
 			self.defGlobalVariableDecl(global)
@@ -95,7 +75,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		}
 	case *hir.MultiGlobalVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.Trait:
+	case *hir.TypeAliasDef, *hir.Trait, *hir.TypeDef:
 	default:
 		panic("unreachable")
 	}

@@ -88,8 +88,11 @@ func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
 	return hir.NewRefType(node.Mut, self.analyseType(node.Elem))
 }
 
-func (self *Analyser) analyseSelfType(_ *ast.SelfType) hir.Type {
-	return hir.NewSelfType(self.selfType)
+func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type {
+	if !self.selfCanBeNil && self.selfType == nil {
+		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
+	}
+	return hir.NewSelfType(stlbasic.Ternary(self.selfType == nil, util.None[*hir.CustomType](), util.Some(self.selfType)))
 }
 
 func (self *Analyser) analyseStructType(node *ast.StructType) *hir.StructType {
@@ -105,5 +108,5 @@ func (self *Analyser) analyseStructType(node *ast.StructType) *hir.StructType {
 			Type:    self.analyseType(f.Type),
 		})
 	}
-	return hir.NewStructType(self.pkgScope.pkg, fields)
+	return hir.NewStructType(self.selfType, fields)
 }

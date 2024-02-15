@@ -93,6 +93,8 @@ func (self *Analyser) defTypeDef(node *ast.TypeDef) *hir.TypeDef {
 	}
 	td := gt.(*hir.TypeDef)
 
+	defer self.setSelfType(td)()
+
 	td.Target = self.analyseType(node.Target)
 	return td
 }
@@ -113,6 +115,11 @@ func (self *Analyser) defTrait(node *ast.Trait) *hir.Trait {
 	if !ok {
 		panic("unreachable")
 	}
+
+	self.selfCanBeNil = true
+	defer func() {
+		self.selfCanBeNil = false
+	}()
 
 	for _, methodNode := range node.Methods {
 		method := stlbasic.Ptr(self.analyseFuncDecl(*methodNode))

@@ -1,23 +1,84 @@
 pub type X = X
 
 pub type isize __buildin_i64
+
+func (isize) default()Self{
+    return 0
+}
+
 pub type i8 __buildin_i8
+
+func (i8) default()Self{
+    return 0
+}
+
 pub type i16 __buildin_i16
+
+func (i16) default()Self{
+    return 0
+}
+
 pub type i32 __buildin_i32
+
+func (i32) default()Self{
+    return 0
+}
+
 pub type i64 __buildin_i64
 
+func (i64) default()Self{
+    return 0
+}
+
 pub type usize __buildin_u64
+
+func (usize) default()Self{
+    return 0
+}
+
 pub type u8 __buildin_u8
+
+func (u8) default()Self{
+    return 0
+}
+
 pub type u16 __buildin_u16
+
+func (u16) default()Self{
+    return 0
+}
+
 pub type u32 __buildin_u32
+
+func (u32) default()Self{
+    return 0
+}
+
 pub type u64 __buildin_u64
 
+func (u64) default()Self{
+    return 0
+}
+
 pub type f32 __buildin_f32
+
+func (f32) default()Self{
+    return 0
+}
+
 pub type f64 __buildin_f64
+
+func (f64) default()Self{
+    return 0
+}
 
 pub type bool __buildin_u1
 pub let true: bool = 1
 pub let false: bool = 0
+
+func (bool) default()Self{
+    return false
+}
 
 pub func (bool) as_string(self: &Self)&str{
     if self{
@@ -30,6 +91,10 @@ pub func (bool) as_string(self: &Self)&str{
 pub type str struct{
     pub ptr: &byte,
     pub len: usize,
+}
+
+func (str) default()Self{
+    return ""
 }
 
 pub type byte = u8

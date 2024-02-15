@@ -127,7 +127,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 		if lt.EqualTo(rt) {
 			if left.Temporary() {
 				errors.ThrowExprTemporaryError(node.Left.Position())
-			}else if !left.Mutable() {
+			} else if !left.Mutable() {
 				errors.ThrowNotMutableError(node.Left.Position())
 			}
 			return &hir.Assign{
@@ -564,7 +564,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 	existedFields := make(map[string]hir.Expr)
 	for _, nf := range node.Fields {
 		fn := nf.First.Source()
-		if !st.Fields.ContainKey(fn) || (!self.pkgScope.pkg.Equal(st.Pkg) && !st.Fields.Get(fn).Public) {
+		if !st.Fields.ContainKey(fn) || (!self.pkgScope.pkg.Equal(st.Def.Pkg) && !st.Fields.Get(fn).Public) {
 			errors.ThrowUnknownIdentifierError(nf.First.Position, nf.First)
 		}
 		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.Second)
@@ -617,25 +617,25 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 	if customType != nil {
 		if methodObj := customType.Methods.Get(fieldName); methodObj != nil && (methodObj.GetPublic() || customType.Pkg == self.pkgScope.pkg) {
 			var customFrom hir.Expr
-			if methodObj.IsStatic(){
-			}else if methodObj.IsRef() && hir.IsCustomType(ft){
-				if fromObj.Temporary(){
+			if methodObj.IsStatic() {
+			} else if methodObj.IsRef() && hir.IsCustomType(ft) {
+				if fromObj.Temporary() {
 					errors.ThrowExprTemporaryError(node.From.Position())
 				}
 				customFrom = &hir.GetRef{
-					Mut: methodObj.GetSelfParam().MustValue().Mutable(),
+					Mut:   methodObj.GetSelfParam().MustValue().Mutable(),
 					Value: fromObj,
 				}
-			}else if methodObj.IsRef() && !hir.IsCustomType(ft){
+			} else if methodObj.IsRef() && !hir.IsCustomType(ft) {
 				customFrom = fromObj
-			}else if !methodObj.IsRef() && hir.IsCustomType(ft){
+			} else if !methodObj.IsRef() && hir.IsCustomType(ft) {
 				customFrom = fromObj
-			}else if !methodObj.IsRef() && !hir.IsCustomType(ft){
+			} else if !methodObj.IsRef() && !hir.IsCustomType(ft) {
 				customFrom = &hir.DeRef{Value: fromObj}
-			}else{
+			} else {
 				panic("unreachable")
 			}
-			
+
 			switch method := methodObj.(type) {
 			case *hir.MethodDef:
 				return &hir.Method{
@@ -658,11 +658,11 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
 	st := hir.AsType[*hir.StructType](structVal.GetType())
-	if field := st.Fields.Get(fieldName); !st.Fields.ContainKey(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Pkg)) {
+	if field := st.Fields.Get(fieldName); !st.Fields.ContainKey(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Def.Pkg)) {
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
 	return &hir.GetField{
-		Internal: self.pkgScope.pkg.Equal(st.Pkg),
+		Internal: self.pkgScope.pkg.Equal(st.Def.Pkg),
 		From:     structVal,
 		Index:    uint(slices.Index(st.Fields.Keys().ToSlice(), fieldName)),
 	}

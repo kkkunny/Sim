@@ -3,8 +3,9 @@ package hir
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
+	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
-	stlslices "github.com/kkkunny/stl/slices"
+	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/util"
 )
@@ -77,10 +78,7 @@ func (self *FuncDef) GetPublic() bool {
 }
 
 func (self *FuncDef) GetFuncType() *FuncType {
-	params := stlslices.Map(self.Params, func(_ int, e *Param) Type {
-		return e.GetType()
-	})
-	return NewFuncType(self.Ret, params...)
+	return self.FuncDecl.GetType()
 }
 
 func (self *FuncDef) GetType() Type {
@@ -219,4 +217,20 @@ func (self *Trait) GetPackage() Package {
 
 func (self *Trait) GetPublic() bool {
 	return self.Public
+}
+
+// HasBeImpled 类型是否实现了该特征
+func (self *Trait) HasBeImpled(t Type) bool {
+	ct, ok := TryCustomType(t)
+	if !ok {
+		return false
+	}
+	return stliter.All(self.Methods, func(e pair.Pair[string, *FuncDecl]) bool {
+		method := e.Second
+		impl := ct.Methods.Get(method.Name)
+		if impl == nil {
+			return false
+		}
+		return ReplaceAllSelfType(method.GetType(), ct).EqualTo(impl.GetFuncType())
+	}) || self.HasBeImpled(ct.Target)
 }
