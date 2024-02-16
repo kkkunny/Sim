@@ -556,22 +556,22 @@ func (self *StructType) Runtime() runtimeType.Type {
 func (self *StructType) buildin() {}
 func (self *StructType) runtime() {}
 
-// ReplaceAllSelfType 替代所有Self类型
-func ReplaceAllSelfType(t Type, to *CustomType) Type {
+// 替代所有Self类型
+func replaceAllSelfType(t Type, to *CustomType) Type {
 	switch tt := t.(type) {
 	case *NoThingType, *NoReturnType, *SintType, *UintType, *FloatType, *CustomType, *AliasType:
 		return tt
 	case *RefType:
-		return NewRefType(tt.Mut, ReplaceAllSelfType(tt.Elem, to))
+		return NewRefType(tt.Mut, replaceAllSelfType(tt.Elem, to))
 	case *FuncType:
-		return NewFuncType(ReplaceAllSelfType(tt.Ret, to), stlslices.Map(tt.Params, func(_ int, e Type) Type {
-			return ReplaceAllSelfType(e, to)
+		return NewFuncType(replaceAllSelfType(tt.Ret, to), stlslices.Map(tt.Params, func(_ int, e Type) Type {
+			return replaceAllSelfType(e, to)
 		})...)
 	case *ArrayType:
-		return NewArrayType(tt.Size, ReplaceAllSelfType(tt.Elem, to))
+		return NewArrayType(tt.Size, replaceAllSelfType(tt.Elem, to))
 	case *TupleType:
 		return NewTupleType(stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return ReplaceAllSelfType(e, to)
+			return replaceAllSelfType(e, to)
 		})...)
 	case *StructType:
 		return NewStructType(tt.Def, stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
@@ -579,12 +579,12 @@ func ReplaceAllSelfType(t Type, to *CustomType) Type {
 				Public:  e.Second.Public,
 				Mutable: e.Second.Mutable,
 				Name:    e.Second.Name,
-				Type:    ReplaceAllSelfType(e.Second.Type, to),
+				Type:    replaceAllSelfType(e.Second.Type, to),
 			})
 		}))
 	case *UnionType:
 		return NewUnionType(stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return ReplaceAllSelfType(e, to)
+			return replaceAllSelfType(e, to)
 		})...)
 	case *SelfType:
 		return stlbasic.Ternary[Type](tt.Self.IsNone(), NewSelfType(util.Some[*CustomType](to)), tt)
@@ -667,11 +667,20 @@ func (self *CustomType) HasDefault() bool {
 	return self.Target.HasDefault()
 }
 
+var customTypeRuntimeCache = make(map[*CustomType]runtimeType.Type)
+
 func (self *CustomType) Runtime() runtimeType.Type {
-	methods := stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
+	cache, ok := customTypeRuntimeCache[self]
+	if ok {
+		return cache
+	}
+	rt := runtimeType.NewCustomType(self.Pkg.String(), self.Name, nil, nil)
+	customTypeRuntimeCache[self] = rt
+	rt.Target = self.Target.Runtime()
+	rt.Methods = stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
 		return runtimeType.NewMethod(e.Second.GetFuncType().Runtime().(*runtimeType.FuncType), e.First)
 	}).ToSlice()
-	return runtimeType.NewCustomType(self.Pkg.String(), self.Name, self.Target.Runtime(), methods)
+	return rt
 }
 
 func (self *CustomType) runtime() {}

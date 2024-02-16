@@ -231,6 +231,6 @@ func (self *Trait) HasBeImpled(t Type) bool {
 		if impl == nil {
 			return false
 		}
-		return ReplaceAllSelfType(method.GetType(), ct).EqualTo(impl.GetFuncType())
+		return replaceAllSelfType(method.GetType(), ct).EqualTo(impl.GetFuncType())
 	}) || self.HasBeImpled(ct.Target)
 }
