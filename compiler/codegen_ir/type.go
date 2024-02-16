@@ -119,3 +119,7 @@ func (self *CodeGenerator) codegenRefType(ir *hir.RefType) mir.PtrType {
 	elem := self.codegenType(ir.Elem)
 	return self.ctx.NewPtrType(elem)
 }
+
+func (self *CodeGenerator) codegenUsizeType() mir.UintType {
+	return self.codegenType(self.hir.BuildinTypes.Usize).(mir.UintType)
+}

@@ -1,12 +1,6 @@
 import std::os
 
-type A i32
-
-func (A) default()Self{
-return 1
-}
-
 func main(){
-let v: A
-os::exit(v as u8 - 1)
+	let v: [2]u8
+	os::exit(v[0])
 }

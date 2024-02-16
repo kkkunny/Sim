@@ -306,8 +306,46 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 	case *hir.SintType, *hir.UintType, *hir.FloatType:
 		return mir.NewZero(self.codegenType(ir))
 	case *hir.ArrayType:
-		// TODO: 填充所有字段为默认值
-		return mir.NewZero(self.codegenType(tir))
+		at := self.codegenArrayType(tir)
+		if tir.Size == 0 {
+			return mir.NewZero(at)
+		}
+
+		key := fmt.Sprintf("default:%s", tir.String())
+		var fn *mir.Function
+		if !self.funcCache.ContainKey(key) {
+			curBlock := self.builder.Current()
+			ft := self.ctx.NewFuncType(false, at)
+			fn = self.module.NewFunction("", ft)
+			self.funcCache.Set(key, fn)
+			self.builder.MoveTo(fn.NewBlock())
+
+			arrayPtr := self.builder.BuildAllocFromStack(at)
+			indexPtr := self.builder.BuildAllocFromStack(self.codegenUsizeType())
+			self.builder.BuildStore(mir.NewZero(indexPtr.ElemType()), indexPtr)
+			condBlock := fn.NewBlock()
+			self.builder.BuildUnCondJump(condBlock)
+
+			self.builder.MoveTo(condBlock)
+			index := self.builder.BuildLoad(indexPtr)
+			cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewInt(self.codegenUsizeType(), int64(tir.Size)))
+			loopBlock, endBlock := fn.NewBlock(), fn.NewBlock()
+			self.builder.BuildCondJump(cond, loopBlock, endBlock)
+
+			self.builder.MoveTo(loopBlock)
+			elemPtr := self.buildArrayIndex(arrayPtr, index, true)
+			self.builder.BuildStore(self.codegenDefault(tir.Elem), elemPtr)
+			self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewInt(self.codegenUsizeType(), 1)), indexPtr)
+			self.builder.BuildUnCondJump(condBlock)
+
+			self.builder.MoveTo(endBlock)
+			self.builder.BuildReturn(self.builder.BuildLoad(arrayPtr))
+
+			self.builder.MoveTo(curBlock)
+		} else {
+			fn = self.funcCache.Get(key)
+		}
+		return self.builder.BuildCall(fn)
 	case *hir.TupleType:
 		elems := stlslices.Map(hir.AsType[*hir.TupleType](tir).Elems, func(_ int, e hir.Type) mir.Value {
 			return self.codegenDefault(e)
@@ -333,13 +371,13 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 		if !self.funcCache.ContainKey(key) {
 			curBlock := self.builder.Current()
 			fn = self.module.NewFunction("", ft)
+			self.funcCache.Set(key, fn)
 			self.builder.MoveTo(fn.NewBlock())
 			if ft.Ret().Equal(self.ctx.Void()) {
 				self.builder.BuildReturn()
 			} else {
 				self.builder.BuildReturn(self.codegenDefault(hir.AsType[*hir.FuncType](tir).Ret))
 			}
-			self.funcCache.Set(key, fn)
 			self.builder.MoveTo(curBlock)
 		} else {
 			fn = self.funcCache.Get(key)
