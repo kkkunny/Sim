@@ -24,7 +24,9 @@ Sim是一门简洁的、强类型的编译型语言
 
 + [ ] 泛型（泛型函数 / 泛型结构体 / 泛型方法）
 
-+ [ ] trait
++ [x] trait
+
++ [x] 运算符重载
 
 + [ ] 泛型约束
 
@@ -40,7 +42,7 @@ Sim是一门简洁的、强类型的编译型语言
 
 + linux / windows
 
-+ llvm(version==17 or 18)
++ llvm(version==16 or 17)
 
 + golang
 
