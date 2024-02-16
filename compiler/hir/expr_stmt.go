@@ -6,6 +6,8 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
+
+	"github.com/kkkunny/Sim/util"
 )
 
 // ExprStmt 表达式语句
@@ -30,7 +32,7 @@ func (self *Integer) Mutable() bool {
 	return false
 }
 
-func (*Integer) Temporary() bool{
+func (*Integer) Temporary() bool {
 	return true
 }
 
@@ -50,7 +52,7 @@ func (self *Float) Mutable() bool {
 	return false
 }
 
-func (*Float) Temporary() bool{
+func (*Float) Temporary() bool {
 	return true
 }
 
@@ -84,7 +86,7 @@ func (self *Assign) GetRight() Expr {
 	return self.Right
 }
 
-func (*Assign) Temporary() bool{
+func (*Assign) Temporary() bool {
 	return true
 }
 
@@ -111,7 +113,7 @@ func (self *IntAndInt) GetRight() Expr {
 	return self.Right
 }
 
-func (*IntAndInt) Temporary() bool{
+func (*IntAndInt) Temporary() bool {
 	return true
 }
 
@@ -138,7 +140,7 @@ func (self *IntOrInt) GetRight() Expr {
 	return self.Right
 }
 
-func (*IntOrInt) Temporary() bool{
+func (*IntOrInt) Temporary() bool {
 	return true
 }
 
@@ -165,7 +167,7 @@ func (self *IntXorInt) GetRight() Expr {
 	return self.Right
 }
 
-func (*IntXorInt) Temporary() bool{
+func (*IntXorInt) Temporary() bool {
 	return true
 }
 
@@ -192,7 +194,7 @@ func (self *IntShlInt) GetRight() Expr {
 	return self.Right
 }
 
-func (*IntShlInt) Temporary() bool{
+func (*IntShlInt) Temporary() bool {
 	return true
 }
 
@@ -219,7 +221,7 @@ func (self *IntShrInt) GetRight() Expr {
 	return self.Right
 }
 
-func (*IntShrInt) Temporary() bool{
+func (*IntShrInt) Temporary() bool {
 	return true
 }
 
@@ -246,7 +248,7 @@ func (self *NumAddNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumAddNum) Temporary() bool{
+func (*NumAddNum) Temporary() bool {
 	return true
 }
 
@@ -273,7 +275,7 @@ func (self *NumSubNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumSubNum) Temporary() bool{
+func (*NumSubNum) Temporary() bool {
 	return true
 }
 
@@ -300,7 +302,7 @@ func (self *NumMulNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumMulNum) Temporary() bool{
+func (*NumMulNum) Temporary() bool {
 	return true
 }
 
@@ -327,7 +329,7 @@ func (self *NumDivNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumDivNum) Temporary() bool{
+func (*NumDivNum) Temporary() bool {
 	return true
 }
 
@@ -354,7 +356,7 @@ func (self *NumRemNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumRemNum) Temporary() bool{
+func (*NumRemNum) Temporary() bool {
 	return true
 }
 
@@ -382,7 +384,7 @@ func (self *NumLtNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumLtNum) Temporary() bool{
+func (*NumLtNum) Temporary() bool {
 	return true
 }
 
@@ -410,7 +412,7 @@ func (self *NumGtNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumGtNum) Temporary() bool{
+func (*NumGtNum) Temporary() bool {
 	return true
 }
 
@@ -438,7 +440,7 @@ func (self *NumLeNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumLeNum) Temporary() bool{
+func (*NumLeNum) Temporary() bool {
 	return true
 }
 
@@ -466,7 +468,7 @@ func (self *NumGeNum) GetRight() Expr {
 	return self.Right
 }
 
-func (*NumGeNum) Temporary() bool{
+func (*NumGeNum) Temporary() bool {
 	return true
 }
 
@@ -494,7 +496,7 @@ func (self *Equal) GetRight() Expr {
 	return self.Right
 }
 
-func (*Equal) Temporary() bool{
+func (*Equal) Temporary() bool {
 	return true
 }
 
@@ -522,7 +524,7 @@ func (self *NotEqual) GetRight() Expr {
 	return self.Right
 }
 
-func (*NotEqual) Temporary() bool{
+func (*NotEqual) Temporary() bool {
 	return true
 }
 
@@ -549,7 +551,7 @@ func (self *BoolAndBool) GetRight() Expr {
 	return self.Right
 }
 
-func (*BoolAndBool) Temporary() bool{
+func (*BoolAndBool) Temporary() bool {
 	return true
 }
 
@@ -576,7 +578,7 @@ func (self *BoolOrBool) GetRight() Expr {
 	return self.Right
 }
 
-func (*BoolOrBool) Temporary() bool{
+func (*BoolOrBool) Temporary() bool {
 	return true
 }
 
@@ -605,7 +607,7 @@ func (self *NumNegate) GetValue() Expr {
 	return self.Value
 }
 
-func (*NumNegate) Temporary() bool{
+func (*NumNegate) Temporary() bool {
 	return true
 }
 
@@ -628,7 +630,7 @@ func (self *IntBitNegate) GetValue() Expr {
 	return self.Value
 }
 
-func (*IntBitNegate) Temporary() bool{
+func (*IntBitNegate) Temporary() bool {
 	return true
 }
 
@@ -651,7 +653,7 @@ func (self *BoolNegate) GetValue() Expr {
 	return self.Value
 }
 
-func (*BoolNegate) Temporary() bool{
+func (*BoolNegate) Temporary() bool {
 	return true
 }
 
@@ -671,7 +673,7 @@ func (self *Boolean) Mutable() bool {
 	return false
 }
 
-func (*Boolean) Temporary() bool{
+func (*Boolean) Temporary() bool {
 	return true
 }
 
@@ -691,7 +693,7 @@ func (self *Call) Mutable() bool {
 	return false
 }
 
-func (*Call) Temporary() bool{
+func (*Call) Temporary() bool {
 	return true
 }
 
@@ -721,7 +723,7 @@ func (self *Num2Num) GetFrom() Expr {
 	return self.From
 }
 
-func (*Num2Num) Temporary() bool{
+func (*Num2Num) Temporary() bool {
 	return true
 }
 
@@ -745,7 +747,7 @@ func (self *DoNothingCovert) GetFrom() Expr {
 	return self.From
 }
 
-func (*DoNothingCovert) Temporary() bool{
+func (*DoNothingCovert) Temporary() bool {
 	return true
 }
 
@@ -769,7 +771,7 @@ func (self *NoReturn2Any) GetFrom() Expr {
 	return self.From
 }
 
-func (*NoReturn2Any) Temporary() bool{
+func (*NoReturn2Any) Temporary() bool {
 	return true
 }
 
@@ -789,7 +791,7 @@ func (self *Array) Mutable() bool {
 	return false
 }
 
-func (*Array) Temporary() bool{
+func (*Array) Temporary() bool {
 	return true
 }
 
@@ -809,7 +811,7 @@ func (self *Index) Mutable() bool {
 	return self.From.Mutable() && !self.Temporary()
 }
 
-func (self *Index) Temporary() bool{
+func (self *Index) Temporary() bool {
 	return self.From.Temporary()
 }
 
@@ -836,7 +838,7 @@ func (self *Tuple) Mutable() bool {
 	return true
 }
 
-func (*Tuple) Temporary() bool{
+func (*Tuple) Temporary() bool {
 	return true
 }
 
@@ -856,7 +858,7 @@ func (self *Extract) Mutable() bool {
 	return self.From.Mutable() && !self.Temporary()
 }
 
-func (self *Extract) Temporary() bool{
+func (self *Extract) Temporary() bool {
 	return self.From.Temporary()
 }
 
@@ -876,7 +878,7 @@ func (self *Struct) Mutable() bool {
 	return false
 }
 
-func (*Struct) Temporary() bool{
+func (*Struct) Temporary() bool {
 	return true
 }
 
@@ -895,7 +897,7 @@ func (self *Default) Mutable() bool {
 	return false
 }
 
-func (*Default) Temporary() bool{
+func (*Default) Temporary() bool {
 	return true
 }
 
@@ -913,15 +915,15 @@ func (self *GetField) GetType() Type {
 }
 
 func (self *GetField) Mutable() bool {
-	if self.Temporary(){
+	if self.Temporary() {
 		return false
-	}else if self.Internal {
+	} else if self.Internal {
 		return true
 	}
 	return self.From.Mutable() && AsType[*StructType](self.From.GetType()).Fields.Values().Get(self.Index).Mutable
 }
 
-func (self *GetField) Temporary() bool{
+func (self *GetField) Temporary() bool {
 	return self.From.Temporary()
 }
 
@@ -941,7 +943,7 @@ func (self *String) Mutable() bool {
 	return false
 }
 
-func (*String) Temporary() bool{
+func (*String) Temporary() bool {
 	return true
 }
 
@@ -961,7 +963,7 @@ func (self *Union) Mutable() bool {
 	return false
 }
 
-func (*Union) Temporary() bool{
+func (*Union) Temporary() bool {
 	return true
 }
 
@@ -982,7 +984,7 @@ func (self *TypeJudgment) Mutable() bool {
 	return false
 }
 
-func (*TypeJudgment) Temporary() bool{
+func (*TypeJudgment) Temporary() bool {
 	return true
 }
 
@@ -1002,7 +1004,7 @@ func (self *UnUnion) Mutable() bool {
 	return false
 }
 
-func (*UnUnion) Temporary() bool{
+func (*UnUnion) Temporary() bool {
 	return true
 }
 
@@ -1026,7 +1028,7 @@ func (self *GetRef) GetValue() Expr {
 	return self.Value
 }
 
-func (*GetRef) Temporary() bool{
+func (*GetRef) Temporary() bool {
 	return true
 }
 
@@ -1049,7 +1051,7 @@ func (self *DeRef) GetValue() Expr {
 	return self.Value
 }
 
-func (*DeRef) Temporary() bool{
+func (*DeRef) Temporary() bool {
 	return false
 }
 
@@ -1057,6 +1059,22 @@ func (*DeRef) Temporary() bool{
 type Method struct {
 	Self   either.Either[Expr, *CustomType]
 	Define *MethodDef
+}
+
+// FindMethod 寻找方法
+func FindMethod(ct *CustomType, sv Expr, name string) util.Option[*Method] {
+	method := ct.Methods.Get(name)
+	if method != nil {
+		return util.Some(&Method{
+			Self:   stlbasic.Ternary[either.Either[Expr, *CustomType]](sv != nil, either.Left[Expr, *CustomType](sv), either.Right[Expr, *CustomType](ct)),
+			Define: method.(*MethodDef),
+		})
+	}
+	tct, ok := TryCustomType(ct.Target)
+	if !ok {
+		return util.None[*Method]()
+	}
+	return FindMethod(tct, stlbasic.Ternary(sv != nil, &DoNothingCovert{From: sv, To: tct}, nil), name)
 }
 
 func (self *Method) stmt() {}
@@ -1089,7 +1107,7 @@ func (self *Method) GetName() string {
 	return self.Define.GetName()
 }
 
-func (*Method) Temporary() bool{
+func (*Method) Temporary() bool {
 	return true
 }
 
@@ -1113,7 +1131,7 @@ func (self *ShrinkUnion) GetFrom() Expr {
 	return self.Value
 }
 
-func (*ShrinkUnion) Temporary() bool{
+func (*ShrinkUnion) Temporary() bool {
 	return true
 }
 
@@ -1137,6 +1155,6 @@ func (self *ExpandUnion) GetFrom() Expr {
 	return self.Value
 }
 
-func (*ExpandUnion) Temporary() bool{
+func (*ExpandUnion) Temporary() bool {
 	return true
 }

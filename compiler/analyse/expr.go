@@ -116,7 +116,7 @@ func (self *Analyser) analyseFloat(expect hir.Type, node *ast.Float) *hir.Float 
 	}
 }
 
-func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binary {
+func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr {
 	left := self.analyseExpr(expect, node.Left)
 	lt := left.GetType()
 	right := self.analyseExpr(lt, node.Right)
@@ -136,63 +136,117 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.AND:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.And().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.And().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntAndInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.OR:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Or().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Or().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntOrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.XOR:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Xor().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Xor().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntXorInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHL:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Shl().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Shl().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntShlInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHR:
-		if lt.EqualTo(rt) && hir.IsIntType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Shr().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Shr().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
 			return &hir.IntShrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.ADD:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Add().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Add().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumAddNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SUB:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Sub().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Sub().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumSubNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.MUL:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Mul().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Mul().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumMulNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.DIV:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Div().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Div().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
 				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
 				errors.ThrowDivZero(node.Right.Position())
@@ -203,7 +257,13 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.REM:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Rem().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Rem().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
 				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
 				errors.ThrowDivZero(node.Right.Position())
@@ -214,7 +274,13 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.EQ:
-		if lt.EqualTo(rt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Eq().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Eq().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) {
 			if !hir.IsType[*hir.NoThingType](lt) {
 				return &hir.Equal{
 					BoolType: self.pkgScope.Bool(),
@@ -224,7 +290,15 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.NE:
-		if !hir.IsType[*hir.NoThingType](lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Eq().HasBeImpled(ct) {
+			return &hir.BoolNegate{
+				Value: &hir.Call{
+					Func: hir.FindMethod(ct, left, self.pkgScope.Eq().FirstMethodName()).MustValue(),
+					Args: []hir.Expr{right},
+				},
+			}
+		} else if !hir.IsType[*hir.NoThingType](lt) {
 			return &hir.NotEqual{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
@@ -232,7 +306,13 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.LT:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Lt().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Lt().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLtNum{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
@@ -240,7 +320,13 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.GT:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Gt().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Gt().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGtNum{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
@@ -248,7 +334,19 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.LE:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Lt().HasBeImpled(ct) && self.pkgScope.Eq().HasBeImpled(ct) {
+			return &hir.BoolOrBool{
+				Left: &hir.Call{
+					Func: hir.FindMethod(ct, left, self.pkgScope.Lt().FirstMethodName()).MustValue(),
+					Args: []hir.Expr{right},
+				},
+				Right: &hir.Call{
+					Func: hir.FindMethod(ct, left, self.pkgScope.Eq().FirstMethodName()).MustValue(),
+					Args: []hir.Expr{right},
+				},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumLeNum{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
@@ -256,7 +354,19 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.GE:
-		if lt.EqualTo(rt) && hir.IsNumberType(lt) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Gt().HasBeImpled(ct) && self.pkgScope.Eq().HasBeImpled(ct) {
+			return &hir.BoolOrBool{
+				Left: &hir.Call{
+					Func: hir.FindMethod(ct, left, self.pkgScope.Gt().FirstMethodName()).MustValue(),
+					Args: []hir.Expr{right},
+				},
+				Right: &hir.Call{
+					Func: hir.FindMethod(ct, left, self.pkgScope.Eq().FirstMethodName()).MustValue(),
+					Args: []hir.Expr{right},
+				},
+			}
+		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
 			return &hir.NumGeNum{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
@@ -264,14 +374,26 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Binar
 			}
 		}
 	case token.LAND:
-		if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Land().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Land().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
 			return &hir.BoolAndBool{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LOR:
-		if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
+		ct, ok := hir.TryCustomType(lt)
+		if ok && self.pkgScope.Lor().HasBeImpled(ct) {
+			return &hir.Call{
+				Func: hir.FindMethod(ct, left, self.pkgScope.Lor().FirstMethodName()).MustValue(),
+				Args: []hir.Expr{right},
+			}
+		} else if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
 			return &hir.BoolOrBool{
 				Left:  left,
 				Right: right,

@@ -234,3 +234,7 @@ func (self *Trait) HasBeImpled(t Type) bool {
 		return replaceAllSelfType(method.GetType(), ct).EqualTo(impl.GetFuncType())
 	}) || self.HasBeImpled(ct.Target)
 }
+
+func (self *Trait) FirstMethodName() string {
+	return self.Methods.Values().Front().Name
+}

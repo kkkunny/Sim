@@ -142,6 +142,21 @@ func (self *Analyser) Analyse() *hir.Result {
 			Bool    hir.Type
 			Str     hir.Type
 			Default *hir.Trait
+			Add     *hir.Trait
+			Sub     *hir.Trait
+			Mul     *hir.Trait
+			Div     *hir.Trait
+			Rem     *hir.Trait
+			And     *hir.Trait
+			Or      *hir.Trait
+			Xor     *hir.Trait
+			Shl     *hir.Trait
+			Shr     *hir.Trait
+			Eq      *hir.Trait
+			Lt      *hir.Trait
+			Gt      *hir.Trait
+			Land    *hir.Trait
+			Lor     *hir.Trait
 		}{
 			Isize:   self.pkgScope.Isize(),
 			I8:      self.pkgScope.I8(),
@@ -158,6 +173,21 @@ func (self *Analyser) Analyse() *hir.Result {
 			Bool:    self.pkgScope.Bool(),
 			Str:     self.pkgScope.Str(),
 			Default: self.pkgScope.Default(),
+			Add:     self.pkgScope.Add(),
+			Sub:     self.pkgScope.Sub(),
+			Mul:     self.pkgScope.Mul(),
+			Div:     self.pkgScope.Div(),
+			Rem:     self.pkgScope.Rem(),
+			And:     self.pkgScope.And(),
+			Or:      self.pkgScope.Or(),
+			Xor:     self.pkgScope.Xor(),
+			Shl:     self.pkgScope.Shl(),
+			Shr:     self.pkgScope.Shr(),
+			Eq:      self.pkgScope.Shr(),
+			Lt:      self.pkgScope.Shr(),
+			Gt:      self.pkgScope.Shr(),
+			Land:    self.pkgScope.Shr(),
+			Lor:     self.pkgScope.Shr(),
 		},
 	}
 }

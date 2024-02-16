@@ -1,0 +1,15 @@
+import std::os
+
+type A i32
+
+func (A) logic_and(self: Self, dst: Self)bool{
+	return true
+}
+
+func main(){
+	let mut v: A
+	if v && 1{
+		os::exit(0)
+	}
+	os::exit(1)
+}

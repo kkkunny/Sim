@@ -175,6 +175,21 @@ func (self *_PkgScope) F64() hir.GlobalType   { return stlbasic.IgnoreWith(self.
 func (self *_PkgScope) Bool() hir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("bool")) }
 func (self *_PkgScope) Str() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("str")) }
 func (self *_PkgScope) Default() *hir.Trait   { return stlbasic.IgnoreWith(self.getTrait("Default")) }
+func (self *_PkgScope) Add() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Add")) }
+func (self *_PkgScope) Sub() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Sub")) }
+func (self *_PkgScope) Mul() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Mul")) }
+func (self *_PkgScope) Div() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Div")) }
+func (self *_PkgScope) Rem() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Rem")) }
+func (self *_PkgScope) And() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("And")) }
+func (self *_PkgScope) Or() *hir.Trait        { return stlbasic.IgnoreWith(self.getTrait("Or")) }
+func (self *_PkgScope) Xor() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Xor")) }
+func (self *_PkgScope) Shl() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Shl")) }
+func (self *_PkgScope) Shr() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Shr")) }
+func (self *_PkgScope) Eq() *hir.Trait        { return stlbasic.IgnoreWith(self.getTrait("Eq")) }
+func (self *_PkgScope) Lt() *hir.Trait        { return stlbasic.IgnoreWith(self.getTrait("Lt")) }
+func (self *_PkgScope) Gt() *hir.Trait        { return stlbasic.IgnoreWith(self.getTrait("Gt")) }
+func (self *_PkgScope) Land() *hir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Land")) }
+func (self *_PkgScope) Lor() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Lor")) }
 
 // 本地作用域
 type _LocalScope interface {

@@ -1,0 +1,13 @@
+import std::os
+
+type A i32
+
+func (A) add(self: Self, dst: Self)Self{
+	return self
+}
+
+func main(){
+	let mut v: A = 1
+	v = v + 1
+	os::exit(v as u8 - 1)
+}

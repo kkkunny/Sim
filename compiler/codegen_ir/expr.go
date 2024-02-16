@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
@@ -353,10 +352,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 		return self.builder.BuildPackStruct(self.codegenTupleType(tir), elems...)
 	case *hir.CustomType:
 		if self.hir.BuildinTypes.Default.HasBeImpled(tir) {
-			return self.codegenCall(&hir.Call{Func: &hir.Method{
-				Self:   either.Right[hir.Expr, *hir.CustomType](tir),
-				Define: tir.Methods.Get(self.hir.BuildinTypes.Default.Methods.Values().Front().Name).(*hir.MethodDef),
-			}})
+			return self.codegenCall(&hir.Call{Func: hir.FindMethod(tir, nil, self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()})
 		}
 		return self.codegenDefault(tir.Target)
 	case *hir.StructType:

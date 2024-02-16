@@ -5,7 +5,7 @@ import (
 	stlslices "github.com/kkkunny/stl/slices"
 )
 
-// 语义分析结果
+// Result 语义分析结果
 type Result struct {
 	BuildinTypes struct {
 		Isize, I8, I16, I32, I64 Type
@@ -13,6 +13,9 @@ type Result struct {
 		F32, F64                 Type
 		Bool, Str                Type
 		Default                  *Trait
+		Add, Sub, Mul, Div, Rem  *Trait
+		And, Or, Xor, Shl, Shr   *Trait
+		Eq, Lt, Gt, Land, Lor    *Trait
 	}
 	Globals linkedlist.LinkedList[Global]
 }
