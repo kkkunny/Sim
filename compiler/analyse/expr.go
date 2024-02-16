@@ -407,12 +407,15 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 	return nil
 }
 
-func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
+func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Expr {
 	switch node.Opera.Kind {
 	case token.SUB:
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
-		if hir.IsType[*hir.SintType](vt) || hir.IsType[*hir.FloatType](vt) {
+		ct, ok := hir.TryCustomType(vt)
+		if ok && self.pkgScope.Neg().HasBeImpled(ct) {
+			return &hir.Call{Func: hir.FindMethod(ct, value, self.pkgScope.Neg().FirstMethodName()).MustValue()}
+		} else if hir.IsType[*hir.SintType](vt) || hir.IsType[*hir.FloatType](vt) {
 			return &hir.NumNegate{Value: value}
 		}
 		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
@@ -420,6 +423,10 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Unary {
 	case token.NOT:
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
+		ct, ok := hir.TryCustomType(vt)
+		if ok && self.pkgScope.Not().HasBeImpled(ct) {
+			return &hir.Call{Func: hir.FindMethod(ct, value, self.pkgScope.Not().FirstMethodName()).MustValue()}
+		}
 		switch {
 		case hir.IsIntType(vt):
 			return &hir.IntBitNegate{Value: value}

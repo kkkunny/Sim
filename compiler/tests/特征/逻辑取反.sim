@@ -2,12 +2,12 @@ import std::os
 
 type A i32
 
-func (A) neg(self: Self)Self{
+func (A) not(self: Self)Self{
 	return 0
 }
 
 func main(){
 	let mut v: A = 1
-	v = -v
+	v = !v
 	os::exit(v as u8)
 }

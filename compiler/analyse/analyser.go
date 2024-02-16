@@ -157,6 +157,8 @@ func (self *Analyser) Analyse() *hir.Result {
 			Gt      *hir.Trait
 			Land    *hir.Trait
 			Lor     *hir.Trait
+			Neg     *hir.Trait
+			Not     *hir.Trait
 		}{
 			Isize:   self.pkgScope.Isize(),
 			I8:      self.pkgScope.I8(),
@@ -188,6 +190,8 @@ func (self *Analyser) Analyse() *hir.Result {
 			Gt:      self.pkgScope.Shr(),
 			Land:    self.pkgScope.Shr(),
 			Lor:     self.pkgScope.Shr(),
+			Neg:     self.pkgScope.Neg(),
+			Not:     self.pkgScope.Not(),
 		},
 	}
 }

@@ -190,6 +190,8 @@ func (self *_PkgScope) Lt() *hir.Trait        { return stlbasic.IgnoreWith(self.
 func (self *_PkgScope) Gt() *hir.Trait        { return stlbasic.IgnoreWith(self.getTrait("Gt")) }
 func (self *_PkgScope) Land() *hir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Land")) }
 func (self *_PkgScope) Lor() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Lor")) }
+func (self *_PkgScope) Neg() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Neg")) }
+func (self *_PkgScope) Not() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Not")) }
 
 // 本地作用域
 type _LocalScope interface {

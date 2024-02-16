@@ -16,6 +16,7 @@ type Result struct {
 		Add, Sub, Mul, Div, Rem  *Trait
 		And, Or, Xor, Shl, Shr   *Trait
 		Eq, Lt, Gt, Land, Lor    *Trait
+		Neg, Not                 *Trait
 	}
 	Globals linkedlist.LinkedList[Global]
 }

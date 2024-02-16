@@ -49,3 +49,10 @@ pub trait Land{
 pub trait Lor{
 	func logic_or(self: Self, dst: Self)bool
 }
+
+pub trait Neg{
+	func neg(self: Self)Self
+}
+pub trait Not{
+	func not(self: Self)Self
+}
