@@ -3,7 +3,6 @@ package analyse
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/hashset"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/samber/lo"
@@ -76,12 +75,25 @@ func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
 	}
 }
 
+func (self *Analyser) declTrait(node *ast.Trait) {
+	trait := &hir.Trait{
+		Pkg:    self.pkgScope.pkg,
+		Public: node.Public,
+		Name:   node.Name.Source(),
+	}
+	if !self.pkgScope.SetTrait(trait) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+}
+
 func (self *Analyser) defTypeDef(node *ast.TypeDef) *hir.TypeDef {
 	gt, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
 	td := gt.(*hir.TypeDef)
+
+	defer self.setSelfType(td)()
 
 	td.Target = self.analyseType(node.Target)
 	return td
@@ -98,6 +110,27 @@ func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
 	return tad
 }
 
+func (self *Analyser) defTrait(node *ast.Trait) *hir.Trait {
+	trait, ok := self.pkgScope.getLocalTrait(node.Name.Source())
+	if !ok {
+		panic("unreachable")
+	}
+
+	self.selfCanBeNil = true
+	defer func() {
+		self.selfCanBeNil = false
+	}()
+
+	for _, methodNode := range node.Methods {
+		method := stlbasic.Ptr(self.analyseFuncDecl(*methodNode))
+		if trait.Methods.ContainKey(method.Name) {
+			errors.ThrowIdentifierDuplicationError(methodNode.Name.Position, methodNode.Name)
+		}
+		trait.Methods.Set(method.Name, method)
+	}
+	return trait
+}
+
 func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch global := node.(type) {
 	case *ast.FuncDef:
@@ -110,7 +143,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 		self.declSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
 		self.declMultiGlobalVariable(global)
-	case *ast.TypeDef, *ast.Import, *ast.TypeAlias:
+	case *ast.TypeDef, *ast.Import, *ast.TypeAlias, *ast.Trait:
 	default:
 		panic("unreachable")
 	}
@@ -120,7 +153,6 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 	f := &hir.FuncDef{
 		Pkg:    self.pkgScope.pkg,
 		Public: node.Public,
-		Name:   node.Name.Source(),
 	}
 	for _, attrObj := range node.Attrs {
 		switch attr := attrObj.(type) {
@@ -142,22 +174,8 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		errors.ThrowExpectAttribute(node.Position(), new(ast.Extern))
 	}
 
-	paramNameSet := hashset.NewHashSet[string]()
-	f.Params = lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
-		pn := paramNode.Name.Source()
-		if !paramNameSet.Add(pn) {
-			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
-		}
-		pt := self.analyseType(paramNode.Type)
-		return &hir.Param{
-			VarDecl: hir.VarDecl{
-				Mut:  paramNode.Mutable,
-				Type: pt,
-				Name: pn,
-			},
-		}
-	})
-	f.Ret = self.analyseOptionType(node.Ret)
+	f.FuncDecl = self.analyseFuncDecl(node.FuncDecl)
+
 	if f.Name == "main" && !f.GetType().EqualTo(&hir.FuncType{Ret: hir.NoThing}) {
 		errors.ThrowTypeMismatchError(node.Position(), f.GetType(), &hir.FuncType{Ret: hir.NoThing})
 	}
@@ -171,7 +189,6 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 		FuncDef: hir.FuncDef{
 			Pkg:    self.pkgScope.pkg,
 			Public: node.Public,
-			Name:   node.Name.Source(),
 		},
 	}
 	for _, attrObj := range node.Attrs {
@@ -201,22 +218,8 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 	f.Scope = td.(*hir.TypeDef)
 	defer self.setSelfType(f.Scope)()
 
-	paramNameSet := hashset.NewHashSetWith[string]()
-	f.Params = lo.Map(node.Params, func(paramNode ast.Param, index int) *hir.Param {
-		pn := paramNode.Name.Source()
-		if !paramNameSet.Add(pn) {
-			errors.ThrowIdentifierDuplicationError(paramNode.Name.Position, paramNode.Name)
-		}
-		pt := self.analyseType(paramNode.Type)
-		return &hir.Param{
-			VarDecl: hir.VarDecl{
-				Mut:  paramNode.Mutable,
-				Type: pt,
-				Name: pn,
-			},
-		}
-	})
-	f.Ret = self.analyseOptionType(node.Ret)
+	f.FuncDecl = self.analyseFuncDecl(node.FuncDecl)
+
 	if f.Scope.Methods.ContainKey(f.Name) || (hir.IsType[*hir.StructType](f.Scope.Target) && hir.AsType[*hir.StructType](f.Scope.Target).Fields.ContainKey(f.Name)) {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
@@ -268,7 +271,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 		return self.defSingleGlobalVariable(global)
 	case *ast.MultipleVariableDef:
 		return self.defMultiGlobalVariable(global)
-	case *ast.TypeDef, *ast.Import, *ast.TypeAlias:
+	case *ast.TypeDef, *ast.Import, *ast.TypeAlias, *ast.Trait:
 		return nil
 	default:
 		panic("unreachable")

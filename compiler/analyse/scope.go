@@ -20,17 +20,14 @@ type _PkgScope struct {
 	externs hashmap.HashMap[string, *_PkgScope]
 	links   linkedhashset.LinkedHashSet[*_PkgScope]
 
-	valueDefs         hashmap.HashMap[string, hir.Ident]
-	typeDefs          hashmap.HashMap[string, hir.GlobalType]
+	valueDefs hashmap.HashMap[string, hir.Ident]
+	typeDefs  hashmap.HashMap[string, hir.GlobalType]
+	traitDefs hashmap.HashMap[string, *hir.Trait]
 }
 
 func _NewPkgScope(pkg hir.Package) *_PkgScope {
 	return &_PkgScope{
-		pkg:               pkg,
-		externs:           hashmap.NewHashMap[string, *_PkgScope](),
-		links:             linkedhashset.NewLinkedHashSet[*_PkgScope](),
-		valueDefs:         hashmap.NewHashMap[string, hir.Ident](),
-		typeDefs:          hashmap.NewHashMap[string, hir.GlobalType](),
+		pkg: pkg,
 	}
 }
 
@@ -79,6 +76,9 @@ func (self *_PkgScope) SetTypeDef(td hir.GlobalType) bool {
 	if _, ok := self.getTypeDef(td.GetName()); ok {
 		return false
 	}
+	if _, ok := self.getTrait(td.GetName()); ok {
+		return false
+	}
 	self.typeDefs.Set(td.GetName(), td)
 	return true
 }
@@ -116,20 +116,65 @@ func (self *_PkgScope) GetTypeDef(pkg, name string) (hir.GlobalType, bool) {
 	return td, true
 }
 
-func (self *_PkgScope) Isize()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("isize")) }
-func (self *_PkgScope) I8()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i8")) }
-func (self *_PkgScope) I16()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i16")) }
-func (self *_PkgScope) I32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i32")) }
-func (self *_PkgScope) I64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("i64")) }
-func (self *_PkgScope) Usize()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("usize")) }
-func (self *_PkgScope) U8()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u8")) }
-func (self *_PkgScope) U16()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u16")) }
-func (self *_PkgScope) U32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u32")) }
-func (self *_PkgScope) U64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("u64")) }
-func (self *_PkgScope) F32()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("f32")) }
-func (self *_PkgScope) F64()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("f64")) }
-func (self *_PkgScope) Bool()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("bool")) }
-func (self *_PkgScope) Str()hir.GlobalType{ return stlbasic.IgnoreWith(self.getTypeDef("str")) }
+func (self *_PkgScope) SetTrait(trait *hir.Trait) bool {
+	if _, ok := self.getValue(trait.Name); ok {
+		return false
+	}
+	if _, ok := self.getTypeDef(trait.Name); ok {
+		return false
+	}
+	self.traitDefs.Set(trait.Name, trait)
+	return true
+}
+
+func (self *_PkgScope) getLocalTrait(name string) (*hir.Trait, bool) {
+	return self.traitDefs.Get(name), self.traitDefs.ContainKey(name)
+}
+
+func (self *_PkgScope) getTrait(name string) (*hir.Trait, bool) {
+	v, ok := self.getLocalTrait(name)
+	if ok {
+		return v, true
+	}
+	for iter := self.links.Iterator(); iter.Next(); {
+		v, ok := iter.Value().getLocalTrait(name)
+		if ok && v.GetPublic() {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+func (self *_PkgScope) GetTrait(pkg, name string) (*hir.Trait, bool) {
+	if pkg == "" {
+		return self.getTrait(name)
+	}
+	pkgScope := self.externs.Get(pkg)
+	if pkgScope == nil {
+		return nil, false
+	}
+	v, ok := pkgScope.getLocalTrait(name)
+	if !ok || !v.GetPublic() {
+		return nil, false
+	}
+	return v, true
+}
+
+func (self *_PkgScope) Isize() hir.GlobalType { return stlbasic.IgnoreWith(self.getTypeDef("isize")) }
+func (self *_PkgScope) I8() hir.GlobalType    { return stlbasic.IgnoreWith(self.getTypeDef("i8")) }
+func (self *_PkgScope) I16() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("i16")) }
+func (self *_PkgScope) I32() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("i32")) }
+func (self *_PkgScope) I64() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("i64")) }
+func (self *_PkgScope) Usize() hir.GlobalType { return stlbasic.IgnoreWith(self.getTypeDef("usize")) }
+func (self *_PkgScope) U8() hir.GlobalType    { return stlbasic.IgnoreWith(self.getTypeDef("u8")) }
+func (self *_PkgScope) U16() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("u16")) }
+func (self *_PkgScope) U32() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("u32")) }
+func (self *_PkgScope) U64() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("u64")) }
+func (self *_PkgScope) F32() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("f32")) }
+func (self *_PkgScope) F64() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("f64")) }
+func (self *_PkgScope) Bool() hir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("bool")) }
+func (self *_PkgScope) Str() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("str")) }
+func (self *_PkgScope) Default() *hir.Trait   { return stlbasic.IgnoreWith(self.getTrait("Default")) }
 
 // 本地作用域
 type _LocalScope interface {

@@ -1,4 +1,5 @@
 //go:build !lex && !parse && !analyse && !codegenir && !codegenllvm && !codegenasm
+
 package main
 
 import (

@@ -87,14 +87,20 @@ func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) mir.StructType {
 }
 
 func (self *CodeGenerator) codegenCustomType(ir *hir.CustomType) mir.Type {
-	return self.types.Get(ir)
+	// TODO: 支持除结构体之外的类型循环
+	return self.codegenType(ir.Target)
 }
 
 func (self *CodeGenerator) codegenStructType(ir *hir.StructType) mir.StructType {
-	fields := stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e hir.Field) mir.Type {
+	if self.types.ContainKey(ir.Def) {
+		return self.types.Get(ir.Def).(mir.StructType)
+	}
+	st := self.module.NewNamedStructType("")
+	self.types.Set(ir.Def, st)
+	st.SetElems(stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e hir.Field) mir.Type {
 		return self.codegenType(e.Type)
-	})
-	return self.ctx.NewStructType(fields...)
+	})...)
+	return st
 }
 
 func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) mir.StructType {
@@ -112,4 +118,8 @@ func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) mir.StructType {
 func (self *CodeGenerator) codegenRefType(ir *hir.RefType) mir.PtrType {
 	elem := self.codegenType(ir.Elem)
 	return self.ctx.NewPtrType(elem)
+}
+
+func (self *CodeGenerator) codegenUsizeType() mir.UintType {
+	return self.codegenType(self.hir.BuildinTypes.Usize).(mir.UintType)
 }

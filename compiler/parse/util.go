@@ -64,7 +64,7 @@ func (self *Parser) parseFieldList(end token.Kind) (res []ast.Field) {
 		self.expectNextIs(token.COL)
 		pt := self.parseType()
 		return ast.Field{
-			Public: pub,
+			Public:  pub,
 			Mutable: mut,
 			Name:    pn,
 			Type:    pt,
@@ -106,6 +106,25 @@ func (self *Parser) parseIdent() *ast.Ident {
 	}
 }
 
+func (self *Parser) parseFuncDecl(afterName func()) ast.FuncDecl {
+	begin := self.expectNextIs(token.FUNC).Position
+	if afterName != nil {
+		afterName()
+	}
+	name := self.expectNextIs(token.IDENT)
+	self.expectNextIs(token.LPA)
+	params := self.parseParamList(token.RPA)
+	self.expectNextIs(token.RPA)
+	ret := self.parseOptionType()
+	return ast.FuncDecl{
+		Begin:  begin,
+		Name:   name,
+		Params: params,
+		Ret:    ret,
+		End:    self.curTok.Position,
+	}
+}
+
 // 语法解析目标文件
 func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 	_, r, err := reader.NewReaderFromFile(path)
@@ -138,12 +157,12 @@ func parseDir(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.
 // Parse 语法解析
 func Parse(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
 	fs, err := stlerror.ErrorWith(os.Stat(path.String()))
-	if err != nil{
+	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
 	}
-	if fs.IsDir(){
+	if fs.IsDir() {
 		return parseDir(path)
-	}else{
+	} else {
 		return parseFile(path)
 	}
 }

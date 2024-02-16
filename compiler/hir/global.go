@@ -3,7 +3,9 @@ package hir
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
-	stlslices "github.com/kkkunny/stl/slices"
+	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/util"
 )
@@ -60,10 +62,8 @@ type FuncDef struct {
 	Pkg        Package
 	Public     bool
 	ExternName string
-	Name       string
-	Params     []*Param
-	Ret        Type
-	Body       util.Option[*Block]
+	FuncDecl
+	Body util.Option[*Block]
 
 	InlineControl util.Option[bool]
 	VarArg        bool
@@ -78,10 +78,7 @@ func (self *FuncDef) GetPublic() bool {
 }
 
 func (self *FuncDef) GetFuncType() *FuncType {
-	params := stlslices.Map(self.Params, func(_ int, e *Param) Type {
-		return e.GetType()
-	})
-	return NewFuncType(self.Ret, params...)
+	return self.FuncDecl.GetType()
 }
 
 func (self *FuncDef) GetType() Type {
@@ -98,7 +95,7 @@ func (self *FuncDef) GetName() string {
 	return self.Name
 }
 
-func (*FuncDef) Temporary() bool{
+func (*FuncDef) Temporary() bool {
 	return true
 }
 
@@ -108,7 +105,7 @@ type GlobalMethod interface {
 	GetMethodType() *FuncType
 	GetSelfParam() util.Option[*Param]
 	IsStatic() bool
-	IsRef()bool
+	IsRef() bool
 }
 
 // MethodDef 方法定义
@@ -129,8 +126,8 @@ func (self *MethodDef) GetMethodType() *FuncType {
 	return ft
 }
 
-func (self *MethodDef) GetSelfParam() util.Option[*Param]{
-	if len(self.Params) == 0{
+func (self *MethodDef) GetSelfParam() util.Option[*Param] {
+	if len(self.Params) == 0 {
 		return util.None[*Param]()
 	}
 	selfType := self.GetSelfType()
@@ -140,7 +137,7 @@ func (self *MethodDef) GetSelfParam() util.Option[*Param]{
 	}, func() Type {
 		return firstParam.GetType()
 	})
-	if firstParam.Name != "self" || !selfType.EqualTo(firstParamType){
+	if firstParam.Name != "self" || !selfType.EqualTo(firstParamType) {
 		return util.None[*Param]()
 	}
 	return util.Some(firstParam)
@@ -150,9 +147,9 @@ func (self *MethodDef) IsStatic() bool {
 	return self.GetSelfParam().IsNone()
 }
 
-func (self *MethodDef) IsRef()bool{
+func (self *MethodDef) IsRef() bool {
 	selfParam, ok := self.GetSelfParam().Value()
-	if !ok{
+	if !ok {
 		return false
 	}
 	return IsType[*RefType](selfParam.GetType())
@@ -204,4 +201,36 @@ func (self *TypeAliasDef) GetPublic() bool {
 
 func (self *TypeAliasDef) GetName() string {
 	return self.Name
+}
+
+// Trait 特征
+type Trait struct {
+	Pkg     Package
+	Public  bool
+	Name    string
+	Methods linkedhashmap.LinkedHashMap[string, *FuncDecl]
+}
+
+func (self *Trait) GetPackage() Package {
+	return self.Pkg
+}
+
+func (self *Trait) GetPublic() bool {
+	return self.Public
+}
+
+// HasBeImpled 类型是否实现了该特征
+func (self *Trait) HasBeImpled(t Type) bool {
+	ct, ok := TryCustomType(t)
+	if !ok {
+		return false
+	}
+	return stliter.All(self.Methods, func(e pair.Pair[string, *FuncDecl]) bool {
+		method := e.Second
+		impl := ct.Methods.Get(method.Name)
+		if impl == nil {
+			return false
+		}
+		return replaceAllSelfType(method.GetType(), ct).EqualTo(impl.GetFuncType())
+	}) || self.HasBeImpled(ct.Target)
 }

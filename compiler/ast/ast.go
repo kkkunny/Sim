@@ -18,7 +18,7 @@ type Param struct {
 }
 
 type Field struct {
-	Public bool
+	Public  bool
 	Mutable bool
 	Name    token.Token
 	Type    Type
@@ -30,7 +30,7 @@ type List[T any] struct {
 	End   reader.Position
 }
 
-func (self List[T]) Position() reader.Position{
+func (self List[T]) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.End)
 }
 
@@ -45,4 +45,17 @@ func (self *Ident) Position() reader.Position {
 		return reader.MixPosition(pkg.Position, self.Name.Position)
 	}
 	return self.Name.Position
+}
+
+// FuncDecl 函数声明
+type FuncDecl struct {
+	Begin  reader.Position
+	Name   token.Token
+	Params []Param
+	Ret    util.Option[Type]
+	End    reader.Position
+}
+
+func (self *FuncDecl) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
 }

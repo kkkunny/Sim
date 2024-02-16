@@ -10,6 +10,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
@@ -72,7 +73,7 @@ func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool
 	return hirs, importPackageErrorNone
 }
 
-func (self *Analyser) setSelfType(td hir.GlobalType) (callback func()) {
+func (self *Analyser) setSelfType(td *hir.CustomType) (callback func()) {
 	bk := self.selfType
 	self.selfType = td
 	return func() {
@@ -82,7 +83,7 @@ func (self *Analyser) setSelfType(td hir.GlobalType) (callback func()) {
 
 // 获取类型默认值
 func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default {
-	if !t.HasDefault() && !t.EqualTo(hir.NewRefType(false, self.pkgScope.Str())) {
+	if !t.HasDefault() && !t.EqualTo(hir.NewRefType(false, self.pkgScope.Str())) && !self.pkgScope.Default().HasBeImpled(t) {
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return &hir.Default{Type: t}
@@ -273,6 +274,29 @@ func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {
 		})
 	}
 	return body
+}
+
+func (self *Analyser) analyseFuncDecl(node ast.FuncDecl) hir.FuncDecl {
+	paramNameSet := hashset.NewHashSetWith[string]()
+	params := stlslices.Map(node.Params, func(i int, e ast.Param) *hir.Param {
+		pn := e.Name.Source()
+		if !paramNameSet.Add(pn) {
+			errors.ThrowIdentifierDuplicationError(e.Name.Position, e.Name)
+		}
+		pt := self.analyseType(e.Type)
+		return &hir.Param{
+			VarDecl: hir.VarDecl{
+				Mut:  e.Mutable,
+				Type: pt,
+				Name: pn,
+			},
+		}
+	})
+	return hir.FuncDecl{
+		Name:   node.Name.Source(),
+		Params: params,
+		Ret:    self.analyseOptionType(node.Ret),
+	}
 }
 
 // Analyse 语义分析

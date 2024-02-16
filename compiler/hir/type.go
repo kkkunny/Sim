@@ -515,13 +515,13 @@ type Field struct {
 
 // StructType 结构体类型
 type StructType struct {
-	Pkg    Package
+	Def    *CustomType
 	Fields linkedhashmap.LinkedHashMap[string, Field]
 }
 
-func NewStructType(pkg Package, fields linkedhashmap.LinkedHashMap[string, Field]) *StructType {
+func NewStructType(def *CustomType, fields linkedhashmap.LinkedHashMap[string, Field]) *StructType {
 	return &StructType{
-		Pkg:    pkg,
+		Def:    def,
 		Fields: fields,
 	}
 }
@@ -534,16 +534,10 @@ func (self *StructType) String() string {
 
 func (self *StructType) EqualTo(dst Type) bool {
 	at, ok := ToRuntimeType(dst).(*StructType)
-	if !ok || !self.Pkg.Equal(at.Pkg) {
+	if !ok {
 		return false
 	}
-	for iter1, iter2 := self.Fields.Iterator(), at.Fields.Iterator(); iter1.Next() && iter2.Next(); {
-		f1, f2 := iter1.Value().Second, iter2.Value().Second
-		if f1.Public != f2.Public || f1.Mutable != f2.Mutable || f1.Name != f2.Name || !f1.Type.EqualTo(f2.Type) {
-			return false
-		}
-	}
-	return true
+	return self.Def.EqualTo(at.Def)
 }
 
 func (self *StructType) HasDefault() bool {
@@ -556,20 +550,57 @@ func (self *StructType) Runtime() runtimeType.Type {
 	fields := stliter.Map[pair.Pair[string, Field], runtimeType.Field, dynarray.DynArray[runtimeType.Field]](self.Fields, func(e pair.Pair[string, Field]) runtimeType.Field {
 		return runtimeType.NewField(e.Second.Type.Runtime(), e.First)
 	}).ToSlice()
-	return runtimeType.NewStructType(self.Pkg.String(), fields...)
+	return runtimeType.NewStructType(self.Def.Pkg.String(), fields...)
 }
 
 func (self *StructType) buildin() {}
 func (self *StructType) runtime() {}
 
-// SelfType Self类型
-type SelfType struct {
-	Self util.Option[GlobalType]
+// 替代所有Self类型
+func replaceAllSelfType(t Type, to *CustomType) Type {
+	switch tt := t.(type) {
+	case *NoThingType, *NoReturnType, *SintType, *UintType, *FloatType, *CustomType, *AliasType:
+		return tt
+	case *RefType:
+		return NewRefType(tt.Mut, replaceAllSelfType(tt.Elem, to))
+	case *FuncType:
+		return NewFuncType(replaceAllSelfType(tt.Ret, to), stlslices.Map(tt.Params, func(_ int, e Type) Type {
+			return replaceAllSelfType(e, to)
+		})...)
+	case *ArrayType:
+		return NewArrayType(tt.Size, replaceAllSelfType(tt.Elem, to))
+	case *TupleType:
+		return NewTupleType(stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return replaceAllSelfType(e, to)
+		})...)
+	case *StructType:
+		return NewStructType(tt.Def, stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
+			return pair.NewPair(e.First, Field{
+				Public:  e.Second.Public,
+				Mutable: e.Second.Mutable,
+				Name:    e.Second.Name,
+				Type:    replaceAllSelfType(e.Second.Type, to),
+			})
+		}))
+	case *UnionType:
+		return NewUnionType(stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return replaceAllSelfType(e, to)
+		})...)
+	case *SelfType:
+		return stlbasic.Ternary[Type](tt.Self.IsNone(), NewSelfType(util.Some[*CustomType](to)), tt)
+	default:
+		panic("unreachable")
+	}
 }
 
-func NewSelfType(self GlobalType) *SelfType {
+// SelfType Self类型
+type SelfType struct {
+	Self util.Option[*CustomType]
+}
+
+func NewSelfType(self util.Option[*CustomType]) *SelfType {
 	return &SelfType{
-		Self: util.Some(self),
+		Self: self,
 	}
 }
 
@@ -636,11 +667,20 @@ func (self *CustomType) HasDefault() bool {
 	return self.Target.HasDefault()
 }
 
+var customTypeRuntimeCache = make(map[*CustomType]runtimeType.Type)
+
 func (self *CustomType) Runtime() runtimeType.Type {
-	methods := stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
+	cache, ok := customTypeRuntimeCache[self]
+	if ok {
+		return cache
+	}
+	rt := runtimeType.NewCustomType(self.Pkg.String(), self.Name, nil, nil)
+	customTypeRuntimeCache[self] = rt
+	rt.Target = self.Target.Runtime()
+	rt.Methods = stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
 		return runtimeType.NewMethod(e.Second.GetFuncType().Runtime().(*runtimeType.FuncType), e.First)
 	}).ToSlice()
-	return runtimeType.NewCustomType(self.Pkg.String(), self.Name, self.Target.Runtime(), methods)
+	return rt
 }
 
 func (self *CustomType) runtime() {}

@@ -37,14 +37,6 @@ func New(target mir.Target, ir *hir.Result) *CodeGenerator {
 
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() *mir.Module {
-	// 类型声明
-	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
-		st, ok := v.(*hir.TypeDef)
-		if ok {
-			self.declTypeDef(st)
-		}
-		return true
-	})
 	// 值声明
 	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
 		self.codegenGlobalDecl(v)

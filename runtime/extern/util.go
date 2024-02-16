@@ -7,12 +7,12 @@ package extern
 */
 import "C"
 import (
-	"encoding/gob"
-	"strings"
+	"encoding/json"
 	"unsafe"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	stlerror "github.com/kkkunny/stl/error"
+	stlslices "github.com/kkkunny/stl/slices"
+	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/runtime/types"
 )
@@ -25,7 +25,7 @@ func GCAlloc(size types.Usize) types.Ptr {
 }
 
 // GCFree 在gc上释放堆内存
-func GCFree(p types.Ptr){
+func GCFree(p types.Ptr) {
 	C.free(unsafe.Pointer(p))
 }
 
@@ -43,25 +43,17 @@ func CheckNull(p types.Ptr) types.Ptr {
 }
 
 // CovertUnionIndex 获取原联合值实际类型在新联合类型中的下标
-func CovertUnionIndex(srcStr, dstStr *types.Str, index types.U8)types.U8{
-	src, dst := new(types.UnionType), new(types.UnionType)
-
-	stlerror.Must(gob.NewDecoder(strings.NewReader(srcStr.String())).Decode(src))
-	stlerror.Must(gob.NewDecoder(strings.NewReader(dstStr.String())).Decode(dst))
-
-	if src.Contain(dst){
-		return types.NewU8(uint8(src.IndexElem(dst.Elem(uint(index.Value())))))
-	}else{
-		return types.NewU8(uint8(dst.IndexElem(src.Elem(uint(index.Value())))))
-	}
+func CovertUnionIndex(srcStr, dstStr *types.Str, index types.U8) types.U8 {
+	var srcTypes, dstTypes []string
+	stlbasic.Ignore(json.Unmarshal([]byte(srcStr.String()), &srcTypes))
+	stlbasic.Ignore(json.Unmarshal([]byte(dstStr.String()), &dstTypes))
+	return types.NewU8(uint8(lo.IndexOf(dstTypes, srcTypes[index.Value()])))
 }
 
 // CheckUnionType 检查原联合值实际类型是否属于新联合类型
-func CheckUnionType(srcStr, dstStr *types.Str, index types.U8)types.Bool{
-	src, dst := new(types.UnionType), new(types.UnionType)
-
-	stlerror.Must(gob.NewDecoder(strings.NewReader(srcStr.String())).Decode(src))
-	stlerror.Must(gob.NewDecoder(strings.NewReader(dstStr.String())).Decode(dst))
-
-	return types.NewBool(dst.Contain(src.Elem(uint(index.Value()))))
+func CheckUnionType(srcStr, dstStr *types.Str, index types.U8) types.Bool {
+	var srcTypes, dstTypes []string
+	stlbasic.Ignore(json.Unmarshal([]byte(srcStr.String()), &srcTypes))
+	stlbasic.Ignore(json.Unmarshal([]byte(dstStr.String()), &dstTypes))
+	return types.NewBool(stlslices.Contain(dstTypes, srcTypes[index.Value()]))
 }

@@ -1,8 +1,7 @@
 package codegen_ir
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
 
 	stlbasic "github.com/kkkunny/stl/basic"
@@ -11,12 +10,12 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 	stlmath "github.com/kkkunny/stl/math"
 	stlos "github.com/kkkunny/stl/os"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
 	module2 "github.com/kkkunny/Sim/mir/pass/module"
-	"github.com/kkkunny/Sim/runtime/types"
 )
 
 func (self *CodeGenerator) getExternFunction(name string, t mir.FuncType) *mir.Function {
@@ -80,7 +79,7 @@ func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value
 		return mir.Bool(self.ctx, true)
 	}
 
-	indexPtr := self.builder.BuildAllocFromStack(self.ctx.Usize())
+	indexPtr := self.builder.BuildAllocFromStack(self.codegenUsizeType())
 	self.builder.BuildStore(mir.NewZero(indexPtr.ElemType()), indexPtr)
 	condBlock := self.builder.Current().Belong().NewBlock()
 	self.builder.BuildUnCondJump(condBlock)
@@ -88,7 +87,7 @@ func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value
 	// cond
 	self.builder.MoveTo(condBlock)
 	index := self.builder.BuildLoad(indexPtr)
-	cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewUint(self.ctx.Usize(), uint64(t.Length())))
+	cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewUint(self.codegenUsizeType(), uint64(t.Length())))
 	bodyBlock, outBlock := self.builder.Current().Belong().NewBlock(), self.builder.Current().Belong().NewBlock()
 	self.builder.BuildCondJump(cond, bodyBlock, outBlock)
 
@@ -101,7 +100,7 @@ func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value
 
 	// action
 	self.builder.MoveTo(actionBlock)
-	self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewUint(self.ctx.Usize(), 1)), indexPtr)
+	self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewUint(self.codegenUsizeType(), 1)), indexPtr)
 	self.builder.BuildUnCondJump(condBlock)
 
 	// out
@@ -275,10 +274,10 @@ func (self *CodeGenerator) constStringPtr(s string) mir.Const {
 		}, func() mir.Const {
 			return mir.NewArrayIndex(
 				self.module.NewConstant("", mir.NewString(self.ctx, s)),
-				mir.NewInt(self.ctx.Usize(), 0),
+				mir.NewInt(self.codegenUsizeType(), 0),
 			)
 		})
-		self.strings.Set(s, self.module.NewConstant("", mir.NewStruct(st, dataPtr, mir.NewInt(self.ctx.Usize(), int64(len(s))))))
+		self.strings.Set(s, self.module.NewConstant("", mir.NewStruct(st, dataPtr, mir.NewInt(self.codegenUsizeType(), int64(len(s))))))
 	}
 	return self.strings.Get(s)
 }
@@ -286,45 +285,17 @@ func (self *CodeGenerator) constStringPtr(s string) mir.Const {
 func (self *CodeGenerator) buildCovertUnionIndex(src, dst *hir.UnionType, index mir.Value) mir.Value {
 	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
 	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(false, self.ctx.U8(), self.ctx.NewPtrType(strType), self.ctx.NewPtrType(strType), self.ctx.U8()))
-
-	gob.Register(new(types.NoThingType))
-	gob.Register(new(types.NoReturnType))
-	gob.Register(new(types.SintType))
-	gob.Register(new(types.UintType))
-	gob.Register(new(types.FloatType))
-	gob.Register(new(types.RefType))
-	gob.Register(new(types.FuncType))
-	gob.Register(new(types.ArrayType))
-	gob.Register(new(types.TupleType))
-	gob.Register(new(types.UnionType))
-	gob.Register(new(types.CustomType))
-
-	var srcStr, dstStr bytes.Buffer
-	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src.Runtime()))
-	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst.Runtime()))
-	return self.builder.BuildCall(fn, self.constStringPtr(srcStr.String()), self.constStringPtr(dstStr.String()), index)
+	srcStr := string(stlbasic.IgnoreWith(json.Marshal(stlslices.Map(src.Elems, func(_ int, e hir.Type) string { return e.String() }))))
+	dstStr := string(stlbasic.IgnoreWith(json.Marshal(stlslices.Map(dst.Elems, func(_ int, e hir.Type) string { return e.String() }))))
+	return self.builder.BuildCall(fn, self.constStringPtr(srcStr), self.constStringPtr(dstStr), index)
 }
 
 func (self *CodeGenerator) buildCheckUnionType(src, dst *hir.UnionType, index mir.Value) mir.Value {
 	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
 	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(false, self.ctx.Bool(), self.ctx.NewPtrType(strType), self.ctx.NewPtrType(strType), self.ctx.U8()))
-
-	gob.Register(new(types.NoThingType))
-	gob.Register(new(types.NoReturnType))
-	gob.Register(new(types.SintType))
-	gob.Register(new(types.UintType))
-	gob.Register(new(types.FloatType))
-	gob.Register(new(types.RefType))
-	gob.Register(new(types.FuncType))
-	gob.Register(new(types.ArrayType))
-	gob.Register(new(types.TupleType))
-	gob.Register(new(types.UnionType))
-	gob.Register(new(types.CustomType))
-
-	var srcStr, dstStr bytes.Buffer
-	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src.Runtime()))
-	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst.Runtime()))
-	return self.builder.BuildCall(fn, self.constStringPtr(srcStr.String()), self.constStringPtr(dstStr.String()), index)
+	srcStr := string(stlbasic.IgnoreWith(json.Marshal(stlslices.Map(src.Elems, func(_ int, e hir.Type) string { return e.String() }))))
+	dstStr := string(stlbasic.IgnoreWith(json.Marshal(stlslices.Map(dst.Elems, func(_ int, e hir.Type) string { return e.String() }))))
+	return self.builder.BuildCall(fn, self.constStringPtr(srcStr), self.constStringPtr(dstStr), index)
 }
 
 func (self *CodeGenerator) buildPanic(s string) {
