@@ -33,7 +33,7 @@ type Type interface {
 type NoThingType struct{}
 
 func (*NoThingType) String() string {
-	return ""
+	return "void"
 }
 
 func (self *NoThingType) Hash() uint64 {
@@ -177,10 +177,11 @@ func NewFuncType(ret Type, params ...Type) *FuncType {
 }
 
 func (self *FuncType) String() string {
-	params := lo.Map(self.Params, func(item Type, _ int) string {
+	params := stlslices.Map(self.Params, func(_ int, item Type) string {
 		return item.String()
 	})
-	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.Ret)
+	ret := stlbasic.Ternary(self.Ret.Equal(TypeNoThing), "", self.Ret.String())
+	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
 }
 
 func (self *FuncType) Hash() uint64 {
@@ -431,4 +432,42 @@ func (self *CustomType) Equal(dst Type) bool {
 		return false
 	}
 	return self.Pkg == dt.Pkg && self.Name == dt.Name
+}
+
+// LambdaType 匿名函数类型
+type LambdaType struct {
+	Ret    Type
+	Params []Type
+}
+
+func NewLambdaType(ret Type, params ...Type) *LambdaType {
+	return &LambdaType{
+		Ret:    ret,
+		Params: params,
+	}
+}
+
+func (self *LambdaType) String() string {
+	params := stlslices.Map(self.Params, func(_ int, item Type) string {
+		return item.String()
+	})
+	ret := stlbasic.Ternary(self.Ret.Equal(TypeNoThing), "", self.Ret.String())
+	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), ret)
+}
+
+func (self *LambdaType) Hash() uint64 {
+	return self.Ret.Hash() & stlbasic.Hash(self.Params)
+}
+
+func (self *LambdaType) Equal(dst Type) bool {
+	dt, ok := dst.(*LambdaType)
+	if !ok || len(self.Params) != len(dt.Params) || !self.Ret.Equal(dt.Ret) {
+		return false
+	}
+	for i, p := range self.Params {
+		if !p.Equal(dt.Params[i]) {
+			return false
+		}
+	}
+	return true
 }

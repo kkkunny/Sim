@@ -19,7 +19,7 @@ func (self *Parser) parseOptionType() util.Option[ast.Type] {
 	case token.LBA:
 		return util.Some[ast.Type](self.parseArrayType())
 	case token.LPA:
-		return util.Some[ast.Type](self.parseTupleType())
+		return util.Some[ast.Type](self.parseTupleOrLambdaType())
 	case token.LT:
 		return util.Some[ast.Type](self.parseUnionType())
 	case token.AND:
@@ -40,7 +40,7 @@ func (self *Parser) parseType() ast.Type {
 }
 
 func (self *Parser) parseTypeWithStruct() ast.Type {
-	if self.nextIs(token.STRUCT){
+	if self.nextIs(token.STRUCT) {
 		return self.parseStructType()
 	}
 	return self.parseType()
@@ -75,14 +75,22 @@ func (self *Parser) parseArrayType() *ast.ArrayType {
 	}
 }
 
-func (self *Parser) parseTupleType() *ast.TupleType {
+func (self *Parser) parseTupleOrLambdaType() ast.Type {
 	begin := self.expectNextIs(token.LPA).Position
 	elems := self.parseTypeList(token.RPA)
 	end := self.expectNextIs(token.RPA).Position
-	return &ast.TupleType{
-		Begin: begin,
-		Elems: elems,
-		End:   end,
+	if !self.skipNextIs(token.ARROW) {
+		return &ast.TupleType{
+			Begin: begin,
+			Elems: elems,
+			End:   end,
+		}
+	}
+	ret := self.parseType()
+	return &ast.LambdaType{
+		Begin:  begin,
+		Params: elems,
+		Ret:    ret,
 	}
 }
 
@@ -102,16 +110,16 @@ func (self *Parser) parseRefType() ast.Type {
 	mut := self.skipNextIs(token.MUT)
 	return &ast.RefType{
 		Begin: begin,
-		Mut: mut,
+		Mut:   mut,
 		Elem:  self.parseType(),
 	}
 }
 
-func (self *Parser) parseSelfType()*ast.SelfType{
+func (self *Parser) parseSelfType() *ast.SelfType {
 	return &ast.SelfType{Token: self.expectNextIs(token.SELF)}
 }
 
-func (self *Parser) parseStructType()*ast.StructType{
+func (self *Parser) parseStructType() *ast.StructType {
 	begin := self.expectNextIs(token.STRUCT).Position
 	self.expectNextIs(token.LBR)
 	fields := self.parseFieldList(token.RBR)

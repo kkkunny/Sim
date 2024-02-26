@@ -1,7 +1,9 @@
 import std::os
 
 func main(){
-	let mut v: u8 = 1
-	v += 1
-	os::exit(v)
+	// let a: (u8)->u8 = (a: u8) -> u8{
+	// 	return 1
+	// }
+	let a: (u8)->u8
+	os::exit(1)
 }

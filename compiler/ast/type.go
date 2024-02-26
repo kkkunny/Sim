@@ -79,7 +79,7 @@ func (self *UnionType) typ() {}
 // RefType 引用类型
 type RefType struct {
 	Begin reader.Position
-	Mut bool
+	Mut   bool
 	Elem  Type
 }
 
@@ -110,3 +110,16 @@ func (self *StructType) Position() reader.Position {
 }
 
 func (self *StructType) typ() {}
+
+// LambdaType 匿名函数类型
+type LambdaType struct {
+	Begin  reader.Position
+	Params []Type
+	Ret    Type
+}
+
+func (self *LambdaType) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Ret.Position())
+}
+
+func (self *LambdaType) typ() {}

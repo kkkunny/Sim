@@ -108,9 +108,9 @@ func ThrowExpectFuncTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a function type but there is type `%s`", t)
 }
 
-// ThrowExpectFunctionError 期待一个函数
-func ThrowExpectFunctionError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a function but there is type `%s`", t)
+// ThrowExpectCallableError 期待一个可调用的
+func ThrowExpectCallableError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a callable but there is type `%s`", t)
 }
 
 // ThrowExpectPointerError 期待一个指针

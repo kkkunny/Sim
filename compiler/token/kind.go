@@ -69,6 +69,7 @@ const (
 	SCOPE
 	AT
 	QUE
+	ARROW
 
 	_KeywordBegin
 	FUNC
@@ -150,6 +151,7 @@ var kindNames = [...]string{
 	SCOPE:        "scope",
 	AT:           "at",
 	QUE:          "que",
+	ARROW:        "arrow",
 	FUNC:         "func",
 	RETURN:       "return",
 	AS:           "as",

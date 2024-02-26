@@ -31,6 +31,8 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 		return self.analyseSelfType(typeNode)
 	case *ast.StructType:
 		return self.analyseStructType(typeNode)
+	case *ast.LambdaType:
+		return self.analyseLambdaType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -109,4 +111,11 @@ func (self *Analyser) analyseStructType(node *ast.StructType) *hir.StructType {
 		})
 	}
 	return hir.NewStructType(self.selfType, fields)
+}
+
+func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *hir.LambdaType {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
+		return self.analyseType(e)
+	})
+	return hir.NewLambdaType(self.analyseType(node.Ret), params...)
 }

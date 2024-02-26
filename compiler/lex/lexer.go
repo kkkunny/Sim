@@ -202,6 +202,9 @@ func (self *Lexer) Scan() token.Token {
 			if nb := self.peek(); nb == '=' {
 				self.next()
 				kind = token.SUBASS
+			} else if nb == '>' {
+				self.next()
+				kind = token.ARROW
 			}
 		case '*':
 			kind = token.MUL

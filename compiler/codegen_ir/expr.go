@@ -320,21 +320,21 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 			self.builder.MoveTo(fn.NewBlock())
 
 			arrayPtr := self.builder.BuildAllocFromStack(at)
-			indexPtr := self.builder.BuildAllocFromStack(self.codegenUsizeType())
+			indexPtr := self.builder.BuildAllocFromStack(self.usizeType())
 			self.builder.BuildStore(mir.NewZero(indexPtr.ElemType()), indexPtr)
 			condBlock := fn.NewBlock()
 			self.builder.BuildUnCondJump(condBlock)
 
 			self.builder.MoveTo(condBlock)
 			index := self.builder.BuildLoad(indexPtr)
-			cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewInt(self.codegenUsizeType(), int64(tir.Size)))
+			cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewInt(self.usizeType(), int64(tir.Size)))
 			loopBlock, endBlock := fn.NewBlock(), fn.NewBlock()
 			self.builder.BuildCondJump(cond, loopBlock, endBlock)
 
 			self.builder.MoveTo(loopBlock)
 			elemPtr := self.buildArrayIndex(arrayPtr, index, true)
 			self.builder.BuildStore(self.codegenDefault(tir.Elem), elemPtr)
-			self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewInt(self.codegenUsizeType(), 1)), indexPtr)
+			self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewInt(self.usizeType(), 1)), indexPtr)
 			self.builder.BuildUnCondJump(condBlock)
 
 			self.builder.MoveTo(endBlock)
@@ -384,6 +384,10 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 		val := self.codegenDefault(hir.AsType[*hir.UnionType](tir).Elems[0])
 		index := mir.NewInt(ut.Elems()[1].(mir.IntType), 0)
 		return self.builder.BuildPackStruct(ut, val, index)
+	case *hir.LambdaType:
+		t := self.codegenLambdaType(tir)
+		fn := self.codegenDefault(tir.ToFuncType())
+		return self.builder.BuildPackStruct(t, fn, mir.NewZero(self.ptrType()))
 	default:
 		panic("unreachable")
 	}

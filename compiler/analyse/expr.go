@@ -509,7 +509,7 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
 func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
 	f := self.analyseExpr(nil, node.Func)
 	if !hir.IsType[*hir.FuncType](f.GetType()) {
-		errors.ThrowExpectFunctionError(node.Func.Position(), f.GetType())
+		errors.ThrowExpectCallableError(node.Func.Position(), f.GetType())
 	}
 	vararg := stlbasic.Is[*hir.FuncDef](f) && f.(*hir.FuncDef).VarArg
 	ft := hir.AsType[*hir.FuncType](f.GetType())

@@ -32,6 +32,8 @@ func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 		return self.codegenRefType(t)
 	case *hir.StructType:
 		return self.codegenStructType(t)
+	case *hir.LambdaType:
+		return self.codegenLambdaType(t)
 	default:
 		panic("unreachable")
 	}
@@ -66,10 +68,9 @@ func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) mir.FloatType {
 
 func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) mir.FuncType {
 	ret := self.codegenType(ir.Ret)
-	params := make([]mir.Type, len(ir.Params))
-	for i, p := range ir.Params {
-		params[i] = self.codegenType(p)
-	}
+	params := stlslices.Map(ir.Params, func(_ int, e hir.Type) mir.Type {
+		return self.codegenType(e)
+	})
 	return self.ctx.NewFuncType(false, ret, params...)
 }
 
@@ -120,6 +121,11 @@ func (self *CodeGenerator) codegenRefType(ir *hir.RefType) mir.PtrType {
 	return self.ctx.NewPtrType(elem)
 }
 
-func (self *CodeGenerator) codegenUsizeType() mir.UintType {
-	return self.codegenType(self.hir.BuildinTypes.Usize).(mir.UintType)
+func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) mir.StructType {
+	ret := self.codegenType(ir.Ret)
+	params := stlslices.Map(ir.Params, func(_ int, e hir.Type) mir.Type {
+		return self.codegenType(e)
+	})
+	ft := self.ctx.NewFuncType(false, ret, params...)
+	return self.ctx.NewStructType(ft, self.ptrType())
 }
