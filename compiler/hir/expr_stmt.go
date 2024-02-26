@@ -686,7 +686,7 @@ type Call struct {
 func (self *Call) stmt() {}
 
 func (self *Call) GetType() Type {
-	return AsType[*FuncType](self.Func.GetType()).Ret
+	return AsType[CallableType](self.Func.GetType()).GetRet()
 }
 
 func (self *Call) Mutable() bool {

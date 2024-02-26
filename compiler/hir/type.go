@@ -70,6 +70,12 @@ func ToBuildInType(t Type) BuildInType {
 	}
 }
 
+type CallableType interface {
+	BuildInType
+	GetRet() Type
+	GetParams() []Type
+}
+
 // TryType 尝试断言为指定类型
 func TryType[T BuildInType](t Type) (T, bool) {
 	switch tt := t.(type) {
@@ -297,6 +303,14 @@ func (self *FuncType) Runtime() runtimeType.Type {
 
 func (self *FuncType) buildin() {}
 func (self *FuncType) runtime() {}
+
+func (self *FuncType) GetRet() Type {
+	return self.Ret
+}
+
+func (self *FuncType) GetParams() []Type {
+	return self.Params
+}
 
 // ArrayType 数组型
 type ArrayType struct {
@@ -761,4 +775,12 @@ func (self *LambdaType) runtime() {}
 
 func (self *LambdaType) ToFuncType() *FuncType {
 	return NewFuncType(self.Ret, self.Params...)
+}
+
+func (self *LambdaType) GetRet() Type {
+	return self.Ret
+}
+
+func (self *LambdaType) GetParams() []Type {
+	return self.Params
 }

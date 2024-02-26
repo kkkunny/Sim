@@ -94,7 +94,7 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 					Type:    pt,
 				}
 			} else {
-				return first
+				return firstParam
 			}
 		} else if isLambda {
 			mut := self.skipNextIs(token.MUT)

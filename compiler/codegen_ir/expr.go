@@ -212,7 +212,11 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 		}
 		args = append([]mir.Value{selfRef}, args...)
 	}
-	return self.builder.BuildCall(f, args...)
+	if hir.IsType[*hir.LambdaType](ir.Func.GetType()) {
+		return self.builder.BuildCall(self.buildStructIndex(f, 0, false), args...)
+	} else {
+		return self.builder.BuildCall(f, args...)
+	}
 }
 
 func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value {

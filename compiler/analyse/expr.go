@@ -510,19 +510,19 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
 
 func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
 	f := self.analyseExpr(nil, node.Func)
-	if !hir.IsType[*hir.FuncType](f.GetType()) {
+	ct, ok := hir.TryType[hir.CallableType](f.GetType())
+	if !ok {
 		errors.ThrowExpectCallableError(node.Func.Position(), f.GetType())
 	}
 	vararg := stlbasic.Is[*hir.FuncDef](f) && f.(*hir.FuncDef).VarArg
-	ft := hir.AsType[*hir.FuncType](f.GetType())
-	if (!vararg && len(node.Args) != len(ft.Params)) || (vararg && len(node.Args) < len(ft.Params)) {
-		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ft.Params)), uint(len(node.Args)))
+	if (!vararg && len(node.Args) != len(ct.GetParams())) || (vararg && len(node.Args) < len(ct.GetParams())) {
+		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ct.GetParams())), uint(len(node.Args)))
 	}
 	args := stlslices.Map(node.Args, func(index int, item ast.Expr) hir.Expr {
-		if vararg && index >= len(ft.Params) {
+		if vararg && index >= len(ct.GetParams()) {
 			return self.analyseExpr(nil, item)
 		} else {
-			return self.expectExpr(ft.Params[index], item)
+			return self.expectExpr(ct.GetParams()[index], item)
 		}
 	})
 	return &hir.Call{

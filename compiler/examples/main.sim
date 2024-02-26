@@ -1,8 +1,6 @@
 import std::os
 
 func main(){
-	let a = (a: u8) -> u8{
-		return 1
-	}
-	os::exit(1)
+	let v: ()->u8
+	os::exit(v())
 }
