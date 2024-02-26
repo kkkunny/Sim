@@ -891,7 +891,7 @@ func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lamb
 			},
 		}
 	})
-	ret := self.analyseType(node.Ret)
+	ret := self.analyseOptionTypeWith(util.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
 	f := &hir.Lambda{
 		Params: params,
 		Ret:    ret,

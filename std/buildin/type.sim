@@ -1,5 +1,3 @@
-pub type X = X
-
 pub type isize __buildin_i64
 
 func (isize) default()Self{

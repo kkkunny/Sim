@@ -241,9 +241,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		// 类型
 		name := node.Name.Source()
 		// 内置类型
-		if name == "X" {
-			return util.Some(either.Right[hir.Ident, hir.Type](hir.NoReturn))
-		} else if strings.HasPrefix(name, "__buildin_i") {
+		if strings.HasPrefix(name, "__buildin_i") {
 			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
 			if err == nil && bits > 0 && bits <= 128 {
 				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewSintType(uint8(bits))))
@@ -302,7 +300,7 @@ func (self *Analyser) analyseFuncDecl(node ast.FuncDecl) hir.FuncDecl {
 	return hir.FuncDecl{
 		Name:   node.Name.Source(),
 		Params: params,
-		Ret:    self.analyseOptionType(node.Ret),
+		Ret:    self.analyseOptionTypeWith(node.Ret, noReturnTypeAnalyser),
 	}
 }
 

@@ -38,12 +38,43 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 	}
 }
 
+var voidTypeAnalyser = func(node util.Option[ast.Type]) util.Option[hir.Type] {
+	typeNode, ok := node.Value()
+	if !ok {
+		return util.None[hir.Type]()
+	}
+	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == hir.NoThing.String() {
+		return util.Some[hir.Type](hir.NoThing)
+	}
+	return util.None[hir.Type]()
+}
+
+var noReturnTypeAnalyser = func(node util.Option[ast.Type]) util.Option[hir.Type] {
+	typeNode, ok := node.Value()
+	if !ok {
+		return util.None[hir.Type]()
+	}
+	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == hir.NoReturn.String() {
+		return util.Some[hir.Type](hir.NoReturn)
+	}
+	return util.None[hir.Type]()
+}
+
 func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
 	t, ok := node.Value()
 	if !ok {
 		return hir.NoThing
 	}
 	return self.analyseType(t)
+}
+
+func (self *Analyser) analyseOptionTypeWith(node util.Option[ast.Type], analysers ...func(node util.Option[ast.Type]) util.Option[hir.Type]) hir.Type {
+	for _, analyser := range analysers {
+		if t, ok := analyser(node).Value(); ok {
+			return t
+		}
+	}
+	return self.analyseOptionType(node)
 }
 
 func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
@@ -58,7 +89,8 @@ func (self *Analyser) analyseFuncType(node *ast.FuncType) *hir.FuncType {
 	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
 		return self.analyseType(e)
 	})
-	return hir.NewFuncType(self.analyseOptionType(node.Ret), params...)
+	ret := self.analyseOptionTypeWith(node.Ret, noReturnTypeAnalyser)
+	return hir.NewFuncType(ret, params...)
 }
 
 func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
@@ -117,5 +149,6 @@ func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *hir.LambdaType {
 	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
 		return self.analyseType(e)
 	})
-	return hir.NewLambdaType(self.analyseType(node.Ret), params...)
+	ret := self.analyseOptionTypeWith(util.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
+	return hir.NewLambdaType(ret, params...)
 }
