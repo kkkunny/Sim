@@ -116,6 +116,21 @@ func (self *Analyser) analyseFloat(expect hir.Type, node *ast.Float) *hir.Float 
 	}
 }
 
+var assMap = map[token.Kind]token.Kind{
+	token.ANDASS:  token.AND,
+	token.ORASS:   token.OR,
+	token.XORASS:  token.XOR,
+	token.SHLASS:  token.SHL,
+	token.SHRASS:  token.SHR,
+	token.ADDASS:  token.ADD,
+	token.SUBASS:  token.SUB,
+	token.MULASS:  token.MUL,
+	token.DIVASS:  token.DIV,
+	token.REMASS:  token.REM,
+	token.LANDASS: token.LAND,
+	token.LORASS:  token.LOR,
+}
+
 func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr {
 	left := self.analyseExpr(expect, node.Left)
 	lt := left.GetType()
@@ -135,6 +150,22 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 				Right: right,
 			}
 		}
+	case token.ANDASS, token.ORASS, token.XORASS, token.SHLASS, token.SHRASS, token.ADDASS, token.SUBASS, token.MULASS, token.DIVASS, token.REMASS, token.LANDASS, token.LORASS:
+		return self.analyseBinary(expect, &ast.Binary{
+			Left: node.Left,
+			Opera: token.Token{
+				Position: node.Opera.Position,
+				Kind:     token.ASS,
+			},
+			Right: &ast.Binary{
+				Left: node.Left,
+				Opera: token.Token{
+					Position: node.Opera.Position,
+					Kind:     assMap[node.Opera.Kind],
+				},
+				Right: node.Right,
+			},
+		})
 	case token.AND:
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.And().HasBeImpled(ct) {

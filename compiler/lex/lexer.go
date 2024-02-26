@@ -158,15 +158,33 @@ func (self *Lexer) Scan() token.Token {
 			if nb := self.peek(); nb == '&' {
 				self.next()
 				kind = token.LAND
+				if nb = self.peek(); nb == '=' {
+					self.next()
+					kind = token.LANDASS
+				}
+			} else if nb == '=' {
+				self.next()
+				kind = token.ANDASS
 			}
 		case '|':
 			kind = token.OR
 			if nb := self.peek(); nb == '|' {
 				self.next()
 				kind = token.LOR
+				if nb = self.peek(); nb == '=' {
+					self.next()
+					kind = token.LORASS
+				}
+			} else if nb == '=' {
+				self.next()
+				kind = token.ORASS
 			}
 		case '^':
 			kind = token.XOR
+			if nb := self.peek(); nb == '=' {
+				self.next()
+				kind = token.XORASS
+			}
 		case '!':
 			kind = token.NOT
 			if nb := self.peek(); nb == '=' {
@@ -175,18 +193,37 @@ func (self *Lexer) Scan() token.Token {
 			}
 		case '+':
 			kind = token.ADD
+			if nb := self.peek(); nb == '=' {
+				self.next()
+				kind = token.ADDASS
+			}
 		case '-':
 			kind = token.SUB
+			if nb := self.peek(); nb == '=' {
+				self.next()
+				kind = token.SUBASS
+			}
 		case '*':
 			kind = token.MUL
+			if nb := self.peek(); nb == '=' {
+				self.next()
+				kind = token.MULASS
+			}
 		case '/':
 			kind = token.DIV
 			if nb := self.peek(); nb == '/' {
 				self.next()
 				kind = self.scanComment()
+			} else if nb == '=' {
+				self.next()
+				kind = token.DIVASS
 			}
 		case '%':
 			kind = token.REM
+			if nb := self.peek(); nb == '=' {
+				self.next()
+				kind = token.REMASS
+			}
 		case '<':
 			kind = token.LT
 			if nb := self.peek(); nb == '=' {
@@ -195,6 +232,10 @@ func (self *Lexer) Scan() token.Token {
 			} else if nb == '<' {
 				self.next()
 				kind = token.SHL
+				if nb = self.peek(); nb == '=' {
+					self.next()
+					kind = token.SHLASS
+				}
 			}
 		case '>':
 			kind = token.GT
@@ -204,6 +245,10 @@ func (self *Lexer) Scan() token.Token {
 			} else if nb == '>' {
 				self.next()
 				kind = token.SHR
+				if nb = self.peek(); nb == '=' {
+					self.next()
+					kind = token.SHRASS
+				}
 			}
 		case '(':
 			kind = token.LPA
