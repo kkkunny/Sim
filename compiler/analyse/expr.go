@@ -51,6 +51,8 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 		return self.analyseString(exprNode)
 	case *ast.Judgment:
 		return self.analyseJudgment(exprNode)
+	case *ast.Lambda:
+		return self.analyseLambda(expect, exprNode)
 	default:
 		panic("unreachable")
 	}
@@ -877,4 +879,42 @@ func (self *Analyser) analyseStaticMethod(typeNode *ast.IdentType, t hir.Type, n
 	default:
 		panic("unreachable")
 	}
+}
+
+func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lambda {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *hir.Param {
+		return &hir.Param{
+			VarDecl: hir.VarDecl{
+				Mut:  e.Mutable,
+				Type: self.analyseType(e.Type),
+				Name: e.Name.Source(),
+			},
+		}
+	})
+	ret := self.analyseType(node.Ret)
+	f := &hir.Lambda{
+		Params: params,
+		Ret:    ret,
+	}
+
+	if expect == nil || !hir.IsType[*hir.LambdaType](expect) || !hir.AsType[*hir.LambdaType](expect).ToFuncType().EqualTo(f.GetFuncType()) {
+		expect = hir.NewLambdaType(f.Ret, stlslices.Map(f.Params, func(_ int, e *hir.Param) hir.Type {
+			return e.GetType()
+		})...)
+	}
+	f.Type = expect
+
+	self.localScope = _NewLambdaScope(self.localScope, f)
+	defer func() {
+		self.localScope = self.localScope.GetParent().(_LocalScope)
+	}()
+
+	for i, p := range f.Params {
+		if !self.localScope.SetValue(p.Name, p) {
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
+		}
+	}
+
+	f.Body = self.analyseFuncBody(node.Body)
+	return f
 }

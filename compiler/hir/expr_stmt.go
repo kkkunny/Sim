@@ -1158,3 +1158,31 @@ func (self *ExpandUnion) GetFrom() Expr {
 func (*ExpandUnion) Temporary() bool {
 	return true
 }
+
+// Lambda 匿名函数
+type Lambda struct {
+	Type   Type
+	Params []*Param
+	Ret    Type
+	Body   *Block
+}
+
+func (self *Lambda) stmt() {}
+
+func (self *Lambda) GetType() Type {
+	return self.Type
+}
+
+func (self *Lambda) Mutable() bool {
+	return false
+}
+
+func (*Lambda) Temporary() bool {
+	return true
+}
+
+func (self *Lambda) GetFuncType() *FuncType {
+	return NewFuncType(self.Ret, stlslices.Map(self.Params, func(_ int, e *Param) Type {
+		return e.GetType()
+	})...)
+}

@@ -53,6 +53,8 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenTypeJudgment(expr)
 	case *hir.UnUnion:
 		return self.codegenUnUnion(expr)
+	case *hir.Lambda:
+		return self.codegenLambda(expr)
 	default:
 		panic("unreachable")
 	}
@@ -459,4 +461,25 @@ func (self *CodeGenerator) codegenUnUnion(ir *hir.UnUnion) mir.Value {
 	elemPtr := self.buildStructIndex(value, 0, true)
 	elemPtr = self.builder.BuildPtrToPtr(elemPtr, self.ctx.NewPtrType(self.codegenType(ir.GetType())))
 	return self.builder.BuildLoad(elemPtr)
+}
+
+func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
+	ftObj := self.codegenType(ir.GetFuncType())
+	ft := ftObj.(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if hir.IsType[*hir.NoReturnType](ir.Ret) {
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+
+	preBlock := self.builder.Current()
+	self.builder.MoveTo(f.NewBlock())
+	for i, p := range f.Params() {
+		self.values.Set(ir.Params[i], p)
+	}
+	block, _ := self.codegenBlock(ir.Body, nil)
+	self.builder.BuildUnCondJump(block)
+	self.builder.MoveTo(preBlock)
+
+	t := self.codegenType(ir.GetType()).(mir.StructType)
+	return self.builder.BuildPackStruct(t, f, mir.NewZero(self.ptrType()))
 }

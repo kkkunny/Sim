@@ -54,7 +54,7 @@ func (self *MultiGlobalVarDef) GetPublic() bool {
 
 type GlobalFuncOrMethod interface {
 	Global
-	GetFuncType() *FuncType
+	CallableDef
 }
 
 // FuncDef 函数定义

@@ -32,7 +32,7 @@ func (*Block) stmt() {}
 
 // Return 函数返回
 type Return struct {
-	Func  GlobalFuncOrMethod
+	Func  CallableDef
 	Value util.Option[Expr]
 }
 

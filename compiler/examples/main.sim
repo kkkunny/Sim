@@ -1,9 +1,8 @@
 import std::os
 
 func main(){
-	// let a: (u8)->u8 = (a: u8) -> u8{
-	// 	return 1
-	// }
-	let a: (u8)->u8
+	let a = (a: u8) -> u8{
+		return 1
+	}
 	os::exit(1)
 }

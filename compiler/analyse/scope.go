@@ -2,6 +2,7 @@ package analyse
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedhashset"
 
@@ -199,7 +200,7 @@ type _LocalScope interface {
 	GetParent() _Scope
 	GetFuncScope() *_FuncScope
 	GetPkgScope() *_PkgScope
-	GetFunc() hir.GlobalFuncOrMethod
+	GetFunc() hir.CallableDef
 	SetLoop(loop hir.Loop)
 	GetLoop() hir.Loop
 }
@@ -207,13 +208,22 @@ type _LocalScope interface {
 // 函数作用域
 type _FuncScope struct {
 	_BlockScope
-	parent *_PkgScope
-	def    hir.GlobalFuncOrMethod
+	parent either.Either[*_PkgScope, _LocalScope]
+	def    hir.CallableDef
 }
 
 func _NewFuncScope(p *_PkgScope, def hir.GlobalFuncOrMethod) *_FuncScope {
 	self := &_FuncScope{
-		parent: p,
+		parent: either.Left[*_PkgScope, _LocalScope](p),
+		def:    def,
+	}
+	self._BlockScope = *_NewBlockScope(self)
+	return self
+}
+
+func _NewLambdaScope(p _LocalScope, def hir.CallableDef) *_FuncScope {
+	self := &_FuncScope{
+		parent: either.Right[*_PkgScope, _LocalScope](p),
 		def:    def,
 	}
 	self._BlockScope = *_NewBlockScope(self)
@@ -225,17 +235,17 @@ func (self *_FuncScope) SetValue(name string, v hir.Ident) bool {
 }
 
 func (self *_FuncScope) GetValue(pkg, name string) (hir.Ident, bool) {
-	if pkg != "" {
-		return self.parent.GetValue(pkg, name)
-	}
-	if self.values.ContainKey(name) {
+	if pkg == "" && self.values.ContainKey(name) {
 		return self.values.Get(name), true
 	}
-	return self.parent.GetValue("", name)
+	return self.GetParent().GetValue(pkg, name)
 }
 
 func (self *_FuncScope) GetParent() _Scope {
-	return self.parent
+	if pkg, ok := self.parent.Left(); ok {
+		return pkg
+	}
+	return stlbasic.IgnoreWith(self.parent.Right())
 }
 
 func (self *_FuncScope) GetFuncScope() *_FuncScope {
@@ -243,10 +253,13 @@ func (self *_FuncScope) GetFuncScope() *_FuncScope {
 }
 
 func (self *_FuncScope) GetPkgScope() *_PkgScope {
-	return self.parent
+	if pkg, ok := self.parent.Left(); ok {
+		return pkg
+	}
+	return stlbasic.IgnoreWith(self.parent.Right()).GetPkgScope()
 }
 
-func (self *_FuncScope) GetFunc() hir.GlobalFuncOrMethod {
+func (self *_FuncScope) GetFunc() hir.CallableDef {
 	return self.def
 }
 
@@ -291,7 +304,7 @@ func (self *_BlockScope) GetPkgScope() *_PkgScope {
 	return self.parent.GetPkgScope()
 }
 
-func (self *_BlockScope) GetFunc() hir.GlobalFuncOrMethod {
+func (self *_BlockScope) GetFunc() hir.CallableDef {
 	return self.parent.GetFunc()
 }
 

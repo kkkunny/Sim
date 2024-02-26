@@ -2,6 +2,7 @@ package parse
 
 import (
 	"github.com/kkkunny/stl/container/pair"
+	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/ast"
 
@@ -38,7 +39,7 @@ func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
 			return util.Some[ast.Expr](ident)
 		}
 	case token.LPA:
-		return util.Some[ast.Expr](self.parseTuple())
+		return util.Some(self.parseTupleOrLambda())
 	case token.LBA:
 		return util.Some[ast.Expr](self.parseArray())
 	case token.STRING:
@@ -67,14 +68,70 @@ func (self *Parser) parseFloat() *ast.Float {
 	return &ast.Float{Value: self.expectNextIs(token.FLOAT)}
 }
 
-func (self *Parser) parseTuple() *ast.Tuple {
+func (self *Parser) parseTupleOrLambda() ast.Expr {
 	begin := self.expectNextIs(token.LPA).Position
-	elems := self.parseExprList(token.RPA)
+	first := true
+	var isLambda bool
+	elems := loopParseWithUtil(self, token.COM, token.RPA, func() any {
+		if first {
+			first = false
+
+			var mut bool
+			if self.skipNextIs(token.MUT) {
+				isLambda, mut = true, true
+			}
+			firstParam := self.mustExpr(self.parseOptionExpr(true))
+			firstIdent, ok := firstParam.(*ast.IdentExpr)
+			if ok && firstIdent.Pkg.IsNone() && self.skipNextIs(token.COL) {
+				isLambda = true
+			}
+
+			if isLambda {
+				pt := self.parseType()
+				return ast.Param{
+					Mutable: mut,
+					Name:    firstIdent.Name,
+					Type:    pt,
+				}
+			} else {
+				return first
+			}
+		} else if isLambda {
+			mut := self.skipNextIs(token.MUT)
+			pn := self.expectNextIs(token.IDENT)
+			self.expectNextIs(token.COL)
+			pt := self.parseType()
+			return ast.Param{
+				Mutable: mut,
+				Name:    pn,
+				Type:    pt,
+			}
+		} else {
+			return self.mustExpr(self.parseOptionExpr(true))
+		}
+	})
 	end := self.expectNextIs(token.RPA).Position
-	return &ast.Tuple{
+
+	if !isLambda {
+		return &ast.Tuple{
+			Begin: begin,
+			Elems: stlslices.Map(elems, func(_ int, e any) ast.Expr {
+				return e.(ast.Expr)
+			}),
+			End: end,
+		}
+	}
+
+	self.expectNextIs(token.ARROW)
+	ret := self.parseType()
+	body := self.parseBlock()
+	return &ast.Lambda{
 		Begin: begin,
-		Elems: elems,
-		End:   end,
+		Params: stlslices.Map(elems, func(_ int, e any) ast.Param {
+			return e.(ast.Param)
+		}),
+		Ret:  ret,
+		Body: body,
 	}
 }
 
