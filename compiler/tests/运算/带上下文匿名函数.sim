@@ -1,0 +1,9 @@
+import std::os
+
+func main(){
+	let v: u8 = 1
+	let a = () -> u8{
+		return v
+	}
+	os::exit(a() - 1)
+}

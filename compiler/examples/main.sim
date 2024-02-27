@@ -1,9 +1,9 @@
 import std::os
 
 func main(){
-	let v1: u8
-	let v2 = ()->u8{
-		return v1
+	let v1: u8 = 0
+	let v2 = ()->void{
+		return os::exit(1)
 	}
-	os::exit(v2())
+	return v2()
 }

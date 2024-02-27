@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
@@ -171,6 +173,15 @@ func (self *CodeGenerator) codegenUnary(ir hir.Unary, load bool) mir.Value {
 }
 
 func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
+	if !self.lambdaCaptureMap.Empty() {
+		if mapVal := self.lambdaCaptureMap.Peek().Get(ir); mapVal != nil {
+			if !load {
+				return mapVal
+			}
+			return self.builder.BuildLoad(mapVal)
+		}
+	}
+
 	switch identNode := ir.(type) {
 	case *hir.FuncDef:
 		return self.values.Get(identNode).(*mir.Function)
@@ -213,7 +224,25 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 		args = append([]mir.Value{selfRef}, args...)
 	}
 	if hir.IsType[*hir.LambdaType](ir.Func.GetType()) {
-		return self.builder.BuildCall(self.buildStructIndex(f, 0, false), args...)
+		ctxPtr := self.buildStructIndex(f, 2, false)
+		cf := self.builder.Current().Belong()
+		f1block, f2block, endblock := cf.NewBlock(), cf.NewBlock(), cf.NewBlock()
+		self.builder.BuildCondJump(self.builder.BuildPtrEqual(mir.PtrEqualKindEQ, ctxPtr, mir.NewZero(ctxPtr.Type())), f1block, f2block)
+
+		self.builder.MoveTo(f1block)
+		f1ret := self.builder.BuildCall(self.buildStructIndex(f, 0, false), args...)
+		self.builder.BuildUnCondJump(endblock)
+
+		self.builder.MoveTo(f2block)
+		f2ret := self.builder.BuildCall(self.buildStructIndex(f, 1, false), append([]mir.Value{ctxPtr}, args...)...)
+		self.builder.BuildUnCondJump(endblock)
+
+		self.builder.MoveTo(endblock)
+		if f1ret.Type().Equal(self.ctx.Void()) {
+			return f1ret
+		} else {
+			return self.builder.BuildPhi(f1ret.Type(), pair.NewPair[*mir.Block, mir.Value](f1block, f1ret), pair.NewPair[*mir.Block, mir.Value](f2block, f2ret))
+		}
 	} else {
 		return self.builder.BuildCall(f, args...)
 	}
@@ -256,9 +285,13 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 		}
 		return self.builder.BuildLoad(ptr)
 	case *hir.NoReturn2Any:
-		self.codegenExpr(ir.GetFrom(), false)
+		v := self.codegenExpr(ir.GetFrom(), false)
 		self.builder.BuildUnreachable()
-		return mir.NewZero(self.codegenType(ir.GetType()))
+		if ir.GetType().EqualTo(hir.NoThing) {
+			return v
+		} else {
+			return mir.NewZero(self.codegenType(ir.GetType()))
+		}
 	case *hir.Func2Lambda:
 		t := self.codegenType(ir.GetType()).(mir.StructType)
 		f := self.codegenExpr(ir.GetFrom(), true)
@@ -473,21 +506,59 @@ func (self *CodeGenerator) codegenUnUnion(ir *hir.UnUnion) mir.Value {
 
 func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
 	t := self.codegenType(ir.GetType()).(mir.StructType)
-	ft := t.Elems()[0].(mir.FuncType)
+	isSimpleFunc := ir.Context.IsLeft() && len(stlbasic.IgnoreWith(ir.Context.Left())) == 0
+	ft := stlbasic.Ternary(isSimpleFunc, t.Elems()[0], t.Elems()[1]).(mir.FuncType)
 	f := self.module.NewFunction("", ft)
 	if ir.Ret.EqualTo(hir.NoReturn) {
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
 	}
 
-	preBlock := self.builder.Current()
-	self.builder.MoveTo(f.NewBlock())
-	for i, p := range f.Params() {
-		self.values.Set(ir.Params[i], p)
+	if isSimpleFunc {
+		preBlock := self.builder.Current()
+		self.builder.MoveTo(f.NewBlock())
+		for i, pir := range ir.Params {
+			self.values.Set(pir, f.Params()[i])
+		}
+
+		block, _ := self.codegenBlock(ir.Body, nil)
+		self.builder.BuildUnCondJump(block)
+		self.builder.MoveTo(preBlock)
+
+		return self.builder.BuildPackStruct(t, f, mir.NewZero(t.Elems()[1]), mir.NewZero(t.Elems()[2]))
+	} else {
+		identIrs := stlbasic.IgnoreWith(ir.Context.Left())
+		ctxType := self.ctx.NewStructType(stlslices.Map(identIrs, func(_ int, e hir.Ident) mir.Type {
+			return self.ctx.NewPtrType(self.codegenType(e.GetType()))
+		})...)
+		externalCtxPtr := self.buildMalloc(ctxType)
+		for i, identIr := range identIrs {
+			self.builder.BuildStore(
+				self.codegenIdent(identIr, false),
+				self.buildStructIndex(externalCtxPtr, uint64(i), true),
+			)
+		}
+
+		preBlock := self.builder.Current()
+		self.builder.MoveTo(f.NewBlock())
+		for i, pir := range ir.Params {
+			self.values.Set(pir, f.Params()[i+1])
+		}
+
+		captureMap := hashmap.NewHashMapWithCapacity[hir.Ident, mir.Value](uint(len(identIrs)))
+		innerCtxPtr := self.builder.BuildPtrToPtr(self.builder.BuildLoad(f.Params()[0]), self.ctx.NewPtrType(ctxType))
+		for i, identIr := range identIrs {
+			captureMap.Set(identIr, self.buildStructIndex(innerCtxPtr, uint64(i), false))
+		}
+
+		self.lambdaCaptureMap.Push(captureMap)
+		defer func() {
+			self.lambdaCaptureMap.Pop()
+		}()
+
+		block, _ := self.codegenBlock(ir.Body, nil)
+		self.builder.BuildUnCondJump(block)
+		self.builder.MoveTo(preBlock)
+
+		return self.builder.BuildPackStruct(t, mir.NewZero(t.Elems()[0]), f, self.builder.BuildPtrToPtr(externalCtxPtr, t.Elems()[2].(mir.PtrType)))
 	}
-
-	block, _ := self.codegenBlock(ir.Body, nil)
-	self.builder.BuildUnCondJump(block)
-	self.builder.MoveTo(preBlock)
-
-	return self.builder.BuildPackStruct(t, f, mir.NewZero(t.Elems()[1]), mir.NewZero(t.Elems()[2]))
 }

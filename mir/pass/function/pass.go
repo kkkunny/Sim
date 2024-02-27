@@ -11,8 +11,8 @@ type Pass interface {
 }
 
 // Run 运行pass
-func Run(function *mir.Function, pass ...Pass){
-	for _, p := range pass{
+func Run(function *mir.Function, pass ...Pass) {
+	for _, p := range pass {
 		p.init(*function)
 		p.Run(function)
 	}
@@ -20,10 +20,10 @@ func Run(function *mir.Function, pass ...Pass){
 
 var (
 	// DeadCodeElimination 死码消除
-	DeadCodeElimination = newUnionPass(UnreachableCodeElimination, DeadVariablesElimination, CodeBlockMerge)
+	DeadCodeElimination = newUnionPass(UnreachableCodeElimination, CodeBlockMerge)
 )
 
-func newUnionPass(pass ...Pass)Pass{
+func newUnionPass(pass ...Pass) Pass {
 	return &_UnionPass{passes: pass}
 }
 
@@ -31,10 +31,10 @@ type _UnionPass struct {
 	passes []Pass
 }
 
-func (self *_UnionPass) init(_ mir.Function){}
+func (self *_UnionPass) init(_ mir.Function) {}
 
-func (self *_UnionPass) Run(ir *mir.Function){
-	for _, pass := range self.passes{
+func (self *_UnionPass) Run(ir *mir.Function) {
+	for _, pass := range self.passes {
 		pass.init(*ir)
 		pass.Run(ir)
 	}

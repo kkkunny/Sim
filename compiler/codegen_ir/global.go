@@ -84,8 +84,8 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
 	f := self.values.Get(ir).(*mir.Function)
 	self.builder.MoveTo(f.NewBlock())
-	for i, p := range f.Params() {
-		self.values.Set(ir.Params[i], p)
+	for i, pir := range ir.Params {
+		self.values.Set(pir, f.Params()[i])
 	}
 	block, _ := self.codegenBlock(ir.Body.MustValue(), nil)
 	self.builder.BuildUnCondJump(block)

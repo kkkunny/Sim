@@ -9,21 +9,21 @@ import (
 )
 
 type LLVMOutputer struct {
-	target *llvm.Target
-	ctx llvm.Context
-	module llvm.Module
+	target  *llvm.Target
+	ctx     llvm.Context
+	module  llvm.Module
 	builder llvm.Builder
 
-	types hashmap.HashMap[mir.Type, llvm.Type]
+	types  hashmap.HashMap[mir.Type, llvm.Type]
 	values hashmap.HashMap[mir.Value, llvm.Value]
 	blocks hashmap.HashMap[*mir.Block, llvm.Block]
 }
 
-func NewLLVMOutputer()*LLVMOutputer{
+func NewLLVMOutputer() *LLVMOutputer {
 	return &LLVMOutputer{}
 }
 
-func (self *LLVMOutputer) init(module *mir.Module){
+func (self *LLVMOutputer) init(module *mir.Module) {
 	self.target = getTarget(module.Context().Target())
 	self.ctx = llvm.NewContext()
 	self.module = self.ctx.NewModule("")
@@ -35,30 +35,30 @@ func (self *LLVMOutputer) init(module *mir.Module){
 	self.blocks = hashmap.NewHashMap[*mir.Block, llvm.Block]()
 }
 
-func (self *LLVMOutputer) Codegen(module *mir.Module){
+func (self *LLVMOutputer) Codegen(module *mir.Module) {
 	self.init(module)
 
-	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
+	for cursor := module.Globals().Front(); cursor != nil; cursor = cursor.Next() {
 		self.codegenDeclType(cursor.Value)
 	}
-	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
+	for cursor := module.Globals().Front(); cursor != nil; cursor = cursor.Next() {
 		self.codegenDefType(cursor.Value)
 	}
 
-	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
+	for cursor := module.Globals().Front(); cursor != nil; cursor = cursor.Next() {
 		self.codegenDeclValue(cursor.Value)
 	}
-	for cursor:=module.Globals().Front(); cursor!=nil; cursor=cursor.Next(){
+	for cursor := module.Globals().Front(); cursor != nil; cursor = cursor.Next() {
 		self.codegenDefValue(cursor.Value)
 	}
 
 	stlerror.Must(self.module.Verify())
 }
 
-func (self *LLVMOutputer) Module()llvm.Module{
+func (self *LLVMOutputer) Module() llvm.Module {
 	return self.module
 }
 
-func (self *LLVMOutputer) Target()*llvm.Target{
+func (self *LLVMOutputer) Target() *llvm.Target {
 	return self.target
 }
