@@ -1,6 +1,10 @@
 import std::os
 
+func get(v: u8)u8{
+	return v
+}
+
 func main(){
-	let mut v: u8
-	return v += 1
+	let v: (u8)->u8 = get
+	os::exit(v(1))
 }

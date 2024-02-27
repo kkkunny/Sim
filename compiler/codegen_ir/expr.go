@@ -259,6 +259,10 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 		self.codegenExpr(ir.GetFrom(), false)
 		self.builder.BuildUnreachable()
 		return mir.NewZero(self.codegenType(ir.GetType()))
+	case *hir.Func2Lambda:
+		t := self.codegenType(ir.GetType()).(mir.StructType)
+		f := self.codegenExpr(ir.GetFrom(), true)
+		return self.builder.BuildPackStruct(t, f, mir.NewZero(self.ptrType()))
 	default:
 		panic("unreachable")
 	}
@@ -471,7 +475,7 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
 	ftObj := self.codegenType(ir.GetFuncType())
 	ft := ftObj.(mir.FuncType)
 	f := self.module.NewFunction("", ft)
-	if hir.IsType[*hir.NoReturnType](ir.Ret) {
+	if ir.Ret.EqualTo(hir.NoReturn) {
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
 	}
 

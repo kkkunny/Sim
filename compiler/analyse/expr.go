@@ -314,7 +314,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) {
-			if !hir.IsType[*hir.NoThingType](lt) {
+			if !lt.EqualTo(hir.NoThing) {
 				return &hir.Equal{
 					BoolType: self.pkgScope.Bool(),
 					Left:     left,
@@ -331,7 +331,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 					Args: []hir.Expr{right},
 				},
 			}
-		} else if !hir.IsType[*hir.NoThingType](lt) {
+		} else if !lt.EqualTo(hir.NoThing) {
 			return &hir.NotEqual{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
@@ -635,9 +635,15 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 			From: v,
 			To:   expect,
 		}, true
-	case hir.IsType[*hir.NoReturnType](vt):
+	case vt.EqualTo(hir.NoReturn) && expect.HasDefault():
 		// X -> any
 		return &hir.NoReturn2Any{
+			From: v,
+			To:   expect,
+		}, true
+	case hir.IsType[*hir.FuncType](vt) && hir.IsType[*hir.LambdaType](expect) && hir.AsType[*hir.FuncType](vt).EqualTo(hir.AsType[*hir.LambdaType](expect).ToFuncType()):
+		// func -> ()->void
+		return &hir.Func2Lambda{
 			From: v,
 			To:   expect,
 		}, true

@@ -1186,3 +1186,27 @@ func (self *Lambda) GetFuncType() *FuncType {
 		return e.GetType()
 	})...)
 }
+
+// Func2Lambda 函数转匿名函数
+type Func2Lambda struct {
+	From Expr
+	To   Type
+}
+
+func (self *Func2Lambda) stmt() {}
+
+func (self *Func2Lambda) GetType() Type {
+	return self.To
+}
+
+func (*Func2Lambda) Mutable() bool {
+	return false
+}
+
+func (self *Func2Lambda) GetFrom() Expr {
+	return self.From
+}
+
+func (*Func2Lambda) Temporary() bool {
+	return true
+}
