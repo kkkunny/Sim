@@ -111,6 +111,9 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 		}
 	})
 	end := self.expectNextIs(token.RPA).Position
+	if len(elems) == 0 && self.nextIs(token.ARROW) {
+		isLambda = true
+	}
 
 	if !isLambda {
 		return &ast.Tuple{

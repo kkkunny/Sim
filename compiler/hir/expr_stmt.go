@@ -1161,10 +1161,11 @@ func (*ExpandUnion) Temporary() bool {
 
 // Lambda 匿名函数
 type Lambda struct {
-	Type   Type
-	Params []*Param
-	Ret    Type
-	Body   *Block
+	Type    Type
+	Params  []*Param
+	Ret     Type
+	Body    *Block
+	Context either.Either[[]Ident, Expr] // left是正常lambda捕获的上下文，right是方法的self
 }
 
 func (self *Lambda) stmt() {}

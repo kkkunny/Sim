@@ -262,7 +262,7 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value
 	case *hir.Func2Lambda:
 		t := self.codegenType(ir.GetType()).(mir.StructType)
 		f := self.codegenExpr(ir.GetFrom(), true)
-		return self.builder.BuildPackStruct(t, f, mir.NewZero(self.ptrType()))
+		return self.builder.BuildPackStruct(t, f, mir.NewZero(t.Elems()[1]), mir.NewZero(t.Elems()[2]))
 	default:
 		panic("unreachable")
 	}
@@ -397,7 +397,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 	case *hir.LambdaType:
 		t := self.codegenLambdaType(tir)
 		fn := self.codegenDefault(tir.ToFuncType())
-		return self.builder.BuildPackStruct(t, fn, mir.NewZero(self.ptrType()))
+		return self.builder.BuildPackStruct(t, fn, mir.NewZero(t.Elems()[1]), mir.NewZero(t.Elems()[2]))
 	default:
 		panic("unreachable")
 	}
@@ -472,8 +472,8 @@ func (self *CodeGenerator) codegenUnUnion(ir *hir.UnUnion) mir.Value {
 }
 
 func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
-	ftObj := self.codegenType(ir.GetFuncType())
-	ft := ftObj.(mir.FuncType)
+	t := self.codegenType(ir.GetType()).(mir.StructType)
+	ft := t.Elems()[0].(mir.FuncType)
 	f := self.module.NewFunction("", ft)
 	if ir.Ret.EqualTo(hir.NoReturn) {
 		f.SetAttribute(mir.FunctionAttributeNoReturn)
@@ -484,10 +484,10 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
 	for i, p := range f.Params() {
 		self.values.Set(ir.Params[i], p)
 	}
+
 	block, _ := self.codegenBlock(ir.Body, nil)
 	self.builder.BuildUnCondJump(block)
 	self.builder.MoveTo(preBlock)
 
-	t := self.codegenType(ir.GetType()).(mir.StructType)
-	return self.builder.BuildPackStruct(t, f, mir.NewZero(self.ptrType()))
+	return self.builder.BuildPackStruct(t, f, mir.NewZero(t.Elems()[1]), mir.NewZero(t.Elems()[2]))
 }

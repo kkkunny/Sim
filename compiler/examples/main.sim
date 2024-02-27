@@ -1,10 +1,9 @@
 import std::os
 
-func get(v: u8)u8{
-	return v
-}
-
 func main(){
-	let v: (u8)->u8 = get
-	os::exit(v(1))
+	let v1: u8
+	let v2 = ()->u8{
+		return v1
+	}
+	os::exit(v2())
 }

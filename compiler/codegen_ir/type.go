@@ -126,6 +126,7 @@ func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) mir.StructType 
 	params := stlslices.Map(ir.Params, func(_ int, e hir.Type) mir.Type {
 		return self.codegenType(e)
 	})
-	ft := self.ctx.NewFuncType(false, ret, params...)
-	return self.ctx.NewStructType(ft, self.ptrType())
+	ft1 := self.ctx.NewFuncType(false, ret, params...)
+	ft2 := self.ctx.NewFuncType(false, ret, append([]mir.Type{self.ptrType()}, params...)...)
+	return self.ctx.NewStructType(ft1, ft2, self.ptrType())
 }

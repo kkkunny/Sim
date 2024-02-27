@@ -6,6 +6,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
+	"github.com/kkkunny/stl/container/hashset"
 	stlerror "github.com/kkkunny/stl/error"
 	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
@@ -910,7 +911,13 @@ func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lamb
 	}
 	f.Type = expect
 
-	self.localScope = _NewLambdaScope(self.localScope, f)
+	captureIdents := hashset.NewHashSet[hir.Ident]()
+	self.localScope = _NewLambdaScope(self.localScope, f, func(ident hir.Ident) {
+		if v, ok := ident.(*hir.LocalVarDef); ok {
+			v.Escaped = true
+		}
+		captureIdents.Add(ident)
+	})
 	defer func() {
 		self.localScope = self.localScope.GetParent().(_LocalScope)
 	}()
@@ -922,5 +929,6 @@ func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lamb
 	}
 
 	f.Body = self.analyseFuncBody(node.Body)
+	f.Context = either.Left[[]hir.Ident, hir.Expr](captureIdents.ToSlice().ToSlice())
 	return f
 }

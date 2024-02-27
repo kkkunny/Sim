@@ -210,6 +210,8 @@ type _FuncScope struct {
 	_BlockScope
 	parent either.Either[*_PkgScope, _LocalScope]
 	def    hir.CallableDef
+
+	lambdaCaptureHandler func(hir.Ident)
 }
 
 func _NewFuncScope(p *_PkgScope, def hir.GlobalFuncOrMethod) *_FuncScope {
@@ -221,10 +223,11 @@ func _NewFuncScope(p *_PkgScope, def hir.GlobalFuncOrMethod) *_FuncScope {
 	return self
 }
 
-func _NewLambdaScope(p _LocalScope, def hir.CallableDef) *_FuncScope {
+func _NewLambdaScope(p _LocalScope, def hir.CallableDef, lambdaCaptureHandler func(hir.Ident)) *_FuncScope {
 	self := &_FuncScope{
-		parent: either.Right[*_PkgScope, _LocalScope](p),
-		def:    def,
+		parent:               either.Right[*_PkgScope, _LocalScope](p),
+		def:                  def,
+		lambdaCaptureHandler: lambdaCaptureHandler,
 	}
 	self._BlockScope = *_NewBlockScope(self)
 	return self
@@ -238,7 +241,11 @@ func (self *_FuncScope) GetValue(pkg, name string) (hir.Ident, bool) {
 	if pkg == "" && self.values.ContainKey(name) {
 		return self.values.Get(name), true
 	}
-	return self.GetParent().GetValue(pkg, name)
+	v, ok := self.GetParent().GetValue(pkg, name)
+	if ok && self.lambdaCaptureHandler != nil && !stlbasic.Is[hir.Global](v) {
+		self.lambdaCaptureHandler(v)
+	}
+	return v, ok
 }
 
 func (self *_FuncScope) GetParent() _Scope {

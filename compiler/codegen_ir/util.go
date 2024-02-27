@@ -69,12 +69,13 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 			return self.buildEqual(irType.Target, l, r, not)
 		}
 	case *hir.LambdaType:
-		fp := self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), self.buildStructIndex(l, 0, false), self.buildStructIndex(r, 0, false))
-		pp := self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), self.buildStructIndex(l, 1, false), self.buildStructIndex(r, 1, false))
+		f1p := self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), self.buildStructIndex(l, 0, false), self.buildStructIndex(r, 0, false))
+		f2p := self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), self.buildStructIndex(l, 1, false), self.buildStructIndex(r, 1, false))
+		pp := self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), self.buildStructIndex(l, 2, false), self.buildStructIndex(r, 2, false))
 		return stlbasic.TernaryAction(!not, func() mir.Value {
-			return self.builder.BuildAnd(fp, pp)
+			return self.builder.BuildAnd(self.builder.BuildAnd(f1p, f2p), pp)
 		}, func() mir.Value {
-			return self.builder.BuildOr(fp, pp)
+			return self.builder.BuildOr(self.builder.BuildOr(f1p, f2p), pp)
 		})
 	default:
 		panic("unreachable")
