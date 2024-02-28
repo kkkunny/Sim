@@ -33,3 +33,8 @@ func (self FuncDecl) GetType() *FuncType {
 		return e.GetType()
 	})...)
 }
+
+// CallableDef 可调用定义
+type CallableDef interface {
+	GetFuncType() *FuncType
+}

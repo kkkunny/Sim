@@ -248,3 +248,19 @@ func (self *CheckNull) Position() reader.Position {
 func (self *CheckNull) stmt() {}
 
 func (self *CheckNull) expr() {}
+
+// Lambda 匿名函数
+type Lambda struct {
+	Begin  reader.Position
+	Params []Param
+	Ret    Type
+	Body   *Block
+}
+
+func (self *Lambda) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.Body.Position())
+}
+
+func (self *Lambda) stmt() {}
+
+func (self *Lambda) expr() {}

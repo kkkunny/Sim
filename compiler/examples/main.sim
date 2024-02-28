@@ -1,7 +1,13 @@
 import std::os
 
+type A struct{}
+
+func (A) get(self: &Self)u8{
+	return 1
+}
+
 func main(){
-	let mut v: u8 = 1
-	v += 1
-	os::exit(v)
+	let v1: A
+	let v2 = v1.get
+	os::exit(v2())
 }

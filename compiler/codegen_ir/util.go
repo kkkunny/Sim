@@ -68,6 +68,15 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 		default:
 			return self.buildEqual(irType.Target, l, r, not)
 		}
+	case *hir.LambdaType:
+		f1p := self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), self.buildStructIndex(l, 0, false), self.buildStructIndex(r, 0, false))
+		f2p := self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), self.buildStructIndex(l, 1, false), self.buildStructIndex(r, 1, false))
+		pp := self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), self.buildStructIndex(l, 2, false), self.buildStructIndex(r, 2, false))
+		return stlbasic.TernaryAction(!not, func() mir.Value {
+			return self.builder.BuildAnd(self.builder.BuildAnd(f1p, f2p), pp)
+		}, func() mir.Value {
+			return self.builder.BuildOr(self.builder.BuildOr(f1p, f2p), pp)
+		})
 	default:
 		panic("unreachable")
 	}
@@ -79,7 +88,7 @@ func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value
 		return mir.Bool(self.ctx, true)
 	}
 
-	indexPtr := self.builder.BuildAllocFromStack(self.codegenUsizeType())
+	indexPtr := self.builder.BuildAllocFromStack(self.usizeType())
 	self.builder.BuildStore(mir.NewZero(indexPtr.ElemType()), indexPtr)
 	condBlock := self.builder.Current().Belong().NewBlock()
 	self.builder.BuildUnCondJump(condBlock)
@@ -87,7 +96,7 @@ func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value
 	// cond
 	self.builder.MoveTo(condBlock)
 	index := self.builder.BuildLoad(indexPtr)
-	cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewUint(self.codegenUsizeType(), uint64(t.Length())))
+	cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewUint(self.usizeType(), uint64(t.Length())))
 	bodyBlock, outBlock := self.builder.Current().Belong().NewBlock(), self.builder.Current().Belong().NewBlock()
 	self.builder.BuildCondJump(cond, bodyBlock, outBlock)
 
@@ -100,7 +109,7 @@ func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value
 
 	// action
 	self.builder.MoveTo(actionBlock)
-	self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewUint(self.codegenUsizeType(), 1)), indexPtr)
+	self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewUint(self.usizeType(), 1)), indexPtr)
 	self.builder.BuildUnCondJump(condBlock)
 
 	// out
@@ -274,10 +283,10 @@ func (self *CodeGenerator) constStringPtr(s string) mir.Const {
 		}, func() mir.Const {
 			return mir.NewArrayIndex(
 				self.module.NewConstant("", mir.NewString(self.ctx, s)),
-				mir.NewInt(self.codegenUsizeType(), 0),
+				mir.NewInt(self.usizeType(), 0),
 			)
 		})
-		self.strings.Set(s, self.module.NewConstant("", mir.NewStruct(st, dataPtr, mir.NewInt(self.codegenUsizeType(), int64(len(s))))))
+		self.strings.Set(s, self.module.NewConstant("", mir.NewStruct(st, dataPtr, mir.NewInt(self.usizeType(), int64(len(s))))))
 	}
 	return self.strings.Get(s)
 }
@@ -334,6 +343,14 @@ func (self *CodeGenerator) buildMalloc(t mir.Type) mir.Value {
 	size := stlmath.RoundTo(t.Size(), stlos.Size(t.Align())*stlos.Byte)
 	ptr := self.builder.BuildCall(fn, mir.NewUint(self.ctx.Usize(), uint64(size/stlos.Byte)))
 	return self.builder.BuildPtrToPtr(ptr, self.ctx.NewPtrType(t))
+}
+
+func (self *CodeGenerator) usizeType() mir.UintType {
+	return self.codegenType(self.hir.BuildinTypes.Usize).(mir.UintType)
+}
+
+func (self *CodeGenerator) ptrType() mir.PtrType {
+	return self.ctx.NewPtrType(self.codegenType(self.hir.BuildinTypes.U8))
 }
 
 // CodegenIr 中间代码生成

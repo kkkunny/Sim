@@ -54,7 +54,7 @@ func (self *MultiGlobalVarDef) GetPublic() bool {
 
 type GlobalFuncOrMethod interface {
 	Global
-	GetFuncType() *FuncType
+	CallableDef
 }
 
 // FuncDef 函数定义
@@ -168,7 +168,7 @@ type TypeDef struct {
 	Public  bool
 	Name    string
 	Target  Type
-	Methods hashmap.HashMap[string, GlobalMethod]
+	Methods hashmap.HashMap[string, *MethodDef]
 }
 
 func (self *TypeDef) GetPackage() Package {

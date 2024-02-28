@@ -70,6 +70,12 @@ func ToBuildInType(t Type) BuildInType {
 	}
 }
 
+type CallableType interface {
+	BuildInType
+	GetRet() Type
+	GetParams() []Type
+}
+
 // TryType 尝试断言为指定类型
 func TryType[T BuildInType](t Type) (T, bool) {
 	switch tt := t.(type) {
@@ -111,7 +117,7 @@ func IsPointer(t Type) bool    { return IsType[*RefType](t) || IsType[*FuncType]
 type NoThingType struct{}
 
 func (*NoThingType) String() string {
-	return ""
+	return "void"
 }
 
 func (self *NoThingType) EqualTo(dst Type) bool {
@@ -262,7 +268,8 @@ func NewFuncType(ret Type, params ...Type) *FuncType {
 
 func (self *FuncType) String() string {
 	params := stlslices.Map(self.Params, func(_ int, e Type) string { return e.String() })
-	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.Ret)
+	ret := stlbasic.Ternary(self.Ret.EqualTo(NoThing), "", self.Ret.String())
+	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
 }
 
 func (self *FuncType) EqualTo(dst Type) bool {
@@ -296,6 +303,14 @@ func (self *FuncType) Runtime() runtimeType.Type {
 
 func (self *FuncType) buildin() {}
 func (self *FuncType) runtime() {}
+
+func (self *FuncType) GetRet() Type {
+	return self.Ret
+}
+
+func (self *FuncType) GetParams() []Type {
+	return self.Params
+}
 
 // ArrayType 数组型
 type ArrayType struct {
@@ -588,6 +603,10 @@ func replaceAllSelfType(t Type, to *CustomType) Type {
 		})...)
 	case *SelfType:
 		return stlbasic.Ternary[Type](tt.Self.IsNone(), NewSelfType(util.Some[*CustomType](to)), tt)
+	case *LambdaType:
+		return NewLambdaType(replaceAllSelfType(tt.Ret, to), stlslices.Map(tt.Params, func(_ int, e Type) Type {
+			return replaceAllSelfType(e, to)
+		})...)
 	default:
 		panic("unreachable")
 	}
@@ -677,7 +696,7 @@ func (self *CustomType) Runtime() runtimeType.Type {
 	rt := runtimeType.NewCustomType(self.Pkg.String(), self.Name, nil, nil)
 	customTypeRuntimeCache[self] = rt
 	rt.Target = self.Target.Runtime()
-	rt.Methods = stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
+	rt.Methods = stliter.Map[pair.Pair[string, *MethodDef], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, *MethodDef]) runtimeType.Method {
 		return runtimeType.NewMethod(e.Second.GetFuncType().Runtime().(*runtimeType.FuncType), e.First)
 	}).ToSlice()
 	return rt
@@ -702,4 +721,66 @@ func (self *AliasType) HasDefault() bool {
 
 func (self *AliasType) Runtime() runtimeType.Type {
 	return self.Target.Runtime()
+}
+
+// LambdaType 匿名函数类型
+type LambdaType struct {
+	Ret    Type
+	Params []Type
+}
+
+func NewLambdaType(ret Type, params ...Type) *LambdaType {
+	return &LambdaType{
+		Ret:    ret,
+		Params: params,
+	}
+}
+
+func (self *LambdaType) String() string {
+	params := stlslices.Map(self.Params, func(_ int, e Type) string { return e.String() })
+	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), self.Ret)
+}
+
+func (self *LambdaType) EqualTo(dst Type) bool {
+	at, ok := ToRuntimeType(dst).(*LambdaType)
+	if !ok {
+		return false
+	}
+	if !self.Ret.EqualTo(at.Ret) || len(self.Params) != len(at.Params) {
+		return false
+	}
+	for i, p := range self.Params {
+		if !p.EqualTo(at.Params[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (self *LambdaType) HasDefault() bool {
+	if self.Ret.EqualTo(NoThing) {
+		return true
+	}
+	return self.Ret.HasDefault()
+}
+
+func (self *LambdaType) Runtime() runtimeType.Type {
+	return runtimeType.NewLambdaType(self.Ret.Runtime(), stlslices.Map(self.Params, func(_ int, e Type) runtimeType.Type {
+		return e.Runtime()
+	})...)
+}
+
+func (self *LambdaType) buildin() {}
+func (self *LambdaType) runtime() {}
+
+func (self *LambdaType) ToFuncType() *FuncType {
+	return NewFuncType(self.Ret, self.Params...)
+}
+
+func (self *LambdaType) GetRet() Type {
+	return self.Ret
+}
+
+func (self *LambdaType) GetParams() []Type {
+	return self.Params
 }

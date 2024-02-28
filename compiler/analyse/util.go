@@ -100,7 +100,7 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 	}()
 
 	switch typ := t.(type) {
-	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType, *hir.NoReturnType:
+	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType, *hir.NoReturnType, *hir.LambdaType:
 	case *hir.ArrayType:
 		return self.checkTypeDefCircle(trace, typ.Elem)
 	case *hir.TupleType:
@@ -152,6 +152,13 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	switch typ := t.(type) {
 	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType, *hir.NoReturnType:
 	case *hir.FuncType:
+		for _, p := range typ.Params {
+			if self.checkTypeAliasCircle(trace, p) {
+				return true
+			}
+		}
+		return self.checkTypeAliasCircle(trace, typ.Ret)
+	case *hir.LambdaType:
 		for _, p := range typ.Params {
 			if self.checkTypeAliasCircle(trace, p) {
 				return true
@@ -234,9 +241,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		// 类型
 		name := node.Name.Source()
 		// 内置类型
-		if name == "X" {
-			return util.Some(either.Right[hir.Ident, hir.Type](hir.NoReturn))
-		} else if strings.HasPrefix(name, "__buildin_i") {
+		if strings.HasPrefix(name, "__buildin_i") {
 			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
 			if err == nil && bits > 0 && bits <= 128 {
 				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewSintType(uint8(bits))))
@@ -265,7 +270,7 @@ func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {
 	body, jump := self.analyseBlock(node, nil)
 	if jump != hir.BlockEofReturn {
 		retType := fn.GetFuncType().Ret
-		if !hir.IsType[*hir.NoThingType](retType) {
+		if !retType.EqualTo(hir.NoThing) {
 			errors.ThrowMissingReturnValueError(node.Position(), retType)
 		}
 		body.Stmts.PushBack(&hir.Return{
@@ -295,7 +300,7 @@ func (self *Analyser) analyseFuncDecl(node ast.FuncDecl) hir.FuncDecl {
 	return hir.FuncDecl{
 		Name:   node.Name.Source(),
 		Params: params,
-		Ret:    self.analyseOptionType(node.Ret),
+		Ret:    self.analyseOptionTypeWith(node.Ret, noReturnTypeAnalyser),
 	}
 }
 

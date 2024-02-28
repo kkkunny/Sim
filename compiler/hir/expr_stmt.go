@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/util"
@@ -686,7 +685,7 @@ type Call struct {
 func (self *Call) stmt() {}
 
 func (self *Call) GetType() Type {
-	return AsType[*FuncType](self.Func.GetType()).Ret
+	return AsType[CallableType](self.Func.GetType()).GetRet()
 }
 
 func (self *Call) Mutable() bool {
@@ -1056,55 +1055,47 @@ func (*DeRef) Temporary() bool {
 }
 
 // Method 方法
+// TODO: 逃逸分析
 type Method struct {
-	Self   either.Either[Expr, *CustomType]
+	Self   Expr
 	Define *MethodDef
 }
 
-// FindMethod 寻找方法
-func FindMethod(ct *CustomType, sv Expr, name string) util.Option[*Method] {
+// LoopFindMethodWithNoCheck 循环寻找方法
+func LoopFindMethodWithNoCheck(ct *CustomType, selfVal util.Option[Expr], name string) util.Option[Expr] {
 	method := ct.Methods.Get(name)
 	if method != nil {
-		return util.Some(&Method{
-			Self:   stlbasic.Ternary[either.Either[Expr, *CustomType]](sv != nil, either.Left[Expr, *CustomType](sv), either.Right[Expr, *CustomType](ct)),
-			Define: method.(*MethodDef),
-		})
+		if method.IsStatic() {
+			return util.Some[Expr](method)
+		} else if selfVal.IsNone() {
+			return util.None[Expr]()
+		} else {
+			return util.Some[Expr](&Method{
+				Self:   selfVal.MustValue(),
+				Define: method,
+			})
+		}
 	}
 	tct, ok := TryCustomType(ct.Target)
 	if !ok {
-		return util.None[*Method]()
+		return util.None[Expr]()
 	}
-	return FindMethod(tct, stlbasic.Ternary(sv != nil, &DoNothingCovert{From: sv, To: tct}, nil), name)
+	return LoopFindMethodWithNoCheck(tct, stlbasic.TernaryAction(selfVal.IsSome(), func() util.Option[Expr] {
+		return util.Some[Expr](&DoNothingCovert{From: selfVal.MustValue(), To: tct})
+	}, func() util.Option[Expr] {
+		return util.None[Expr]()
+	}), name)
 }
 
 func (self *Method) stmt() {}
 
-func (self *Method) GetScope() *TypeDef {
-	if left, ok := self.Self.Left(); ok {
-		return AsCustomType(left.GetType())
-	} else {
-		return stlbasic.IgnoreWith(self.Self.Right())
-	}
-}
-
-func (self *Method) GetDefine() GlobalMethod {
-	return self.Define
-}
-
 func (self *Method) GetType() Type {
-	if self.Define.IsStatic() {
-		return self.Define.GetFuncType()
-	} else {
-		return self.Define.GetMethodType()
-	}
+	ft := self.Define.GetMethodType()
+	return NewLambdaType(ft.GetRet(), ft.GetParams()...)
 }
 
 func (self *Method) Mutable() bool {
 	return false
-}
-
-func (self *Method) GetName() string {
-	return self.Define.GetName()
 }
 
 func (*Method) Temporary() bool {
@@ -1156,5 +1147,58 @@ func (self *ExpandUnion) GetFrom() Expr {
 }
 
 func (*ExpandUnion) Temporary() bool {
+	return true
+}
+
+// Lambda 匿名函数
+type Lambda struct {
+	Type    Type
+	Params  []*Param
+	Ret     Type
+	Body    *Block
+	Context []Ident
+}
+
+func (self *Lambda) stmt() {}
+
+func (self *Lambda) GetType() Type {
+	return self.Type
+}
+
+func (self *Lambda) Mutable() bool {
+	return false
+}
+
+func (*Lambda) Temporary() bool {
+	return true
+}
+
+func (self *Lambda) GetFuncType() *FuncType {
+	return NewFuncType(self.Ret, stlslices.Map(self.Params, func(_ int, e *Param) Type {
+		return e.GetType()
+	})...)
+}
+
+// Func2Lambda 函数转匿名函数
+type Func2Lambda struct {
+	From Expr
+	To   Type
+}
+
+func (self *Func2Lambda) stmt() {}
+
+func (self *Func2Lambda) GetType() Type {
+	return self.To
+}
+
+func (*Func2Lambda) Mutable() bool {
+	return false
+}
+
+func (self *Func2Lambda) GetFrom() Expr {
+	return self.From
+}
+
+func (*Func2Lambda) Temporary() bool {
 	return true
 }
