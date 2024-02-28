@@ -10,6 +10,7 @@ import (
 
 	"github.com/kkkunny/Sim/hir"
 	"github.com/kkkunny/Sim/mir"
+	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
@@ -57,6 +58,8 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenUnUnion(expr)
 	case *hir.Lambda:
 		return self.codegenLambda(expr)
+	case *hir.Method:
+		return self.codegenMethod(expr)
 	default:
 		panic("unreachable")
 	}
@@ -185,44 +188,24 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 	switch identNode := ir.(type) {
 	case *hir.FuncDef:
 		return self.values.Get(identNode).(*mir.Function)
+	case *hir.MethodDef:
+		return self.values.Get(&identNode.FuncDef).(*mir.Function)
 	case hir.Variable:
 		p := self.values.Get(identNode)
 		if !load {
 			return p
 		}
 		return self.builder.BuildLoad(p)
-	case *hir.Method:
-		// TODO: 闭包
-		panic("unreachable")
 	default:
 		panic("unreachable")
 	}
 }
 
 func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
+	f := self.codegenExpr(ir.Func, true)
 	args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) mir.Value {
 		return self.codegenExpr(e, true)
 	})
-	var f, selfValue mir.Value
-	switch fnIr := ir.Func.(type) {
-	case *hir.Method:
-		if !fnIr.Define.IsStatic() {
-			selfValue = self.codegenExpr(stlbasic.IgnoreWith(fnIr.Self.Left()), !hir.IsType[*hir.RefType](fnIr.Define.Params[0].GetType()))
-		}
-		f = self.values.Get(&fnIr.Define.FuncDef)
-	default:
-		f = self.codegenExpr(ir.Func, true)
-	}
-	if selfValue != nil {
-		var selfRef mir.Value
-		if expectSelfRefType := f.Type().(mir.FuncType).Params()[0]; !selfValue.Type().Equal(expectSelfRefType) {
-			selfRef = self.builder.BuildAllocFromStack(selfValue.Type())
-			self.builder.BuildStore(selfValue, selfRef)
-		} else {
-			selfRef = selfValue
-		}
-		args = append([]mir.Value{selfRef}, args...)
-	}
 	if hir.IsType[*hir.LambdaType](ir.Func.GetType()) {
 		ctxPtr := self.buildStructIndex(f, 2, false)
 		cf := self.builder.Current().Belong()
@@ -395,7 +378,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 		return self.builder.BuildPackStruct(self.codegenTupleType(tir), elems...)
 	case *hir.CustomType:
 		if self.hir.BuildinTypes.Default.HasBeImpled(tir) {
-			return self.codegenCall(&hir.Call{Func: hir.FindMethod(tir, nil, self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()})
+			return self.codegenCall(&hir.Call{Func: hir.LoopFindMethodWithNoCheck(tir, util.None[hir.Expr](), self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()})
 		}
 		return self.codegenDefault(tir.Target)
 	case *hir.StructType:
@@ -506,7 +489,7 @@ func (self *CodeGenerator) codegenUnUnion(ir *hir.UnUnion) mir.Value {
 
 func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
 	t := self.codegenType(ir.GetType()).(mir.StructType)
-	isSimpleFunc := ir.Context.IsLeft() && len(stlbasic.IgnoreWith(ir.Context.Left())) == 0
+	isSimpleFunc := len(ir.Context) == 0
 	ft := stlbasic.Ternary(isSimpleFunc, t.Elems()[0], t.Elems()[1]).(mir.FuncType)
 	f := self.module.NewFunction("", ft)
 	if ir.Ret.EqualTo(hir.NoReturn) {
@@ -526,12 +509,11 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
 
 		return self.builder.BuildPackStruct(t, f, mir.NewZero(t.Elems()[1]), mir.NewZero(t.Elems()[2]))
 	} else {
-		identIrs := stlbasic.IgnoreWith(ir.Context.Left())
-		ctxType := self.ctx.NewStructType(stlslices.Map(identIrs, func(_ int, e hir.Ident) mir.Type {
+		ctxType := self.ctx.NewStructType(stlslices.Map(ir.Context, func(_ int, e hir.Ident) mir.Type {
 			return self.ctx.NewPtrType(self.codegenType(e.GetType()))
 		})...)
 		externalCtxPtr := self.buildMalloc(ctxType)
-		for i, identIr := range identIrs {
+		for i, identIr := range ir.Context {
 			self.builder.BuildStore(
 				self.codegenIdent(identIr, false),
 				self.buildStructIndex(externalCtxPtr, uint64(i), true),
@@ -544,9 +526,9 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
 			self.values.Set(pir, f.Params()[i+1])
 		}
 
-		captureMap := hashmap.NewHashMapWithCapacity[hir.Ident, mir.Value](uint(len(identIrs)))
+		captureMap := hashmap.NewHashMapWithCapacity[hir.Ident, mir.Value](uint(len(ir.Context)))
 		innerCtxPtr := self.builder.BuildPtrToPtr(self.builder.BuildLoad(f.Params()[0]), self.ctx.NewPtrType(ctxType))
-		for i, identIr := range identIrs {
+		for i, identIr := range ir.Context {
 			captureMap.Set(identIr, self.buildStructIndex(innerCtxPtr, uint64(i), false))
 		}
 
@@ -561,4 +543,39 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {
 
 		return self.builder.BuildPackStruct(t, mir.NewZero(t.Elems()[0]), f, self.builder.BuildPtrToPtr(externalCtxPtr, t.Elems()[2].(mir.PtrType)))
 	}
+}
+
+func (self *CodeGenerator) codegenMethod(ir *hir.Method) mir.Value {
+	t := self.codegenType(ir.GetType()).(mir.StructType)
+	ft := t.Elems()[1].(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Define.Ret.EqualTo(hir.NoReturn) {
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+
+	ctxType := self.ctx.NewStructType(self.codegenType(ir.Self.GetType()))
+	externalCtxPtr := self.buildMalloc(ctxType)
+	self.builder.BuildStore(
+		self.codegenExpr(ir.Self, true),
+		self.buildStructIndex(externalCtxPtr, 0, true),
+	)
+
+	preBlock := self.builder.Current()
+	self.builder.MoveTo(f.NewBlock())
+	method := self.codegenIdent(ir.Define, true)
+	innerCtxPtr := self.builder.BuildPtrToPtr(self.builder.BuildLoad(f.Params()[0]), self.ctx.NewPtrType(ctxType))
+	selfVal := self.buildStructIndex(innerCtxPtr, 0, false)
+	args := []mir.Value{selfVal}
+	args = append(args, stlslices.Map(f.Params()[1:], func(_ int, e *mir.Param) mir.Value {
+		return self.builder.BuildLoad(e)
+	})...)
+	ret := self.builder.BuildCall(method, args...)
+	if ret.Type().Equal(self.ctx.Void()) {
+		self.builder.BuildReturn()
+	} else {
+		self.builder.BuildReturn(ret)
+	}
+
+	self.builder.MoveTo(preBlock)
+	return self.builder.BuildPackStruct(t, mir.NewZero(t.Elems()[0]), f, self.builder.BuildPtrToPtr(externalCtxPtr, t.Elems()[2].(mir.PtrType)))
 }

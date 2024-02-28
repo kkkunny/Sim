@@ -168,7 +168,7 @@ type TypeDef struct {
 	Public  bool
 	Name    string
 	Target  Type
-	Methods hashmap.HashMap[string, GlobalMethod]
+	Methods hashmap.HashMap[string, *MethodDef]
 }
 
 func (self *TypeDef) GetPackage() Package {

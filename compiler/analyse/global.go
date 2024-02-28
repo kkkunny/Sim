@@ -307,7 +307,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
 	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
 	st := td.(*hir.TypeDef)
-	f := st.Methods.Get(node.Name.Source()).(*hir.MethodDef)
+	f := st.Methods.Get(node.Name.Source())
 
 	if node.Body.IsNone() {
 		return f

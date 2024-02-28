@@ -696,7 +696,7 @@ func (self *CustomType) Runtime() runtimeType.Type {
 	rt := runtimeType.NewCustomType(self.Pkg.String(), self.Name, nil, nil)
 	customTypeRuntimeCache[self] = rt
 	rt.Target = self.Target.Runtime()
-	rt.Methods = stliter.Map[pair.Pair[string, GlobalMethod], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, GlobalMethod]) runtimeType.Method {
+	rt.Methods = stliter.Map[pair.Pair[string, *MethodDef], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, *MethodDef]) runtimeType.Method {
 		return runtimeType.NewMethod(e.Second.GetFuncType().Runtime().(*runtimeType.FuncType), e.First)
 	}).ToSlice()
 	return rt

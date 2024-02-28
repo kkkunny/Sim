@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/either"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/util"
@@ -1057,34 +1056,40 @@ func (*DeRef) Temporary() bool {
 
 // Method 方法
 type Method struct {
-	Self   either.Either[Expr, *CustomType]
+	Self   Expr
 	Define *MethodDef
 }
 
-// FindMethod 寻找方法
-func FindMethod(ct *CustomType, sv Expr, name string) util.Option[*Method] {
+// LoopFindMethodWithNoCheck 循环寻找方法
+func LoopFindMethodWithNoCheck(ct *CustomType, selfVal util.Option[Expr], name string) util.Option[Expr] {
 	method := ct.Methods.Get(name)
 	if method != nil {
-		return util.Some(&Method{
-			Self:   stlbasic.Ternary[either.Either[Expr, *CustomType]](sv != nil, either.Left[Expr, *CustomType](sv), either.Right[Expr, *CustomType](ct)),
-			Define: method.(*MethodDef),
-		})
+		if method.IsStatic() {
+			return util.Some[Expr](method)
+		} else if selfVal.IsNone() {
+			return util.None[Expr]()
+		} else {
+			return util.Some[Expr](&Method{
+				Self:   selfVal.MustValue(),
+				Define: method,
+			})
+		}
 	}
 	tct, ok := TryCustomType(ct.Target)
 	if !ok {
-		return util.None[*Method]()
+		return util.None[Expr]()
 	}
-	return FindMethod(tct, stlbasic.Ternary(sv != nil, &DoNothingCovert{From: sv, To: tct}, nil), name)
+	return LoopFindMethodWithNoCheck(tct, stlbasic.TernaryAction(selfVal.IsSome(), func() util.Option[Expr] {
+		return util.Some[Expr](&DoNothingCovert{From: selfVal.MustValue(), To: tct})
+	}, func() util.Option[Expr] {
+		return util.None[Expr]()
+	}), name)
 }
 
 func (self *Method) stmt() {}
 
 func (self *Method) GetScope() *TypeDef {
-	if left, ok := self.Self.Left(); ok {
-		return AsCustomType(left.GetType())
-	} else {
-		return stlbasic.IgnoreWith(self.Self.Right())
-	}
+	return AsCustomType(self.Self.GetType())
 }
 
 func (self *Method) GetDefine() GlobalMethod {
@@ -1092,19 +1097,12 @@ func (self *Method) GetDefine() GlobalMethod {
 }
 
 func (self *Method) GetType() Type {
-	if self.Define.IsStatic() {
-		return self.Define.GetFuncType()
-	} else {
-		return self.Define.GetMethodType()
-	}
+	ft := self.Define.GetMethodType()
+	return NewLambdaType(ft.GetRet(), ft.GetParams()...)
 }
 
 func (self *Method) Mutable() bool {
 	return false
-}
-
-func (self *Method) GetName() string {
-	return self.Define.GetName()
 }
 
 func (*Method) Temporary() bool {
@@ -1165,7 +1163,7 @@ type Lambda struct {
 	Params  []*Param
 	Ret     Type
 	Body    *Block
-	Context either.Either[[]Ident, Expr] // left是正常lambda捕获的上下文，right是方法的self
+	Context []Ident
 }
 
 func (self *Lambda) stmt() {}
