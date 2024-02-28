@@ -1055,6 +1055,7 @@ func (*DeRef) Temporary() bool {
 }
 
 // Method 方法
+// TODO: 逃逸分析
 type Method struct {
 	Self   Expr
 	Define *MethodDef
@@ -1087,14 +1088,6 @@ func LoopFindMethodWithNoCheck(ct *CustomType, selfVal util.Option[Expr], name s
 }
 
 func (self *Method) stmt() {}
-
-func (self *Method) GetScope() *TypeDef {
-	return AsCustomType(self.Self.GetType())
-}
-
-func (self *Method) GetDefine() GlobalMethod {
-	return self.Define
-}
 
 func (self *Method) GetType() Type {
 	ft := self.Define.GetMethodType()
