@@ -241,17 +241,17 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		// 类型
 		name := node.Name.Source()
 		// 内置类型
-		if strings.HasPrefix(name, "__buildin_i") {
+		if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_i") {
 			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
 			if err == nil && bits > 0 && bits <= 128 {
 				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewSintType(uint8(bits))))
 			}
-		} else if strings.HasPrefix(name, "__buildin_u") {
+		} else if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_u") {
 			bits, err := strconv.ParseUint(name[len("__buildin_u"):], 10, 8)
 			if err == nil && bits > 0 && bits <= 128 {
 				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewUintType(uint8(bits))))
 			}
-		} else if strings.HasPrefix(name, "__buildin_f") {
+		} else if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_f") {
 			bits, err := strconv.ParseUint(name[len("__buildin_f"):], 10, 8)
 			if err == nil && (bits == 16 || bits == 32 || bits == 64 || bits == 128) {
 				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewFloatType(uint8(bits))))
