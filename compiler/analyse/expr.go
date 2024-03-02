@@ -508,7 +508,35 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
 	return stlbasic.IgnoreWith(expr.MustValue().Left())
 }
 
-func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
+func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
+	if dotNode, ok := node.Func.(*ast.Dot); ok {
+		if identNode, ok := dotNode.From.(*ast.IdentExpr); ok {
+			ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
+			if ok {
+				if t, ok := ident.Right(); ok {
+					if et, ok := hir.TryType[*hir.EnumType](t); ok {
+						// 枚举值
+						fieldName := dotNode.Index.Source()
+						if et.Fields.ContainKey(fieldName) {
+							caseDef := et.Fields.Get(fieldName)
+							if len(caseDef.Elems) != len(node.Args) {
+								errors.ThrowParameterNumberNotMatchError(identNode.Position(), uint(len(caseDef.Elems)), uint(len(node.Args)))
+							}
+							elems := stlslices.Map(node.Args, func(i int, e ast.Expr) hir.Expr {
+								return self.analyseExpr(caseDef.Elems[i], e)
+							})
+							return &hir.Enum{
+								From:  t,
+								Field: fieldName,
+								Elems: elems,
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	f := self.analyseExpr(nil, node.Func)
 	ct, ok := hir.TryType[hir.CallableType](f.GetType())
 	if !ok {
@@ -744,7 +772,10 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 				if et, ok := hir.TryType[*hir.EnumType](t); ok {
 					// 枚举值
 					if et.Fields.ContainKey(fieldName) {
-						return &hir.GetEnumField{
+						if len(et.Fields.Get(fieldName).Elems) != 0 {
+							errors.ThrowParameterNumberNotMatchError(identNode.Position(), uint(len(et.Fields.Get(fieldName).Elems)), 0)
+						}
+						return &hir.Enum{
 							From:  t,
 							Field: fieldName,
 						}

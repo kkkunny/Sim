@@ -119,6 +119,21 @@ func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) mir.StructType 
 	return self.ctx.NewStructType(ft1, ft2, self.ptrType())
 }
 
-func (self *CodeGenerator) codegenEnumType(_ *hir.EnumType) mir.Type {
-	return self.ctx.U8()
+func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) mir.Type {
+	if ir.IsSimple() {
+		return self.ctx.U8()
+	}
+
+	var maxSizeType mir.Type
+	var maxSize stlos.Size
+	for iter := ir.Fields.Iterator(); iter.Next(); {
+		if len(iter.Value().Second.Elems) == 0 {
+			continue
+		}
+		et := self.codegenTupleType(hir.NewTupleType(iter.Value().Second.Elems...))
+		if esize := et.Size(); esize > maxSize {
+			maxSizeType, maxSize = et, esize
+		}
+	}
+	return self.ctx.NewStructType(maxSizeType, self.ctx.U8())
 }

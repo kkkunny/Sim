@@ -3,6 +3,7 @@ package codegen_ir
 import (
 	"slices"
 
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/pair"
@@ -272,7 +273,17 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 	}
 
 	etIr := hir.AsType[*hir.EnumType](ir.Value.GetType())
-	value := self.codegenExpr(ir.Value, true)
+	t := self.codegenType(ir.Value.GetType())
+	value := self.codegenExpr(ir.Value, false)
+	index := stlbasic.TernaryAction(etIr.IsSimple(), func() mir.Value {
+		if value.Type().Equal(t) {
+			return value
+		} else {
+			return self.builder.BuildLoad(value)
+		}
+	}, func() mir.Value {
+		return self.buildStructIndex(value, 1, false)
+	})
 
 	curBlock := self.builder.Current()
 	endBlock := curBlock.Belong().NewBlock()
@@ -280,11 +291,27 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 	cases := make([]pair.Pair[mir.Const, *mir.Block], 0, ir.Cases.Length())
 	for iter := ir.Cases.Iterator(); iter.Next(); {
 		caseIndex := slices.Index(etIr.Fields.Keys().ToSlice(), iter.Value().First)
-		caseBlock, caseCurBlock := self.codegenBlock(iter.Value().Second, nil)
+		caseBlock, caseCurBlock := self.codegenBlock(iter.Value().Second.Body, func(block *mir.Block) {
+			if len(iter.Value().Second.Elems) == 0 {
+				return
+			}
+
+			caseCurBlock := self.builder.Current()
+			defer self.builder.MoveTo(caseCurBlock)
+			self.builder.MoveTo(block)
+
+			caseType := self.codegenTupleType(hir.NewTupleType(stlslices.Map(iter.Value().Second.Elems, func(_ int, e *hir.Param) hir.Type {
+				return e.GetType()
+			})...))
+			ptr := self.builder.BuildPtrToPtr(self.buildStructIndex(value, 0, true), self.ctx.NewPtrType(caseType))
+			for i, elem := range iter.Value().Second.Elems {
+				self.values.Set(elem, self.buildStructIndex(ptr, uint64(i), true))
+			}
+		})
 		self.builder.MoveTo(caseCurBlock)
 		self.builder.BuildUnCondJump(endBlock)
 
-		cases = append(cases, pair.NewPair[mir.Const, *mir.Block](mir.NewInt(value.Type().(mir.IntType), int64(caseIndex)), caseBlock))
+		cases = append(cases, pair.NewPair[mir.Const, *mir.Block](mir.NewInt(index.Type().(mir.IntType), int64(caseIndex)), caseBlock))
 	}
 
 	var otherBlock *mir.Block
@@ -298,7 +325,7 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 	}
 
 	self.builder.MoveTo(curBlock)
-	self.builder.BuildSwitch(value, otherBlock, cases...)
+	self.builder.BuildSwitch(index, otherBlock, cases...)
 
 	self.builder.MoveTo(endBlock)
 }

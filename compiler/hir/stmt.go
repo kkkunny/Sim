@@ -101,9 +101,15 @@ type For struct {
 func (*For) stmt() {}
 func (*For) loop() {}
 
+type MatchCase struct {
+	Name  string
+	Elems []*Param
+	Body  *Block
+}
+
 type Match struct {
 	Value Expr
-	Cases linkedhashmap.LinkedHashMap[string, *Block]
+	Cases linkedhashmap.LinkedHashMap[string, *MatchCase]
 	Other util.Option[*Block]
 }
 

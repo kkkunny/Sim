@@ -7,6 +7,7 @@ import (
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/reader"
 
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
@@ -264,15 +265,40 @@ func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 		errors.ThrowExpectEnumTypeError(node.Value.Position(), vtObj)
 	}
 
-	cases := linkedhashmap.NewLinkedHashMapWithCapacity[string, *hir.Block](uint(len(node.Cases)))
+	cases := linkedhashmap.NewLinkedHashMapWithCapacity[string, *hir.MatchCase](uint(len(node.Cases)))
 	for _, caseNode := range node.Cases {
-		caseName := caseNode.First.Source()
+		caseName := caseNode.Name.Source()
 		if !vt.Fields.ContainKey(caseName) {
-			errors.ThrowUnknownIdentifierError(caseNode.First.Position, caseNode.First)
+			errors.ThrowUnknownIdentifierError(caseNode.Name.Position, caseNode.Name)
 		} else if cases.ContainKey(caseName) {
-			errors.ThrowIdentifierDuplicationError(caseNode.First.Position, caseNode.First)
+			errors.ThrowIdentifierDuplicationError(caseNode.Name.Position, caseNode.Name)
 		}
-		cases.Set(caseName, stlbasic.IgnoreWith(self.analyseBlock(caseNode.Second, nil)))
+		caseDef := vt.Fields.Get(caseName)
+		if len(caseNode.Elems) != len(caseDef.Elems) {
+			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), uint(len(caseDef.Elems)), uint(len(caseNode.Elems)))
+		}
+		elems := stlslices.Map(caseNode.Elems, func(i int, e ast.MatchCaseElem) *hir.Param {
+			return &hir.Param{
+				VarDecl: hir.VarDecl{
+					Mut:  e.Mutable,
+					Type: caseDef.Elems[i],
+					Name: e.Name.Source(),
+				},
+			}
+		})
+		fn := func(scope _LocalScope) {
+			for i, elemNode := range caseNode.Elems {
+				elemName := elemNode.Name.Source()
+				if !scope.SetValue(elemName, elems[i]) {
+					errors.ThrowIdentifierDuplicationError(elemNode.Name.Position, elemNode.Name)
+				}
+			}
+		}
+		cases.Set(caseName, &hir.MatchCase{
+			Name:  caseName,
+			Elems: elems,
+			Body:  stlbasic.IgnoreWith(self.analyseBlock(caseNode.Body, fn)),
+		})
 	}
 
 	var other util.Option[*hir.Block]

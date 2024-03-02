@@ -395,12 +395,14 @@ func (self *LambdaType) Equal(dst Type) bool {
 }
 
 type EnumField struct {
-	Name string
+	Name  string
+	Elems []Type
 }
 
-func NewEnumField(name string) EnumField {
+func NewEnumField(name string, elems ...Type) EnumField {
 	return EnumField{
-		Name: name,
+		Name:  name,
+		Elems: elems,
 	}
 }
 

@@ -110,7 +110,8 @@ func (self *LambdaType) Position() reader.Position {
 func (self *LambdaType) typ() {}
 
 type EnumField struct {
-	Name token.Token
+	Name  token.Token
+	Elems []Type
 }
 
 // EnumType 枚举类型

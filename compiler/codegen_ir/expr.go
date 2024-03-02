@@ -57,7 +57,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenLambda(expr)
 	case *hir.Method:
 		return self.codegenMethod(expr)
-	case *hir.GetEnumField:
+	case *hir.Enum:
 		return self.codegenGetEnumField(expr)
 	default:
 		panic("unreachable")
@@ -502,8 +502,22 @@ func (self *CodeGenerator) codegenMethod(ir *hir.Method) mir.Value {
 	return self.builder.BuildPackStruct(t, mir.NewZero(t.Elems()[0]), f, self.builder.BuildPtrToPtr(externalCtxPtr, t.Elems()[2].(mir.PtrType)))
 }
 
-func (self *CodeGenerator) codegenGetEnumField(ir *hir.GetEnumField) mir.Value {
-	et := hir.AsType[*hir.EnumType](ir.GetType())
-	index := slices.Index(et.Fields.Keys().ToSlice(), ir.Field)
-	return mir.NewInt(self.codegenType(et).(mir.IntType), int64(index))
+func (self *CodeGenerator) codegenGetEnumField(ir *hir.Enum) mir.Value {
+	etIr := hir.AsType[*hir.EnumType](ir.GetType())
+	index := slices.Index(etIr.Fields.Keys().ToSlice(), ir.Field)
+	if etIr.IsSimple() {
+		return mir.NewInt(self.codegenType(etIr).(mir.IntType), int64(index))
+	}
+
+	ut := self.codegenType(ir.GetType()).(mir.StructType)
+	value := self.codegenTuple(&hir.Tuple{Elems: ir.Elems})
+	ptr := self.builder.BuildAllocFromStack(ut)
+	dataPtr := self.buildStructIndex(ptr, 0, true)
+	dataPtr = self.builder.BuildPtrToPtr(dataPtr, self.ctx.NewPtrType(value.Type()))
+	self.builder.BuildStore(value, dataPtr)
+	self.builder.BuildStore(
+		mir.NewInt(ut.Elems()[1].(mir.UintType), int64(index)),
+		self.buildStructIndex(ptr, 1, true),
+	)
+	return self.builder.BuildLoad(ptr)
 }

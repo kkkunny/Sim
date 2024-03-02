@@ -152,8 +152,12 @@ func (self *Analyser) analyseEnumType(node *ast.EnumType) *hir.EnumType {
 		if fields.ContainKey(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
+		elems := stlslices.Map(f.Elems, func(_ int, e ast.Type) hir.Type {
+			return self.analyseType(e)
+		})
 		fields.Set(f.Name.Source(), hir.EnumField{
-			Name: f.Name.Source(),
+			Name:  f.Name.Source(),
+			Elems: elems,
 		})
 	}
 	return hir.NewEnumType(self.selfType, fields)

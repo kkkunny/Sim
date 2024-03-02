@@ -691,7 +691,8 @@ func (self *LambdaType) GetParams() []Type {
 
 // EnumField 枚举字段
 type EnumField struct {
-	Name string
+	Name  string
+	Elems []Type
 }
 
 // EnumType 枚举类型
@@ -725,10 +726,19 @@ func (self *EnumType) HasDefault() bool {
 
 func (self *EnumType) Runtime() runtimeType.Type {
 	fields := stliter.Map[pair.Pair[string, EnumField], runtimeType.EnumField, dynarray.DynArray[runtimeType.EnumField]](self.Fields, func(e pair.Pair[string, EnumField]) runtimeType.EnumField {
-		return runtimeType.NewEnumField(e.First)
+		return runtimeType.NewEnumField(e.Second.Name, stlslices.Map(e.Second.Elems, func(_ int, e Type) runtimeType.Type {
+			return e.Runtime()
+		})...)
 	}).ToSlice()
 	return runtimeType.NewEnumType(self.Def.Pkg.String(), fields...)
 }
 
 func (self *EnumType) buildin() {}
 func (self *EnumType) runtime() {}
+
+// IsSimple 是否是简单枚举
+func (self *EnumType) IsSimple() bool {
+	return stliter.All(self.Fields, func(e pair.Pair[string, EnumField]) bool {
+		return len(e.Second.Elems) == 0
+	})
+}

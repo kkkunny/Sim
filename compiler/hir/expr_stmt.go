@@ -1115,22 +1115,23 @@ func (*Func2Lambda) Temporary() bool {
 	return true
 }
 
-// GetEnumField 获取枚举值
-type GetEnumField struct {
+// Enum 枚举
+type Enum struct {
 	From  Type
 	Field string
+	Elems []Expr
 }
 
-func (self *GetEnumField) stmt() {}
+func (self *Enum) stmt() {}
 
-func (self *GetEnumField) GetType() Type {
+func (self *Enum) GetType() Type {
 	return self.From
 }
 
-func (*GetEnumField) Mutable() bool {
+func (*Enum) Mutable() bool {
 	return false
 }
 
-func (*GetEnumField) Temporary() bool {
+func (*Enum) Temporary() bool {
 	return true
 }

@@ -2,7 +2,6 @@ package ast
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
-	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
@@ -120,11 +119,23 @@ func (self *For) Position() reader.Position {
 
 func (*For) stmt() {}
 
+type MatchCaseElem struct {
+	Mutable bool
+	Name    token.Token
+}
+
+type MatchCase struct {
+	Name    token.Token
+	Elems   []MatchCaseElem
+	ElemEnd reader.Position
+	Body    *Block
+}
+
 // Match 匹配
 type Match struct {
 	Begin reader.Position
 	Value Expr
-	Cases []pair.Pair[token.Token, *Block]
+	Cases []MatchCase
 	Other util.Option[*Block]
 	End   reader.Position
 }

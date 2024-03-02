@@ -123,8 +123,14 @@ func (self *Parser) parseEnumType() *ast.EnumType {
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() ast.EnumField {
 		name := self.expectNextIs(token.IDENT)
+		var elems []ast.Type
+		if self.skipNextIs(token.LPA) {
+			elems = self.parseTypeList(token.RPA)
+			self.expectNextIs(token.RPA)
+		}
 		return ast.EnumField{
-			Name: name,
+			Name:  name,
+			Elems: elems,
 		}
 	})
 	end := self.expectNextIs(token.RBR).Position
