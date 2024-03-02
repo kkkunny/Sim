@@ -1,5 +1,8 @@
 import std::os
 
 func main(){
-	let v: bool
+	let v: bool = true
+	if v && true{
+		debug("111")
+	}
 }

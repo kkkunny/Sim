@@ -2,13 +2,13 @@ import std::os
 
 type A i32
 
-func (A) logic_or(self: Self, dst: Self)bool{
-	return true
+func (A) logic_or(self: Self, dst: Self)Self{
+	return self
 }
 
 func main(){
 	let mut v: A
-	if v || 1{
+	if (v || 1) == v{
 		os::exit(0)
 	}
 	os::exit(1)

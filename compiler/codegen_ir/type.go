@@ -124,6 +124,11 @@ func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) mir.Type {
 		return self.ctx.U8()
 	}
 
+	if self.types.ContainKey(ir.Def) {
+		return self.types.Get(ir.Def).(mir.StructType)
+	}
+	st := self.module.NewNamedStructType("")
+	self.types.Set(ir.Def, st)
 	var maxSizeType mir.Type
 	var maxSize stlos.Size
 	for iter := ir.Fields.Iterator(); iter.Next(); {
@@ -135,5 +140,6 @@ func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) mir.Type {
 			maxSizeType, maxSize = et, esize
 		}
 	}
-	return self.ctx.NewStructType(maxSizeType, self.ctx.U8())
+	st.SetElems(maxSizeType, self.ctx.U8())
+	return st
 }

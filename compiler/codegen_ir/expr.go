@@ -133,13 +133,13 @@ func (self *CodeGenerator) codegenBinary(ir hir.Binary) mir.Value {
 		self.buildCheckZero(right)
 		return self.builder.BuildRem(left, right)
 	case *hir.NumLtNum:
-		return self.builder.BuildCmp(mir.CmpKindLT, left, right)
+		return self.builder.BuildNumberCovert(self.builder.BuildCmp(mir.CmpKindLT, left, right), self.boolType())
 	case *hir.NumGtNum:
-		return self.builder.BuildCmp(mir.CmpKindGT, left, right)
+		return self.builder.BuildNumberCovert(self.builder.BuildCmp(mir.CmpKindGT, left, right), self.boolType())
 	case *hir.NumLeNum:
-		return self.builder.BuildCmp(mir.CmpKindLE, left, right)
+		return self.builder.BuildNumberCovert(self.builder.BuildCmp(mir.CmpKindLE, left, right), self.boolType())
 	case *hir.NumGeNum:
-		return self.builder.BuildCmp(mir.CmpKindGE, left, right)
+		return self.builder.BuildNumberCovert(self.builder.BuildCmp(mir.CmpKindGE, left, right), self.boolType())
 	case *hir.Equal:
 		return self.builder.BuildNumberCovert(self.buildEqual(ir.GetLeft().GetType(), left, right, false), self.boolType())
 	case *hir.NotEqual:
@@ -226,7 +226,7 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) mir.Value {
 
 func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) mir.Value {
 	switch ir.(type) {
-	case *hir.DoNothingCovert:
+	case *hir.DoNothingCovert, *hir.Enum2Number, *hir.Number2Enum:
 		return self.codegenExpr(ir.GetFrom(), load)
 	case *hir.Num2Num:
 		from := self.codegenExpr(ir.GetFrom(), true)

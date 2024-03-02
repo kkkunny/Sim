@@ -44,10 +44,10 @@ pub trait Gt{
 	func gt(self: Self, dst: Self)bool
 }
 pub trait Land{
-	func logic_and(self: Self, dst: Self)bool
+	func logic_and(self: Self, dst: Self)Self
 }
 pub trait Lor{
-	func logic_or(self: Self, dst: Self)bool
+	func logic_or(self: Self, dst: Self)Self
 }
 
 pub trait Neg{

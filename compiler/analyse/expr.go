@@ -647,6 +647,18 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 			From: v,
 			To:   expect,
 		}, true
+	case hir.IsType[*hir.EnumType](vt) && hir.IsType[*hir.UintType](expect) && hir.AsType[*hir.EnumType](vt).IsSimple() && hir.AsType[*hir.UintType](expect).EqualTo(hir.NewUintType(8)):
+		// simple enum -> u8
+		return &hir.Enum2Number{
+			From: v,
+			To:   expect,
+		}, true
+	case hir.IsType[*hir.UintType](vt) && hir.IsType[*hir.EnumType](expect) && hir.AsType[*hir.UintType](vt).EqualTo(hir.NewUintType(8)) && hir.AsType[*hir.EnumType](expect).IsSimple():
+		// u8 -> simple enum
+		return &hir.Number2Enum{
+			From: v,
+			To:   expect,
+		}, true
 	default:
 		return v, false
 	}

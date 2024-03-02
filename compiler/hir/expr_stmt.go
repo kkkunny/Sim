@@ -1115,3 +1115,51 @@ func (*Enum) Mutable() bool {
 func (*Enum) Temporary() bool {
 	return true
 }
+
+// Enum2Number 枚举转数字
+type Enum2Number struct {
+	From Expr
+	To   Type
+}
+
+func (self *Enum2Number) stmt() {}
+
+func (self *Enum2Number) GetType() Type {
+	return self.To
+}
+
+func (*Enum2Number) Mutable() bool {
+	return false
+}
+
+func (self *Enum2Number) GetFrom() Expr {
+	return self.From
+}
+
+func (*Enum2Number) Temporary() bool {
+	return true
+}
+
+// Number2Enum 数字转枚举
+type Number2Enum struct {
+	From Expr
+	To   Type
+}
+
+func (self *Number2Enum) stmt() {}
+
+func (self *Number2Enum) GetType() Type {
+	return self.To
+}
+
+func (*Number2Enum) Mutable() bool {
+	return false
+}
+
+func (self *Number2Enum) GetFrom() Expr {
+	return self.From
+}
+
+func (*Number2Enum) Temporary() bool {
+	return true
+}
