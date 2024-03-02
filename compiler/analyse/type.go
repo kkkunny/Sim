@@ -23,8 +23,6 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 		return self.analyseArrayType(typeNode)
 	case *ast.TupleType:
 		return self.analyseTupleType(typeNode)
-	case *ast.UnionType:
-		return self.analyseUnionType(typeNode)
 	case *ast.RefType:
 		return self.analyseRefType(typeNode)
 	case *ast.SelfType:
@@ -111,13 +109,6 @@ func (self *Analyser) analyseTupleType(node *ast.TupleType) *hir.TupleType {
 		return self.analyseType(e)
 	})
 	return hir.NewTupleType(elems...)
-}
-
-func (self *Analyser) analyseUnionType(node *ast.UnionType) *hir.UnionType {
-	elems := stlslices.Map(node.Elems.ToSlice(), func(_ int, e ast.Type) hir.Type {
-		return self.analyseType(e)
-	})
-	return hir.NewUnionType(elems...)
 }
 
 func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {

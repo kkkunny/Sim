@@ -26,8 +26,6 @@ func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 		return self.codegenTupleType(t)
 	case *hir.CustomType:
 		return self.codegenCustomType(t)
-	case *hir.UnionType:
-		return self.codegenUnionType(t)
 	case *hir.RefType:
 		return self.codegenRefType(t)
 	case *hir.StructType:
@@ -104,18 +102,6 @@ func (self *CodeGenerator) codegenStructType(ir *hir.StructType) mir.StructType 
 		return self.codegenType(e.Type)
 	})...)
 	return st
-}
-
-func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) mir.StructType {
-	var maxSizeType mir.Type
-	var maxSize stlos.Size
-	for _, e := range ir.Elems {
-		et := self.codegenType(e)
-		if esize := et.Size(); esize > maxSize {
-			maxSizeType, maxSize = et, esize
-		}
-	}
-	return self.ctx.NewStructType(maxSizeType, self.ctx.U8())
 }
 
 func (self *CodeGenerator) codegenRefType(ir *hir.RefType) mir.PtrType {

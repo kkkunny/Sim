@@ -7,12 +7,9 @@ package extern
 */
 import "C"
 import (
-	"encoding/json"
 	"unsafe"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	stlslices "github.com/kkkunny/stl/slices"
-	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/runtime/types"
 )
@@ -40,20 +37,4 @@ func CheckNull(p types.Ptr) types.Ptr {
 		Panic(stlbasic.Ptr(types.NewStr("zero exception")))
 	}
 	return p
-}
-
-// CovertUnionIndex 获取原联合值实际类型在新联合类型中的下标
-func CovertUnionIndex(srcStr, dstStr *types.Str, index types.U8) types.U8 {
-	var srcTypes, dstTypes []string
-	stlbasic.Ignore(json.Unmarshal([]byte(srcStr.String()), &srcTypes))
-	stlbasic.Ignore(json.Unmarshal([]byte(dstStr.String()), &dstTypes))
-	return types.NewU8(uint8(lo.IndexOf(dstTypes, srcTypes[index.Value()])))
-}
-
-// CheckUnionType 检查原联合值实际类型是否属于新联合类型
-func CheckUnionType(srcStr, dstStr *types.Str, index types.U8) types.Bool {
-	var srcTypes, dstTypes []string
-	stlbasic.Ignore(json.Unmarshal([]byte(srcStr.String()), &srcTypes))
-	stlbasic.Ignore(json.Unmarshal([]byte(dstStr.String()), &dstTypes))
-	return types.NewBool(stlslices.Contain(dstTypes, srcTypes[index.Value()]))
 }

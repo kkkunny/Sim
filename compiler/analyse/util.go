@@ -115,12 +115,6 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 				return true
 			}
 		}
-	case *hir.UnionType:
-		for _, e := range typ.Elems {
-			if self.checkTypeDefCircle(trace, e) {
-				return true
-			}
-		}
 	case *hir.SelfType:
 		if self.checkTypeDefCircle(trace, typ.Self.MustValue()) {
 			return true
@@ -178,12 +172,6 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	case *hir.StructType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
 			if self.checkTypeAliasCircle(trace, iter.Value().Second.Type) {
-				return true
-			}
-		}
-	case *hir.UnionType:
-		for _, e := range typ.Elems {
-			if self.checkTypeAliasCircle(trace, e) {
 				return true
 			}
 		}

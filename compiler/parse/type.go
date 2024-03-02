@@ -1,8 +1,6 @@
 package parse
 
 import (
-	"github.com/kkkunny/stl/container/dynarray"
-
 	"github.com/kkkunny/Sim/ast"
 
 	errors "github.com/kkkunny/Sim/error"
@@ -20,8 +18,6 @@ func (self *Parser) parseOptionType() util.Option[ast.Type] {
 		return util.Some[ast.Type](self.parseArrayType())
 	case token.LPA:
 		return util.Some[ast.Type](self.parseTupleOrLambdaType())
-	case token.LT:
-		return util.Some[ast.Type](self.parseUnionType())
 	case token.AND:
 		return util.Some[ast.Type](self.parseRefType())
 	case token.SELF:
@@ -93,17 +89,6 @@ func (self *Parser) parseTupleOrLambdaType() ast.Type {
 		Begin:  begin,
 		Params: elems,
 		Ret:    ret,
-	}
-}
-
-func (self *Parser) parseUnionType() *ast.UnionType {
-	begin := self.expectNextIs(token.LT).Position
-	elems := dynarray.NewDynArrayWith[ast.Type](self.parseTypeList(token.GT, true)...)
-	end := self.expectNextIs(token.GT).Position
-	return &ast.UnionType{
-		Begin: begin,
-		Elems: elems,
-		End:   end,
 	}
 }
 

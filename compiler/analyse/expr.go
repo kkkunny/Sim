@@ -575,20 +575,6 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 			From: from,
 			To:   tt,
 		}
-	case hir.IsType[*hir.UnionType](ft) && hir.AsType[*hir.UnionType](ft).Contain(tt):
-		if hir.IsType[*hir.UnionType](tt) {
-			// <i8,u8> -> <i8>
-			return &hir.ShrinkUnion{
-				Type:  tt,
-				Value: from,
-			}
-		} else {
-			// <i8,u8> -> i8
-			return &hir.UnUnion{
-				Type:  tt,
-				Value: from,
-			}
-		}
 	default:
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
 		return nil
@@ -612,20 +598,6 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 	}
 
 	switch {
-	case hir.IsType[*hir.UnionType](expect) && hir.AsType[*hir.UnionType](expect).Contain(vt):
-		if hir.IsType[*hir.UnionType](vt) {
-			// <i8> -> <i8,u8>
-			return &hir.ExpandUnion{
-				Type:  expect,
-				Value: v,
-			}, true
-		} else {
-			// i8 -> <i8,u8>
-			return &hir.Union{
-				Type:  expect,
-				Value: v,
-			}, true
-		}
 	case hir.IsType[*hir.RefType](vt) && hir.AsType[*hir.RefType](vt).Elem.EqualTo(expect):
 		// &i8 -> i8
 		return &hir.DeRef{Value: v}, true
