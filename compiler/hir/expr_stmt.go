@@ -1202,3 +1202,23 @@ func (self *Func2Lambda) GetFrom() Expr {
 func (*Func2Lambda) Temporary() bool {
 	return true
 }
+
+// GetEnumField 获取枚举值
+type GetEnumField struct {
+	From  Type
+	Field string
+}
+
+func (self *GetEnumField) stmt() {}
+
+func (self *GetEnumField) GetType() Type {
+	return self.From
+}
+
+func (*GetEnumField) Mutable() bool {
+	return false
+}
+
+func (*GetEnumField) Temporary() bool {
+	return true
+}

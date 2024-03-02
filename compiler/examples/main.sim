@@ -6,10 +6,7 @@ type Enum enum {
 	C,
 }
 
-@extern("a")
-func a()Enum
-
 func main(){
-	let v1 = a()
+	let v1 = Enum.A
 	os::exit(0)
 }

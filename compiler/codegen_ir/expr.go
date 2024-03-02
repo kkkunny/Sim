@@ -2,6 +2,7 @@ package codegen_ir
 
 import (
 	"fmt"
+	"slices"
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
@@ -60,6 +61,8 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenLambda(expr)
 	case *hir.Method:
 		return self.codegenMethod(expr)
+	case *hir.GetEnumField:
+		return self.codegenGetEnumField(expr)
 	default:
 		panic("unreachable")
 	}
@@ -578,4 +581,10 @@ func (self *CodeGenerator) codegenMethod(ir *hir.Method) mir.Value {
 
 	self.builder.MoveTo(preBlock)
 	return self.builder.BuildPackStruct(t, mir.NewZero(t.Elems()[0]), f, self.builder.BuildPtrToPtr(externalCtxPtr, t.Elems()[2].(mir.PtrType)))
+}
+
+func (self *CodeGenerator) codegenGetEnumField(ir *hir.GetEnumField) mir.Value {
+	et := hir.AsType[*hir.EnumType](ir.GetType())
+	index := slices.Index(et.Fields.Keys().ToSlice(), ir.Field)
+	return mir.NewInt(self.codegenType(et).(mir.IntType), int64(index))
 }

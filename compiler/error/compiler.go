@@ -93,6 +93,11 @@ func ThrowExpectArrayTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a array type but there is type `%s`", t)
 }
 
+// ThrowExpectEnumTypeError 期待枚举类型
+func ThrowExpectEnumTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a enum type but there is type `%s`", t)
+}
+
 // ThrowExpectUnionTypeError 期待联合类型
 func ThrowExpectUnionTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a union type but there is type `%s`", t)

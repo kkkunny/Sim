@@ -756,20 +756,45 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 }
 
 func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
+	fieldName := node.Index.Source()
+
+	if identNode, ok := node.From.(*ast.IdentExpr); ok {
+		ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
+		if ok {
+			if t, ok := ident.Right(); ok {
+				if ct, ok := hir.TryCustomType(t); ok {
+					// 静态方法
+					f := ct.Methods.Get(fieldName)
+					if f != nil && (f.GetPublic() || self.pkgScope.pkg.Equal(f.GetPackage())) {
+						return f
+					}
+				}
+				if et, ok := hir.TryType[*hir.EnumType](t); ok {
+					// 枚举值
+					if et.Fields.ContainKey(fieldName) {
+						return &hir.GetEnumField{
+							From:  t,
+							Field: fieldName,
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if method, ok := self.analyseMethod(node); ok {
 		return method
 	}
 
-	fieldName := node.Index.Source()
-	fromObj := self.analyseExpr(nil, node.From)
-	ft := fromObj.GetType()
+	fromValObj := self.analyseExpr(nil, node.From)
+	ft := fromValObj.GetType()
 
 	// 字段
 	var structVal hir.Expr
 	if hir.IsType[*hir.StructType](ft) {
-		structVal = fromObj
+		structVal = fromValObj
 	} else if hir.IsType[*hir.RefType](ft) && hir.IsType[*hir.StructType](hir.AsType[*hir.RefType](ft).Elem) {
-		structVal = &hir.DeRef{Value: fromObj}
+		structVal = &hir.DeRef{Value: fromValObj}
 	} else {
 		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
@@ -786,26 +811,6 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 
 func (self *Analyser) analyseMethod(node *ast.Dot) (hir.Expr, bool) {
 	fieldName := node.Index.Source()
-
-	if identNode, ok := node.From.(*ast.IdentExpr); ok {
-		ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
-		if !ok {
-			errors.ThrowUnknownIdentifierError(identNode.Position(), identNode.Name)
-		}
-		if t, ok := ident.Right(); ok {
-			ct, ok := hir.TryCustomType(t)
-			if !ok {
-				errors.ThrowExpectStructError(identNode.Position(), t)
-			}
-
-			f := ct.Methods.Get(fieldName)
-			if f == nil || (!f.GetPublic() && !self.pkgScope.pkg.Equal(f.GetPackage())) {
-				errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-			}
-			return f, true
-		}
-	}
-
 	fromObj := self.analyseExpr(nil, node.From)
 	ft := fromObj.GetType()
 
