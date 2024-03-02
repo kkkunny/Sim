@@ -134,16 +134,16 @@ func (self *Parser) parseMatch() *ast.Match {
 	begin := self.expectNextIs(token.MATCH).Position
 	value := self.mustExpr(self.parseOptionExpr(false))
 	self.expectNextIs(token.LBR)
-	var cases []pair.Pair[ast.Type, *ast.Block]
+	var cases []pair.Pair[token.Token, *ast.Block]
 	other := util.None[*ast.Block]()
-	for self.skipSEM(); !self.nextIs(token.RBR) && (self.skipNextIs(token.IS) || self.expectNextIs(token.OTHER).Is(token.OTHER)); self.skipSEM() {
+	for self.skipSEM(); !self.nextIs(token.RBR) && (self.skipNextIs(token.CASE) || self.expectNextIs(token.OTHER).Is(token.OTHER)); self.skipSEM() {
 		caseBeginTok := self.curTok
-		if caseBeginTok.Is(token.IS) {
-			cond := self.parseType()
+		if caseBeginTok.Is(token.CASE) {
+			cond := self.expectNextIs(token.IDENT)
 			self.expectNextIs(token.COL)
 			body := &ast.Block{
 				Begin: caseBeginTok.Position,
-				Stmts: self.parseStmtList(token.IS, token.OTHER, token.RBR),
+				Stmts: self.parseStmtList(token.CASE, token.OTHER, token.RBR),
 				End:   self.curTok.Position,
 			}
 			cases = append(cases, pair.NewPair(cond, body))
@@ -151,7 +151,7 @@ func (self *Parser) parseMatch() *ast.Match {
 			self.expectNextIs(token.COL)
 			body := &ast.Block{
 				Begin: caseBeginTok.Position,
-				Stmts: self.parseStmtList(token.IS, token.OTHER, token.RBR),
+				Stmts: self.parseStmtList(token.CASE, token.OTHER, token.RBR),
 				End:   self.curTok.Position,
 			}
 			other = util.Some(body)

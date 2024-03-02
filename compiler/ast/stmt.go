@@ -73,7 +73,7 @@ func (*IfElse) stmt() {}
 // While 循环
 type While struct {
 	Begin reader.Position
-	Cond Expr
+	Cond  Expr
 	Body  *Block
 }
 
@@ -124,7 +124,7 @@ func (*For) stmt() {}
 type Match struct {
 	Begin reader.Position
 	Value Expr
-	Cases []pair.Pair[Type, *Block]
+	Cases []pair.Pair[token.Token, *Block]
 	Other util.Option[*Block]
 	End   reader.Position
 }

@@ -94,6 +94,7 @@ const (
 	MATCH
 	TRAIT
 	ENUM
+	CASE
 	_KeywordEnd
 )
 
@@ -175,6 +176,7 @@ var kindNames = [...]string{
 	MATCH:        "match",
 	TRAIT:        "trait",
 	ENUM:         "enum",
+	CASE:         "case",
 }
 
 // Lookup 区分标识符和关键字

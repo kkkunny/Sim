@@ -1,8 +1,8 @@
 package hir
 
 import (
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
-	"github.com/kkkunny/stl/container/pair"
 
 	"github.com/kkkunny/Sim/util"
 )
@@ -103,7 +103,7 @@ func (*For) loop() {}
 
 type Match struct {
 	Value Expr
-	Cases []pair.Pair[Type, *Block]
+	Cases linkedhashmap.LinkedHashMap[string, *Block]
 	Other util.Option[*Block]
 }
 

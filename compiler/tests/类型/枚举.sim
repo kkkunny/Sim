@@ -8,9 +8,5 @@ type Enum enum {
 
 func main(){
 	let v1 = Enum.A
-	match v1{
-	case A:
-	other:
-	}
 	os::exit(0)
 }

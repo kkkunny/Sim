@@ -225,3 +225,8 @@ func ThrowIndexOutOfRange(pos reader.Position) {
 func ThrowExpectAType(pos reader.Position) {
 	ThrowError(pos, "expect a type")
 }
+
+// ThrowExpectMoreCase 期待更多case
+func ThrowExpectMoreCase(pos reader.Position, et hir.Type, now, expect uint) {
+	ThrowError(pos, "type `%s` has `%d` case but there is `%d`", et, expect, now)
+}
