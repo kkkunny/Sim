@@ -33,6 +33,8 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 		return self.analyseStructType(typeNode)
 	case *ast.LambdaType:
 		return self.analyseLambdaType(typeNode)
+	case *ast.EnumType:
+		return self.analyseEnumType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -151,4 +153,17 @@ func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *hir.LambdaType {
 	})
 	ret := self.analyseOptionTypeWith(util.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
 	return hir.NewLambdaType(ret, params...)
+}
+
+func (self *Analyser) analyseEnumType(node *ast.EnumType) *hir.EnumType {
+	fields := linkedhashmap.NewLinkedHashMap[string, hir.EnumField]()
+	for _, f := range node.Fields {
+		if fields.ContainKey(f.Name.Source()) {
+			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
+		}
+		fields.Set(f.Name.Source(), hir.EnumField{
+			Name: f.Name.Source(),
+		})
+	}
+	return hir.NewEnumType(self.selfType, fields)
 }

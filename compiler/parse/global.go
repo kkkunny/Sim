@@ -184,7 +184,7 @@ func (self *Parser) parseTypeDefOrAlias(attrs []ast.Attr, pub *token.Token) ast.
 			Begin:  begin,
 			Public: pub != nil,
 			Name:   name,
-			Target: self.parseTypeWithStruct(),
+			Target: self.parseTypeInTypedef(),
 		}
 	}
 }

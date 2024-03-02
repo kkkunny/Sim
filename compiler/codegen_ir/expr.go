@@ -321,7 +321,7 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) mir.Value 
 
 func (self *CodeGenerator) codegenDefault(ir hir.Type) mir.Value {
 	switch tir := hir.ToRuntimeType(ir).(type) {
-	case *hir.NoThingType:
+	case *hir.NoThingType, *hir.EnumType:
 		panic("unreachable")
 	case *hir.RefType:
 		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str) {

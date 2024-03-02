@@ -471,3 +471,51 @@ func (self *LambdaType) Equal(dst Type) bool {
 	}
 	return true
 }
+
+type EnumField struct {
+	Name string
+}
+
+func NewEnumField(name string) EnumField {
+	return EnumField{
+		Name: name,
+	}
+}
+
+// EnumType 枚举类型
+type EnumType struct {
+	Pkg    string
+	Fields []EnumField
+}
+
+func NewEnumType(pkg string, fields ...EnumField) *EnumType {
+	return &EnumType{
+		Pkg:    pkg,
+		Fields: fields,
+	}
+}
+
+func (self *EnumType) String() string {
+	return fmt.Sprintf("<%s>", stlslices.Map(self.Fields, func(_ int, e EnumField) string {
+		return e.Name
+	}))
+}
+
+func (self *EnumType) Hash() uint64 {
+	return stlbasic.Hash(stlslices.Map(self.Fields, func(_ int, e EnumField) string {
+		return e.Name
+	}))
+}
+
+func (self *EnumType) Equal(dst Type) bool {
+	dt, ok := dst.(*EnumType)
+	if !ok || self.Pkg != dt.Pkg || len(self.Fields) != len(dt.Fields) {
+		return false
+	}
+	for i, f := range self.Fields {
+		if f.Name != dt.Fields[i].Name {
+			return false
+		}
+	}
+	return true
+}

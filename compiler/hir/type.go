@@ -542,9 +542,7 @@ func NewStructType(def *CustomType, fields linkedhashmap.LinkedHashMap[string, F
 }
 
 func (self *StructType) String() string {
-	return fmt.Sprintf("{%s}", strings.Join(stliter.Map[pair.Pair[string, Field], string, dynarray.DynArray[string]](self.Fields, func(e pair.Pair[string, Field]) string {
-		return fmt.Sprintf("%s: %s", e.Second.Name, e.Second.Type.String())
-	}).ToSlice(), ", "))
+	return self.Def.String()
 }
 
 func (self *StructType) EqualTo(dst Type) bool {
@@ -784,3 +782,47 @@ func (self *LambdaType) GetRet() Type {
 func (self *LambdaType) GetParams() []Type {
 	return self.Params
 }
+
+// EnumField 枚举字段
+type EnumField struct {
+	Name string
+}
+
+// EnumType 枚举类型
+type EnumType struct {
+	Def    *CustomType
+	Fields linkedhashmap.LinkedHashMap[string, EnumField]
+}
+
+func NewEnumType(def *CustomType, fields linkedhashmap.LinkedHashMap[string, EnumField]) *EnumType {
+	return &EnumType{
+		Def:    def,
+		Fields: fields,
+	}
+}
+
+func (self *EnumType) String() string {
+	return self.Def.String()
+}
+
+func (self *EnumType) EqualTo(dst Type) bool {
+	at, ok := ToRuntimeType(dst).(*EnumType)
+	if !ok {
+		return false
+	}
+	return self.Def.EqualTo(at.Def)
+}
+
+func (self *EnumType) HasDefault() bool {
+	return false
+}
+
+func (self *EnumType) Runtime() runtimeType.Type {
+	fields := stliter.Map[pair.Pair[string, EnumField], runtimeType.EnumField, dynarray.DynArray[runtimeType.EnumField]](self.Fields, func(e pair.Pair[string, EnumField]) runtimeType.EnumField {
+		return runtimeType.NewEnumField(e.First)
+	}).ToSlice()
+	return runtimeType.NewEnumType(self.Def.Pkg.String(), fields...)
+}
+
+func (self *EnumType) buildin() {}
+func (self *EnumType) runtime() {}

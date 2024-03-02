@@ -34,6 +34,8 @@ func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 		return self.codegenStructType(t)
 	case *hir.LambdaType:
 		return self.codegenLambdaType(t)
+	case *hir.EnumType:
+		return self.codegenEnumType(t)
 	default:
 		panic("unreachable")
 	}
@@ -129,4 +131,8 @@ func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) mir.StructType 
 	ft1 := self.ctx.NewFuncType(false, ret, params...)
 	ft2 := self.ctx.NewFuncType(false, ret, append([]mir.Type{self.ptrType()}, params...)...)
 	return self.ctx.NewStructType(ft1, ft2, self.ptrType())
+}
+
+func (self *CodeGenerator) codegenEnumType(_ *hir.EnumType) mir.Type {
+	return self.ctx.U8()
 }

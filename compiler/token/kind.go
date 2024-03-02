@@ -93,6 +93,7 @@ const (
 	OTHER
 	MATCH
 	TRAIT
+	ENUM
 	_KeywordEnd
 )
 
@@ -173,6 +174,7 @@ var kindNames = [...]string{
 	OTHER:        "other",
 	MATCH:        "match",
 	TRAIT:        "trait",
+	ENUM:         "enum",
 }
 
 // Lookup 区分标识符和关键字

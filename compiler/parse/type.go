@@ -39,9 +39,11 @@ func (self *Parser) parseType() ast.Type {
 	return t
 }
 
-func (self *Parser) parseTypeWithStruct() ast.Type {
+func (self *Parser) parseTypeInTypedef() ast.Type {
 	if self.nextIs(token.STRUCT) {
 		return self.parseStructType()
+	} else if self.nextIs(token.ENUM) {
+		return self.parseEnumType()
 	}
 	return self.parseType()
 }
@@ -125,6 +127,23 @@ func (self *Parser) parseStructType() *ast.StructType {
 	fields := self.parseFieldList(token.RBR)
 	end := self.expectNextIs(token.RBR).Position
 	return &ast.StructType{
+		Begin:  begin,
+		Fields: fields,
+		End:    end,
+	}
+}
+
+func (self *Parser) parseEnumType() *ast.EnumType {
+	begin := self.expectNextIs(token.ENUM).Position
+	self.expectNextIs(token.LBR)
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() ast.EnumField {
+		name := self.expectNextIs(token.IDENT)
+		return ast.EnumField{
+			Name: name,
+		}
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.EnumType{
 		Begin:  begin,
 		Fields: fields,
 		End:    end,

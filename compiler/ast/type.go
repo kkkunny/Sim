@@ -123,3 +123,20 @@ func (self *LambdaType) Position() reader.Position {
 }
 
 func (self *LambdaType) typ() {}
+
+type EnumField struct {
+	Name token.Token
+}
+
+// EnumType 枚举类型
+type EnumType struct {
+	Begin  reader.Position
+	Fields []EnumField
+	End    reader.Position
+}
+
+func (self *EnumType) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *EnumType) typ() {}
