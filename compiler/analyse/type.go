@@ -23,8 +23,6 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 		return self.analyseArrayType(typeNode)
 	case *ast.TupleType:
 		return self.analyseTupleType(typeNode)
-	case *ast.UnionType:
-		return self.analyseUnionType(typeNode)
 	case *ast.RefType:
 		return self.analyseRefType(typeNode)
 	case *ast.SelfType:
@@ -33,6 +31,8 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 		return self.analyseStructType(typeNode)
 	case *ast.LambdaType:
 		return self.analyseLambdaType(typeNode)
+	case *ast.EnumType:
+		return self.analyseEnumType(typeNode)
 	default:
 		panic("unreachable")
 	}
@@ -111,13 +111,6 @@ func (self *Analyser) analyseTupleType(node *ast.TupleType) *hir.TupleType {
 	return hir.NewTupleType(elems...)
 }
 
-func (self *Analyser) analyseUnionType(node *ast.UnionType) *hir.UnionType {
-	elems := stlslices.Map(node.Elems.ToSlice(), func(_ int, e ast.Type) hir.Type {
-		return self.analyseType(e)
-	})
-	return hir.NewUnionType(elems...)
-}
-
 func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
 	return hir.NewRefType(node.Mut, self.analyseType(node.Elem))
 }
@@ -151,4 +144,21 @@ func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *hir.LambdaType {
 	})
 	ret := self.analyseOptionTypeWith(util.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
 	return hir.NewLambdaType(ret, params...)
+}
+
+func (self *Analyser) analyseEnumType(node *ast.EnumType) *hir.EnumType {
+	fields := linkedhashmap.NewLinkedHashMap[string, hir.EnumField]()
+	for _, f := range node.Fields {
+		if fields.ContainKey(f.Name.Source()) {
+			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
+		}
+		elems := stlslices.Map(f.Elems, func(_ int, e ast.Type) hir.Type {
+			return self.analyseType(e)
+		})
+		fields.Set(f.Name.Source(), hir.EnumField{
+			Name:  f.Name.Source(),
+			Elems: elems,
+		})
+	}
+	return hir.NewEnumType(self.selfType, fields)
 }

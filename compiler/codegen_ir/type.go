@@ -26,14 +26,14 @@ func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 		return self.codegenTupleType(t)
 	case *hir.CustomType:
 		return self.codegenCustomType(t)
-	case *hir.UnionType:
-		return self.codegenUnionType(t)
 	case *hir.RefType:
 		return self.codegenRefType(t)
 	case *hir.StructType:
 		return self.codegenStructType(t)
 	case *hir.LambdaType:
 		return self.codegenLambdaType(t)
+	case *hir.EnumType:
+		return self.codegenEnumType(t)
 	default:
 		panic("unreachable")
 	}
@@ -104,18 +104,6 @@ func (self *CodeGenerator) codegenStructType(ir *hir.StructType) mir.StructType 
 	return st
 }
 
-func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) mir.StructType {
-	var maxSizeType mir.Type
-	var maxSize stlos.Size
-	for _, e := range ir.Elems {
-		et := self.codegenType(e)
-		if esize := et.Size(); esize > maxSize {
-			maxSizeType, maxSize = et, esize
-		}
-	}
-	return self.ctx.NewStructType(maxSizeType, self.ctx.U8())
-}
-
 func (self *CodeGenerator) codegenRefType(ir *hir.RefType) mir.PtrType {
 	elem := self.codegenType(ir.Elem)
 	return self.ctx.NewPtrType(elem)
@@ -129,4 +117,23 @@ func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) mir.StructType 
 	ft1 := self.ctx.NewFuncType(false, ret, params...)
 	ft2 := self.ctx.NewFuncType(false, ret, append([]mir.Type{self.ptrType()}, params...)...)
 	return self.ctx.NewStructType(ft1, ft2, self.ptrType())
+}
+
+func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) mir.Type {
+	if ir.IsSimple() {
+		return self.ctx.U8()
+	}
+
+	var maxSizeType mir.Type
+	var maxSize stlos.Size
+	for iter := ir.Fields.Iterator(); iter.Next(); {
+		if len(iter.Value().Second.Elems) == 0 {
+			continue
+		}
+		et := self.codegenTupleType(hir.NewTupleType(iter.Value().Second.Elems...))
+		if esize := et.Size(); esize > maxSize {
+			maxSizeType, maxSize = et, esize
+		}
+	}
+	return self.ctx.NewStructType(maxSizeType, self.ctx.U8())
 }

@@ -1,8 +1,6 @@
 package parse
 
 import (
-	"github.com/kkkunny/stl/container/dynarray"
-
 	"github.com/kkkunny/Sim/ast"
 
 	errors "github.com/kkkunny/Sim/error"
@@ -20,8 +18,6 @@ func (self *Parser) parseOptionType() util.Option[ast.Type] {
 		return util.Some[ast.Type](self.parseArrayType())
 	case token.LPA:
 		return util.Some[ast.Type](self.parseTupleOrLambdaType())
-	case token.LT:
-		return util.Some[ast.Type](self.parseUnionType())
 	case token.AND:
 		return util.Some[ast.Type](self.parseRefType())
 	case token.SELF:
@@ -39,9 +35,11 @@ func (self *Parser) parseType() ast.Type {
 	return t
 }
 
-func (self *Parser) parseTypeWithStruct() ast.Type {
+func (self *Parser) parseTypeInTypedef() ast.Type {
 	if self.nextIs(token.STRUCT) {
 		return self.parseStructType()
+	} else if self.nextIs(token.ENUM) {
+		return self.parseEnumType()
 	}
 	return self.parseType()
 }
@@ -94,17 +92,6 @@ func (self *Parser) parseTupleOrLambdaType() ast.Type {
 	}
 }
 
-func (self *Parser) parseUnionType() *ast.UnionType {
-	begin := self.expectNextIs(token.LT).Position
-	elems := dynarray.NewDynArrayWith[ast.Type](self.parseTypeList(token.GT, true)...)
-	end := self.expectNextIs(token.GT).Position
-	return &ast.UnionType{
-		Begin: begin,
-		Elems: elems,
-		End:   end,
-	}
-}
-
 func (self *Parser) parseRefType() ast.Type {
 	begin := self.expectNextIs(token.AND).Position
 	mut := self.skipNextIs(token.MUT)
@@ -125,6 +112,29 @@ func (self *Parser) parseStructType() *ast.StructType {
 	fields := self.parseFieldList(token.RBR)
 	end := self.expectNextIs(token.RBR).Position
 	return &ast.StructType{
+		Begin:  begin,
+		Fields: fields,
+		End:    end,
+	}
+}
+
+func (self *Parser) parseEnumType() *ast.EnumType {
+	begin := self.expectNextIs(token.ENUM).Position
+	self.expectNextIs(token.LBR)
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() ast.EnumField {
+		name := self.expectNextIs(token.IDENT)
+		var elems []ast.Type
+		if self.skipNextIs(token.LPA) {
+			elems = self.parseTypeList(token.RPA)
+			self.expectNextIs(token.RPA)
+		}
+		return ast.EnumField{
+			Name:  name,
+			Elems: elems,
+		}
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.EnumType{
 		Begin:  begin,
 		Fields: fields,
 		End:    end,

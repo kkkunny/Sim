@@ -508,7 +508,35 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
 	return stlbasic.IgnoreWith(expr.MustValue().Left())
 }
 
-func (self *Analyser) analyseCall(node *ast.Call) *hir.Call {
+func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
+	if dotNode, ok := node.Func.(*ast.Dot); ok {
+		if identNode, ok := dotNode.From.(*ast.IdentExpr); ok {
+			ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
+			if ok {
+				if t, ok := ident.Right(); ok {
+					if et, ok := hir.TryType[*hir.EnumType](t); ok {
+						// 枚举值
+						fieldName := dotNode.Index.Source()
+						if et.Fields.ContainKey(fieldName) {
+							caseDef := et.Fields.Get(fieldName)
+							if len(caseDef.Elems) != len(node.Args) {
+								errors.ThrowParameterNumberNotMatchError(identNode.Position(), uint(len(caseDef.Elems)), uint(len(node.Args)))
+							}
+							elems := stlslices.Map(node.Args, func(i int, e ast.Expr) hir.Expr {
+								return self.analyseExpr(caseDef.Elems[i], e)
+							})
+							return &hir.Enum{
+								From:  t,
+								Field: fieldName,
+								Elems: elems,
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	f := self.analyseExpr(nil, node.Func)
 	ct, ok := hir.TryType[hir.CallableType](f.GetType())
 	if !ok {
@@ -575,20 +603,6 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 			From: from,
 			To:   tt,
 		}
-	case hir.IsType[*hir.UnionType](ft) && hir.AsType[*hir.UnionType](ft).Contain(tt):
-		if hir.IsType[*hir.UnionType](tt) {
-			// <i8,u8> -> <i8>
-			return &hir.ShrinkUnion{
-				Type:  tt,
-				Value: from,
-			}
-		} else {
-			// <i8,u8> -> i8
-			return &hir.UnUnion{
-				Type:  tt,
-				Value: from,
-			}
-		}
 	default:
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
 		return nil
@@ -612,20 +626,6 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 	}
 
 	switch {
-	case hir.IsType[*hir.UnionType](expect) && hir.AsType[*hir.UnionType](expect).Contain(vt):
-		if hir.IsType[*hir.UnionType](vt) {
-			// <i8> -> <i8,u8>
-			return &hir.ExpandUnion{
-				Type:  expect,
-				Value: v,
-			}, true
-		} else {
-			// i8 -> <i8,u8>
-			return &hir.Union{
-				Type:  expect,
-				Value: v,
-			}, true
-		}
 	case hir.IsType[*hir.RefType](vt) && hir.AsType[*hir.RefType](vt).Elem.EqualTo(expect):
 		// &i8 -> i8
 		return &hir.DeRef{Value: v}, true
@@ -756,20 +756,48 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 }
 
 func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
+	fieldName := node.Index.Source()
+
+	if identNode, ok := node.From.(*ast.IdentExpr); ok {
+		ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
+		if ok {
+			if t, ok := ident.Right(); ok {
+				if ct, ok := hir.TryCustomType(t); ok {
+					// 静态方法
+					f := ct.Methods.Get(fieldName)
+					if f != nil && (f.GetPublic() || self.pkgScope.pkg.Equal(f.GetPackage())) {
+						return f
+					}
+				}
+				if et, ok := hir.TryType[*hir.EnumType](t); ok {
+					// 枚举值
+					if et.Fields.ContainKey(fieldName) {
+						if len(et.Fields.Get(fieldName).Elems) != 0 {
+							errors.ThrowParameterNumberNotMatchError(identNode.Position(), uint(len(et.Fields.Get(fieldName).Elems)), 0)
+						}
+						return &hir.Enum{
+							From:  t,
+							Field: fieldName,
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if method, ok := self.analyseMethod(node); ok {
 		return method
 	}
 
-	fieldName := node.Index.Source()
-	fromObj := self.analyseExpr(nil, node.From)
-	ft := fromObj.GetType()
+	fromValObj := self.analyseExpr(nil, node.From)
+	ft := fromValObj.GetType()
 
 	// 字段
 	var structVal hir.Expr
 	if hir.IsType[*hir.StructType](ft) {
-		structVal = fromObj
+		structVal = fromValObj
 	} else if hir.IsType[*hir.RefType](ft) && hir.IsType[*hir.StructType](hir.AsType[*hir.RefType](ft).Elem) {
-		structVal = &hir.DeRef{Value: fromObj}
+		structVal = &hir.DeRef{Value: fromValObj}
 	} else {
 		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
@@ -786,26 +814,6 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 
 func (self *Analyser) analyseMethod(node *ast.Dot) (hir.Expr, bool) {
 	fieldName := node.Index.Source()
-
-	if identNode, ok := node.From.(*ast.IdentExpr); ok {
-		ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
-		if !ok {
-			errors.ThrowUnknownIdentifierError(identNode.Position(), identNode.Name)
-		}
-		if t, ok := ident.Right(); ok {
-			ct, ok := hir.TryCustomType(t)
-			if !ok {
-				errors.ThrowExpectStructError(identNode.Position(), t)
-			}
-
-			f := ct.Methods.Get(fieldName)
-			if f == nil || (!f.GetPublic() && !self.pkgScope.pkg.Equal(f.GetPackage())) {
-				errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
-			}
-			return f, true
-		}
-	}
-
 	fromObj := self.analyseExpr(nil, node.From)
 	ft := fromObj.GetType()
 

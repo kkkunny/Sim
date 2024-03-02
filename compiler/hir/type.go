@@ -2,7 +2,6 @@ package hir
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
@@ -395,95 +394,6 @@ func (self *TupleType) Runtime() runtimeType.Type {
 func (self *TupleType) buildin() {}
 func (self *TupleType) runtime() {}
 
-// UnionType 联合类型
-type UnionType struct {
-	Elems []Type
-}
-
-func NewUnionType(elems ...Type) *UnionType {
-	elems = stlslices.FlatMap(elems, func(_ int, e Type) []Type {
-		if at, ok := TryType[*UnionType](e); ok {
-			return at.Elems
-		} else {
-			return []Type{e}
-		}
-	})
-	sort.Slice(elems, func(i, j int) bool {
-		return elems[i].String() < elems[j].String()
-	})
-
-	flatElems := make([]Type, 0, len(elems))
-loop:
-	for _, e := range elems {
-		for _, fe := range flatElems {
-			if e.EqualTo(fe) {
-				continue loop
-			}
-		}
-		flatElems = append(flatElems, e)
-	}
-
-	return &UnionType{Elems: flatElems}
-}
-
-func (self *UnionType) String() string {
-	elems := stlslices.Map(self.Elems, func(_ int, e Type) string { return e.String() })
-	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
-}
-
-func (self *UnionType) EqualTo(dst Type) bool {
-	at, ok := ToRuntimeType(dst).(*UnionType)
-	if !ok {
-		return false
-	}
-	if len(self.Elems) != len(at.Elems) {
-		return false
-	}
-	for i, e := range self.Elems {
-		if !e.EqualTo(at.Elems[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func (self *UnionType) HasDefault() bool {
-	return self.Elems[0].HasDefault()
-}
-
-func (self *UnionType) Runtime() runtimeType.Type {
-	return runtimeType.NewUnionType(stlslices.Map(self.Elems, func(_ int, e Type) runtimeType.Type {
-		return e.Runtime()
-	})...)
-}
-
-func (self *UnionType) buildin() {}
-func (self *UnionType) runtime() {}
-
-// IndexElem 取元素下标
-func (self *UnionType) IndexElem(t Type) int {
-	for i, elem := range self.Elems {
-		if elem.EqualTo(t) {
-			return i
-		}
-	}
-	return -1
-}
-
-// Contain 是否包含类型
-func (self *UnionType) Contain(dst Type) bool {
-	if ut, ok := TryType[*UnionType](dst); ok {
-		return stlslices.All(ut.Elems, func(_ int, e Type) bool { return self.Contain(e) })
-	} else {
-		for _, e := range self.Elems {
-			if e.EqualTo(dst) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
 // RefType 引用类型
 type RefType struct {
 	Mut  bool
@@ -542,9 +452,7 @@ func NewStructType(def *CustomType, fields linkedhashmap.LinkedHashMap[string, F
 }
 
 func (self *StructType) String() string {
-	return fmt.Sprintf("{%s}", strings.Join(stliter.Map[pair.Pair[string, Field], string, dynarray.DynArray[string]](self.Fields, func(e pair.Pair[string, Field]) string {
-		return fmt.Sprintf("%s: %s", e.Second.Name, e.Second.Type.String())
-	}).ToSlice(), ", "))
+	return self.Def.String()
 }
 
 func (self *StructType) EqualTo(dst Type) bool {
@@ -597,10 +505,6 @@ func replaceAllSelfType(t Type, to *CustomType) Type {
 				Type:    replaceAllSelfType(e.Second.Type, to),
 			})
 		}))
-	case *UnionType:
-		return NewUnionType(stlslices.Map(tt.Elems, func(_ int, e Type) Type {
-			return replaceAllSelfType(e, to)
-		})...)
 	case *SelfType:
 		return stlbasic.Ternary[Type](tt.Self.IsNone(), NewSelfType(util.Some[*CustomType](to)), tt)
 	case *LambdaType:
@@ -783,4 +687,58 @@ func (self *LambdaType) GetRet() Type {
 
 func (self *LambdaType) GetParams() []Type {
 	return self.Params
+}
+
+// EnumField 枚举字段
+type EnumField struct {
+	Name  string
+	Elems []Type
+}
+
+// EnumType 枚举类型
+type EnumType struct {
+	Def    *CustomType
+	Fields linkedhashmap.LinkedHashMap[string, EnumField]
+}
+
+func NewEnumType(def *CustomType, fields linkedhashmap.LinkedHashMap[string, EnumField]) *EnumType {
+	return &EnumType{
+		Def:    def,
+		Fields: fields,
+	}
+}
+
+func (self *EnumType) String() string {
+	return self.Def.String()
+}
+
+func (self *EnumType) EqualTo(dst Type) bool {
+	at, ok := ToRuntimeType(dst).(*EnumType)
+	if !ok {
+		return false
+	}
+	return self.Def.EqualTo(at.Def)
+}
+
+func (self *EnumType) HasDefault() bool {
+	return false
+}
+
+func (self *EnumType) Runtime() runtimeType.Type {
+	fields := stliter.Map[pair.Pair[string, EnumField], runtimeType.EnumField, dynarray.DynArray[runtimeType.EnumField]](self.Fields, func(e pair.Pair[string, EnumField]) runtimeType.EnumField {
+		return runtimeType.NewEnumField(e.Second.Name, stlslices.Map(e.Second.Elems, func(_ int, e Type) runtimeType.Type {
+			return e.Runtime()
+		})...)
+	}).ToSlice()
+	return runtimeType.NewEnumType(self.Def.Pkg.String(), fields...)
+}
+
+func (self *EnumType) buildin() {}
+func (self *EnumType) runtime() {}
+
+// IsSimple 是否是简单枚举
+func (self *EnumType) IsSimple() bool {
+	return stliter.All(self.Fields, func(e pair.Pair[string, EnumField]) bool {
+		return len(e.Second.Elems) == 0
+	})
 }

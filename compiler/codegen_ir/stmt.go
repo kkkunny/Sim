@@ -1,8 +1,10 @@
 package codegen_ir
 
 import (
+	"slices"
+
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/hashset"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
@@ -266,32 +268,50 @@ func (self *CodeGenerator) codegenFor(ir *hir.For) {
 }
 
 func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
-	if ir.Other.IsNone() && len(ir.Cases) == 0 {
+	if ir.Other.IsNone() && ir.Cases.Empty() {
 		return
 	}
 
-	vtObj := self.codegenType(ir.Value.GetType())
-	vt := vtObj.(mir.StructType)
-	value := self.codegenExpr(ir.Value, true)
-	index := self.buildStructIndex(value, 1)
+	etIr := hir.AsType[*hir.EnumType](ir.Value.GetType())
+	t := self.codegenType(ir.Value.GetType())
+	value := self.codegenExpr(ir.Value, false)
+	index := stlbasic.TernaryAction(etIr.IsSimple(), func() mir.Value {
+		if value.Type().Equal(t) {
+			return value
+		} else {
+			return self.builder.BuildLoad(value)
+		}
+	}, func() mir.Value {
+		return self.buildStructIndex(value, 1, false)
+	})
 
 	curBlock := self.builder.Current()
 	endBlock := curBlock.Belong().NewBlock()
 
-	existConds := hashset.NewHashSet[int]()
-	cases := make([]pair.Pair[mir.Const, *mir.Block], 0, len(ir.Cases))
-	for _, c := range ir.Cases {
-		caseIndex := hir.AsType[*hir.UnionType](ir.Value.GetType()).IndexElem(ir.Value.GetType())
-		if existConds.Contain(caseIndex) {
-			continue
-		}
+	cases := make([]pair.Pair[mir.Const, *mir.Block], 0, ir.Cases.Length())
+	for iter := ir.Cases.Iterator(); iter.Next(); {
+		caseIndex := slices.Index(etIr.Fields.Keys().ToSlice(), iter.Value().First)
+		caseBlock, caseCurBlock := self.codegenBlock(iter.Value().Second.Body, func(block *mir.Block) {
+			if len(iter.Value().Second.Elems) == 0 {
+				return
+			}
 
-		existConds.Add(caseIndex)
-		caseBlock, caseCurBlock := self.codegenBlock(c.Second, nil)
+			caseCurBlock := self.builder.Current()
+			defer self.builder.MoveTo(caseCurBlock)
+			self.builder.MoveTo(block)
+
+			caseType := self.codegenTupleType(hir.NewTupleType(stlslices.Map(iter.Value().Second.Elems, func(_ int, e *hir.Param) hir.Type {
+				return e.GetType()
+			})...))
+			ptr := self.builder.BuildPtrToPtr(self.buildStructIndex(value, 0, true), self.ctx.NewPtrType(caseType))
+			for i, elem := range iter.Value().Second.Elems {
+				self.values.Set(elem, self.buildStructIndex(ptr, uint64(i), true))
+			}
+		})
 		self.builder.MoveTo(caseCurBlock)
 		self.builder.BuildUnCondJump(endBlock)
 
-		cases = append(cases, pair.NewPair[mir.Const, *mir.Block](mir.NewInt(vt.Elems()[1].(mir.IntType), int64(caseIndex)), caseBlock))
+		cases = append(cases, pair.NewPair[mir.Const, *mir.Block](mir.NewInt(index.Type().(mir.IntType), int64(caseIndex)), caseBlock))
 	}
 
 	var otherBlock *mir.Block

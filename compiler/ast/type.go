@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"github.com/kkkunny/stl/container/dynarray"
-
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
@@ -63,19 +61,6 @@ func (self *TupleType) Position() reader.Position {
 
 func (self *TupleType) typ() {}
 
-// UnionType 联合类型
-type UnionType struct {
-	Begin reader.Position
-	Elems dynarray.DynArray[Type]
-	End   reader.Position
-}
-
-func (self *UnionType) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
-}
-
-func (self *UnionType) typ() {}
-
 // RefType 引用类型
 type RefType struct {
 	Begin reader.Position
@@ -123,3 +108,21 @@ func (self *LambdaType) Position() reader.Position {
 }
 
 func (self *LambdaType) typ() {}
+
+type EnumField struct {
+	Name  token.Token
+	Elems []Type
+}
+
+// EnumType 枚举类型
+type EnumType struct {
+	Begin  reader.Position
+	Fields []EnumField
+	End    reader.Position
+}
+
+func (self *EnumType) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *EnumType) typ() {}

@@ -93,6 +93,11 @@ func ThrowExpectArrayTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a array type but there is type `%s`", t)
 }
 
+// ThrowExpectEnumTypeError 期待枚举类型
+func ThrowExpectEnumTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a enum type but there is type `%s`", t)
+}
+
 // ThrowExpectUnionTypeError 期待联合类型
 func ThrowExpectUnionTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a union type but there is type `%s`", t)
@@ -219,4 +224,9 @@ func ThrowIndexOutOfRange(pos reader.Position) {
 // ThrowExpectAType 期待一个类型
 func ThrowExpectAType(pos reader.Position) {
 	ThrowError(pos, "expect a type")
+}
+
+// ThrowExpectMoreCase 期待更多case
+func ThrowExpectMoreCase(pos reader.Position, et hir.Type, now, expect uint) {
+	ThrowError(pos, "type `%s` has `%d` case but there is `%d`", et, expect, now)
 }

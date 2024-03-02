@@ -1,16 +1,12 @@
 package codegen_ir
 
 import (
-	"encoding/json"
-	"fmt"
-
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/pair"
 	stlerror "github.com/kkkunny/stl/error"
 	stlmath "github.com/kkkunny/stl/math"
 	stlos "github.com/kkkunny/stl/os"
-	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/analyse"
 	"github.com/kkkunny/Sim/hir"
@@ -28,7 +24,7 @@ func (self *CodeGenerator) getExternFunction(name string, t mir.FuncType) *mir.F
 
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
 	switch irType := hir.ToRuntimeType(t).(type) {
-	case *hir.SintType, *hir.UintType, *hir.FloatType:
+	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.EnumType:
 		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
 	case *hir.FuncType, *hir.RefType:
 		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
@@ -40,12 +36,6 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.
 		return res
 	case *hir.TupleType, *hir.StructType:
 		res := self.buildStructEqual(irType, l, r)
-		if not {
-			res = self.builder.BuildNot(res)
-		}
-		return res
-	case *hir.UnionType:
-		res := self.buildUnionEqual(irType, l, r)
 		if not {
 			res = self.builder.BuildNot(res)
 		}
@@ -175,49 +165,6 @@ func (self *CodeGenerator) buildStructEqual(irType hir.Type, l, r mir.Value) mir
 	return phi
 }
 
-func (self *CodeGenerator) buildUnionEqual(irType *hir.UnionType, l, r mir.Value) mir.Value {
-	key := fmt.Sprintf("equal:%s", irType.String())
-
-	var f *mir.Function
-	if !self.funcCache.ContainKey(key) {
-		curBlock := self.builder.Current()
-		f = self.module.NewFunction("", self.ctx.NewFuncType(false, self.ctx.Bool(), l.Type(), r.Type()))
-		lp, rp := f.Params()[0], f.Params()[1]
-
-		self.builder.MoveTo(f.NewBlock())
-		lk, rk := self.buildStructIndex(lp, 1, false), self.buildStructIndex(rp, 1, false)
-		falseBlock, nextBlock := f.NewBlock(), f.NewBlock()
-		self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindNE, lk, rk), falseBlock, nextBlock)
-
-		self.builder.MoveTo(falseBlock)
-		self.builder.BuildReturn(mir.Bool(self.ctx, false))
-
-		self.builder.MoveTo(nextBlock)
-		lvp, rvp := self.buildStructIndex(lp, 0, true), self.buildStructIndex(rp, 0, true)
-		for i, elemIr := range irType.Elems {
-			if i < len(irType.Elems)-1 {
-				var equalBlock *mir.Block
-				equalBlock, nextBlock = f.NewBlock(), f.NewBlock()
-				self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindEQ, lk, mir.NewInt(lk.Type().(mir.IntType), int64(i))), equalBlock, nextBlock)
-				self.builder.MoveTo(equalBlock)
-			}
-			lv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(lvp, self.ctx.NewPtrType(self.codegenType(elemIr))))
-			rv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(rvp, self.ctx.NewPtrType(self.codegenType(elemIr))))
-			self.builder.BuildReturn(self.buildEqual(elemIr, lv, rv, false))
-			if i < len(irType.Elems)-1 {
-				self.builder.MoveTo(nextBlock)
-			}
-		}
-
-		self.funcCache.Set(key, f)
-		self.builder.MoveTo(curBlock)
-	} else {
-		f = self.funcCache.Get(key)
-	}
-
-	return self.builder.BuildCall(f, l, r)
-}
-
 func (self *CodeGenerator) buildArrayIndex(array, i mir.Value, expectPtr ...bool) mir.Value {
 	var expectType mir.PtrType
 	if ft := array.Type(); stlbasic.Is[mir.PtrType](ft) {
@@ -289,22 +236,6 @@ func (self *CodeGenerator) constStringPtr(s string) mir.Const {
 		self.strings.Set(s, self.module.NewConstant("", mir.NewStruct(st, dataPtr, mir.NewInt(self.usizeType(), int64(len(s))))))
 	}
 	return self.strings.Get(s)
-}
-
-func (self *CodeGenerator) buildCovertUnionIndex(src, dst *hir.UnionType, index mir.Value) mir.Value {
-	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
-	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(false, self.ctx.U8(), self.ctx.NewPtrType(strType), self.ctx.NewPtrType(strType), self.ctx.U8()))
-	srcStr := string(stlbasic.IgnoreWith(json.Marshal(stlslices.Map(src.Elems, func(_ int, e hir.Type) string { return e.String() }))))
-	dstStr := string(stlbasic.IgnoreWith(json.Marshal(stlslices.Map(dst.Elems, func(_ int, e hir.Type) string { return e.String() }))))
-	return self.builder.BuildCall(fn, self.constStringPtr(srcStr), self.constStringPtr(dstStr), index)
-}
-
-func (self *CodeGenerator) buildCheckUnionType(src, dst *hir.UnionType, index mir.Value) mir.Value {
-	strType := self.codegenType(self.hir.BuildinTypes.Str).(mir.StructType)
-	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(false, self.ctx.Bool(), self.ctx.NewPtrType(strType), self.ctx.NewPtrType(strType), self.ctx.U8()))
-	srcStr := string(stlbasic.IgnoreWith(json.Marshal(stlslices.Map(src.Elems, func(_ int, e hir.Type) string { return e.String() }))))
-	dstStr := string(stlbasic.IgnoreWith(json.Marshal(stlslices.Map(dst.Elems, func(_ int, e hir.Type) string { return e.String() }))))
-	return self.builder.BuildCall(fn, self.constStringPtr(srcStr), self.constStringPtr(dstStr), index)
 }
 
 func (self *CodeGenerator) buildPanic(s string) {

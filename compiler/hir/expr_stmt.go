@@ -946,26 +946,6 @@ func (*String) Temporary() bool {
 	return true
 }
 
-// Union 联合
-type Union struct {
-	Type  Type
-	Value Expr
-}
-
-func (self *Union) stmt() {}
-
-func (self *Union) GetType() Type {
-	return self.Type
-}
-
-func (self *Union) Mutable() bool {
-	return false
-}
-
-func (*Union) Temporary() bool {
-	return true
-}
-
 // TypeJudgment 类型判断
 type TypeJudgment struct {
 	BoolType Type
@@ -984,26 +964,6 @@ func (self *TypeJudgment) Mutable() bool {
 }
 
 func (*TypeJudgment) Temporary() bool {
-	return true
-}
-
-// UnUnion 解联合
-type UnUnion struct {
-	Type  Type
-	Value Expr
-}
-
-func (self *UnUnion) stmt() {}
-
-func (self *UnUnion) GetType() Type {
-	return self.Type
-}
-
-func (self *UnUnion) Mutable() bool {
-	return false
-}
-
-func (*UnUnion) Temporary() bool {
 	return true
 }
 
@@ -1102,54 +1062,6 @@ func (*Method) Temporary() bool {
 	return true
 }
 
-// ShrinkUnion 缩小联合
-type ShrinkUnion struct {
-	Type  Type
-	Value Expr
-}
-
-func (self *ShrinkUnion) stmt() {}
-
-func (self *ShrinkUnion) GetType() Type {
-	return self.Type
-}
-
-func (self *ShrinkUnion) Mutable() bool {
-	return false
-}
-
-func (self *ShrinkUnion) GetFrom() Expr {
-	return self.Value
-}
-
-func (*ShrinkUnion) Temporary() bool {
-	return true
-}
-
-// ExpandUnion 扩大联合
-type ExpandUnion struct {
-	Type  Type
-	Value Expr
-}
-
-func (self *ExpandUnion) stmt() {}
-
-func (self *ExpandUnion) GetType() Type {
-	return self.Type
-}
-
-func (self *ExpandUnion) Mutable() bool {
-	return false
-}
-
-func (self *ExpandUnion) GetFrom() Expr {
-	return self.Value
-}
-
-func (*ExpandUnion) Temporary() bool {
-	return true
-}
-
 // Lambda 匿名函数
 type Lambda struct {
 	Type    Type
@@ -1200,5 +1112,26 @@ func (self *Func2Lambda) GetFrom() Expr {
 }
 
 func (*Func2Lambda) Temporary() bool {
+	return true
+}
+
+// Enum 枚举
+type Enum struct {
+	From  Type
+	Field string
+	Elems []Expr
+}
+
+func (self *Enum) stmt() {}
+
+func (self *Enum) GetType() Type {
+	return self.From
+}
+
+func (*Enum) Mutable() bool {
+	return false
+}
+
+func (*Enum) Temporary() bool {
 	return true
 }

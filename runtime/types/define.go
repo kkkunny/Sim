@@ -2,8 +2,6 @@ package types
 
 import (
 	"fmt"
-	"slices"
-	"sort"
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
@@ -263,82 +261,6 @@ func (self *TupleType) Equal(dst Type) bool {
 	return true
 }
 
-// UnionType 联合类型
-type UnionType struct {
-	Elems []Type
-}
-
-func NewUnionType(elems ...Type) *UnionType {
-	elems = stlslices.FlatMap(elems, func(_ int, e Type) []Type {
-		if ue, ok := e.(*UnionType); ok {
-			return ue.Elems
-		} else {
-			return []Type{e}
-		}
-	})
-	sort.Slice(elems, func(i, j int) bool {
-		return elems[i].String() < elems[j].String()
-	})
-
-	flatElems := make([]Type, 0, len(elems))
-loop:
-	for _, e := range elems {
-		for _, fe := range flatElems {
-			if e.Equal(fe) {
-				continue loop
-			}
-		}
-		flatElems = append(flatElems, e)
-	}
-
-	return &UnionType{Elems: flatElems}
-}
-
-func (self *UnionType) String() string {
-	elems := stlslices.Map(self.Elems, func(_ int, e Type) string { return e.String() })
-	return fmt.Sprintf("<%s>", strings.Join(elems, ", "))
-}
-
-func (self *UnionType) Hash() uint64 {
-	return slices.Max(stlslices.Map(self.Elems, func(_ int, e Type) uint64 {
-		return e.Hash()
-	})) | 16
-}
-
-func (self *UnionType) Equal(dst Type) bool {
-	dt, ok := dst.(*UnionType)
-	if !ok {
-		return false
-	}
-	for i, e := range self.Elems {
-		if !e.Equal(dt.Elems[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func (self *UnionType) IndexElem(t Type) int {
-	for i, elem := range self.Elems {
-		if elem.Equal(t) {
-			return i
-		}
-	}
-	return -1
-}
-
-func (self *UnionType) Elem(i uint) Type {
-	return self.Elems[i]
-}
-
-func (self *UnionType) Contain(t Type) bool {
-	if ut, ok := t.(*UnionType); ok {
-		return stlslices.All[Type](ut.Elems, func(_ int, e Type) bool { return self.Contain(e) })
-	} else {
-		return stlslices.Contain(self.Elems, t)
-	}
-}
-
 type Field struct {
 	Type Type
 	Name string
@@ -466,6 +388,56 @@ func (self *LambdaType) Equal(dst Type) bool {
 	}
 	for i, p := range self.Params {
 		if !p.Equal(dt.Params[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+type EnumField struct {
+	Name  string
+	Elems []Type
+}
+
+func NewEnumField(name string, elems ...Type) EnumField {
+	return EnumField{
+		Name:  name,
+		Elems: elems,
+	}
+}
+
+// EnumType 枚举类型
+type EnumType struct {
+	Pkg    string
+	Fields []EnumField
+}
+
+func NewEnumType(pkg string, fields ...EnumField) *EnumType {
+	return &EnumType{
+		Pkg:    pkg,
+		Fields: fields,
+	}
+}
+
+func (self *EnumType) String() string {
+	return fmt.Sprintf("<%s>", stlslices.Map(self.Fields, func(_ int, e EnumField) string {
+		return e.Name
+	}))
+}
+
+func (self *EnumType) Hash() uint64 {
+	return stlbasic.Hash(stlslices.Map(self.Fields, func(_ int, e EnumField) string {
+		return e.Name
+	}))
+}
+
+func (self *EnumType) Equal(dst Type) bool {
+	dt, ok := dst.(*EnumType)
+	if !ok || self.Pkg != dt.Pkg || len(self.Fields) != len(dt.Fields) {
+		return false
+	}
+	for i, f := range self.Fields {
+		if f.Name != dt.Fields[i].Name {
 			return false
 		}
 	}

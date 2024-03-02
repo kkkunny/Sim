@@ -1,11 +1,13 @@
 package analyse
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
-	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/reader"
 
 	"github.com/kkkunny/Sim/ast"
 	errors "github.com/kkkunny/Sim/error"
@@ -258,48 +260,54 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 	value := self.analyseExpr(nil, node.Value)
 	vtObj := value.GetType()
-	if !hir.IsType[*hir.UnionType](vtObj) {
-		errors.ThrowExpectUnionTypeError(node.Value.Position(), vtObj)
+	vt, ok := hir.TryType[*hir.EnumType](vtObj)
+	if !ok {
+		errors.ThrowExpectEnumTypeError(node.Value.Position(), vtObj)
 	}
-	vt := hir.AsType[*hir.UnionType](vtObj)
 
-	cases := make([]pair.Pair[hir.Type, *hir.Block], len(node.Cases))
-	for i, caseNode := range node.Cases {
-		caseCond := self.analyseType(caseNode.First)
-		if !vt.Contain(caseCond) {
-			errors.ThrowTypeMismatchError(caseNode.First.Position(), caseCond, vtObj)
-		} else if hir.IsType[*hir.UnionType](caseCond) {
-			errors.ThrowNotExpectUnionTypeError(caseNode.First.Position(), caseCond)
+	cases := linkedhashmap.NewLinkedHashMapWithCapacity[string, *hir.MatchCase](uint(len(node.Cases)))
+	for _, caseNode := range node.Cases {
+		caseName := caseNode.Name.Source()
+		if !vt.Fields.ContainKey(caseName) {
+			errors.ThrowUnknownIdentifierError(caseNode.Name.Position, caseNode.Name)
+		} else if cases.ContainKey(caseName) {
+			errors.ThrowIdentifierDuplicationError(caseNode.Name.Position, caseNode.Name)
 		}
-		var newValue *hir.LocalVarDef
-		var fn func(_LocalScope)
-		if v, ok := value.(hir.Variable); ok {
-			newValue = &hir.LocalVarDef{
+		caseDef := vt.Fields.Get(caseName)
+		if len(caseNode.Elems) != len(caseDef.Elems) {
+			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), uint(len(caseDef.Elems)), uint(len(caseNode.Elems)))
+		}
+		elems := stlslices.Map(caseNode.Elems, func(i int, e ast.MatchCaseElem) *hir.Param {
+			return &hir.Param{
 				VarDecl: hir.VarDecl{
-					Mut:  v.Mutable(),
-					Type: caseCond,
-					Name: v.GetName(),
-				},
-				Value: &hir.UnUnion{
-					Type:  caseCond,
-					Value: v,
+					Mut:  e.Mutable,
+					Type: caseDef.Elems[i],
+					Name: e.Name.Source(),
 				},
 			}
-			fn = func(scope _LocalScope) {
-				scope.SetValue(v.GetName(), newValue)
+		})
+		fn := func(scope _LocalScope) {
+			for i, elemNode := range caseNode.Elems {
+				elemName := elemNode.Name.Source()
+				if !scope.SetValue(elemName, elems[i]) {
+					errors.ThrowIdentifierDuplicationError(elemNode.Name.Position, elemNode.Name)
+				}
 			}
 		}
-		caseBody, _ := self.analyseBlock(caseNode.Second, fn)
-		if newValue != nil {
-			caseBody.Stmts.PushFront(newValue)
-		}
-		cases[i] = pair.NewPair(caseCond, caseBody)
+		cases.Set(caseName, &hir.MatchCase{
+			Name:  caseName,
+			Elems: elems,
+			Body:  stlbasic.IgnoreWith(self.analyseBlock(caseNode.Body, fn)),
+		})
 	}
 
 	var other util.Option[*hir.Block]
 	if otherNode, ok := node.Other.Value(); ok {
-		caseBody, _ := self.analyseBlock(otherNode, nil)
-		other = util.Some(caseBody)
+		other = util.Some(stlbasic.IgnoreWith(self.analyseBlock(otherNode, nil)))
+	}
+
+	if other.IsNone() && cases.Length() != vt.Fields.Length() {
+		errors.ThrowExpectMoreCase(node.Value.Position(), vtObj, cases.Length(), vt.Fields.Length())
 	}
 
 	return &hir.Match{

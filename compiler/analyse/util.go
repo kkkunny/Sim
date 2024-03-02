@@ -100,7 +100,7 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 	}()
 
 	switch typ := t.(type) {
-	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType, *hir.NoReturnType, *hir.LambdaType:
+	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType, *hir.NoReturnType, *hir.LambdaType, *hir.EnumType:
 	case *hir.ArrayType:
 		return self.checkTypeDefCircle(trace, typ.Elem)
 	case *hir.TupleType:
@@ -112,12 +112,6 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 	case *hir.StructType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
 			if self.checkTypeDefCircle(trace, iter.Value().Second.Type) {
-				return true
-			}
-		}
-	case *hir.UnionType:
-		for _, e := range typ.Elems {
-			if self.checkTypeDefCircle(trace, e) {
 				return true
 			}
 		}
@@ -150,7 +144,7 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	}()
 
 	switch typ := t.(type) {
-	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType, *hir.NoReturnType:
+	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType, *hir.NoReturnType, *hir.EnumType:
 	case *hir.FuncType:
 		for _, p := range typ.Params {
 			if self.checkTypeAliasCircle(trace, p) {
@@ -178,12 +172,6 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 	case *hir.StructType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
 			if self.checkTypeAliasCircle(trace, iter.Value().Second.Type) {
-				return true
-			}
-		}
-	case *hir.UnionType:
-		for _, e := range typ.Elems {
-			if self.checkTypeAliasCircle(trace, e) {
 				return true
 			}
 		}
