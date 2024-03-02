@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/pair"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 	stlslices "github.com/kkkunny/stl/slices"
@@ -219,9 +220,13 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 	if len(flag) == 0 || flag[0] {
 		// 表达式
 		// 标识符表达式
-		value, ok := self.localScope.GetValue(pkgName, node.Name.Source())
-		if ok {
-			return util.Some(either.Left[hir.Ident, hir.Type](value))
+		value := stlbasic.TernaryAction(self.localScope == nil, func() pair.Pair[hir.Ident, bool] {
+			return pair.NewPair[hir.Ident, bool](self.pkgScope.GetValue(pkgName, node.Name.Source()))
+		}, func() pair.Pair[hir.Ident, bool] {
+			return pair.NewPair[hir.Ident, bool](self.localScope.GetValue(pkgName, node.Name.Source()))
+		})
+		if value.Second {
+			return util.Some(either.Left[hir.Ident, hir.Type](value.First))
 		}
 	}
 

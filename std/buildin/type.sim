@@ -70,9 +70,12 @@ func (f64) default()Self{
     return 0
 }
 
-pub type bool __buildin_u1
-pub let true: bool = 1
-pub let false: bool = 0
+pub type bool enum{
+    false,
+    true,
+}
+pub let false: bool = bool.false
+pub let true: bool = bool.true
 
 func (bool) default()Self{
     return false

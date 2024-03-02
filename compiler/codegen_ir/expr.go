@@ -20,8 +20,6 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {
 		return self.codegenInteger(expr)
 	case *hir.Float:
 		return self.codegenFloat(expr)
-	case *hir.Boolean:
-		return self.codegenBool(expr)
 	case *hir.Assign:
 		self.codegenAssign(expr)
 		return nil
@@ -71,10 +69,6 @@ func (self *CodeGenerator) codegenInteger(ir *hir.Integer) mir.Int {
 func (self *CodeGenerator) codegenFloat(ir *hir.Float) *mir.Float {
 	v, _ := ir.Value.Float64()
 	return mir.NewFloat(self.codegenType(ir.Type).(mir.FloatType), v)
-}
-
-func (self *CodeGenerator) codegenBool(ir *hir.Boolean) *mir.Uint {
-	return mir.Bool(self.ctx, ir.Value)
 }
 
 func (self *CodeGenerator) codegenAssign(ir *hir.Assign) {
@@ -147,9 +141,9 @@ func (self *CodeGenerator) codegenBinary(ir hir.Binary) mir.Value {
 	case *hir.NumGeNum:
 		return self.builder.BuildCmp(mir.CmpKindGE, left, right)
 	case *hir.Equal:
-		return self.buildEqual(ir.GetLeft().GetType(), left, right, false)
+		return self.builder.BuildNumberCovert(self.buildEqual(ir.GetLeft().GetType(), left, right, false), self.boolType())
 	case *hir.NotEqual:
-		return self.buildEqual(ir.GetLeft().GetType(), left, right, true)
+		return self.builder.BuildNumberCovert(self.buildEqual(ir.GetLeft().GetType(), left, right, true), self.boolType())
 	default:
 		panic("unreachable")
 	}
@@ -406,7 +400,7 @@ func (self *CodeGenerator) codegenString(ir *hir.String) mir.Value {
 }
 
 func (self *CodeGenerator) codegenTypeJudgment(ir *hir.TypeJudgment) mir.Value {
-	return mir.Bool(self.ctx, ir.Value.GetType().EqualTo(ir.Type))
+	return self.builder.BuildNumberCovert(mir.Bool(self.ctx, ir.Value.GetType().EqualTo(ir.Type)), self.boolType())
 }
 
 func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) mir.Value {

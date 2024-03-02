@@ -175,6 +175,8 @@ func (self *_PkgScope) F32() hir.GlobalType   { return stlbasic.IgnoreWith(self.
 func (self *_PkgScope) F64() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("f64")) }
 func (self *_PkgScope) Bool() hir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("bool")) }
 func (self *_PkgScope) Str() hir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("str")) }
+func (self *_PkgScope) True() hir.Ident       { return stlbasic.IgnoreWith(self.getValue("true")) }
+func (self *_PkgScope) False() hir.Ident      { return stlbasic.IgnoreWith(self.getValue("false")) }
 func (self *_PkgScope) Default() *hir.Trait   { return stlbasic.IgnoreWith(self.getTrait("Default")) }
 func (self *_PkgScope) Add() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Add")) }
 func (self *_PkgScope) Sub() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Sub")) }

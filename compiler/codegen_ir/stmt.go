@@ -123,7 +123,7 @@ func (self *CodeGenerator) codegenIfElse(ir *hir.IfElse) {
 
 func (self *CodeGenerator) codegenIfElseNode(ir *hir.IfElse) []*mir.Block {
 	if condNode, ok := ir.Cond.Value(); ok {
-		cond := self.codegenExpr(condNode, true)
+		cond := self.builder.BuildNumberCovert(self.codegenExpr(condNode, true), self.ctx.Bool())
 		trueStartBlock, trueEndBlock := self.codegenBlock(ir.Body, nil)
 		falseBlock := trueStartBlock.Belong().NewBlock()
 		self.builder.BuildCondJump(cond, trueStartBlock, falseBlock)
@@ -170,7 +170,7 @@ func (self *CodeGenerator) codegenWhile(ir *hir.While) {
 
 	self.builder.BuildUnCondJump(condBlock)
 	self.builder.MoveTo(condBlock)
-	cond := self.codegenExpr(ir.Cond, true)
+	cond := self.builder.BuildNumberCovert(self.codegenExpr(ir.Cond, true), self.ctx.Bool())
 
 	bodyEntryBlock, bodyEndBlock := self.codegenBlock(ir.Body, func(block *mir.Block) {
 		self.loops.Set(ir, &whileLoop{Cond: condBlock, Out: endBlock})

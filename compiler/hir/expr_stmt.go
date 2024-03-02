@@ -656,26 +656,6 @@ func (*BoolNegate) Temporary() bool {
 	return true
 }
 
-// Boolean 布尔值
-type Boolean struct {
-	BoolType Type
-	Value    bool
-}
-
-func (self *Boolean) stmt() {}
-
-func (self *Boolean) GetType() Type {
-	return self.BoolType
-}
-
-func (self *Boolean) Mutable() bool {
-	return false
-}
-
-func (*Boolean) Temporary() bool {
-	return true
-}
-
 // Call 调用
 type Call struct {
 	Func Expr

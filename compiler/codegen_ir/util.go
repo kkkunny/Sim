@@ -284,6 +284,10 @@ func (self *CodeGenerator) ptrType() mir.PtrType {
 	return self.ctx.NewPtrType(self.codegenType(self.hir.BuildinTypes.U8))
 }
 
+func (self *CodeGenerator) boolType() mir.UintType {
+	return self.codegenType(self.hir.BuildinTypes.Bool).(mir.UintType)
+}
+
 // CodegenIr 中间代码生成
 func CodegenIr(target mir.Target, path stlos.FilePath) (*mir.Module, stlerror.Error) {
 	means, err := analyse.Analyse(path)

@@ -868,17 +868,14 @@ func (self *Analyser) analyseString(node *ast.String) *hir.String {
 	}
 }
 
-func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.ExprStmt {
+func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	target := self.analyseType(node.Type)
 	value := self.analyseExpr(target, node.Value)
 	vt := value.GetType()
 
 	switch {
 	case vt.EqualTo(target):
-		return &hir.Boolean{
-			BoolType: self.pkgScope.Bool(),
-			Value:    true,
-		}
+		return self.pkgScope.True()
 	default:
 		return &hir.TypeJudgment{
 			BoolType: self.pkgScope.Bool(),
