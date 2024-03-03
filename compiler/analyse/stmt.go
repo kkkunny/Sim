@@ -279,11 +279,9 @@ func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 		}
 		elems := stlslices.Map(caseNode.Elems, func(i int, e ast.MatchCaseElem) *hir.Param {
 			return &hir.Param{
-				VarDecl: hir.VarDecl{
-					Mut:  e.Mutable,
-					Type: caseDef.Elems[i],
-					Name: e.Name.Source(),
-				},
+				Mut:  e.Mutable,
+				Type: caseDef.Elems[i],
+				Name: util.Some(e.Name.Source()),
 			}
 		})
 		fn := func(scope _LocalScope) {

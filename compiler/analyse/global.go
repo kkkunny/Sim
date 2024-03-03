@@ -295,8 +295,8 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 	}()
 
 	for i, p := range f.Params {
-		if !self.localScope.SetValue(p.Name, p) {
-			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
+		if p.Name.IsSome() && !self.localScope.SetValue(p.Name.MustValue(), p) {
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.MustValue().Position, node.Params[i].Name.MustValue())
 		}
 	}
 
@@ -320,8 +320,8 @@ func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
 	defer self.setSelfType(st)()
 
 	for i, p := range f.Params {
-		if !self.localScope.SetValue(p.Name, p) {
-			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
+		if p.Name.IsSome() && !self.localScope.SetValue(p.Name.MustValue(), p) {
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.MustValue().Position, node.Params[i].Name.MustValue())
 		}
 	}
 

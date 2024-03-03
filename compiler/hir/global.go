@@ -137,7 +137,7 @@ func (self *MethodDef) GetSelfParam() util.Option[*Param] {
 	}, func() Type {
 		return firstParam.GetType()
 	})
-	if firstParam.Name != "self" || !selfType.EqualTo(firstParamType) {
+	if !selfType.EqualTo(firstParamType) {
 		return util.None[*Param]()
 	}
 	return util.Some(firstParam)

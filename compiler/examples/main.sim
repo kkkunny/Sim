@@ -1,8 +1,7 @@
 import std::os
 
+func a(s: u8, u8){}
+
 func main(){
-	let v: bool = true
-	if v && true{
-		debug("111")
-	}
+	debug("111")
 }

@@ -44,16 +44,34 @@ func (self *Parser) parseTypeList(end token.Kind, atLeastOne ...bool) (res []ast
 
 func (self *Parser) parseParamList(end token.Kind) (res []ast.Param) {
 	return loopParseWithUtil(self, token.COM, end, func() ast.Param {
-		mut := self.skipNextIs(token.MUT)
-		pn := self.expectNextIs(token.IDENT)
-		self.expectNextIs(token.COL)
-		pt := self.parseType()
-		return ast.Param{
-			Mutable: mut,
-			Name:    pn,
-			Type:    pt,
-		}
+		return self.parseParam()
 	})
+}
+
+func (self *Parser) parseParam() ast.Param {
+	if self.skipNextIs(token.MUT) {
+		mut := self.curTok
+		name := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		typ := self.parseType()
+		return ast.Param{
+			Mutable: util.Some(mut),
+			Name:    util.Some(name),
+			Type:    typ,
+		}
+	} else {
+		var name util.Option[token.Token]
+		typ := self.parseType()
+		if ident, ok := typ.(*ast.IdentType); ok && ident.Pkg.IsNone() && self.skipNextIs(token.COL) {
+			name = util.Some(ident.Name)
+			typ = self.parseType()
+		}
+		return ast.Param{
+			Mutable: util.None[token.Token](),
+			Name:    name,
+			Type:    typ,
+		}
+	}
 }
 
 func (self *Parser) parseFieldList(end token.Kind) (res []ast.Field) {

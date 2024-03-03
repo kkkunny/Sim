@@ -76,9 +76,9 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 		if first {
 			first = false
 
-			var mut bool
+			var mut util.Option[token.Token]
 			if self.skipNextIs(token.MUT) {
-				isLambda, mut = true, true
+				isLambda, mut = true, util.Some(self.curTok)
 			}
 			firstParam := self.mustExpr(self.parseOptionExpr(true))
 			firstIdent, ok := firstParam.(*ast.IdentExpr)
@@ -90,22 +90,14 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 				pt := self.parseType()
 				return ast.Param{
 					Mutable: mut,
-					Name:    firstIdent.Name,
+					Name:    util.Some(firstIdent.Name),
 					Type:    pt,
 				}
 			} else {
 				return firstParam
 			}
 		} else if isLambda {
-			mut := self.skipNextIs(token.MUT)
-			pn := self.expectNextIs(token.IDENT)
-			self.expectNextIs(token.COL)
-			pt := self.parseType()
-			return ast.Param{
-				Mutable: mut,
-				Name:    pn,
-				Type:    pt,
-			}
+			return self.parseParam()
 		} else {
 			return self.mustExpr(self.parseOptionExpr(true))
 		}

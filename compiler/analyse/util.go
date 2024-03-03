@@ -292,19 +292,12 @@ func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {
 
 func (self *Analyser) analyseFuncDecl(node ast.FuncDecl) hir.FuncDecl {
 	paramNameSet := hashset.NewHashSetWith[string]()
-	params := stlslices.Map(node.Params, func(i int, e ast.Param) *hir.Param {
-		pn := e.Name.Source()
-		if !paramNameSet.Add(pn) {
-			errors.ThrowIdentifierDuplicationError(e.Name.Position, e.Name)
+	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *hir.Param {
+		param := self.analyseParam(e)
+		if param.Name.IsSome() && !paramNameSet.Add(param.Name.MustValue()) {
+			errors.ThrowIdentifierDuplicationError(e.Name.MustValue().Position, e.Name.MustValue())
 		}
-		pt := self.analyseType(e.Type)
-		return &hir.Param{
-			VarDecl: hir.VarDecl{
-				Mut:  e.Mutable,
-				Type: pt,
-				Name: pn,
-			},
-		}
+		return param
 	})
 	return hir.FuncDecl{
 		Name:   node.Name.Source(),

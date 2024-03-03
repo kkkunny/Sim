@@ -12,9 +12,19 @@ type Ast interface {
 }
 
 type Param struct {
-	Mutable bool
-	Name    token.Token
+	Mutable util.Option[token.Token]
+	Name    util.Option[token.Token]
 	Type    Type
+}
+
+func (self Param) Position() reader.Position {
+	if self.Mutable.IsSome() {
+		return reader.MixPosition(self.Mutable.MustValue().Position, self.Type.Position())
+	} else if self.Name.IsSome() {
+		return reader.MixPosition(self.Name.MustValue().Position, self.Type.Position())
+	} else {
+		return self.Type.Position()
+	}
 }
 
 type Field struct {

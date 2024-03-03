@@ -898,15 +898,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 }
 
 func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lambda {
-	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *hir.Param {
-		return &hir.Param{
-			VarDecl: hir.VarDecl{
-				Mut:  e.Mutable,
-				Type: self.analyseType(e.Type),
-				Name: e.Name.Source(),
-			},
-		}
-	})
+	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *hir.Param { return self.analyseParam(e) })
 	ret := self.analyseOptionTypeWith(util.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
 	f := &hir.Lambda{
 		Params: params,
@@ -932,12 +924,24 @@ func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lamb
 	}()
 
 	for i, p := range f.Params {
-		if !self.localScope.SetValue(p.Name, p) {
-			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.Position, node.Params[i].Name)
+		if p.Name.IsSome() && !self.localScope.SetValue(p.Name.MustValue(), p) {
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.MustValue().Position, node.Params[i].Name.MustValue())
 		}
 	}
 
 	f.Body = self.analyseFuncBody(node.Body)
 	f.Context = captureIdents.ToSlice().ToSlice()
 	return f
+}
+
+func (self *Analyser) analyseParam(node ast.Param) *hir.Param {
+	return &hir.Param{
+		Mut:  !node.Mutable.IsNone(),
+		Type: self.analyseType(node.Type),
+		Name: stlbasic.TernaryAction(node.Name.IsNone(), func() util.Option[string] {
+			return util.None[string]()
+		}, func() util.Option[string] {
+			return util.Some(node.Name.MustValue().Source())
+		}),
+	}
 }

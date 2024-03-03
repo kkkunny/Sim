@@ -1,5 +1,11 @@
 package hir
 
+import (
+	stlbasic "github.com/kkkunny/stl/basic"
+
+	"github.com/kkkunny/Sim/util"
+)
+
 // Expr 表达式
 type Expr interface {
 	GetType() Type
@@ -10,7 +16,7 @@ type Expr interface {
 // Ident 标识符
 type Ident interface {
 	Expr
-	GetName()string
+	GetName() string
 }
 
 // Variable 变量
@@ -38,13 +44,37 @@ func (self *VarDecl) Mutable() bool {
 	return self.Mut
 }
 
-func (*VarDecl) variable(){}
+func (*VarDecl) variable() {}
 
-func (*VarDecl) Temporary() bool{
+func (*VarDecl) Temporary() bool {
 	return false
 }
 
 // Param 参数
 type Param struct {
-	VarDecl
+	Mut  bool
+	Type Type
+	Name util.Option[string]
+}
+
+func (self *Param) GetName() string {
+	return stlbasic.TernaryAction(self.Name.IsNone(), func() string {
+		return ""
+	}, func() string {
+		return self.Name.MustValue()
+	})
+}
+
+func (self *Param) GetType() Type {
+	return self.Type
+}
+
+func (self *Param) Mutable() bool {
+	return self.Mut
+}
+
+func (*Param) variable() {}
+
+func (*Param) Temporary() bool {
+	return false
 }
