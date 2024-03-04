@@ -39,18 +39,28 @@ func (self *Parser) parseGlobal() ast.Global {
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global {
 	expectAttrIn(attrs, new(ast.Extern), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
+
+	begin := self.expectNextIs(token.FUNC).Position
+	if pub != nil {
+		begin = pub.Position
+	}
+
 	var selfType util.Option[token.Token]
-	decl := self.parseFuncDecl(func() {
-		if self.skipNextIs(token.LPA) {
-			selfType = util.Some(self.expectNextIs(token.IDENT))
-			self.expectNextIs(token.RPA)
-		}
-	})
-	begin := stlbasic.TernaryAction(pub == nil, func() reader.Position {
-		return decl.Begin
-	}, func() reader.Position {
-		return pub.Position
-	})
+	if self.skipNextIs(token.LPA) {
+		selfType = util.Some(self.expectNextIs(token.IDENT))
+		self.expectNextIs(token.RPA)
+	}
+
+	name := self.expectNextIs(token.IDENT)
+	genericParams := self.parseGenericParamList()
+	if genericParams.IsSome() {
+		expectAttrIn(attrs, new(ast.Inline), new(ast.NoInline))
+	}
+	self.expectNextIs(token.LPA)
+	params := self.parseParamList(token.RPA)
+	self.expectNextIs(token.RPA)
+	ret := self.parseOptionType()
+
 	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
 	}, func() util.Option[*ast.Block] {
@@ -61,8 +71,15 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 		Begin:    begin,
 		Public:   pub != nil,
 		SelfType: selfType,
-		FuncDecl: decl,
-		Body:     body,
+		FuncDecl: ast.FuncDecl{
+			Begin:  begin,
+			Name:   name,
+			Params: params,
+			Ret:    ret,
+			End:    self.curTok.Position,
+		},
+		GenericParams: genericParams,
+		Body:          body,
 	}
 }
 
@@ -200,7 +217,19 @@ func (self *Parser) parseTrait(attrs []ast.Attr, pub *token.Token) *ast.Trait {
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
 	methods := loopParseWithUtil(self, token.COM, token.RBR, func() *ast.FuncDecl {
-		return stlbasic.Ptr(self.parseFuncDecl(nil))
+		funcBegin := self.expectNextIs(token.FUNC).Position
+		funcName := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.LPA)
+		params := self.parseParamList(token.RPA)
+		self.expectNextIs(token.RPA)
+		ret := self.parseOptionType()
+		return &ast.FuncDecl{
+			Begin:  funcBegin,
+			Name:   funcName,
+			Params: params,
+			Ret:    ret,
+			End:    self.curTok.Position,
+		}
 	})
 	end := self.expectNextIs(token.RBR).Position
 

@@ -57,6 +57,16 @@ func (self *Ident) Position() reader.Position {
 	return self.Name.Position
 }
 
+type GenericParamList struct {
+	Begin  reader.Position
+	Params []token.Token
+	End    reader.Position
+}
+
+func (self *GenericParamList) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
 // FuncDecl 函数声明
 type FuncDecl struct {
 	Begin  reader.Position

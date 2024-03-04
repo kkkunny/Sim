@@ -1,7 +1,9 @@
 import std::os
 
-func a(s: u8, u8){}
+func get<T>(v: T)T{
+	return v
+}
 
 func main(){
-	debug("111")
+	os::exit(v)
 }

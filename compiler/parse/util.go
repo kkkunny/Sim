@@ -124,23 +124,20 @@ func (self *Parser) parseIdent() *ast.Ident {
 	}
 }
 
-func (self *Parser) parseFuncDecl(afterName func()) ast.FuncDecl {
-	begin := self.expectNextIs(token.FUNC).Position
-	if afterName != nil {
-		afterName()
+func (self *Parser) parseGenericParamList() util.Option[ast.GenericParamList] {
+	if !self.skipNextIs(token.LT) {
+		return util.None[ast.GenericParamList]()
 	}
-	name := self.expectNextIs(token.IDENT)
-	self.expectNextIs(token.LPA)
-	params := self.parseParamList(token.RPA)
-	self.expectNextIs(token.RPA)
-	ret := self.parseOptionType()
-	return ast.FuncDecl{
+	begin := self.curTok.Position
+	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
+		return self.expectNextIs(token.IDENT)
+	}, true)
+	end := self.expectNextIs(token.GT).Position
+	return util.Some(ast.GenericParamList{
 		Begin:  begin,
-		Name:   name,
 		Params: params,
-		Ret:    ret,
-		End:    self.curTok.Position,
-	}
+		End:    end,
+	})
 }
 
 // 语法解析目标文件
