@@ -9,6 +9,13 @@ import (
 )
 
 func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
+	if gp, ok := t.(*hir.GenericParam); ok {
+		if !self.genericParamMap.ContainKey(gp) {
+			panic("unreachable")
+		}
+		return self.genericParamMap.Get(gp)
+	}
+
 	switch t := hir.ToRuntimeType(t).(type) {
 	case *hir.NoThingType, *hir.NoReturnType:
 		return self.codegenEmptyType()

@@ -205,6 +205,7 @@ type _LocalScope interface {
 	GetFunc() hir.CallableDef
 	SetLoop(loop hir.Loop)
 	GetLoop() hir.Loop
+	GetType(pkg, name string) (hir.Type, bool)
 }
 
 // 函数作用域
@@ -272,6 +273,17 @@ func (self *_FuncScope) GetFunc() hir.CallableDef {
 	return self.def
 }
 
+func (self *_FuncScope) GetType(pkg, name string) (hir.Type, bool) {
+	if gf, ok := self.def.(*hir.GenericFuncDef); ok && pkg == "" && gf.GenericParams.ContainKey(name) {
+		return gf.GenericParams.Get(name), true
+	}
+	if pkgScope, ok := self.parent.Left(); ok {
+		return pkgScope.GetTypeDef(pkg, name)
+	} else {
+		return stlbasic.IgnoreWith(self.parent.Right()).GetType(pkg, name)
+	}
+}
+
 // 代码块作用域
 type _BlockScope struct {
 	parent _LocalScope
@@ -329,4 +341,8 @@ func (self *_BlockScope) GetLoop() hir.Loop {
 		return self.parent.GetLoop()
 	}
 	return nil
+}
+
+func (self *_BlockScope) GetType(pkg, name string) (hir.Type, bool) {
+	return self.parent.GetType(pkg, name)
 }

@@ -182,13 +182,15 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) mir.Value {
 	case *hir.FuncDef:
 		return self.values.Get(identNode).(*mir.Function)
 	case *hir.MethodDef:
-		return self.values.Get(&identNode.FuncDef).(*mir.Function)
+		return self.values.Get(identNode.FuncDef).(*mir.Function)
 	case hir.Variable:
 		p := self.values.Get(identNode)
 		if !load {
 			return p
 		}
 		return self.builder.BuildLoad(p)
+	case *hir.GenericFuncInst:
+		return self.codegenGenericFuncInst(identNode)
 	default:
 		panic("unreachable")
 	}

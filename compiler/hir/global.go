@@ -111,7 +111,7 @@ type GlobalMethod interface {
 // MethodDef 方法定义
 type MethodDef struct {
 	Scope *TypeDef
-	FuncDef
+	*FuncDef
 }
 
 func (self *MethodDef) GetSelfType() *TypeDef {
@@ -237,4 +237,10 @@ func (self *Trait) HasBeImpled(t Type) bool {
 
 func (self *Trait) FirstMethodName() string {
 	return self.Methods.Values().Front().Name
+}
+
+// GenericFuncDef 泛型函数定义
+type GenericFuncDef struct {
+	GenericParams linkedhashmap.LinkedHashMap[string, *GenericParam]
+	*FuncDef
 }

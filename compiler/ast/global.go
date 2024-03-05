@@ -105,7 +105,8 @@ type FuncDef struct {
 	Public   bool
 	SelfType util.Option[token.Token]
 	FuncDecl
-	Body util.Option[*Block]
+	GenericParams util.Option[GenericParamList]
+	Body          util.Option[*Block]
 }
 
 func (self *FuncDef) Position() reader.Position {
