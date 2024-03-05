@@ -52,7 +52,10 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 	}
 
 	name := self.expectNextIs(token.IDENT)
-	genericParams := self.parseGenericParamList()
+	var genericParams util.Option[ast.GenericParamList]
+	if selfType.IsNone() {
+		genericParams = self.parseGenericParamList()
+	}
 	if genericParams.IsSome() {
 		expectAttrIn(attrs, new(ast.Inline), new(ast.NoInline))
 	}
@@ -61,7 +64,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 	self.expectNextIs(token.RPA)
 	ret := self.parseOptionType()
 
-	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
+	body := stlbasic.TernaryAction(self.nextIs(token.LBR) || genericParams.IsSome(), func() util.Option[*ast.Block] {
 		return util.Some(self.parseBlock())
 	}, func() util.Option[*ast.Block] {
 		return util.None[*ast.Block]()

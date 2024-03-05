@@ -266,9 +266,14 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewFloatType(uint8(bits))))
 			}
 		}
-		// 类型定义
-		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
-			return util.Some(either.Right[hir.Ident, hir.Type](td))
+		if self.localScope != nil {
+			if t, ok := self.localScope.GetType(pkgName, name); ok {
+				return util.Some(either.Right[hir.Ident, hir.Type](t))
+			}
+		} else {
+			if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
+				return util.Some(either.Right[hir.Ident, hir.Type](td))
+			}
 		}
 	}
 	return util.None[either.Either[hir.Ident, hir.Type]]()

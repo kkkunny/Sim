@@ -575,7 +575,7 @@ func AsCustomType(t Type) *CustomType {
 }
 
 func (self *CustomType) String() string {
-	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
+	return GetGlobalName(self.Pkg, self.Name)
 }
 
 func (self *CustomType) EqualTo(dst Type) bool {
@@ -741,4 +741,37 @@ func (self *EnumType) IsSimple() bool {
 	return stliter.All(self.Fields, func(e pair.Pair[string, EnumField]) bool {
 		return len(e.Second.Elems) == 0
 	})
+}
+
+// GenericParam 泛型参数
+type GenericParam struct {
+	Belong *GenericFuncDef
+	Name   string
+}
+
+func NewGenericParam(belong *GenericFuncDef, name string) *GenericParam {
+	return &GenericParam{
+		Belong: belong,
+		Name:   name,
+	}
+}
+
+func (self *GenericParam) String() string {
+	return fmt.Sprintf("%s::%s", GetGlobalName(self.Belong.Pkg, self.Belong.Name), self.Name)
+}
+
+func (self *GenericParam) EqualTo(dst Type) bool {
+	gp, ok := dst.(*GenericParam)
+	if !ok {
+		return false
+	}
+	return self.Belong == gp.Belong && self.Name == gp.Name
+}
+
+func (self *GenericParam) HasDefault() bool {
+	return false
+}
+
+func (self *GenericParam) Runtime() runtimeType.Type {
+	panic("unreachable")
 }

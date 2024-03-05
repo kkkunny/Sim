@@ -135,7 +135,11 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 	switch global := node.(type) {
 	case *ast.FuncDef:
 		if global.SelfType.IsNone() {
-			self.declFuncDef(global)
+			if global.GenericParams.IsNone() {
+				self.declFuncDef(global)
+			} else {
+				self.declGenericFuncDef(global)
+			}
 		} else {
 			self.declMethodDef(global)
 		}
@@ -154,6 +158,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 		Pkg:    self.pkgScope.pkg,
 		Public: node.Public,
 	}
+
 	for _, attrObj := range node.Attrs {
 		switch attr := attrObj.(type) {
 		case *ast.Extern:
@@ -186,7 +191,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 
 func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 	f := &hir.MethodDef{
-		FuncDef: hir.FuncDef{
+		FuncDef: &hir.FuncDef{
 			Pkg:    self.pkgScope.pkg,
 			Public: node.Public,
 		},
@@ -263,7 +268,11 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 	switch global := node.(type) {
 	case *ast.FuncDef:
 		if global.SelfType.IsNone() {
-			return self.defFuncDef(global)
+			if global.GenericParams.IsNone() {
+				return self.defFuncDef(global)
+			} else {
+				return self.defGenericFuncDef(global)
+			}
 		} else {
 			return self.defMethodDef(global)
 		}
@@ -279,12 +288,7 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 }
 
 func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
-	value, ok := self.pkgScope.getLocalValue(node.Name.Source())
-	if !ok {
-		panic("unreachable")
-	}
-	f := value.(*hir.FuncDef)
-
+	f := stlbasic.IgnoreWith(self.pkgScope.getLocalValue(node.Name.Source())).(*hir.FuncDef)
 	if node.Body.IsNone() {
 		return f
 	}
@@ -305,8 +309,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 }
 
 func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
-	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
-	st := td.(*hir.TypeDef)
+	st := stlbasic.IgnoreWith(self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())).(*hir.TypeDef)
 	f := st.Methods.Get(node.Name.Source())
 
 	if node.Body.IsNone() {
@@ -330,12 +333,7 @@ func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
 }
 
 func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *hir.GlobalVarDef {
-	value, ok := self.pkgScope.GetValue("", node.Var.Name.Source())
-	if !ok {
-		panic("unreachable")
-	}
-	v := value.(*hir.GlobalVarDef)
-
+	v := stlbasic.IgnoreWith(self.pkgScope.GetValue("", node.Var.Name.Source())).(*hir.GlobalVarDef)
 	if valueNode, ok := node.Value.Value(); ok {
 		v.Value = util.Some(self.expectExpr(v.Type, valueNode))
 	} else if v.ExternName == "" {
@@ -370,4 +368,64 @@ func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) *hir
 		Vars:  vars,
 		Value: value,
 	}
+}
+
+func (self *Analyser) declGenericFuncDef(node *ast.FuncDef) {
+	gf := &hir.GenericFuncDef{
+		FuncDef: &hir.FuncDef{
+			Pkg:    self.pkgScope.pkg,
+			Public: node.Public,
+		},
+	}
+
+	for _, attrObj := range node.Attrs {
+		switch attrObj.(type) {
+		case *ast.Inline:
+			gf.InlineControl = util.Some[bool](true)
+		case *ast.NoInline:
+			gf.InlineControl = util.Some[bool](false)
+		default:
+			panic("unreachable")
+		}
+	}
+
+	for _, gnNode := range node.GenericParams.MustValue().Params {
+		paramName := gnNode.Source()
+		if gf.GenericParams.ContainKey(paramName) {
+			errors.ThrowIdentifierDuplicationError(gnNode.Position, gnNode)
+		}
+		gf.GenericParams.Set(paramName, hir.NewGenericParam(gf, paramName))
+	}
+
+	self.localScope = _NewFuncScope(self.pkgScope, gf)
+	defer func() {
+		self.localScope = nil
+	}()
+
+	gf.FuncDecl = self.analyseFuncDecl(node.FuncDecl)
+
+	if gf.Name == "main" {
+		errors.ThrowTypeMismatchError(node.Position(), gf.GetType(), &hir.FuncType{Ret: hir.NoThing})
+	}
+	if !self.pkgScope.SetValue(gf.Name, gf) {
+		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
+	}
+}
+
+func (self *Analyser) defGenericFuncDef(node *ast.FuncDef) *hir.GenericFuncDef {
+	gf := stlbasic.IgnoreWith(self.pkgScope.getValue(node.Name.Source())).(*hir.GenericFuncDef)
+
+	self.localScope = _NewFuncScope(self.pkgScope, gf)
+	defer func() {
+		self.localScope = nil
+	}()
+
+	for i, p := range gf.Params {
+		if p.Name.IsSome() && !self.localScope.SetValue(p.Name.MustValue(), p) {
+			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.MustValue().Position, node.Params[i].Name.MustValue())
+		}
+	}
+
+	gf.Body = util.Some(self.analyseFuncBody(node.Body.MustValue()))
+	return gf
 }
