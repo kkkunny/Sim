@@ -6,6 +6,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
@@ -741,6 +742,61 @@ func (self *EnumType) IsSimple() bool {
 	return stliter.All(self.Fields, func(e pair.Pair[string, EnumField]) bool {
 		return len(e.Second.Elems) == 0
 	})
+}
+
+// 去除泛型参数
+func removeGenericParams(maps hashmap.HashMap[*GenericParam, Type], t Type) RuntimeType {
+	switch tt := t.(type) {
+	case *NoThingType, *NoReturnType, *SintType, *UintType, *FloatType:
+		return tt.(RuntimeType)
+	case *ArrayType:
+		return NewArrayType(tt.Size, removeGenericParams(maps, tt.Elem))
+	case *TupleType:
+		return NewTupleType(stlslices.Map(tt.Elems, func(_ int, e Type) Type {
+			return removeGenericParams(maps, e)
+		})...)
+	case *RefType:
+		return NewRefType(tt.Mut, removeGenericParams(maps, tt.Elem))
+	case *FuncType:
+		return NewFuncType(removeGenericParams(maps, tt.Ret), stlslices.Map(tt.Params, func(_ int, e Type) Type {
+			return removeGenericParams(maps, e)
+		})...)
+	case *LambdaType:
+		return NewLambdaType(removeGenericParams(maps, tt.Ret), stlslices.Map(tt.Params, func(_ int, e Type) Type {
+			return removeGenericParams(maps, e)
+		})...)
+	case *StructType:
+		return NewStructType(tt.Def, stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(p pair.Pair[string, Field]) pair.Pair[string, Field] {
+			return pair.NewPair(p.First, Field{
+				Public:  p.Second.Public,
+				Mutable: p.Second.Mutable,
+				Name:    p.Second.Name,
+				Type:    removeGenericParams(maps, p.Second.Type),
+			})
+		}))
+	case *EnumType:
+		return NewEnumType(tt.Def, stliter.Map[pair.Pair[string, EnumField], pair.Pair[string, EnumField], linkedhashmap.LinkedHashMap[string, EnumField]](tt.Fields, func(p pair.Pair[string, EnumField]) pair.Pair[string, EnumField] {
+			return pair.NewPair(p.First, EnumField{
+				Name: p.Second.Name,
+				Elems: stlslices.Map(p.Second.Elems, func(_ int, e Type) Type {
+					return removeGenericParams(maps, e)
+				}),
+			})
+		}))
+	case *CustomType:
+		return tt
+	case *SelfType:
+		return tt.Self.MustValue()
+	case *AliasType:
+		return removeGenericParams(maps, tt.Target)
+	case *GenericParam:
+		if !maps.ContainKey(tt) {
+			panic("unreachable")
+		}
+		return ToRuntimeType(maps.Get(tt))
+	default:
+		panic("unreachable")
+	}
 }
 
 // GenericParam 泛型参数

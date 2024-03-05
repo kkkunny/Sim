@@ -1,9 +1,14 @@
 package hir
 
 import (
+	"fmt"
 	"math/big"
+	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashmap"
+	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/util"
@@ -1162,4 +1167,36 @@ func (self *Number2Enum) GetFrom() Expr {
 
 func (*Number2Enum) Temporary() bool {
 	return true
+}
+
+// GenericFuncInst 泛型函数实例
+type GenericFuncInst struct {
+	Def  *GenericFuncDef
+	Args []Type
+}
+
+func (self *GenericFuncInst) stmt() {}
+
+func (self *GenericFuncInst) GetType() Type {
+	var i int
+	maps := stliter.Map[pair.Pair[string, *GenericParam], pair.Pair[*GenericParam, Type], hashmap.HashMap[*GenericParam, Type]](self.Def.GenericParams, func(p pair.Pair[string, *GenericParam]) pair.Pair[*GenericParam, Type] {
+		i++
+		return pair.NewPair(p.Second, self.Args[i-1])
+	})
+	return removeGenericParams(maps, self.Def.GetFuncType())
+}
+
+func (*GenericFuncInst) Mutable() bool {
+	return false
+}
+
+func (*GenericFuncInst) Temporary() bool {
+	return true
+}
+
+func (self *GenericFuncInst) GetName() string {
+	args := stlslices.Map(self.Args, func(_ int, e Type) string {
+		return e.String()
+	})
+	return fmt.Sprintf("%s::<%s>", self.Def.GetName(), strings.Join(args, ","))
 }

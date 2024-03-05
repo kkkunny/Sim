@@ -235,14 +235,31 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 
 	if len(flag) == 0 || flag[0] {
 		// 表达式
-		// 标识符表达式
 		value := stlbasic.TernaryAction(self.localScope == nil, func() pair.Pair[hir.Ident, bool] {
 			return pair.NewPair[hir.Ident, bool](self.pkgScope.GetValue(pkgName, node.Name.Source()))
 		}, func() pair.Pair[hir.Ident, bool] {
 			return pair.NewPair[hir.Ident, bool](self.localScope.GetValue(pkgName, node.Name.Source()))
 		})
 		if value.Second {
-			return util.Some(either.Left[hir.Ident, hir.Type](value.First))
+			gf, ok := value.First.(*hir.GenericFuncDef)
+			if node.GenericArgs.IsNone() {
+				if ok {
+					errors.ThrowParameterNumberNotMatchError(node.Position(), gf.GenericParams.Length(), 0)
+				}
+				return util.Some(either.Left[hir.Ident, hir.Type](value.First))
+			} else {
+				genericArgs := node.GenericArgs.MustValue()
+				if !ok || uint(len(genericArgs.Params)) != gf.GenericParams.Length() {
+					errors.ThrowParameterNumberNotMatchError(genericArgs.Position(), gf.GenericParams.Length(), uint(len(genericArgs.Params)))
+				}
+				args := stlslices.Map(node.GenericArgs.MustValue().Params, func(_ int, e ast.Type) hir.Type {
+					return self.analyseType(e)
+				})
+				return util.Some(either.Left[hir.Ident, hir.Type](&hir.GenericFuncInst{
+					Def:  gf,
+					Args: args,
+				}))
+			}
 		}
 	}
 
@@ -266,13 +283,14 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewFloatType(uint8(bits))))
 			}
 		}
+		// 自定义类型
 		if self.localScope != nil {
 			if t, ok := self.localScope.GetType(pkgName, name); ok {
 				return util.Some(either.Right[hir.Ident, hir.Type](t))
 			}
 		} else {
-			if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
-				return util.Some(either.Right[hir.Ident, hir.Type](td))
+			if t, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
+				return util.Some(either.Right[hir.Ident, hir.Type](t))
 			}
 		}
 	}
