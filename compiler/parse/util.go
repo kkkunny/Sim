@@ -62,7 +62,7 @@ func (self *Parser) parseParam() ast.Param {
 	} else {
 		var name util.Option[token.Token]
 		typ := self.parseType()
-		if ident, ok := typ.(*ast.IdentType); ok && ident.Pkg.IsNone() && self.skipNextIs(token.COL) {
+		if ident, ok := typ.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.GenericArgs.IsNone() && self.skipNextIs(token.COL) {
 			name = util.Some(ident.Name)
 			typ = self.parseType()
 		}
@@ -112,15 +112,26 @@ loop:
 func (self *Parser) parseIdent() *ast.Ident {
 	var pkg util.Option[token.Token]
 	var name token.Token
+	var genericArgs util.Option[ast.GenericArgList]
+
 	pkgOrName := self.expectNextIs(token.IDENT)
 	if !self.skipNextIs(token.SCOPE) {
-		pkg, name = util.None[token.Token](), pkgOrName
+		name = pkgOrName
 	} else {
-		pkg, name = util.Some(pkgOrName), self.expectNextIs(token.IDENT)
+		if !self.nextIs(token.LT) {
+			pkg, name = util.Some(pkgOrName), self.expectNextIs(token.IDENT)
+			if self.skipNextIs(token.SCOPE) {
+				genericArgs = util.Some(self.parseGenericArgList())
+			}
+		} else {
+			name = pkgOrName
+			genericArgs = util.Some(self.parseGenericArgList())
+		}
 	}
 	return &ast.Ident{
-		Pkg:  pkg,
-		Name: name,
+		Pkg:         pkg,
+		Name:        name,
+		GenericArgs: genericArgs,
 	}
 }
 
@@ -138,6 +149,19 @@ func (self *Parser) parseGenericParamList() util.Option[ast.GenericParamList] {
 		Params: params,
 		End:    end,
 	})
+}
+
+func (self *Parser) parseGenericArgList() ast.GenericArgList {
+	begin := self.expectNextIs(token.LT).Position
+	args := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {
+		return self.parseType()
+	}, true)
+	end := self.expectNextIs(token.GT).Position
+	return ast.GenericArgList{
+		Begin:  begin,
+		Params: args,
+		End:    end,
+	}
 }
 
 // 语法解析目标文件

@@ -43,7 +43,7 @@ var voidTypeAnalyser = func(node util.Option[ast.Type]) util.Option[hir.Type] {
 	if !ok {
 		return util.None[hir.Type]()
 	}
-	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == hir.NoThing.String() {
+	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.GenericArgs.IsNone() && ident.Name.Source() == hir.NoThing.String() {
 		return util.Some[hir.Type](hir.NoThing)
 	}
 	return util.None[hir.Type]()
@@ -54,7 +54,7 @@ var noReturnTypeAnalyser = func(node util.Option[ast.Type]) util.Option[hir.Type
 	if !ok {
 		return util.None[hir.Type]()
 	}
-	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == hir.NoReturn.String() {
+	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.GenericArgs.IsNone() && ident.Name.Source() == hir.NoReturn.String() {
 		return util.Some[hir.Type](hir.NoReturn)
 	}
 	return util.None[hir.Type]()

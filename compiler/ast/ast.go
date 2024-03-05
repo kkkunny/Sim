@@ -1,6 +1,8 @@
 package ast
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
+
 	"github.com/kkkunny/Sim/reader"
 	"github.com/kkkunny/Sim/token"
 	"github.com/kkkunny/Sim/util"
@@ -46,15 +48,23 @@ func (self List[T]) Position() reader.Position {
 
 // Ident 标识符
 type Ident struct {
-	Pkg  util.Option[token.Token]
-	Name token.Token
+	Pkg         util.Option[token.Token]
+	Name        token.Token
+	GenericArgs util.Option[GenericArgList]
 }
 
 func (self *Ident) Position() reader.Position {
-	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.Name.Position)
-	}
-	return self.Name.Position
+	begin := stlbasic.TernaryAction(self.Pkg.IsNone(), func() reader.Position {
+		return self.Name.Position
+	}, func() reader.Position {
+		return self.Pkg.MustValue().Position
+	})
+	end := stlbasic.TernaryAction(self.GenericArgs.IsNone(), func() reader.Position {
+		return self.Name.Position
+	}, func() reader.Position {
+		return self.GenericArgs.MustValue().End
+	})
+	return reader.MixPosition(begin, end)
 }
 
 type GenericParamList struct {
@@ -64,6 +74,16 @@ type GenericParamList struct {
 }
 
 func (self *GenericParamList) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+type GenericArgList struct {
+	Begin  reader.Position
+	Params []Type
+	End    reader.Position
+}
+
+func (self *GenericArgList) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.End)
 }
 

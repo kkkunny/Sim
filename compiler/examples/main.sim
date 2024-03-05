@@ -5,5 +5,5 @@ func get<T>(v: T)T{
 }
 
 func main(){
-	os::exit(1)
+	os::exit(get::<u8>(1))
 }
