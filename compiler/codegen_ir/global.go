@@ -1,7 +1,12 @@
 package codegen_ir
 
 import (
+	"strings"
+
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/hashmap"
+	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/hir"
@@ -19,7 +24,7 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 		self.declGlobalVariable(global)
 	case *hir.MultiGlobalVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.TypeDef, *hir.TypeAliasDef, *hir.Trait:
+	case *hir.TypeDef, *hir.TypeAliasDef, *hir.Trait, *hir.GenericFuncDef:
 	default:
 		panic("unreachable")
 	}
@@ -42,7 +47,7 @@ func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 }
 
 func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
-	self.declFuncDef(&ir.FuncDef)
+	self.declFuncDef(ir.FuncDef)
 }
 
 func (self *CodeGenerator) declGlobalVariable(ir *hir.GlobalVarDef) {
@@ -75,7 +80,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 		}
 	case *hir.MultiGlobalVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.Trait, *hir.TypeDef:
+	case *hir.TypeAliasDef, *hir.Trait, *hir.TypeDef, *hir.GenericFuncDef:
 	default:
 		panic("unreachable")
 	}
@@ -92,7 +97,7 @@ func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
 }
 
 func (self *CodeGenerator) defMethodDef(ir *hir.MethodDef) {
-	self.defFuncDef(&ir.FuncDef)
+	self.defFuncDef(ir.FuncDef)
 }
 
 func (self *CodeGenerator) defFuncDecl(ir *hir.FuncDef) {
@@ -124,4 +129,49 @@ func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 		self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
 		self.codegenUnTuple(ir.Value, stlslices.Map(ir.Vars, func(_ int, item *hir.GlobalVarDef) hir.Expr { return item }))
 	}
+}
+
+func (self *CodeGenerator) codegenGenericFuncInst(ir *hir.GenericFuncInst) *mir.Function {
+	args := stlslices.Map(ir.Args, func(_ int, e hir.Type) mir.Type {
+		return self.codegenType(e)
+	})
+	key := strings.Join(stlslices.Map(args, func(_ int, e mir.Type) string {
+		return e.String()
+	}), "|")
+	if self.genericFuncCache.ContainKey(pair.NewPair(ir.Def, key)) {
+		return self.genericFuncCache.Get(pair.NewPair(ir.Def, key))
+	}
+
+	preGenericParamMap := self.genericParamMap
+	var i int
+	self.genericParamMap = stliter.Map[pair.Pair[string, *hir.GenericParam], pair.Pair[*hir.GenericParam, mir.Type], hashmap.HashMap[*hir.GenericParam, mir.Type]](ir.Def.GenericParams, func(p pair.Pair[string, *hir.GenericParam]) pair.Pair[*hir.GenericParam, mir.Type] {
+		i++
+		return pair.NewPair(p.Second, args[i-1])
+	})
+	defer func() {
+		self.genericParamMap = preGenericParamMap
+	}()
+
+	ft := self.codegenType(ir.Def.GetFuncType()).(mir.FuncType)
+	f := self.module.NewFunction("", ft)
+	if ir.Def.Ret.EqualTo(hir.NoReturn) {
+		f.SetAttribute(mir.FunctionAttributeNoReturn)
+	}
+	if inline, ok := ir.Def.InlineControl.Value(); ok {
+		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+	}
+	self.genericFuncCache.Set(pair.NewPair(ir.Def, key), f)
+
+	curBlock := self.builder.Current()
+	defer func() {
+		self.builder.MoveTo(curBlock)
+	}()
+
+	self.builder.MoveTo(f.NewBlock())
+	for i, pir := range ir.Def.Params {
+		self.values.Set(pir, f.Params()[i])
+	}
+	block, _ := self.codegenBlock(ir.Def.Body.MustValue(), nil)
+	self.builder.BuildUnCondJump(block)
+	return f
 }

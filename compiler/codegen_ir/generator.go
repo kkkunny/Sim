@@ -3,6 +3,7 @@ package codegen_ir
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/pair"
 	"github.com/kkkunny/stl/container/queue"
 
 	"github.com/kkkunny/Sim/hir"
@@ -24,6 +25,9 @@ type CodeGenerator struct {
 	strings          hashmap.HashMap[string, *mir.Constant]
 	funcCache        hashmap.HashMap[string, *mir.Function]
 	lambdaCaptureMap queue.Queue[hashmap.HashMap[hir.Ident, mir.Value]]
+
+	genericParamMap  hashmap.HashMap[*hir.GenericParam, mir.Type]
+	genericFuncCache hashmap.HashMap[pair.Pair[*hir.GenericFuncDef, string], *mir.Function]
 }
 
 func New(target mir.Target, ir *hir.Result) *CodeGenerator {
