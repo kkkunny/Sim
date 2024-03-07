@@ -118,8 +118,10 @@ func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
 func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type {
 	if !self.selfCanBeNil && self.selfType == nil {
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
+	} else if self.selfType != nil {
+		return self.selfType
 	}
-	return hir.NewSelfType(stlbasic.Ternary(self.selfType == nil, util.None[*hir.CustomType](), util.Some(self.selfType)))
+	return hir.NewSelfType()
 }
 
 func (self *Analyser) analyseStructType(node *ast.StructType) *hir.StructType {

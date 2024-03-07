@@ -12,7 +12,6 @@ import (
 	stlslices "github.com/kkkunny/stl/slices"
 
 	runtimeType "github.com/kkkunny/Sim/runtime/types"
-	"github.com/kkkunny/Sim/util"
 )
 
 var (
@@ -39,8 +38,6 @@ func ToRuntimeType(t Type) RuntimeType {
 	switch tt := t.(type) {
 	case RuntimeType:
 		return tt
-	case *SelfType:
-		return ToRuntimeType(tt.Self.MustValue())
 	case *AliasType:
 		return ToRuntimeType(tt.Target)
 	default:
@@ -60,8 +57,6 @@ func ToBuildInType(t Type) BuildInType {
 		return tt
 	case *CustomType:
 		return ToBuildInType(tt.Target)
-	case *SelfType:
-		return ToBuildInType(tt.Self.MustValue())
 	case *AliasType:
 		return ToBuildInType(tt.Target)
 	default:
@@ -82,8 +77,6 @@ func TryType[T BuildInType](t Type) (T, bool) {
 		return tt, true
 	case BuildInType:
 		return stlbasic.Default[T](), false
-	case *SelfType:
-		return TryType[T](tt.Self.MustValue())
 	case *AliasType:
 		return TryType[T](tt.Target)
 	case *CustomType:
@@ -506,7 +499,7 @@ func replaceAllSelfType(t Type, to *CustomType) Type {
 			})
 		}))
 	case *SelfType:
-		return stlbasic.Ternary[Type](tt.Self.IsNone(), NewSelfType(util.Some[*CustomType](to)), tt)
+		return to
 	case *LambdaType:
 		return NewLambdaType(replaceAllSelfType(tt.Ret, to), stlslices.Map(tt.Params, func(_ int, e Type) Type {
 			return replaceAllSelfType(e, to)
@@ -517,30 +510,26 @@ func replaceAllSelfType(t Type, to *CustomType) Type {
 }
 
 // SelfType Self类型
-type SelfType struct {
-	Self util.Option[*CustomType]
-}
+type SelfType struct{}
 
-func NewSelfType(self util.Option[*CustomType]) *SelfType {
-	return &SelfType{
-		Self: self,
-	}
+func NewSelfType() *SelfType {
+	return &SelfType{}
 }
 
 func (self *SelfType) String() string {
-	return self.Self.MustValue().String()
+	panic("unreachable")
 }
 
-func (self *SelfType) EqualTo(dst Type) bool {
-	return self.Self.MustValue().EqualTo(dst)
+func (self *SelfType) EqualTo(_ Type) bool {
+	panic("unreachable")
 }
 
 func (self *SelfType) HasDefault() bool {
-	return self.Self.MustValue().HasDefault()
+	panic("unreachable")
 }
 
 func (self *SelfType) Runtime() runtimeType.Type {
-	return self.Self.MustValue().Runtime()
+	panic("unreachable")
 }
 
 // CustomType 自定义类型
@@ -552,8 +541,6 @@ func TryCustomType(t Type) (*CustomType, bool) {
 		return tt, true
 	case BuildInType:
 		return nil, false
-	case *SelfType:
-		return TryCustomType(tt.Self.MustValue())
 	case *AliasType:
 		return TryCustomType(tt.Target)
 	default:

@@ -14,10 +14,10 @@ import (
 
 // Stmt 语句
 type Stmt interface {
-	Define()string
-	Belong()*Block
-	ReadRefValues()[]Value
-	WriteRefValues()[]Value
+	Define() string
+	Belong() *Block
+	ReadRefValues() []Value
+	WriteRefValues() []Value
 }
 
 type StmtValue interface {
@@ -33,7 +33,7 @@ type AllocFromStack struct {
 	t Type
 }
 
-func (self *Builder) BuildAllocFromStack(t Type)*AllocFromStack{
+func (self *Builder) BuildAllocFromStack(t Type) *AllocFromStack {
 	stmt := &AllocFromStack{
 		b: self.cur,
 		t: t,
@@ -42,35 +42,35 @@ func (self *Builder) BuildAllocFromStack(t Type)*AllocFromStack{
 	return stmt
 }
 
-func (self *AllocFromStack) Belong()*Block{
+func (self *AllocFromStack) Belong() *Block {
 	return self.b
 }
 
-func (self *AllocFromStack) Define()string{
+func (self *AllocFromStack) Define() string {
 	return fmt.Sprintf("%s %s = alloc %s from stack", self.Type(), self.Name(), self.t)
 }
 
-func (self *AllocFromStack) setIndex(i uint){
+func (self *AllocFromStack) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *AllocFromStack) Name()string{
+func (self *AllocFromStack) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *AllocFromStack) Type()Type{
+func (self *AllocFromStack) Type() Type {
 	return self.t.Context().NewPtrType(self.t)
 }
 
-func (self *AllocFromStack) ElemType()Type{
+func (self *AllocFromStack) ElemType() Type {
 	return self.t
 }
 
-func (self *AllocFromStack) ReadRefValues()[]Value{
+func (self *AllocFromStack) ReadRefValues() []Value {
 	return nil
 }
 
-func (self *AllocFromStack) WriteRefValues()[]Value{
+func (self *AllocFromStack) WriteRefValues() []Value {
 	return nil
 }
 
@@ -81,7 +81,7 @@ type AllocFromHeap struct {
 	t Type
 }
 
-func (self *Builder) BuildAllocFromHeap(t Type)*AllocFromHeap{
+func (self *Builder) BuildAllocFromHeap(t Type) *AllocFromHeap {
 	stmt := &AllocFromHeap{
 		b: self.cur,
 		t: t,
@@ -90,145 +90,145 @@ func (self *Builder) BuildAllocFromHeap(t Type)*AllocFromHeap{
 	return stmt
 }
 
-func (self *AllocFromHeap) Belong()*Block{
+func (self *AllocFromHeap) Belong() *Block {
 	return self.b
 }
 
-func (self *AllocFromHeap) Define()string{
+func (self *AllocFromHeap) Define() string {
 	return fmt.Sprintf("%s %s = alloc %s from heap", self.Type(), self.Name(), self.t)
 }
 
-func (self *AllocFromHeap) setIndex(i uint){
+func (self *AllocFromHeap) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *AllocFromHeap) Name()string{
+func (self *AllocFromHeap) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *AllocFromHeap) Type()Type{
+func (self *AllocFromHeap) Type() Type {
 	return self.t.Context().NewPtrType(self.t)
 }
 
-func (self *AllocFromHeap) ElemType()Type{
+func (self *AllocFromHeap) ElemType() Type {
 	return self.t
 }
 
-func (self *AllocFromHeap) ReadRefValues()[]Value{
+func (self *AllocFromHeap) ReadRefValues() []Value {
 	return nil
 }
 
-func (self *AllocFromHeap) WriteRefValues()[]Value{
+func (self *AllocFromHeap) WriteRefValues() []Value {
 	return nil
 }
 
 // Store 赋值
 type Store struct {
-	b *Block
+	b        *Block
 	from, to Value
 }
 
-func (self *Builder) BuildStore(from, to Value)Stmt{
-	if !from.Type().Equal(to.Type().(PtrType).Elem()){
+func (self *Builder) BuildStore(from, to Value) Stmt {
+	if !from.Type().Equal(to.Type().(PtrType).Elem()) {
 		panic("unreachable")
 	}
 	stmt := &Store{
-		b: self.cur,
+		b:    self.cur,
 		from: from,
-		to: to,
+		to:   to,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *Store) Belong()*Block{
+func (self *Store) Belong() *Block {
 	return self.b
 }
 
-func (self *Store) Define()string{
+func (self *Store) Define() string {
 	return fmt.Sprintf("store %s to %s", self.from.Name(), self.to.Name())
 }
 
-func (self *Store) From()Value{
+func (self *Store) From() Value {
 	return self.from
 }
 
-func (self *Store) To()Value{
+func (self *Store) To() Value {
 	return self.to
 }
 
-func (self *Store) ReadRefValues()[]Value{
+func (self *Store) ReadRefValues() []Value {
 	return []Value{self.from}
 }
 
-func (self *Store) WriteRefValues()[]Value{
+func (self *Store) WriteRefValues() []Value {
 	return []Value{self.to}
 }
 
 // Load 载入
 type Load struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	from Value
 }
 
-func (self *Builder) BuildLoad(from Value)StmtValue{
-	if !stlbasic.Is[PtrType](from.Type()){
+func (self *Builder) BuildLoad(from Value) StmtValue {
+	if !stlbasic.Is[PtrType](from.Type()) {
 		panic("unreachable")
 	}
 	stmt := &Load{
-		b: self.cur,
+		b:    self.cur,
 		from: from,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *Load) Belong()*Block{
+func (self *Load) Belong() *Block {
 	return self.b
 }
 
-func (self *Load) Define()string{
+func (self *Load) Define() string {
 	return fmt.Sprintf("%s %s = load %s", self.Type(), self.Name(), self.from.Name())
 }
 
-func (self *Load) setIndex(i uint){
+func (self *Load) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Load) Name()string{
+func (self *Load) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Load) Type()Type{
+func (self *Load) Type() Type {
 	return self.from.Type().(PtrType).Elem()
 }
 
-func (self *Load) From()Value{
+func (self *Load) From() Value {
 	return self.from
 }
 
-func (self *Load) ReadRefValues()[]Value{
+func (self *Load) ReadRefValues() []Value {
 	return []Value{self.from}
 }
 
-func (self *Load) WriteRefValues()[]Value{
+func (self *Load) WriteRefValues() []Value {
 	return nil
 }
 
 // And 且
 type And struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildAnd(l, r Value)Value{
-	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildAnd(l, r Value) Value {
+	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Int); ok{
-		if rc, ok := r.(Int); ok{
+	if lc, ok := l.(Int); ok {
+		if rc, ok := r.(Int); ok {
 			return NewInt(l.Type().(IntType), lc.IntValue()&rc.IntValue())
 		}
 	}
@@ -241,55 +241,55 @@ func (self *Builder) BuildAnd(l, r Value)Value{
 	return stmt
 }
 
-func (self *And) Belong()*Block{
+func (self *And) Belong() *Block {
 	return self.b
 }
 
-func (self *And) Define()string{
+func (self *And) Define() string {
 	return fmt.Sprintf("%s %s = %s and %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *And) setIndex(i uint){
+func (self *And) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *And) Name()string{
+func (self *And) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *And) Type()Type{
+func (self *And) Type() Type {
 	return self.l.Type()
 }
 
-func (self *And) Left()Value{
+func (self *And) Left() Value {
 	return self.l
 }
 
-func (self *And) Right()Value{
+func (self *And) Right() Value {
 	return self.r
 }
 
-func (self *And) ReadRefValues()[]Value{
+func (self *And) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *And) WriteRefValues()[]Value{
+func (self *And) WriteRefValues() []Value {
 	return nil
 }
 
 // Or 或
 type Or struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildOr(l, r Value)Value{
-	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildOr(l, r Value) Value {
+	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Int); ok{
-		if rc, ok := r.(Int); ok{
+	if lc, ok := l.(Int); ok {
+		if rc, ok := r.(Int); ok {
 			return NewInt(l.Type().(IntType), lc.IntValue()|rc.IntValue())
 		}
 	}
@@ -302,55 +302,55 @@ func (self *Builder) BuildOr(l, r Value)Value{
 	return stmt
 }
 
-func (self *Or) Belong()*Block{
+func (self *Or) Belong() *Block {
 	return self.b
 }
 
-func (self *Or) Define()string{
+func (self *Or) Define() string {
 	return fmt.Sprintf("%s %s = %s or %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Or) setIndex(i uint){
+func (self *Or) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Or) Name()string{
+func (self *Or) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Or) Type()Type{
+func (self *Or) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Or) Left()Value{
+func (self *Or) Left() Value {
 	return self.l
 }
 
-func (self *Or) Right()Value{
+func (self *Or) Right() Value {
 	return self.r
 }
 
-func (self *Or) ReadRefValues()[]Value{
+func (self *Or) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Or) WriteRefValues()[]Value{
+func (self *Or) WriteRefValues() []Value {
 	return nil
 }
 
 // Xor 异或
 type Xor struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildXor(l, r Value)Value{
-	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildXor(l, r Value) Value {
+	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Int); ok{
-		if rc, ok := r.(Int); ok{
+	if lc, ok := l.(Int); ok {
+		if rc, ok := r.(Int); ok {
 			return NewInt(l.Type().(IntType), lc.IntValue()^rc.IntValue())
 		}
 	}
@@ -363,55 +363,55 @@ func (self *Builder) BuildXor(l, r Value)Value{
 	return stmt
 }
 
-func (self *Xor) Belong()*Block{
+func (self *Xor) Belong() *Block {
 	return self.b
 }
 
-func (self *Xor) Define()string{
+func (self *Xor) Define() string {
 	return fmt.Sprintf("%s %s = %s xor %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Xor) setIndex(i uint){
+func (self *Xor) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Xor) Name()string{
+func (self *Xor) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Xor) Type()Type{
+func (self *Xor) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Xor) Left()Value{
+func (self *Xor) Left() Value {
 	return self.l
 }
 
-func (self *Xor) Right()Value{
+func (self *Xor) Right() Value {
 	return self.r
 }
 
-func (self *Xor) ReadRefValues()[]Value{
+func (self *Xor) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Xor) WriteRefValues()[]Value{
+func (self *Xor) WriteRefValues() []Value {
 	return nil
 }
 
 // Shl 左移
 type Shl struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildShl(l, r Value)Value{
-	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildShl(l, r Value) Value {
+	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Int); ok{
-		if rc, ok := r.(Int); ok{
+	if lc, ok := l.(Int); ok {
+		if rc, ok := r.(Int); ok {
 			return NewInt(l.Type().(IntType), lc.IntValue()<<rc.IntValue())
 		}
 	}
@@ -424,55 +424,55 @@ func (self *Builder) BuildShl(l, r Value)Value{
 	return stmt
 }
 
-func (self *Shl) Belong()*Block{
+func (self *Shl) Belong() *Block {
 	return self.b
 }
 
-func (self *Shl) Define()string{
+func (self *Shl) Define() string {
 	return fmt.Sprintf("%s %s = %s shl %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Shl) setIndex(i uint){
+func (self *Shl) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Shl) Name()string{
+func (self *Shl) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Shl) Type()Type{
+func (self *Shl) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Shl) Left()Value{
+func (self *Shl) Left() Value {
 	return self.l
 }
 
-func (self *Shl) Right()Value{
+func (self *Shl) Right() Value {
 	return self.r
 }
 
-func (self *Shl) ReadRefValues()[]Value{
+func (self *Shl) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Shl) WriteRefValues()[]Value{
+func (self *Shl) WriteRefValues() []Value {
 	return nil
 }
 
 // Shr 右移
 type Shr struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildShr(l, r Value)Value{
-	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildShr(l, r Value) Value {
+	if !stlbasic.Is[IntType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Int); ok{
-		if rc, ok := r.(Int); ok{
+	if lc, ok := l.(Int); ok {
+		if rc, ok := r.(Int); ok {
 			return NewInt(l.Type().(IntType), lc.IntValue()>>rc.IntValue())
 		}
 	}
@@ -485,39 +485,39 @@ func (self *Builder) BuildShr(l, r Value)Value{
 	return stmt
 }
 
-func (self *Shr) Belong()*Block{
+func (self *Shr) Belong() *Block {
 	return self.b
 }
 
-func (self *Shr) Define()string{
+func (self *Shr) Define() string {
 	return fmt.Sprintf("%s %s = %s shr %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Shr) setIndex(i uint){
+func (self *Shr) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Shr) Name()string{
+func (self *Shr) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Shr) Type()Type{
+func (self *Shr) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Shr) Left()Value{
+func (self *Shr) Left() Value {
 	return self.l
 }
 
-func (self *Shr) Right()Value{
+func (self *Shr) Right() Value {
 	return self.r
 }
 
-func (self *Shr) ReadRefValues()[]Value{
+func (self *Shr) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Shr) WriteRefValues()[]Value{
+func (self *Shr) WriteRefValues() []Value {
 	return nil
 }
 
@@ -529,14 +529,14 @@ type Not struct {
 	v Value
 }
 
-func (self *Builder) BuildNot(v Value)Value{
-	if !stlbasic.Is[IntType](v.Type()){
+func (self *Builder) BuildNot(v Value) Value {
+	if !stlbasic.Is[IntType](v.Type()) {
 		panic("unreachable")
 	}
-	if vc, ok := v.(Int); ok{
-		if stlbasic.Is[*Sint](vc){
+	if vc, ok := v.(Int); ok {
+		if stlbasic.Is[*Sint](vc) {
 			return NewSint(v.Type().(SintType), stlbits.NotWithLength(vc.IntValue(), uint64(vc.Type().Size())))
-		}else{
+		} else {
 			return NewUint(v.Type().(UintType), stlbits.NotWithLength(uint64(vc.IntValue()), uint64(vc.Type().Size())))
 		}
 	}
@@ -548,51 +548,51 @@ func (self *Builder) BuildNot(v Value)Value{
 	return stmt
 }
 
-func (self *Not) Belong()*Block{
+func (self *Not) Belong() *Block {
 	return self.b
 }
 
-func (self *Not) Define()string{
+func (self *Not) Define() string {
 	return fmt.Sprintf("%s %s = not %s", self.Type(), self.Name(), self.v.Name())
 }
 
-func (self *Not) setIndex(i uint){
+func (self *Not) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Not) Name()string{
+func (self *Not) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Not) Type()Type{
+func (self *Not) Type() Type {
 	return self.v.Type()
 }
 
-func (self *Not) Value()Value{
+func (self *Not) Value() Value {
 	return self.v
 }
 
-func (self *Not) ReadRefValues()[]Value{
+func (self *Not) ReadRefValues() []Value {
 	return []Value{self.v}
 }
 
-func (self *Not) WriteRefValues()[]Value{
+func (self *Not) WriteRefValues() []Value {
 	return nil
 }
 
 // Add 加
 type Add struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildAdd(l, r Value)Value{
-	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildAdd(l, r Value) Value {
+	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Number); ok{
-		if rc, ok := r.(Number); ok{
+	if lc, ok := l.(Number); ok {
+		if rc, ok := r.(Number); ok {
 			return NewNumber(l.Type().(NumberType), lc.FloatValue()+rc.FloatValue())
 		}
 	}
@@ -605,55 +605,55 @@ func (self *Builder) BuildAdd(l, r Value)Value{
 	return stmt
 }
 
-func (self *Add) Belong()*Block{
+func (self *Add) Belong() *Block {
 	return self.b
 }
 
-func (self *Add) Define()string{
+func (self *Add) Define() string {
 	return fmt.Sprintf("%s %s = %s add %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Add) setIndex(i uint){
+func (self *Add) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Add) Name()string{
+func (self *Add) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Add) Type()Type{
+func (self *Add) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Add) Left()Value{
+func (self *Add) Left() Value {
 	return self.l
 }
 
-func (self *Add) Right()Value{
+func (self *Add) Right() Value {
 	return self.r
 }
 
-func (self *Add) ReadRefValues()[]Value{
+func (self *Add) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Add) WriteRefValues()[]Value{
+func (self *Add) WriteRefValues() []Value {
 	return nil
 }
 
 // Sub 减
 type Sub struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildSub(l, r Value)Value{
-	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildSub(l, r Value) Value {
+	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Number); ok{
-		if rc, ok := r.(Number); ok{
+	if lc, ok := l.(Number); ok {
+		if rc, ok := r.(Number); ok {
 			return NewNumber(l.Type().(NumberType), lc.FloatValue()-rc.FloatValue())
 		}
 	}
@@ -666,55 +666,55 @@ func (self *Builder) BuildSub(l, r Value)Value{
 	return stmt
 }
 
-func (self *Sub) Belong()*Block{
+func (self *Sub) Belong() *Block {
 	return self.b
 }
 
-func (self *Sub) Define()string{
+func (self *Sub) Define() string {
 	return fmt.Sprintf("%s %s = %s sub %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Sub) setIndex(i uint){
+func (self *Sub) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Sub) Name()string{
+func (self *Sub) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Sub) Type()Type{
+func (self *Sub) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Sub) Left()Value{
+func (self *Sub) Left() Value {
 	return self.l
 }
 
-func (self *Sub) Right()Value{
+func (self *Sub) Right() Value {
 	return self.r
 }
 
-func (self *Sub) ReadRefValues()[]Value{
+func (self *Sub) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Sub) WriteRefValues()[]Value{
+func (self *Sub) WriteRefValues() []Value {
 	return nil
 }
 
 // Mul 乘
 type Mul struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildMul(l, r Value)Value{
-	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildMul(l, r Value) Value {
+	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Number); ok{
-		if rc, ok := r.(Number); ok{
+	if lc, ok := l.(Number); ok {
+		if rc, ok := r.(Number); ok {
 			return NewNumber(l.Type().(NumberType), lc.FloatValue()*rc.FloatValue())
 		}
 	}
@@ -727,55 +727,55 @@ func (self *Builder) BuildMul(l, r Value)Value{
 	return stmt
 }
 
-func (self *Mul) Belong()*Block{
+func (self *Mul) Belong() *Block {
 	return self.b
 }
 
-func (self *Mul) Define()string{
+func (self *Mul) Define() string {
 	return fmt.Sprintf("%s %s = %s mul %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Mul) setIndex(i uint){
+func (self *Mul) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Mul) Name()string{
+func (self *Mul) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Mul) Type()Type{
+func (self *Mul) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Mul) Left()Value{
+func (self *Mul) Left() Value {
 	return self.l
 }
 
-func (self *Mul) Right()Value{
+func (self *Mul) Right() Value {
 	return self.r
 }
 
-func (self *Mul) ReadRefValues()[]Value{
+func (self *Mul) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Mul) WriteRefValues()[]Value{
+func (self *Mul) WriteRefValues() []Value {
 	return nil
 }
 
 // Div 除
 type Div struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildDiv(l, r Value)Value{
-	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildDiv(l, r Value) Value {
+	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Number); ok{
-		if rc, ok := r.(Number); ok{
+	if lc, ok := l.(Number); ok {
+		if rc, ok := r.(Number); ok {
 			return NewNumber(l.Type().(NumberType), lc.FloatValue()/rc.FloatValue())
 		}
 	}
@@ -788,55 +788,55 @@ func (self *Builder) BuildDiv(l, r Value)Value{
 	return stmt
 }
 
-func (self *Div) Belong()*Block{
+func (self *Div) Belong() *Block {
 	return self.b
 }
 
-func (self *Div) Define()string{
+func (self *Div) Define() string {
 	return fmt.Sprintf("%s %s = %s div %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Div) setIndex(i uint){
+func (self *Div) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Div) Name()string{
+func (self *Div) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Div) Type()Type{
+func (self *Div) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Div) Left()Value{
+func (self *Div) Left() Value {
 	return self.l
 }
 
-func (self *Div) Right()Value{
+func (self *Div) Right() Value {
 	return self.r
 }
 
-func (self *Div) ReadRefValues()[]Value{
+func (self *Div) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Div) WriteRefValues()[]Value{
+func (self *Div) WriteRefValues() []Value {
 	return nil
 }
 
 // Rem 取余
 type Rem struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	l, r Value
 }
 
-func (self *Builder) BuildRem(l, r Value)Value{
-	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildRem(l, r Value) Value {
+	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Number); ok{
-		if rc, ok := r.(Number); ok{
+	if lc, ok := l.(Number); ok {
+		if rc, ok := r.(Number); ok {
 			return NewNumber(l.Type().(NumberType), math.Mod(lc.FloatValue(), rc.FloatValue()))
 		}
 	}
@@ -849,44 +849,44 @@ func (self *Builder) BuildRem(l, r Value)Value{
 	return stmt
 }
 
-func (self *Rem) Belong()*Block{
+func (self *Rem) Belong() *Block {
 	return self.b
 }
 
-func (self *Rem) Define()string{
+func (self *Rem) Define() string {
 	return fmt.Sprintf("%s %s = %s rem %s", self.Type(), self.Name(), self.l.Name(), self.r.Name())
 }
 
-func (self *Rem) setIndex(i uint){
+func (self *Rem) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Rem) Name()string{
+func (self *Rem) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Rem) Type()Type{
+func (self *Rem) Type() Type {
 	return self.l.Type()
 }
 
-func (self *Rem) Left()Value{
+func (self *Rem) Left() Value {
 	return self.l
 }
 
-func (self *Rem) Right()Value{
+func (self *Rem) Right() Value {
 	return self.r
 }
 
-func (self *Rem) ReadRefValues()[]Value{
+func (self *Rem) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Rem) WriteRefValues()[]Value{
+func (self *Rem) WriteRefValues() []Value {
 	return nil
 }
 
-func (self *Builder) BuildNeg(v Value)Value{
-	if !stlbasic.Is[NumberType](v.Type()){
+func (self *Builder) BuildNeg(v Value) Value {
+	if !stlbasic.Is[NumberType](v.Type()) {
 		panic("unreachable")
 	}
 	return self.BuildSub(NewZero(v.Type()), v)
@@ -903,7 +903,7 @@ const (
 	CmpKindGE
 )
 
-func (self CmpKind) String()string{
+func (self CmpKind) String() string {
 	switch self {
 	case CmpKindEQ:
 		return "eq"
@@ -924,18 +924,18 @@ func (self CmpKind) String()string{
 
 // Cmp 比较
 type Cmp struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	kind CmpKind
 	l, r Value
 }
 
-func (self *Builder) BuildCmp(kind CmpKind, l, r Value)Value{
-	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildCmp(kind CmpKind, l, r Value) Value {
+	if !stlbasic.Is[NumberType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if lc, ok := l.(Number); ok{
-		if rc, ok := r.(Number); ok{
+	if lc, ok := l.(Number); ok {
+		if rc, ok := r.(Number); ok {
 			var resBool bool
 			switch kind {
 			case CmpKindEQ:
@@ -957,52 +957,52 @@ func (self *Builder) BuildCmp(kind CmpKind, l, r Value)Value{
 		}
 	}
 	stmt := &Cmp{
-		b: self.cur,
+		b:    self.cur,
 		kind: kind,
-		l: l,
-		r: r,
+		l:    l,
+		r:    r,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *Cmp) Belong()*Block{
+func (self *Cmp) Belong() *Block {
 	return self.b
 }
 
-func (self *Cmp) Define()string{
+func (self *Cmp) Define() string {
 	return fmt.Sprintf("%s %s = %s cmp %s %s", self.Type(), self.Name(), self.l.Name(), self.kind, self.r.Name())
 }
 
-func (self *Cmp) setIndex(i uint){
+func (self *Cmp) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Cmp) Name()string{
+func (self *Cmp) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Cmp) Type()Type{
+func (self *Cmp) Type() Type {
 	return self.l.Type().Context().Bool()
 }
 
-func (self *Cmp) Kind()CmpKind{
+func (self *Cmp) Kind() CmpKind {
 	return self.kind
 }
 
-func (self *Cmp) Left()Value{
+func (self *Cmp) Left() Value {
 	return self.l
 }
 
-func (self *Cmp) Right()Value{
+func (self *Cmp) Right() Value {
 	return self.r
 }
 
-func (self *Cmp) ReadRefValues()[]Value{
+func (self *Cmp) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *Cmp) WriteRefValues()[]Value{
+func (self *Cmp) WriteRefValues() []Value {
 	return nil
 }
 
@@ -1013,7 +1013,7 @@ const (
 	PtrEqualKindNE
 )
 
-func (self PtrEqualKind) String()string{
+func (self PtrEqualKind) String() string {
 	switch self {
 	case PtrEqualKindEQ:
 		return "eq"
@@ -1027,513 +1027,513 @@ func (self PtrEqualKind) String()string{
 // PtrEqual 指针比较
 
 type PtrEqual struct {
-	b *Block
-	i uint
+	b    *Block
+	i    uint
 	kind PtrEqualKind
 	l, r Value
 }
 
-func (self *Builder) BuildPtrEqual(kind PtrEqualKind, l, r Value)Value{
-	if !stlbasic.Is[GenericPtrType](l.Type()) || !l.Type().Equal(r.Type()){
+func (self *Builder) BuildPtrEqual(kind PtrEqualKind, l, r Value) Value {
+	if !stlbasic.Is[GenericPtrType](l.Type()) || !l.Type().Equal(r.Type()) {
 		panic("unreachable")
 	}
-	if l == r{
-		return Bool(l.Type().Context(), kind==PtrEqualKindEQ)
+	if l == r {
+		return Bool(l.Type().Context(), kind == PtrEqualKindEQ)
 	}
 	stmt := &PtrEqual{
-		b: self.cur,
+		b:    self.cur,
 		kind: kind,
-		l: l,
-		r: r,
+		l:    l,
+		r:    r,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *PtrEqual) Belong()*Block{
+func (self *PtrEqual) Belong() *Block {
 	return self.b
 }
 
-func (self *PtrEqual) Define()string{
+func (self *PtrEqual) Define() string {
 	return fmt.Sprintf("%s %s = %s ptr %s %s", self.Type(), self.Name(), self.l.Name(), self.kind, self.r.Name())
 }
 
-func (self *PtrEqual) setIndex(i uint){
+func (self *PtrEqual) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *PtrEqual) Name()string{
+func (self *PtrEqual) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *PtrEqual) Type()Type{
+func (self *PtrEqual) Type() Type {
 	return self.l.Type().Context().Bool()
 }
 
-func (self *PtrEqual) Kind()PtrEqualKind{
+func (self *PtrEqual) Kind() PtrEqualKind {
 	return self.kind
 }
 
-func (self *PtrEqual) Left()Value{
+func (self *PtrEqual) Left() Value {
 	return self.l
 }
 
-func (self *PtrEqual) Right()Value{
+func (self *PtrEqual) Right() Value {
 	return self.r
 }
 
-func (self *PtrEqual) ReadRefValues()[]Value{
+func (self *PtrEqual) ReadRefValues() []Value {
 	return []Value{self.l, self.r}
 }
 
-func (self *PtrEqual) WriteRefValues()[]Value{
+func (self *PtrEqual) WriteRefValues() []Value {
 	return nil
 }
 
 // Call 调用
 
 type Call struct {
-	b *Block
-	i uint
-	f Value
+	b    *Block
+	i    uint
+	f    Value
 	args []Value
 }
 
-func (self *Builder) BuildCall(f Value, arg ...Value)StmtValue{
+func (self *Builder) BuildCall(f Value, arg ...Value) StmtValue {
 	ft := f.Type().(FuncType)
 	argTypes := stlslices.Map(arg, func(_ int, e Value) Type {
 		return e.Type()
 	})
-	if !ft.VarArg(){
-		if len(arg) != len(ft.Params()){
+	if !ft.VarArg() {
+		if len(arg) != len(ft.Params()) {
 			panic("unreachable")
 		}
-	}else{
-		if len(arg) < len(ft.Params()){
+	} else {
+		if len(arg) < len(ft.Params()) {
 			panic("unreachable")
 		}
 		argTypes = argTypes[:len(ft.Params())]
 	}
-	for i, at := range argTypes{
-		if !at.Equal(ft.Params()[i]){
+	for i, at := range argTypes {
+		if !at.Equal(ft.Params()[i]) {
 			panic("unreachable")
 		}
 	}
 	stmt := &Call{
-		b: self.cur,
-		f: f,
+		b:    self.cur,
+		f:    f,
 		args: arg,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *Call) Belong()*Block{
+func (self *Call) Belong() *Block {
 	return self.b
 }
 
-func (self *Call) Define()string{
+func (self *Call) Define() string {
 	args := lo.Map(self.args, func(item Value, _ int) string {
 		return item.Name()
 	})
 	return fmt.Sprintf("%s %s = call %s(%s)", self.Type(), self.Name(), self.f.Name(), strings.Join(args, ","))
 }
 
-func (self *Call) setIndex(i uint){
+func (self *Call) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Call) Name()string{
+func (self *Call) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Call) Type()Type{
+func (self *Call) Type() Type {
 	return self.f.Type().(FuncType).Ret()
 }
 
-func (self *Call) Func()Value{
+func (self *Call) Func() Value {
 	return self.f
 }
 
-func (self *Call) Args()[]Value{
+func (self *Call) Args() []Value {
 	return self.args
 }
 
-func (self *Call) ReadRefValues()[]Value{
+func (self *Call) ReadRefValues() []Value {
 	return append([]Value{self.f}, self.args...)
 }
 
-func (self *Call) WriteRefValues()[]Value{
+func (self *Call) WriteRefValues() []Value {
 	return nil
 }
 
 // NumberCovert 数字转换
 type NumberCovert struct {
-	b *Block
-	i uint
-	v Value
+	b  *Block
+	i  uint
+	v  Value
 	to NumberType
 }
 
-func (self *Builder) BuildNumberCovert(v Value, to NumberType)Value{
-	if !stlbasic.Is[NumberType](v.Type()){
+func (self *Builder) BuildNumberCovert(v Value, to NumberType) Value {
+	if !stlbasic.Is[NumberType](v.Type()) {
 		panic("unreachable")
 	}
-	if v.Type().Equal(to){
+	if v.Type().Equal(to) {
 		return v
 	}
-	if vc, ok := v.(Number); ok{
+	if vc, ok := v.(Number); ok {
 		return NewNumber(to, vc.FloatValue())
 	}
 	stmt := &NumberCovert{
-		b: self.cur,
-		v: v,
+		b:  self.cur,
+		v:  v,
 		to: to,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *NumberCovert) Belong()*Block{
+func (self *NumberCovert) Belong() *Block {
 	return self.b
 }
 
-func (self *NumberCovert) Define()string{
+func (self *NumberCovert) Define() string {
 	return fmt.Sprintf("%s %s = covert Bits %s to %s", self.Type(), self.Name(), self.v.Name(), self.to)
 }
 
-func (self *NumberCovert) setIndex(i uint){
+func (self *NumberCovert) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *NumberCovert) Name()string{
+func (self *NumberCovert) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *NumberCovert) Type()Type{
+func (self *NumberCovert) Type() Type {
 	return self.to
 }
 
-func (self *NumberCovert) From()Value{
+func (self *NumberCovert) From() Value {
 	return self.v
 }
 
-func (self *NumberCovert) ReadRefValues()[]Value{
+func (self *NumberCovert) ReadRefValues() []Value {
 	return []Value{self.v}
 }
 
-func (self *NumberCovert) WriteRefValues()[]Value{
+func (self *NumberCovert) WriteRefValues() []Value {
 	return nil
 }
 
 // PtrToUint 指针转uint
 type PtrToUint struct {
-	b *Block
-	i uint
-	v Value
+	b  *Block
+	i  uint
+	v  Value
 	to UintType
 }
 
-func (self *Builder) BuildPtrToUint(v Value, to UintType)StmtValue{
-	if !stlbasic.Is[GenericPtrType](v.Type()){
+func (self *Builder) BuildPtrToUint(v Value, to UintType) StmtValue {
+	if !stlbasic.Is[GenericPtrType](v.Type()) {
 		panic("unreachable")
 	}
 	stmt := &PtrToUint{
-		b: self.cur,
-		v: v,
+		b:  self.cur,
+		v:  v,
 		to: to,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *PtrToUint) Belong()*Block{
+func (self *PtrToUint) Belong() *Block {
 	return self.b
 }
 
-func (self *PtrToUint) Define()string{
+func (self *PtrToUint) Define() string {
 	return fmt.Sprintf("%s %s = covert ptr %s to %s", self.Type(), self.Name(), self.v.Name(), self.to)
 }
 
-func (self *PtrToUint) setIndex(i uint){
+func (self *PtrToUint) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *PtrToUint) Name()string{
+func (self *PtrToUint) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *PtrToUint) Type()Type{
+func (self *PtrToUint) Type() Type {
 	return self.to
 }
 
-func (self *PtrToUint) From()Value{
+func (self *PtrToUint) From() Value {
 	return self.v
 }
 
-func (self *PtrToUint) ReadRefValues()[]Value{
+func (self *PtrToUint) ReadRefValues() []Value {
 	return []Value{self.v}
 }
 
-func (self *PtrToUint) WriteRefValues()[]Value{
+func (self *PtrToUint) WriteRefValues() []Value {
 	return nil
 }
 
 // UintToPtr uint转指针
 type UintToPtr struct {
-	b *Block
-	i uint
-	v Value
+	b  *Block
+	i  uint
+	v  Value
 	to GenericPtrType
 }
 
-func (self *Builder) BuildUintToPtr(v Value, to GenericPtrType)StmtValue{
-	if !stlbasic.Is[Uint](v.Type()){
+func (self *Builder) BuildUintToPtr(v Value, to GenericPtrType) StmtValue {
+	if !stlbasic.Is[Uint](v.Type()) {
 		panic("unreachable")
 	}
 	stmt := &UintToPtr{
-		b: self.cur,
-		v: v,
+		b:  self.cur,
+		v:  v,
 		to: to,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *UintToPtr) Belong()*Block{
+func (self *UintToPtr) Belong() *Block {
 	return self.b
 }
 
-func (self *UintToPtr) Define()string{
+func (self *UintToPtr) Define() string {
 	return fmt.Sprintf("%s %s = covert ptr %s from %s", self.Type(), self.Name(), self.v.Name(), self.to)
 }
 
-func (self *UintToPtr) setIndex(i uint){
+func (self *UintToPtr) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *UintToPtr) Name()string{
+func (self *UintToPtr) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *UintToPtr) Type()Type{
+func (self *UintToPtr) Type() Type {
 	return self.to
 }
 
-func (self *UintToPtr) From()Value{
+func (self *UintToPtr) From() Value {
 	return self.v
 }
 
-func (self *UintToPtr) ReadRefValues()[]Value{
+func (self *UintToPtr) ReadRefValues() []Value {
 	return []Value{self.v}
 }
 
-func (self *UintToPtr) WriteRefValues()[]Value{
+func (self *UintToPtr) WriteRefValues() []Value {
 	return nil
 }
 
 // PtrToPtr 指针转指针
 type PtrToPtr struct {
-	b *Block
-	i uint
-	v Value
+	b  *Block
+	i  uint
+	v  Value
 	to GenericPtrType
 }
 
-func (self *Builder) BuildPtrToPtr(v Value, to GenericPtrType)Value{
-	if !stlbasic.Is[GenericPtrType](v.Type()){
+func (self *Builder) BuildPtrToPtr(v Value, to GenericPtrType) Value {
+	if !stlbasic.Is[GenericPtrType](v.Type()) {
 		panic("unreachable")
 	}
-	if v.Type().Equal(to){
+	if v.Type().Equal(to) {
 		return v
 	}
 	stmt := &PtrToPtr{
-		b: self.cur,
-		v: v,
+		b:  self.cur,
+		v:  v,
 		to: to,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *PtrToPtr) Belong()*Block{
+func (self *PtrToPtr) Belong() *Block {
 	return self.b
 }
 
-func (self *PtrToPtr) Define()string{
+func (self *PtrToPtr) Define() string {
 	return fmt.Sprintf("%s %s = covert ptr %s to %s", self.Type(), self.Name(), self.v.Name(), self.to)
 }
 
-func (self *PtrToPtr) setIndex(i uint){
+func (self *PtrToPtr) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *PtrToPtr) Name()string{
+func (self *PtrToPtr) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *PtrToPtr) Type()Type{
+func (self *PtrToPtr) Type() Type {
 	return self.to
 }
 
-func (self *PtrToPtr) From()Value{
+func (self *PtrToPtr) From() Value {
 	return self.v
 }
 
-func (self *PtrToPtr) ReadRefValues()[]Value{
+func (self *PtrToPtr) ReadRefValues() []Value {
 	return []Value{self.v}
 }
 
-func (self *PtrToPtr) WriteRefValues()[]Value{
+func (self *PtrToPtr) WriteRefValues() []Value {
 	return nil
 }
 
 // ArrayIndex 数组索引
 type ArrayIndex struct {
-	b *Block
-	i uint
-	v Value
+	b     *Block
+	i     uint
+	v     Value
 	index Value
 }
 
-func (self *Builder) BuildArrayIndex(v, index Value)Value{
-	if stlbasic.Is[ArrayType](v.Type()){
-	}else if stlbasic.Is[PtrType](v.Type()) && stlbasic.Is[ArrayType](v.Type().(PtrType).Elem()){
-	}else{
+func (self *Builder) BuildArrayIndex(v, index Value) Value {
+	if stlbasic.Is[ArrayType](v.Type()) {
+	} else if stlbasic.Is[PtrType](v.Type()) && stlbasic.Is[ArrayType](v.Type().(PtrType).Elem()) {
+	} else {
 		panic("unreachable")
 	}
-	if !stlbasic.Is[UintType](index.Type()){
+	if !stlbasic.Is[UintType](index.Type()) {
 		panic("unreachable")
 	}
-	if vc, ok := v.(Const); ok{
-		if ic, ok := index.(Const); ok{
+	if vc, ok := v.(Const); ok {
+		if ic, ok := index.(Const); ok {
 			return NewArrayIndex(vc, ic)
 		}
 	}
 	stmt := &ArrayIndex{
-		b: self.cur,
-		v: v,
+		b:     self.cur,
+		v:     v,
 		index: index,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *ArrayIndex) Belong()*Block{
+func (self *ArrayIndex) Belong() *Block {
 	return self.b
 }
 
-func (self *ArrayIndex) Define()string{
+func (self *ArrayIndex) Define() string {
 	return fmt.Sprintf("%s %s = array %s index %s", self.Type(), self.Name(), self.v.Name(), self.index.Name())
 }
 
-func (self *ArrayIndex) setIndex(i uint){
+func (self *ArrayIndex) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *ArrayIndex) Name()string{
+func (self *ArrayIndex) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *ArrayIndex) Type()Type{
-	if self.IsPtr(){
+func (self *ArrayIndex) Type() Type {
+	if self.IsPtr() {
 		return self.v.Type().Context().NewPtrType(self.v.Type().(PtrType).Elem().(ArrayType).Elem())
 	}
 	return self.v.Type().(ArrayType).Elem()
 }
 
-func (self *ArrayIndex) IsPtr()bool{
+func (self *ArrayIndex) IsPtr() bool {
 	return stlbasic.Is[PtrType](self.v.Type())
 }
 
-func (self *ArrayIndex) Array()Value{
+func (self *ArrayIndex) Array() Value {
 	return self.v
 }
 
-func (self *ArrayIndex) Index()Value{
+func (self *ArrayIndex) Index() Value {
 	return self.index
 }
 
-func (self *ArrayIndex) ReadRefValues()[]Value{
+func (self *ArrayIndex) ReadRefValues() []Value {
 	return []Value{self.v}
 }
 
-func (self *ArrayIndex) WriteRefValues()[]Value{
+func (self *ArrayIndex) WriteRefValues() []Value {
 	return nil
 }
 
 // StructIndex 结构体索引
 type StructIndex struct {
-	b *Block
-	i uint
-	v Value
+	b     *Block
+	i     uint
+	v     Value
 	index uint64
 }
 
-func (self *Builder) BuildStructIndex(v Value, index uint64)Value{
+func (self *Builder) BuildStructIndex(v Value, index uint64) Value {
 	var sizeLength uint64
-	if stlbasic.Is[StructType](v.Type()){
+	if stlbasic.Is[StructType](v.Type()) {
 		sizeLength = uint64(len(v.Type().(StructType).Elems()))
-	}else if stlbasic.Is[PtrType](v.Type()) && stlbasic.Is[StructType](v.Type().(PtrType).Elem()){
+	} else if stlbasic.Is[PtrType](v.Type()) && stlbasic.Is[StructType](v.Type().(PtrType).Elem()) {
 		sizeLength = uint64(len(v.Type().(PtrType).Elem().(StructType).Elems()))
-	}else{
+	} else {
 		panic("unreachable")
 	}
-	if index >= sizeLength{
+	if index >= sizeLength {
 		panic("unreachable")
 	}
-	if vc, ok := v.(Const); ok{
+	if vc, ok := v.(Const); ok {
 		return NewStructIndex(vc, index)
 	}
 	stmt := &StructIndex{
-		b: self.cur,
-		v: v,
+		b:     self.cur,
+		v:     v,
 		index: index,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *StructIndex) Belong()*Block{
+func (self *StructIndex) Belong() *Block {
 	return self.b
 }
 
-func (self *StructIndex) Define()string{
+func (self *StructIndex) Define() string {
 	return fmt.Sprintf("%s %s = struct %s index %d", self.Type(), self.Name(), self.v.Name(), self.index)
 }
 
-func (self *StructIndex) setIndex(i uint){
+func (self *StructIndex) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *StructIndex) Name()string{
+func (self *StructIndex) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *StructIndex) Type()Type{
-	if self.IsPtr(){
+func (self *StructIndex) Type() Type {
+	if self.IsPtr() {
 		return self.v.Type().Context().NewPtrType(self.v.Type().(PtrType).Elem().(StructType).Elems()[self.index])
 	}
 	return self.v.Type().(StructType).Elems()[self.index]
 }
 
-func (self *StructIndex) IsPtr()bool{
+func (self *StructIndex) IsPtr() bool {
 	return stlbasic.Is[PtrType](self.v.Type())
 }
 
-func (self *StructIndex) Struct()Value{
+func (self *StructIndex) Struct() Value {
 	return self.v
 }
 
-func (self *StructIndex) Index()uint64{
+func (self *StructIndex) Index() uint64 {
 	return self.index
 }
 
-func (self *StructIndex) ReadRefValues()[]Value{
+func (self *StructIndex) ReadRefValues() []Value {
 	return []Value{self.v}
 }
 
-func (self *StructIndex) WriteRefValues()[]Value{
+func (self *StructIndex) WriteRefValues() []Value {
 	return nil
 }
 
@@ -1548,14 +1548,14 @@ type Return struct {
 	v Value
 }
 
-func (self *Builder) BuildReturn(v ...Value)Terminating{
+func (self *Builder) BuildReturn(v ...Value) Terminating {
 	var value Value
-	if len(v) != 0{
+	if len(v) != 0 {
 		value = v[0]
 	}
-	if value == nil && self.cur.f.t.Ret().Equal(self.ctx.Void()){
-	}else if value != nil && !value.Type().Equal(self.ctx.Void()) && value.Type().Equal(self.cur.f.t.Ret()){
-	}else{
+	if value == nil && self.cur.f.t.Ret().Equal(self.ctx.Void()) {
+	} else if value != nil && !value.Type().Equal(self.ctx.Void()) && value.Type().Equal(self.cur.f.t.Ret()) {
+	} else {
 		panic("unreachable")
 	}
 	stmt := &Return{
@@ -1566,360 +1566,360 @@ func (self *Builder) BuildReturn(v ...Value)Terminating{
 	return stmt
 }
 
-func (self *Return) Belong()*Block{
+func (self *Return) Belong() *Block {
 	return self.b
 }
 
-func (self *Return) Define()string{
-	if self.v == nil{
+func (self *Return) Define() string {
+	if self.v == nil {
 		return "ret"
 	}
 	return fmt.Sprintf("ret %s", self.v.Name())
 }
 
-func (self *Return) Value()(Value, bool){
-	return self.v, self.v!=nil
+func (self *Return) Value() (Value, bool) {
+	return self.v, self.v != nil
 }
 
-func (*Return)terminate(){}
+func (*Return) terminate() {}
 
-func (self *Return) ReadRefValues()[]Value{
-	if self.v == nil{
+func (self *Return) ReadRefValues() []Value {
+	if self.v == nil {
 		return nil
 	}
 	return []Value{self.v}
 }
 
-func (self *Return) WriteRefValues()[]Value{
+func (self *Return) WriteRefValues() []Value {
 	return nil
 }
 
 type Jump interface {
 	Terminating
-	Targets()[]*Block
+	Targets() []*Block
 }
 
 // UnCondJump 无条件跳转
 type UnCondJump struct {
-	b *Block
+	b  *Block
 	to *Block
 }
 
-func (self *Builder) BuildUnCondJump(to *Block)Jump {
+func (self *Builder) BuildUnCondJump(to *Block) Jump {
 	stmt := &UnCondJump{
-		b: self.cur,
+		b:  self.cur,
 		to: to,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *UnCondJump) Belong()*Block{
+func (self *UnCondJump) Belong() *Block {
 	return self.b
 }
 
-func (self *UnCondJump) Define()string{
+func (self *UnCondJump) Define() string {
 	return fmt.Sprintf("jump %s", self.to.Name())
 }
 
-func (self *UnCondJump) To()*Block{
+func (self *UnCondJump) To() *Block {
 	return self.to
 }
 
-func (self *UnCondJump) ReadRefValues()[]Value{
+func (self *UnCondJump) ReadRefValues() []Value {
 	return nil
 }
 
-func (self *UnCondJump) WriteRefValues()[]Value{
+func (self *UnCondJump) WriteRefValues() []Value {
 	return nil
 }
 
-func (*UnCondJump)terminate(){}
+func (*UnCondJump) terminate() {}
 
-func (self *UnCondJump) Targets()[]*Block{
+func (self *UnCondJump) Targets() []*Block {
 	return []*Block{self.to}
 }
 
 // CondJump 条件跳转
 type CondJump struct {
-	b *Block
-	cond Value
+	b               *Block
+	cond            Value
 	trueTo, falseTo *Block
 }
 
-func (self *Builder) BuildCondJump(cond Value, trueTo, falseTo *Block)Jump {
-	if !cond.Type().Equal(self.ctx.Bool()){
+func (self *Builder) BuildCondJump(cond Value, trueTo, falseTo *Block) Jump {
+	if !cond.Type().Equal(self.ctx.Bool()) {
 		panic("unreachable")
 	}
-	if trueTo == falseTo{
+	if trueTo == falseTo {
 		return self.BuildUnCondJump(trueTo)
 	}
-	if cc, ok := cond.(*Uint); ok{
-		if cc.IsZero(){
+	if cc, ok := cond.(*Uint); ok {
+		if cc.IsZero() {
 			return self.BuildUnCondJump(falseTo)
-		}else{
+		} else {
 			return self.BuildUnCondJump(trueTo)
 		}
 	}
 	stmt := &CondJump{
-		b: self.cur,
-		cond: cond,
-		trueTo: trueTo,
+		b:       self.cur,
+		cond:    cond,
+		trueTo:  trueTo,
 		falseTo: falseTo,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *CondJump) Belong()*Block{
+func (self *CondJump) Belong() *Block {
 	return self.b
 }
 
-func (self *CondJump) Define()string{
+func (self *CondJump) Define() string {
 	return fmt.Sprintf("if %s jump %s or %s", self.cond.Name(), self.trueTo.Name(), self.falseTo.Name())
 }
 
-func (self *CondJump) Cond()Value{
+func (self *CondJump) Cond() Value {
 	return self.cond
 }
 
-func (self *CondJump) TrueBlock()*Block{
+func (self *CondJump) TrueBlock() *Block {
 	return self.trueTo
 }
 
-func (self *CondJump) FalseBlock()*Block{
+func (self *CondJump) FalseBlock() *Block {
 	return self.falseTo
 }
 
-func (*CondJump)terminate(){}
+func (*CondJump) terminate() {}
 
-func (self *CondJump) Targets()[]*Block{
+func (self *CondJump) Targets() []*Block {
 	return []*Block{self.trueTo, self.falseTo}
 }
 
-func (self *CondJump) ReadRefValues()[]Value{
+func (self *CondJump) ReadRefValues() []Value {
 	return []Value{self.cond}
 }
 
-func (self *CondJump) WriteRefValues()[]Value{
+func (self *CondJump) WriteRefValues() []Value {
 	return nil
 }
 
 // Phi 跳转收拢
 type Phi struct {
-	b *Block
-	i uint
-	t Type
+	b     *Block
+	i     uint
+	t     Type
 	froms []pair.Pair[*Block, Value]
 }
 
-func (self *Builder) BuildPhi(t Type, from ...pair.Pair[*Block, Value])*Phi {
-	if self.cur.stmts.Len() != 0{
+func (self *Builder) BuildPhi(t Type, from ...pair.Pair[*Block, Value]) *Phi {
+	if self.cur.stmts.Len() != 0 {
 		panic("unreachable")
 	}
-	for _, f := range from{
-		if !f.Second.Type().Equal(t){
+	for _, f := range from {
+		if !f.Second.Type().Equal(t) {
 			panic("unreachable")
 		}
 	}
 	stmt := &Phi{
-		b: self.cur,
-		t: t,
+		b:     self.cur,
+		t:     t,
 		froms: from,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *Phi) Belong()*Block{
+func (self *Phi) Belong() *Block {
 	return self.b
 }
 
-func (self *Phi) Define()string{
+func (self *Phi) Define() string {
 	froms := lo.Map(self.froms, func(item pair.Pair[*Block, Value], _ int) string {
 		return fmt.Sprintf("%s:%s", item.First.Name(), item.Second.Name())
 	})
 	return fmt.Sprintf("%s %s = phi [%s]", self.t, self.Name(), strings.Join(froms, ","))
 }
 
-func (self *Phi) setIndex(i uint){
+func (self *Phi) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *Phi) Name()string{
+func (self *Phi) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *Phi) Type()Type{
+func (self *Phi) Type() Type {
 	return self.t
 }
 
-func (self *Phi) AddFroms(from ...pair.Pair[*Block, Value]){
-	for _, f := range from{
-		if !f.Second.Type().Equal(self.t){
+func (self *Phi) AddFroms(from ...pair.Pair[*Block, Value]) {
+	for _, f := range from {
+		if !f.Second.Type().Equal(self.t) {
 			panic("unreachable")
 		}
 	}
 	self.froms = append(self.froms, from...)
 }
 
-func (self *Phi) Froms()[]pair.Pair[*Block, Value]{
+func (self *Phi) Froms() []pair.Pair[*Block, Value] {
 	return self.froms
 }
 
-func (self *Phi) ReadRefValues()[]Value{
+func (self *Phi) ReadRefValues() []Value {
 	return stlslices.Map(self.froms, func(_ int, e pair.Pair[*Block, Value]) Value {
 		return e.Second
 	})
 }
 
-func (self *Phi) WriteRefValues()[]Value{
+func (self *Phi) WriteRefValues() []Value {
 	return nil
 }
 
 // PackArray 打包数组
 type PackArray struct {
-	b *Block
-	i uint
-	t ArrayType
+	b     *Block
+	i     uint
+	t     ArrayType
 	elems []Value
 }
 
-func (self *Builder) BuildPackArray(t ArrayType, elem ...Value)Value {
-	if t.Length() != uint(len(elem)){
+func (self *Builder) BuildPackArray(t ArrayType, elem ...Value) Value {
+	if t.Length() != uint(len(elem)) {
 		panic("unreachable")
 	}
-	for _, e := range elem{
-		if !e.Type().Equal(t.Elem()){
+	for _, e := range elem {
+		if !e.Type().Equal(t.Elem()) {
 			panic("unreachable")
 		}
 	}
 	allConst := true
 	constElems := make([]Const, len(elem))
-	for i, e := range elem{
-		if c, ok := e.(Const); ok{
+	for i, e := range elem {
+		if c, ok := e.(Const); ok {
 			constElems[i] = c
-		}else{
+		} else {
 			allConst = false
 		}
 	}
-	if allConst{
+	if allConst {
 		return NewArray(t, constElems...)
 	}
 	stmt := &PackArray{
-		b: self.cur,
-		t: t,
+		b:     self.cur,
+		t:     t,
 		elems: elem,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *PackArray) Belong()*Block{
+func (self *PackArray) Belong() *Block {
 	return self.b
 }
 
-func (self *PackArray) Define()string{
+func (self *PackArray) Define() string {
 	elems := lo.Map(self.elems, func(item Value, _ int) string {
 		return item.Name()
 	})
 	return fmt.Sprintf("%s %s = pack (%s)", self.t, self.Name(), strings.Join(elems, ","))
 }
 
-func (self *PackArray) setIndex(i uint){
+func (self *PackArray) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *PackArray) Name()string{
+func (self *PackArray) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *PackArray) Type()Type{
+func (self *PackArray) Type() Type {
 	return self.t
 }
 
-func (self *PackArray) Elems()[]Value{
+func (self *PackArray) Elems() []Value {
 	return self.elems
 }
 
-func (self *PackArray) ReadRefValues()[]Value{
+func (self *PackArray) ReadRefValues() []Value {
 	return self.elems
 }
 
-func (self *PackArray) WriteRefValues()[]Value{
+func (self *PackArray) WriteRefValues() []Value {
 	return nil
 }
 
 // PackStruct 打包结构体
 type PackStruct struct {
-	b *Block
-	i uint
-	t StructType
+	b     *Block
+	i     uint
+	t     StructType
 	elems []Value
 }
 
-func (self *Builder) BuildPackStruct(t StructType, elem ...Value)Value {
-	if len(t.Elems()) != len(elem){
+func (self *Builder) BuildPackStruct(t StructType, elem ...Value) Value {
+	if len(t.Elems()) != len(elem) {
 		panic("unreachable")
 	}
-	for i, e := range elem{
-		if !e.Type().Equal(t.Elems()[i]){
+	for i, e := range elem {
+		if !e.Type().Equal(t.Elems()[i]) {
 			panic("unreachable")
 		}
 	}
 	allConst := true
 	constElems := make([]Const, len(elem))
-	for i, e := range elem{
-		if c, ok := e.(Const); ok{
+	for i, e := range elem {
+		if c, ok := e.(Const); ok {
 			constElems[i] = c
-		}else{
+		} else {
 			allConst = false
 		}
 	}
-	if allConst{
+	if allConst {
 		return NewStruct(t, constElems...)
 	}
 	stmt := &PackStruct{
-		b: self.cur,
-		t: t,
+		b:     self.cur,
+		t:     t,
 		elems: elem,
 	}
 	self.cur.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *PackStruct) Belong()*Block{
+func (self *PackStruct) Belong() *Block {
 	return self.b
 }
 
-func (self *PackStruct) Define()string{
+func (self *PackStruct) Define() string {
 	elems := lo.Map(self.elems, func(item Value, _ int) string {
 		return item.Name()
 	})
 	return fmt.Sprintf("%s %s = pack {%s}", self.t, self.Name(), strings.Join(elems, ","))
 }
 
-func (self *PackStruct) setIndex(i uint){
+func (self *PackStruct) setIndex(i uint) {
 	self.i = i
 }
 
-func (self *PackStruct) Name()string{
+func (self *PackStruct) Name() string {
 	return fmt.Sprintf("%%%s_%d", self.b.Name(), self.i)
 }
 
-func (self *PackStruct) Type()Type{
+func (self *PackStruct) Type() Type {
 	return self.t
 }
 
-func (self *PackStruct) Elems()[]Value{
+func (self *PackStruct) Elems() []Value {
 	return self.elems
 }
 
-func (self *PackStruct) ReadRefValues()[]Value{
+func (self *PackStruct) ReadRefValues() []Value {
 	return self.elems
 }
 
-func (self *PackStruct) WriteRefValues()[]Value{
+func (self *PackStruct) WriteRefValues() []Value {
 	return nil
 }
 
@@ -1928,53 +1928,53 @@ type Unreachable struct {
 	b *Block
 }
 
-func NewUnreachable(b *Block)*Unreachable {
+func NewUnreachable(b *Block) *Unreachable {
 	stmt := &Unreachable{b: b}
 	b.stmts.PushBack(stmt)
 	return stmt
 }
 
-func (self *Builder) BuildUnreachable()*Unreachable {
+func (self *Builder) BuildUnreachable() *Unreachable {
 	return NewUnreachable(self.cur)
 }
 
-func (self *Unreachable) Belong()*Block{
+func (self *Unreachable) Belong() *Block {
 	return self.b
 }
 
-func (self *Unreachable) Define()string{
+func (self *Unreachable) Define() string {
 	return "unreachable"
 }
 
-func (*Unreachable)terminate(){}
+func (*Unreachable) terminate() {}
 
-func (self *Unreachable) ReadRefValues()[]Value{
+func (self *Unreachable) ReadRefValues() []Value {
 	return nil
 }
 
-func (self *Unreachable) WriteRefValues()[]Value{
+func (self *Unreachable) WriteRefValues() []Value {
 	return nil
 }
 
 // Switch 分支选择
 type Switch struct {
-	b *Block
+	b     *Block
 	value Value
 	cases []pair.Pair[Const, *Block]
 	other *Block
 }
 
-func (self *Builder) BuildSwitch(value Value, other *Block, cases ...pair.Pair[Const, *Block])Jump {
-	for _, c := range cases{
-		if !c.First.Type().Equal(value.Type()){
+func (self *Builder) BuildSwitch(value Value, other *Block, cases ...pair.Pair[Const, *Block]) Jump {
+	for _, c := range cases {
+		if !c.First.Type().Equal(value.Type()) {
 			panic("unreachable")
 		}
 	}
-	if len(cases) == 0{
+	if len(cases) == 0 {
 		return self.BuildUnCondJump(other)
 	}
 	stmt := &Switch{
-		b: self.cur,
+		b:     self.cur,
 		value: value,
 		cases: cases,
 		other: other,
@@ -1983,41 +1983,41 @@ func (self *Builder) BuildSwitch(value Value, other *Block, cases ...pair.Pair[C
 	return stmt
 }
 
-func (self *Switch) Belong()*Block{
+func (self *Switch) Belong() *Block {
 	return self.b
 }
 
-func (self *Switch) Define()string{
+func (self *Switch) Define() string {
 	cases := stlslices.Map(self.cases, func(_ int, e pair.Pair[Const, *Block]) string {
 		return fmt.Sprintf("%s: %s", e.First.Name(), e.Second.Name())
 	})
 	return fmt.Sprintf("switch %s to %s cases { %s }", self.value.Name(), self.other.Name(), strings.Join(cases, ", "))
 }
 
-func (self *Switch) Value()Value{
+func (self *Switch) Value() Value {
 	return self.value
 }
 
-func (self *Switch) OtherBlock()*Block{
+func (self *Switch) OtherBlock() *Block {
 	return self.other
 }
 
-func (self *Switch) Cases()[]pair.Pair[Const, *Block]{
+func (self *Switch) Cases() []pair.Pair[Const, *Block] {
 	return self.cases
 }
 
-func (*Switch)terminate(){}
+func (*Switch) terminate() {}
 
-func (self *Switch) Targets()[]*Block{
+func (self *Switch) Targets() []*Block {
 	return append(stlslices.Map(self.cases, func(_ int, e pair.Pair[Const, *Block]) *Block {
 		return e.Second
 	}), self.other)
 }
 
-func (self *Switch) ReadRefValues()[]Value{
+func (self *Switch) ReadRefValues() []Value {
 	return nil
 }
 
-func (self *Switch) WriteRefValues()[]Value{
+func (self *Switch) WriteRefValues() []Value {
 	return nil
 }
