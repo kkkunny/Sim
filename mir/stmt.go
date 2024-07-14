@@ -7,8 +7,8 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/pair"
+	stlslices "github.com/kkkunny/stl/container/slices"
 	stlbits "github.com/kkkunny/stl/math/bits"
-	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 )
 

@@ -9,7 +9,7 @@ import (
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
 	runtimeType "github.com/kkkunny/Sim/runtime/types"
 )

@@ -8,8 +8,9 @@ import (
 	stlmath "github.com/kkkunny/stl/math"
 	stlos "github.com/kkkunny/stl/os"
 
-	"github.com/kkkunny/Sim/analyse"
-	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/compiler/analyse"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/mir"
 	module2 "github.com/kkkunny/Sim/mir/pass/module"
 )

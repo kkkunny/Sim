@@ -3,11 +3,13 @@ package parse
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
-	"github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/compiler/ast"
 
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/lex"
-	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/compiler/lex"
+
+	errors "github.com/kkkunny/Sim/compiler/error"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 // Parser 语法分析器
@@ -27,7 +29,7 @@ func (self *Parser) next() {
 	self.curTok = self.nextTok
 	for {
 		self.nextTok = self.lexer.Scan()
-		if !self.nextIs(token.COMMENT){
+		if !self.nextIs(token.COMMENT) {
 			break
 		}
 	}
@@ -40,8 +42,8 @@ func (self Parser) nextIs(k token.Kind) bool {
 
 // 下一个token是否属于
 func (self Parser) nextIn(k ...token.Kind) bool {
-	for _, kk := range k{
-		if self.nextIs(kk){
+	for _, kk := range k {
+		if self.nextIs(kk) {
 			return true
 		}
 	}

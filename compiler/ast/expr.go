@@ -3,8 +3,9 @@ package ast
 import (
 	"github.com/kkkunny/stl/container/pair"
 
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 // Expr 表达式

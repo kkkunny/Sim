@@ -6,15 +6,18 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashset"
+	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
-	stlslices "github.com/kkkunny/stl/slices"
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/ast"
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/ast"
+
+	"github.com/kkkunny/Sim/compiler/hir"
+
+	errors "github.com/kkkunny/Sim/compiler/error"
+
+	"github.com/kkkunny/Sim/compiler/token"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {

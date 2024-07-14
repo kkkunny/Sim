@@ -5,23 +5,23 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *COutputer) newLocalName()string{
+func (self *COutputer) newLocalName() string {
 	self.localVarCount++
 	return fmt.Sprintf("_v%d", self.localVarCount)
 }
 
-func (self *COutputer) codegenStmt(ir mir.Stmt){
+func (self *COutputer) codegenStmt(ir mir.Stmt) {
 	switch stmt := ir.(type) {
 	case *mir.Store:
 		self.varDefBuffer.WriteString(fmt.Sprintf("%s = %s", self.codegenValue(stmt.To()), self.codegenValue(stmt.From())))
 	case *mir.Return:
 		self.varDefBuffer.WriteString("return")
-		if value, ok := stmt.Value(); ok{
+		if value, ok := stmt.Value(); ok {
 			self.varDefBuffer.WriteByte(' ')
 			self.varDefBuffer.WriteString(self.codegenValue(value))
 		}
@@ -41,7 +41,7 @@ func (self *COutputer) codegenStmt(ir mir.Stmt){
 	}
 }
 
-func (self *COutputer) codegenStmtValue(ir mir.StmtValue){
+func (self *COutputer) codegenStmtValue(ir mir.StmtValue) {
 	var name string
 	defer func() {
 		self.values.Set(ir, name)
@@ -57,9 +57,9 @@ func (self *COutputer) codegenStmtValue(ir mir.StmtValue){
 		name = self.newLocalName()
 		self.varDefBuffer.WriteString(fmt.Sprintf("%s %s = calloc(1, sizeof(%s))", self.codegenType(stmt.ElemType()), name, stmt.Type()))
 	case *mir.Load:
-		if stlbasic.Is[*mir.AllocFromStack](stmt.From()) || stlbasic.Is[*mir.Param](stmt.From()){
+		if stlbasic.Is[*mir.AllocFromStack](stmt.From()) || stlbasic.Is[*mir.Param](stmt.From()) {
 			name = self.codegenValue(stmt.From())
-		}else{
+		} else {
 			name = self.newLocalName()
 			self.varDefBuffer.WriteString(fmt.Sprintf("%s %s = *%s", tname, name, self.codegenValue(stmt.From())))
 		}

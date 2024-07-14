@@ -7,13 +7,16 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/compiler/hir"
 
-	"github.com/kkkunny/Sim/ast"
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/ast"
+
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	errors "github.com/kkkunny/Sim/compiler/error"
+
+	"github.com/kkkunny/Sim/compiler/token"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.Global] {

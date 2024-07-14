@@ -2,11 +2,11 @@ package codegen_ir
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/util"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {

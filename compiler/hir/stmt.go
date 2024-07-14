@@ -4,7 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Stmt 语句

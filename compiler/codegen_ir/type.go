@@ -1,10 +1,10 @@
 package codegen_ir
 
 import (
+	stlslices "github.com/kkkunny/stl/container/slices"
 	stlos "github.com/kkkunny/stl/os"
-	stlslices "github.com/kkkunny/stl/slices"
 
-	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/mir"
 )
 

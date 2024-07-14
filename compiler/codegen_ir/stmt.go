@@ -7,9 +7,9 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/pair"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/mir"
 )
 
@@ -92,7 +92,7 @@ func (self *CodeGenerator) codegenMultiLocalVariable(ir *hir.MultiLocalVarDef) m
 	for _, varNode := range ir.Vars {
 		self.codegenLocalVariable(varNode)
 	}
-	self.codegenUnTuple(ir.Value, stlslices.As[*hir.LocalVarDef, []*hir.LocalVarDef, hir.Expr, []hir.Expr](ir.Vars))
+	self.codegenUnTuple(ir.Value, stlslices.As[*hir.LocalVarDef, hir.Expr](ir.Vars))
 	return nil
 }
 

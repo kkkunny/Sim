@@ -5,12 +5,14 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/ast"
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/ast"
+
+	"github.com/kkkunny/Sim/compiler/hir"
+
+	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *Analyser) analyseType(node ast.Type) hir.Type {

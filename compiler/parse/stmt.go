@@ -3,10 +3,10 @@ package parse
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
-	"github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/compiler/ast"
 
-	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/token"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *Parser) parseStmt() ast.Stmt {

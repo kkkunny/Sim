@@ -5,7 +5,7 @@ import (
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/queue"
 
-	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/mir"
 )
 

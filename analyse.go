@@ -11,8 +11,9 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
-	"github.com/kkkunny/Sim/analyse"
-	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/compiler/analyse"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 func main() {

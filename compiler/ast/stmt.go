@@ -3,9 +3,10 @@ package ast
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
 
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	"github.com/kkkunny/Sim/compiler/token"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Stmt 语句ast

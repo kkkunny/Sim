@@ -9,9 +9,11 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
-	"github.com/kkkunny/Sim/lex"
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/compiler/lex"
+
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 func main() {

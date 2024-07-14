@@ -17,9 +17,8 @@ endif
 
 EXT_NAME = sim
 WORK_PATH = $(shell pwd)
-COMPILER_SRC_DIR = $(WORK_PATH)/compiler
-EXAMPLE_DIR = $(COMPILER_SRC_DIR)/examples
-TEST_DIR = $(COMPILER_SRC_DIR)/tests
+EXAMPLE_DIR = $(WORK_PATH)/examples
+TEST_DIR = $(WORK_PATH)/tests
 TEST_FILE = $(EXAMPLE_DIR)/main.$(EXT_NAME)
 BIN_PATH = $(GOPATH)/bin/$(BIN_FILE)
 
@@ -31,36 +30,36 @@ find_test_files:
     done
 
 .PHONY: lex
-lex: $(COMPILER_SRC_DIR)/lex.go $(TEST_FILE)
-	@go run -tags lex $(COMPILER_SRC_DIR) $(TEST_FILE)
+lex: $(WORK_PATH)/lex.go $(TEST_FILE)
+	@go run -tags lex $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: parse
-parse: $(COMPILER_SRC_DIR)/parse.go $(TEST_FILE)
-	@go run -tags parse $(COMPILER_SRC_DIR) $(TEST_FILE)
+parse: $(WORK_PATH)/parse.go $(TEST_FILE)
+	@go run -tags parse $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: analyse
-analyse: $(COMPILER_SRC_DIR)/analyse.go $(TEST_FILE)
-	@go run -tags analyse $(COMPILER_SRC_DIR) $(TEST_FILE)
+analyse: $(WORK_PATH)/analyse.go $(TEST_FILE)
+	@go run -tags analyse $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: codegenir
-codegenir: $(COMPILER_SRC_DIR)/codegen_ir.go $(TEST_FILE)
-	@go run -tags codegenir $(COMPILER_SRC_DIR) $(TEST_FILE)
+codegenir: $(WORK_PATH)/codegen_ir.go $(TEST_FILE)
+	@go run -tags codegenir $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: codegenllvm
-codegenllvm: $(COMPILER_SRC_DIR)/codegen_llvm.go $(TEST_FILE)
-	@go run -tags codegenllvm $(COMPILER_SRC_DIR) $(TEST_FILE)
+codegenllvm: $(WORK_PATH)/codegen_llvm.go $(TEST_FILE)
+	@go run -tags codegenllvm $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: codegenasm
-codegenasm: $(COMPILER_SRC_DIR)/codegen_llvm.go $(TEST_FILE)
-	@go run -tags codegenasm $(COMPILER_SRC_DIR) $(TEST_FILE)
+codegenasm: $(WORK_PATH)/codegen_llvm.go $(TEST_FILE)
+	@go run -tags codegenasm $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: run
-run: $(COMPILER_SRC_DIR)/main.go $(TEST_FILE)
-	@go run $(COMPILER_SRC_DIR) $(TEST_FILE)
+run: $(WORK_PATH)/main.go $(TEST_FILE)
+	@go run $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: build
-build: clean $(COMPILER_SRC_DIR)/main.go
-	go build -o $(BIN_FILE) $(COMPILER_SRC_DIR)
+build: clean $(WORK_PATH)/main.go
+	go build -o $(BIN_FILE) $(WORK_PATH)
 	ln -s $(WORK_PATH)/$(BIN_FILE) $(BIN_PATH)
 
 .PHONY: clean

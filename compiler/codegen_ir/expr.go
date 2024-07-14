@@ -7,11 +7,11 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/pair"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/hir"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/util"
 	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/util"
 )
 
 func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) mir.Value {

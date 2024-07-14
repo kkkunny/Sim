@@ -9,16 +9,21 @@ import (
 	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/pair"
+	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
-	stlslices "github.com/kkkunny/stl/slices"
 
-	"github.com/kkkunny/Sim/ast"
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/parse"
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/ast"
+
+	"github.com/kkkunny/Sim/compiler/hir"
+
+	"github.com/kkkunny/Sim/compiler/parse"
+
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	errors "github.com/kkkunny/Sim/compiler/error"
+
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 type importPackageErrorKind uint8

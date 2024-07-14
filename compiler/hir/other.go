@@ -2,7 +2,7 @@ package hir
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 )
 
 // Result 语义分析结果

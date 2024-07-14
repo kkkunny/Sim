@@ -8,10 +8,13 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	stliter "github.com/kkkunny/stl/container/iter"
 
-	"github.com/kkkunny/Sim/ast"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/compiler/ast"
+
+	"github.com/kkkunny/Sim/compiler/hir"
+
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 // ThrowError 抛出异常

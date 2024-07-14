@@ -4,9 +4,9 @@ import (
 	"math/big"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // ExprStmt 表达式语句

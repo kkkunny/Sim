@@ -42,7 +42,7 @@ Sim是一门简洁的、强类型的编译型语言
 
 + linux / windows
 
-+ llvm(version==16 or 17)
++ llvm(version==18)
 
 + golang
 

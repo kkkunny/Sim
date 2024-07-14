@@ -3,7 +3,7 @@ package hir
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Expr 表达式

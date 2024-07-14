@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
-	stlslices "github.com/kkkunny/stl/slices"
+	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/samber/lo"
 )
 

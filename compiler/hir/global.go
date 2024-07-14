@@ -7,7 +7,7 @@ import (
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/pair"
 
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Global 全局

@@ -7,11 +7,13 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlerror "github.com/kkkunny/stl/error"
 
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/compiler/hir"
 
-	"github.com/kkkunny/Sim/ast"
+	errors "github.com/kkkunny/Sim/compiler/error"
+
+	"github.com/kkkunny/Sim/compiler/token"
+
+	"github.com/kkkunny/Sim/compiler/ast"
 )
 
 // Analyser 语义分析器

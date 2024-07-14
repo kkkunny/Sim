@@ -5,14 +5,14 @@ import (
 	"strings"
 
 	"github.com/kkkunny/stl/container/pair"
+	stlslices "github.com/kkkunny/stl/container/slices"
 	stlmath "github.com/kkkunny/stl/math"
 	stlos "github.com/kkkunny/stl/os"
-	stlslices "github.com/kkkunny/stl/slices"
 
 	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *COutputer) codegenType(ir mir.Type)string{
+func (self *COutputer) codegenType(ir mir.Type) string {
 	switch t := ir.(type) {
 	case mir.VoidType:
 		return self.codegenVoidType()
@@ -35,13 +35,13 @@ func (self *COutputer) codegenType(ir mir.Type)string{
 	}
 }
 
-func (self *COutputer) codegenVoidType()string{
+func (self *COutputer) codegenVoidType() string {
 	return "void"
 }
 
-func (self *COutputer) codegenSintType(ir mir.SintType)string{
+func (self *COutputer) codegenSintType(ir mir.SintType) string {
 	key := fmt.Sprintf("i%d", ir.Bits())
-	if self.typedefs.ContainKey(key){
+	if self.typedefs.ContainKey(key) {
 		return self.typedefs.Get(key).First
 	}
 	var ctype string
@@ -62,9 +62,9 @@ func (self *COutputer) codegenSintType(ir mir.SintType)string{
 	return name
 }
 
-func (self *COutputer) codegenUintType(ir mir.UintType)string{
+func (self *COutputer) codegenUintType(ir mir.UintType) string {
 	key := fmt.Sprintf("u%d", ir.Bits())
-	if self.typedefs.ContainKey(key){
+	if self.typedefs.ContainKey(key) {
 		return self.typedefs.Get(key).First
 	}
 	var ctype string
@@ -85,9 +85,9 @@ func (self *COutputer) codegenUintType(ir mir.UintType)string{
 	return name
 }
 
-func (self *COutputer) codegenFloatType(ir mir.FloatType)string{
+func (self *COutputer) codegenFloatType(ir mir.FloatType) string {
 	key := fmt.Sprintf("f%d", ir.Bits())
-	if self.typedefs.ContainKey(key){
+	if self.typedefs.ContainKey(key) {
 		return self.typedefs.Get(key).First
 	}
 	var ctype string
@@ -106,17 +106,17 @@ func (self *COutputer) codegenFloatType(ir mir.FloatType)string{
 	return name
 }
 
-func (self *COutputer) codegenPtrType(ir mir.PtrType)string{
+func (self *COutputer) codegenPtrType(ir mir.PtrType) string {
 	return self.codegenType(ir.Elem()) + "*"
 }
 
-func (self *COutputer) codegenFuncTypePtr(ir mir.FuncType)string{
+func (self *COutputer) codegenFuncTypePtr(ir mir.FuncType) string {
 	ret := self.codegenType(ir.Ret())
 	params := stlslices.Map(ir.Params(), func(_ int, e mir.Type) string {
 		return self.codegenType(e)
 	})
 	key := fmt.Sprintf("%s(%s)", ret, strings.Join(params, ", "))
-	if self.typedefs.ContainKey(key){
+	if self.typedefs.ContainKey(key) {
 		return self.typedefs.Get(key).First
 	}
 	name := fmt.Sprintf("_sim_type_%d", self.typedefs.Length())
@@ -124,10 +124,10 @@ func (self *COutputer) codegenFuncTypePtr(ir mir.FuncType)string{
 	return name
 }
 
-func (self *COutputer) codegenArrayType(ir mir.ArrayType)string{
+func (self *COutputer) codegenArrayType(ir mir.ArrayType) string {
 	elem := self.codegenType(ir.Elem())
 	key := fmt.Sprintf("%s[%d]", elem, ir.Size())
-	if self.typedefs.ContainKey(key){
+	if self.typedefs.ContainKey(key) {
 		return self.typedefs.Get(key).First
 	}
 	name := fmt.Sprintf("_sim_type_%d", self.typedefs.Length())
@@ -135,12 +135,12 @@ func (self *COutputer) codegenArrayType(ir mir.ArrayType)string{
 	return name
 }
 
-func (self *COutputer) codegenStructType(ir mir.StructType)string{
+func (self *COutputer) codegenStructType(ir mir.StructType) string {
 	switch st := ir.(type) {
 	case *mir.UnnamedStructType:
 		var buf strings.Builder
 		buf.WriteString("struct{")
-		for i, e := range ir.Elems(){
+		for i, e := range ir.Elems() {
 			buf.WriteString(self.codegenType(e))
 			buf.WriteByte(' ')
 			buf.WriteString(fmt.Sprintf("e%d", i))
