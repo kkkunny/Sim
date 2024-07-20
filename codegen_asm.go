@@ -11,13 +11,13 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/codegen_asm"
-	"github.com/kkkunny/Sim/mir"
 )
 
 func main() {
+	stlerror.Must(llvm.InitializeNativeTarget())
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 
-	reader := stlerror.MustWith(codegen_asm.CodegenAsm(mir.DefaultTarget(), stlos.NewFilePath(os.Args[1])))
+	reader := stlerror.MustWith(codegen_asm.CodegenAsm(stlerror.MustWith(llvm.NativeTarget()), stlos.NewFilePath(os.Args[1])))
 	defer reader.Close()
 	stlerror.MustWith(io.Copy(os.Stdout, reader))
 }

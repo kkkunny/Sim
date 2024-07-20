@@ -1,39 +1,33 @@
-package execution
+package interpret
 
 import (
 	"reflect"
 	"strings"
 
-	llvm2 "github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
-
-	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/mir/output/llvm"
 )
 
 // Engine 执行器
 type Engine struct {
-	module     *mir.Module
-	llvmModule llvm2.Module
-	target     *llvm2.Target
-	jiter      *llvm2.ExecutionEngine
+	module llvm.Module
+	target *llvm.Target
+	jiter  *llvm.ExecutionEngine
 }
 
-func NewExecutionEngine(module *mir.Module) (*Engine, stlerror.Error) {
-	outputer := llvm.NewLLVMOutputer()
-	outputer.Codegen(module)
-	engine, err := stlerror.ErrorWith(llvm2.NewJITCompiler(outputer.Module(), llvm2.CodeOptLevelNone))
+func NewExecutionEngine(module llvm.Module) (*Engine, stlerror.Error) {
+	engine, err := stlerror.ErrorWith(llvm.NewJITCompiler(module, llvm.CodeOptLevelNone))
 	if err != nil {
 		return nil, err
 	}
-	initTarget(module.Context().Target())
+	stlerror.Must(llvm.InitializeNativeAsmParser())
+	stlerror.Must(llvm.InitializeNativeAsmPrinter())
 	return &Engine{
-		module:     module,
-		llvmModule: outputer.Module(),
-		target:     outputer.Target(),
-		jiter:      engine,
+		module: module,
+		target: stlbasic.IgnoreWith(module.GetTarget()),
+		jiter:  engine,
 	}, nil
 }
 
@@ -45,24 +39,24 @@ func (self *Engine) MapFunction(name string, to any) stlerror.Error {
 		return stlerror.Errorf("expect a function")
 	}
 
-	fir, ok := self.module.NamedFunction(name)
+	f, ok := self.module.GetFunction(name)
 	if !ok {
 		return stlerror.Errorf("unknown function which named `%s`", name)
 	}
-	ftir := fir.Type().(mir.FuncType)
+	ft := f.FunctionType()
 	switch {
 	case self.target.IsWindows():
-		if stlbasic.Is[mir.StructType](ftir.Ret()) || stlbasic.Is[mir.ArrayType](ftir.Ret()) || stlslices.Any(ftir.Params(), func(i int, et mir.Type) bool {
-			return stlbasic.Is[mir.StructType](et) || stlbasic.Is[mir.ArrayType](et)
+		if stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.ArrayType](ft.ReturnType()) || stlslices.Any(ft.Params(), func(i int, p llvm.Type) bool {
+			return stlbasic.Is[llvm.StructType](p) || stlbasic.Is[llvm.ArrayType](p)
 		}) {
 			retTypes, paramTypes := make([]reflect.Type, 0, 1), make([]reflect.Type, 0, toFt.NumIn())
-			if stlbasic.Is[mir.StructType](ftir.Ret()) || stlbasic.Is[mir.ArrayType](ftir.Ret()) {
+			if stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.ArrayType](ft.ReturnType()) {
 				paramTypes = append(paramTypes, reflect.PtrTo(toFt.Out(0)))
 			} else if toFt.NumOut() != 0 {
 				retTypes = append(retTypes, toFt.Out(0))
 			}
-			for i, pt := range ftir.Params() {
-				if stlbasic.Is[mir.StructType](pt) || stlbasic.Is[mir.ArrayType](pt) {
+			for i, pt := range ft.Params() {
+				if stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.ArrayType](pt) {
 					paramTypes = append(paramTypes, reflect.PtrTo(toFt.In(i)))
 				} else {
 					paramTypes = append(paramTypes, toFt.In(i))
@@ -73,9 +67,9 @@ func (self *Engine) MapFunction(name string, to any) stlerror.Error {
 			srcToVal := toVal
 			toVal = reflect.MakeFunc(toFt, func(args []reflect.Value) (results []reflect.Value) {
 				callArgs := make([]reflect.Value, 0, len(args))
-				skip := stlbasic.Ternary(stlbasic.Is[mir.StructType](ftir.Ret()) || stlbasic.Is[mir.ArrayType](ftir.Ret()), 1, 0)
-				for i, pt := range ftir.Params() {
-					if stlbasic.Is[mir.StructType](pt) || stlbasic.Is[mir.ArrayType](pt) {
+				skip := stlbasic.Ternary(stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.ArrayType](ft.ReturnType()), 1, 0)
+				for i, pt := range ft.Params() {
+					if stlbasic.Is[llvm.StructType](pt) || stlbasic.Is[llvm.ArrayType](pt) {
 						callArgs = append(callArgs, args[skip+i].Elem())
 					} else {
 						callArgs = append(callArgs, args[skip+i])
@@ -84,7 +78,7 @@ func (self *Engine) MapFunction(name string, to any) stlerror.Error {
 
 				rets := srcToVal.Call(callArgs)
 
-				if stlbasic.Is[mir.StructType](ftir.Ret()) || stlbasic.Is[mir.ArrayType](ftir.Ret()) {
+				if stlbasic.Is[llvm.StructType](ft.ReturnType()) || stlbasic.Is[llvm.ArrayType](ft.ReturnType()) {
 					args[0].Elem().Set(rets[0])
 					return nil
 				} else if toFt.NumOut() != 0 {
@@ -110,7 +104,7 @@ func (self *Engine) MapFunctionIgnoreNotFind(name string, to any) stlerror.Error
 }
 
 func (self *Engine) RunMain() (uint8, stlerror.Error) {
-	mainFn, ok := self.llvmModule.GetFunction("main")
+	mainFn, ok := self.module.GetFunction("main")
 	if !ok {
 		return 1, stlerror.Errorf("can not find the main function")
 	}
