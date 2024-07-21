@@ -330,6 +330,6 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, stlerror.E
 	module := New(target, means).Codegen()
 	passOption := llvm.NewPassOption()
 	defer passOption.Free()
-	err = stlerror.ErrorWrap(module.RunPasses(passOption, "globaldce", "dce"))
+	err = stlerror.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
 	return module, err
 }
