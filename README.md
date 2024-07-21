@@ -40,7 +40,7 @@ Sim是一门简洁的、强类型的编译型语言
 
 ## Dependences
 
-+ linux / windows
++ linux
 
 + llvm(version==18)
 

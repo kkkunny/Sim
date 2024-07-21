@@ -322,7 +322,7 @@ func (self *CodeGenerator) boolType() llvm.IntegerType {
 }
 
 // CodegenIr 中间代码生成
-func CodegenIr(target *llvm.Target, path stlos.FilePath) (llvm.Module, stlerror.Error) {
+func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, stlerror.Error) {
 	means, err := analyse.Analyse(path)
 	if err != nil {
 		return llvm.Module{}, err
@@ -330,6 +330,6 @@ func CodegenIr(target *llvm.Target, path stlos.FilePath) (llvm.Module, stlerror.
 	module := New(target, means).Codegen()
 	passOption := llvm.NewPassOption()
 	defer passOption.Free()
-	err = stlerror.ErrorWrap(module.RunPasses(stlbasic.IgnoreWith(module.GetTarget()), passOption, "globaldce", "dce"))
+	err = stlerror.ErrorWrap(module.RunPasses(passOption, "globaldce", "dce"))
 	return module, err
 }

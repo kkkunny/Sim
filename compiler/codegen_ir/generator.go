@@ -15,7 +15,7 @@ import (
 type CodeGenerator struct {
 	hir *hir.Result
 
-	target  *llvm.Target
+	target  llvm.Target
 	ctx     llvm.Context
 	module  llvm.Module
 	builder llvm.Builder
@@ -28,8 +28,8 @@ type CodeGenerator struct {
 	lambdaCaptureMap queue.Queue[hashmap.HashMap[hir.Ident, llvm.Value]]
 }
 
-func New(target *llvm.Target, ir *hir.Result) *CodeGenerator {
-	ctx := llvm.NewContext()
+func New(target llvm.Target, ir *hir.Result) *CodeGenerator {
+	ctx := llvm.GlobalContext
 	module := ctx.NewModule("main")
 	module.SetTarget(target)
 	return &CodeGenerator{

@@ -14,10 +14,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/interpret"
 )
 
-type name struct {
-	a int32
-}
-
 func main() {
 	stlerror.Must(llvm.InitializeNativeTarget())
 	module := stlerror.MustWith(codegen_ir.CodegenIr(stlerror.MustWith(llvm.NativeTarget()), stlos.NewFilePath(os.Args[1])))
