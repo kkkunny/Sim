@@ -6,13 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kkkunny/go-llvm"
+	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 	stltest "github.com/kkkunny/stl/test"
 
 	"github.com/kkkunny/Sim/compiler/codegen_ir"
 
 	"github.com/kkkunny/Sim/compiler/interpret"
-	"github.com/kkkunny/Sim/mir"
 )
 
 func runPath(t *testing.T, path stlos.FilePath) {
@@ -25,7 +26,7 @@ func runPath(t *testing.T, path stlos.FilePath) {
 			runPath(t, path.Join(info.Name()))
 		} else if filepath.Ext(info.Name()) == ".sim" {
 			t.Run(strings.TrimSuffix(info.Name(), ".sim"), func(t *testing.T) {
-				module, err := codegen_ir.CodegenIr(mir.DefaultTarget(), path.Join(info.Name()))
+				module, err := codegen_ir.CodegenIr(stlerror.MustWith(llvm.NativeTarget()), path.Join(info.Name()))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -40,5 +41,6 @@ func runPath(t *testing.T, path stlos.FilePath) {
 }
 
 func TestExitWithZero(t *testing.T) {
+	stlerror.Must(llvm.InitializeNativeTarget())
 	runPath(t, stlos.NewFilePath("."))
 }

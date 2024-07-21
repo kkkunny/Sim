@@ -1,7 +1,5 @@
 import std::os
 
-func a(s: u8, u8){}
-
 func main(){
-	debug("111")
+	os::exit(add(1+2, 2))
 }

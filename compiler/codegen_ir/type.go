@@ -1,14 +1,13 @@
 package codegen_ir
 
 import (
+	"github.com/kkkunny/go-llvm"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/hir"
-	"github.com/kkkunny/Sim/mir"
 )
 
-func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
+func (self *CodeGenerator) codegenType(t hir.Type) llvm.Type {
 	switch t := hir.ToRuntimeType(t).(type) {
 	case *hir.NoThingType, *hir.NoReturnType:
 		return self.codegenEmptyType()
@@ -19,7 +18,7 @@ func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 	case *hir.FloatType:
 		return self.codegenFloatType(t)
 	case *hir.FuncType:
-		return self.codegenFuncType(t)
+		return self.codegenFuncTypePtr(t)
 	case *hir.ArrayType:
 		return self.codegenArrayType(t)
 	case *hir.TupleType:
@@ -39,107 +38,124 @@ func (self *CodeGenerator) codegenType(t hir.Type) mir.Type {
 	}
 }
 
-func (self *CodeGenerator) codegenEmptyType() mir.VoidType {
-	return self.ctx.Void()
+func (self *CodeGenerator) codegenEmptyType() llvm.VoidType {
+	return self.ctx.VoidType()
 }
 
-func (self *CodeGenerator) codegenSintType(ir *hir.SintType) mir.SintType {
-	return self.ctx.NewSintType(stlos.Size(ir.Bits))
+func (self *CodeGenerator) codegenSintType(ir *hir.SintType) llvm.IntegerType {
+	return self.ctx.IntegerType(uint32(ir.Bits))
 }
 
-func (self *CodeGenerator) codegenUintType(ir *hir.UintType) mir.UintType {
-	return self.ctx.NewUintType(stlos.Size(ir.Bits))
+func (self *CodeGenerator) codegenUintType(ir *hir.UintType) llvm.IntegerType {
+	return self.ctx.IntegerType(uint32(ir.Bits))
 }
 
-func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) mir.FloatType {
+func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) llvm.FloatType {
+	var ft llvm.FloatTypeKind
 	switch ir.Bits {
 	case 16:
-		return self.ctx.F32()
+		ft = llvm.FloatTypeKindHalf
 	case 32:
-		return self.ctx.F32()
+		ft = llvm.FloatTypeKindFloat
 	case 64:
-		return self.ctx.F64()
+		ft = llvm.FloatTypeKindDouble
 	case 128:
-		return self.ctx.F128()
+		ft = llvm.FloatTypeKindFP128
 	default:
 		panic("unreachable")
 	}
+	return self.ctx.FloatType(ft)
 }
 
-func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) mir.FuncType {
-	ret := self.codegenType(ir.Ret)
-	params := stlslices.Map(ir.Params, func(_ int, e hir.Type) mir.Type {
+func (self *CodeGenerator) codegenFuncTypePtr(ir *hir.FuncType) llvm.PointerType {
+	return self.ctx.PointerType(self.codegenFuncType(ir))
+}
+
+func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) llvm.FunctionType {
+	ft, _, _ := self.codegenCallableType(ir)
+	return ft
+}
+
+func (self *CodeGenerator) codegenCallableType(ir hir.CallableType) (llvm.FunctionType, llvm.StructType, llvm.FunctionType) {
+	if hir.IsType[*hir.FuncType](ir) {
+		ft := hir.AsType[*hir.FuncType](ir)
+		ret := self.codegenType(ft.Ret)
+		params := stlslices.Map(ft.Params, func(_ int, e hir.Type) llvm.Type {
+			return self.codegenType(e)
+		})
+		return self.ctx.FunctionType(false, ret, params...), llvm.StructType{}, llvm.FunctionType{}
+	} else {
+		lbdt := hir.AsType[*hir.LambdaType](ir)
+		ret := self.codegenType(lbdt.Ret)
+		params := stlslices.Map(lbdt.Params, func(_ int, e hir.Type) llvm.Type {
+			return self.codegenType(e)
+		})
+		ft1 := self.ctx.FunctionType(false, ret, params...)
+		ft2 := self.ctx.FunctionType(false, ret, append([]llvm.Type{self.ptrType()}, params...)...)
+		return ft1, self.ctx.StructType(false, self.ctx.PointerType(ft1), self.ctx.PointerType(ft2), self.ptrType()), ft2
+	}
+}
+
+func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) llvm.ArrayType {
+	elem := self.codegenType(ir.Elem)
+	return self.ctx.ArrayType(elem, uint32(ir.Size))
+}
+
+func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) llvm.StructType {
+	elems := stlslices.Map(ir.Elems, func(_ int, e hir.Type) llvm.Type {
 		return self.codegenType(e)
 	})
-	return self.ctx.NewFuncType(false, ret, params...)
+	return self.ctx.StructType(false, elems...)
 }
 
-func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) mir.ArrayType {
-	elem := self.codegenType(ir.Elem)
-	return self.ctx.NewArrayType(uint(ir.Size), elem)
-}
-
-func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) mir.StructType {
-	elems := make([]mir.Type, len(ir.Elems))
-	for i, e := range ir.Elems {
-		elems[i] = self.codegenType(e)
-	}
-	return self.ctx.NewStructType(elems...)
-}
-
-func (self *CodeGenerator) codegenCustomType(ir *hir.CustomType) mir.Type {
+func (self *CodeGenerator) codegenCustomType(ir *hir.CustomType) llvm.Type {
 	// TODO: 支持除结构体之外的类型循环
 	return self.codegenType(ir.Target)
 }
 
-func (self *CodeGenerator) codegenStructType(ir *hir.StructType) mir.StructType {
+func (self *CodeGenerator) codegenStructType(ir *hir.StructType) llvm.StructType {
 	if self.types.ContainKey(ir.Def) {
-		return self.types.Get(ir.Def).(mir.StructType)
+		return self.types.Get(ir.Def)
 	}
-	st := self.module.NewNamedStructType("")
+	st := self.ctx.NamedStructType("", false)
 	self.types.Set(ir.Def, st)
-	st.SetElems(stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e hir.Field) mir.Type {
+	st.SetElems(false, stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e hir.Field) llvm.Type {
 		return self.codegenType(e.Type)
 	})...)
 	return st
 }
 
-func (self *CodeGenerator) codegenRefType(ir *hir.RefType) mir.PtrType {
+func (self *CodeGenerator) codegenRefType(ir *hir.RefType) llvm.PointerType {
 	elem := self.codegenType(ir.Elem)
-	return self.ctx.NewPtrType(elem)
+	return self.ctx.PointerType(elem)
 }
 
-func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) mir.StructType {
-	ret := self.codegenType(ir.Ret)
-	params := stlslices.Map(ir.Params, func(_ int, e hir.Type) mir.Type {
-		return self.codegenType(e)
-	})
-	ft1 := self.ctx.NewFuncType(false, ret, params...)
-	ft2 := self.ctx.NewFuncType(false, ret, append([]mir.Type{self.ptrType()}, params...)...)
-	return self.ctx.NewStructType(ft1, ft2, self.ptrType())
+func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) llvm.StructType {
+	_, st, _ := self.codegenCallableType(ir)
+	return st
 }
 
-func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) mir.Type {
+func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) llvm.Type {
 	if ir.IsSimple() {
-		return self.ctx.U8()
+		return self.ctx.IntegerType(8)
 	}
 
 	if self.types.ContainKey(ir.Def) {
-		return self.types.Get(ir.Def).(mir.StructType)
+		return self.types.Get(ir.Def)
 	}
-	st := self.module.NewNamedStructType("")
+	st := self.ctx.NamedStructType("", false)
 	self.types.Set(ir.Def, st)
-	var maxSizeType mir.Type
-	var maxSize stlos.Size
+	var maxSizeType llvm.Type
+	var maxSize uint
 	for iter := ir.Fields.Iterator(); iter.Next(); {
 		if len(iter.Value().Second.Elems) == 0 {
 			continue
 		}
 		et := self.codegenTupleType(hir.NewTupleType(iter.Value().Second.Elems...))
-		if esize := et.Size(); esize > maxSize {
+		if esize := self.target.GetStoreSizeOfType(et); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}
 	}
-	st.SetElems(maxSizeType, self.ctx.U8())
+	st.SetElems(false, maxSizeType, self.ctx.IntegerType(8))
 	return st
 }

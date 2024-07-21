@@ -1,12 +1,12 @@
 package codegen_ir
 
 import (
+	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/util"
-	"github.com/kkkunny/Sim/mir"
 )
 
 func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
@@ -26,17 +26,21 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 }
 
 func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
-	ftObj := self.codegenType(ir.GetType())
-	ft := ftObj.(mir.FuncType)
+	ft := self.codegenFuncType(ir.GetFuncType())
 	if ir.VarArg {
-		ft.SetVarArg(true)
+		ft = self.ctx.FunctionType(true, ft.ReturnType(), ft.Params()...)
 	}
 	f := self.module.NewFunction(ir.ExternName, ft)
+	if ir.ExternName == "" {
+		f.SetLinkage(llvm.PrivateLinkage)
+	} else {
+		f.SetLinkage(llvm.ExternalLinkage)
+	}
 	if ir.Ret.EqualTo(hir.NoReturn) {
-		f.SetAttribute(mir.FunctionAttributeNoReturn)
+		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}
 	if inline, ok := ir.InlineControl.Value(); ok {
-		f.SetAttribute(stlbasic.Ternary(inline, mir.FunctionAttributeInline, mir.FunctionAttributeNoInline))
+		f.AddAttribute(stlbasic.Ternary(inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
 	}
 	self.values.Set(ir, f)
 }
@@ -47,7 +51,12 @@ func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
 
 func (self *CodeGenerator) declGlobalVariable(ir *hir.GlobalVarDef) {
 	t := self.codegenType(ir.Type)
-	v := self.module.NewGlobalVariable(ir.ExternName, t, nil)
+	v := self.module.NewGlobal(ir.ExternName, t, nil)
+	if ir.ExternName == "" {
+		v.SetLinkage(llvm.PrivateLinkage)
+	} else {
+		v.SetLinkage(llvm.ExternalLinkage)
+	}
 	self.values.Set(ir, v)
 }
 
@@ -82,13 +91,15 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 }
 
 func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
-	f := self.values.Get(ir).(*mir.Function)
-	self.builder.MoveTo(f.NewBlock())
+	f := self.values.Get(ir).(llvm.Function)
+	self.builder.MoveToAfter(f.NewBlock(""))
 	for i, pir := range ir.Params {
-		self.values.Set(pir, f.Params()[i])
+		p := self.builder.CreateAlloca("", self.codegenType(pir.Type))
+		self.builder.CreateStore(f.Params()[i], p)
+		self.values.Set(pir, p)
 	}
 	block, _ := self.codegenBlock(ir.Body.MustValue(), nil)
-	self.builder.BuildUnCondJump(block)
+	self.builder.CreateBr(block)
 }
 
 func (self *CodeGenerator) defMethodDef(ir *hir.MethodDef) {
@@ -96,22 +107,22 @@ func (self *CodeGenerator) defMethodDef(ir *hir.MethodDef) {
 }
 
 func (self *CodeGenerator) defFuncDecl(ir *hir.FuncDef) {
-	_ = self.values.Get(ir).(*mir.Function)
+	_ = self.values.Get(ir).(llvm.Function)
 }
 
 func (self *CodeGenerator) defGlobalVariableDef(ir *hir.GlobalVarDef) {
-	gv := self.values.Get(ir).(*mir.GlobalVariable)
-	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
+	gv := self.values.Get(ir).(llvm.GlobalValue)
+	self.builder.MoveToAfter(stlslices.First(self.getInitFunction().Blocks()))
 	value := self.codegenExpr(ir.Value.MustValue(), true)
-	if constValue, ok := value.(mir.Const); ok {
-		gv.SetValue(constValue)
+	if constValue, ok := value.(llvm.Constant); ok {
+		gv.SetInitializer(constValue)
 	} else {
-		self.builder.BuildStore(value, gv)
+		self.builder.CreateStore(value, gv)
 	}
 }
 
 func (self *CodeGenerator) defGlobalVariableDecl(ir *hir.GlobalVarDef) {
-	_ = self.values.Get(ir).(*mir.GlobalVariable)
+	_ = self.values.Get(ir).(llvm.GlobalValue)
 }
 
 func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
@@ -121,7 +132,7 @@ func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 			self.defGlobalVariableDef(varNode)
 		}
 	} else {
-		self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
+		self.builder.MoveToAfter(stlslices.First(self.getInitFunction().Blocks()))
 		self.codegenUnTuple(ir.Value, stlslices.Map(ir.Vars, func(_ int, item *hir.GlobalVarDef) hir.Expr { return item }))
 	}
 }
