@@ -168,27 +168,43 @@ func (self *CodeGenerator) buildStructEqual(irType hir.Type, l, r llvm.Value) ll
 }
 
 func (self *CodeGenerator) buildArrayIndex(at llvm.ArrayType, v, i llvm.Value, expectPtr ...bool) llvm.Value {
-	var value llvm.Value = self.builder.CreateInBoundsGEP("", at, self.ctx.ConstInteger(i.Type().(llvm.IntegerType), 0), i)
-	if !stlslices.Empty(expectPtr) && !stlslices.Last(expectPtr) && stlbasic.Is[llvm.PointerType](v.Type()) {
-		value = self.builder.CreateLoad("", at.Elem(), value)
-	} else if !stlslices.Empty(expectPtr) && stlslices.Last(expectPtr) && !stlbasic.Is[llvm.PointerType](v.Type()) {
-		ptr := self.builder.CreateAlloca("", at.Elem())
-		self.builder.CreateStore(value, ptr)
-		value = ptr
+	switch {
+	case stlbasic.Is[llvm.ArrayType](v.Type()) && stlbasic.Is[llvm.ConstInteger](i):
+		var value llvm.Value = self.builder.CreateInBoundsGEP("", at, self.ctx.ConstInteger(i.Type().(llvm.IntegerType), 0), i)
+		if !stlslices.Empty(expectPtr) && !stlslices.Last(expectPtr) {
+			value = self.builder.CreateLoad("", at.Elem(), value)
+		}
+		return value
+	case stlbasic.Is[llvm.ArrayType](v.Type()):
+		ptr := self.builder.CreateAlloca("", at)
+		self.builder.CreateStore(v, ptr)
+		v = ptr
+		fallthrough
+	default:
+		var value llvm.Value = self.builder.CreateInBoundsGEP("", at, v, self.ctx.ConstInteger(i.Type().(llvm.IntegerType), 0), i)
+		if !stlslices.Empty(expectPtr) && !stlslices.Last(expectPtr) {
+			value = self.builder.CreateLoad("", at.Elem(), value)
+		}
+		return value
 	}
-	return value
 }
 
 func (self *CodeGenerator) buildStructIndex(st llvm.StructType, v llvm.Value, i uint, expectPtr ...bool) llvm.Value {
-	var value llvm.Value = self.builder.CreateStructGEP("", st, v, i)
-	if !stlslices.Empty(expectPtr) && !stlslices.Last(expectPtr) && stlbasic.Is[llvm.PointerType](v.Type()) {
-		value = self.builder.CreateLoad("", st.GetElem(uint32(i)), value)
-	} else if !stlslices.Empty(expectPtr) && stlslices.Last(expectPtr) && !stlbasic.Is[llvm.PointerType](v.Type()) {
-		ptr := self.builder.CreateAlloca("", st.GetElem(uint32(i)))
-		self.builder.CreateStore(value, ptr)
-		value = ptr
+	if stlbasic.Is[llvm.StructType](v.Type()) {
+		var value llvm.Value = self.builder.CreateExtractValue("", v, i)
+		if !stlslices.Empty(expectPtr) && stlslices.Last(expectPtr) {
+			ptr := self.builder.CreateAlloca("", st.GetElem(uint32(i)))
+			self.builder.CreateStore(value, ptr)
+			value = ptr
+		}
+		return value
+	} else {
+		var value llvm.Value = self.builder.CreateStructGEP("", st, v, i)
+		if !stlslices.Empty(expectPtr) && !stlslices.Last(expectPtr) {
+			value = self.builder.CreateLoad("", st.GetElem(uint32(i)), value)
+		}
+		return value
 	}
-	return value
 }
 
 func (self *CodeGenerator) getMainFunction() llvm.Function {
@@ -216,15 +232,18 @@ func (self *CodeGenerator) constStringPtr(s string) llvm.Constant {
 		dataPtr := stlbasic.TernaryAction(s == "", func() llvm.Constant {
 			return self.ctx.ConstZero(st.Elems()[0])
 		}, func() llvm.Constant {
-			data := self.ctx.ConstString(s)
+			data := self.module.NewConstant("", self.ctx.ConstString(s))
+			data.SetLinkage(llvm.PrivateLinkage)
 			return self.ctx.ConstInBoundsGEP(
 				data.Type(),
-				self.module.NewConstant("", data),
+				data,
 				self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0),
 				self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0),
 			)
 		})
-		self.strings.Set(s, self.module.NewConstant("", self.ctx.ConstStruct(false, dataPtr, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(len(s))))))
+		str := self.module.NewConstant("", self.ctx.ConstStruct(false, dataPtr, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(len(s)))))
+		str.SetLinkage(llvm.PrivateLinkage)
+		self.strings.Set(s, str)
 	}
 	return self.strings.Get(s)
 }
@@ -254,14 +273,12 @@ func (self *CodeGenerator) buildPanic(s string) {
 	self.builder.CreateUnreachable()
 }
 
-func (self *CodeGenerator) buildCheckZero(t hir.Type, v llvm.Value) {
+func (self *CodeGenerator) buildCheckZero(v llvm.Value) {
 	var cond llvm.Value
-	if hir.IsType[*hir.FloatType](t) {
-		cond = self.builder.CreateFloatCmp("", llvm.FloatOGE, v, self.ctx.ConstZero(v.Type()))
-	} else if hir.IsType[*hir.SintType](t) {
-		cond = self.builder.CreateIntCmp("", llvm.IntSGE, v, self.ctx.ConstZero(v.Type()))
+	if stlbasic.Is[llvm.FloatType](v.Type()) {
+		cond = self.builder.CreateFloatCmp("", llvm.FloatOEQ, v, self.ctx.ConstZero(v.Type()))
 	} else {
-		cond = self.builder.CreateIntCmp("", llvm.IntUGE, v, self.ctx.ConstZero(v.Type()))
+		cond = self.builder.CreateIntCmp("", llvm.IntEQ, v, self.ctx.ConstZero(v.Type()))
 	}
 	f := self.builder.CurrentBlock().Belong()
 	panicBlock, endBlock := f.NewBlock(""), f.NewBlock("")
@@ -287,7 +304,7 @@ func (self *CodeGenerator) buildCheckIndex(index llvm.Value, rangev uint64) {
 
 func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
 	fn := self.getExternFunction("sim_runtime_malloc", self.ctx.FunctionType(false, self.ctx.PointerType(self.ctx.IntegerType(8)), self.ctx.IntPtrType(self.target)))
-	size := stlmath.RoundTo(self.target.GetStoreSizeOfType(t), self.target.GetPrefAlignOfType(t))
+	size := stlmath.RoundTo(self.target.GetStoreSizeOfType(t), self.target.GetABIAlignOfType(t))
 	ptr := self.builder.CreateCall("", fn.FunctionType(), fn, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(size)))
 	return self.builder.CreateBitCast("", ptr, self.ctx.PointerType(t))
 }
@@ -313,6 +330,6 @@ func CodegenIr(target *llvm.Target, path stlos.FilePath) (llvm.Module, stlerror.
 	module := New(target, means).Codegen()
 	passOption := llvm.NewPassOption()
 	defer passOption.Free()
-	err = stlerror.ErrorWrap(module.RunPasses(stlbasic.IgnoreWith(module.GetTarget()), passOption, "default<O1>"))
+	err = stlerror.ErrorWrap(module.RunPasses(stlbasic.IgnoreWith(module.GetTarget()), passOption, "globaldce", "dce"))
 	return module, err
 }

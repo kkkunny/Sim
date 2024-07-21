@@ -46,7 +46,7 @@ codegenir: $(WORK_PATH)/codegen_ir.go $(TEST_FILE)
 	@go run -tags codegenir $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: codegenasm
-codegenasm: $(WORK_PATH)/codegen_llvm.go $(TEST_FILE)
+codegenasm: $(WORK_PATH)/codegen_asm.go $(TEST_FILE)
 	@go run -tags codegenasm $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: run

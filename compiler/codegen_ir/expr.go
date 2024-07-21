@@ -149,7 +149,7 @@ func (self *CodeGenerator) codegenBinary(ir hir.Binary) llvm.Value {
 			return self.builder.CreateUMul("", left, right)
 		}
 	case *hir.NumDivNum:
-		self.buildCheckZero(ir.GetType(), right)
+		self.buildCheckZero(right)
 		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
 			return self.builder.CreateFDiv("", left, right)
 		} else if hir.IsType[*hir.SintType](t) {
@@ -158,7 +158,7 @@ func (self *CodeGenerator) codegenBinary(ir hir.Binary) llvm.Value {
 			return self.builder.CreateUDiv("", left, right)
 		}
 	case *hir.NumRemNum:
-		self.buildCheckZero(ir.GetType(), right)
+		self.buildCheckZero(right)
 		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
 			return self.builder.CreateFRem("", left, right)
 		} else if hir.IsType[*hir.SintType](t) {
@@ -523,7 +523,9 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 		preBlock := self.builder.CurrentBlock()
 		self.builder.MoveToAfter(f.NewBlock(""))
 		for i, pir := range ir.Params {
-			self.values.Set(pir, f.Params()[i])
+			p := self.builder.CreateAlloca("", self.codegenType(pir.Type))
+			self.builder.CreateStore(f.GetParam(uint(i)), p)
+			self.values.Set(pir, p)
 		}
 
 		block, _ := self.codegenBlock(ir.Body, nil)
@@ -546,11 +548,13 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 		preBlock := self.builder.CurrentBlock()
 		self.builder.MoveToAfter(f.NewBlock(""))
 		for i, pir := range ir.Params {
-			self.values.Set(pir, f.Params()[i+1])
+			p := self.builder.CreateAlloca("", self.codegenType(pir.Type))
+			self.builder.CreateStore(f.GetParam(uint(i+1)), p)
+			self.values.Set(pir, p)
 		}
 
 		captureMap := hashmap.NewHashMapWithCapacity[hir.Ident, llvm.Value](uint(len(ir.Context)))
-		innerCtxPtr := self.builder.CreateBitCast("", self.builder.CreateLoad("", self.ctx.PointerType(ctxType), f.Params()[0]), self.ctx.PointerType(ctxType))
+		innerCtxPtr := self.builder.CreateBitCast("", f.GetParam(0), self.ctx.PointerType(ctxType))
 		for i, identIr := range ir.Context {
 			captureMap.Set(identIr, self.buildStructIndex(ctxType, innerCtxPtr, uint(i), false))
 		}
@@ -585,11 +589,11 @@ func (self *CodeGenerator) codegenMethod(ir *hir.Method) llvm.Value {
 	preBlock := self.builder.CurrentBlock()
 	self.builder.MoveToAfter(f.NewBlock(""))
 	method := self.codegenIdent(ir.Define, true)
-	innerCtxPtr := self.builder.CreateBitCast("", self.builder.CreateLoad("", self.ctx.PointerType(ctxType), f.Params()[0]), self.ctx.PointerType(ctxType))
+	innerCtxPtr := self.builder.CreateBitCast("", f.GetParam(0), self.ctx.PointerType(ctxType))
 	selfVal := self.buildStructIndex(ctxType, innerCtxPtr, 0, false)
 	args := []llvm.Value{selfVal}
 	args = append(args, stlslices.Map(f.Params()[1:], func(i int, e llvm.Param) llvm.Value {
-		return self.builder.CreateLoad("", self.codegenType(hir.AsType[*hir.LambdaType](ir.GetType()).ToFuncType().Params[i]), e)
+		return e
 	})...)
 	ret := self.builder.CreateCall("", self.codegenFuncType(ir.Define.GetMethodType()), method, args...)
 	if ret.Type().Equal(self.ctx.VoidType()) {

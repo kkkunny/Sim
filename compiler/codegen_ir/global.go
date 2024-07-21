@@ -94,7 +94,9 @@ func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
 	f := self.values.Get(ir).(llvm.Function)
 	self.builder.MoveToAfter(f.NewBlock(""))
 	for i, pir := range ir.Params {
-		self.values.Set(pir, f.Params()[i])
+		p := self.builder.CreateAlloca("", self.codegenType(pir.Type))
+		self.builder.CreateStore(f.Params()[i], p)
+		self.values.Set(pir, p)
 	}
 	block, _ := self.codegenBlock(ir.Body.MustValue(), nil)
 	self.builder.CreateBr(block)

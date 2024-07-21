@@ -121,7 +121,7 @@ func (self *CodeGenerator) codegenIfElse(ir *hir.IfElse) {
 
 func (self *CodeGenerator) codegenIfElseNode(ir *hir.IfElse) []llvm.Block {
 	if condNode, ok := ir.Cond.Value(); ok {
-		cond := self.builder.CreateZExt("", self.codegenExpr(condNode, true), self.ctx.BooleanType())
+		cond := self.builder.CreateTrunc("", self.codegenExpr(condNode, true), self.ctx.BooleanType())
 		trueStartBlock, trueEndBlock := self.codegenBlock(ir.Body, nil)
 		falseBlock := trueStartBlock.Belong().NewBlock("")
 		self.builder.CreateCondBr(cond, trueStartBlock, falseBlock)
@@ -171,7 +171,7 @@ func (self *CodeGenerator) codegenWhile(ir *hir.While) {
 
 	self.builder.CreateBr(condBlock)
 	self.builder.MoveToAfter(condBlock)
-	cond := self.builder.CreateZExt("", self.codegenExpr(ir.Cond, true), self.ctx.BooleanType())
+	cond := self.builder.CreateTrunc("", self.codegenExpr(ir.Cond, true), self.ctx.BooleanType())
 
 	bodyEntryBlock, bodyEndBlock := self.codegenBlock(ir.Body, func(block llvm.Block) {
 		self.loops.Set(ir, &whileLoop{Cond: condBlock, Out: optional.Some(endBlock)})
