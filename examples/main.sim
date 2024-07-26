@@ -1,5 +1,7 @@
 import std::os
 
+type A func(&A)
+
 func main(){
-	os::exit(add(1+2, 2))
+	let a: A
 }

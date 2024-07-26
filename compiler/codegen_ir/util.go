@@ -267,8 +267,7 @@ func (self *CodeGenerator) buildPackArray(at llvm.ArrayType, elems ...llvm.Value
 }
 
 func (self *CodeGenerator) buildPanic(s string) {
-	strType := self.codegenType(self.hir.BuildinTypes.Str).(llvm.StructType)
-	fn := self.getExternFunction("sim_runtime_panic", self.ctx.FunctionType(false, self.ctx.VoidType(), self.ctx.PointerType(strType)))
+	fn := self.getExternFunction("sim_runtime_panic", self.ctx.FunctionType(false, self.ctx.VoidType(), self.ctx.OpaquePointerType()))
 	self.builder.CreateCall("", fn.FunctionType(), fn, self.constStringPtr(s))
 	self.builder.CreateUnreachable()
 }
@@ -303,18 +302,13 @@ func (self *CodeGenerator) buildCheckIndex(index llvm.Value, rangev uint64) {
 }
 
 func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
-	fn := self.getExternFunction("sim_runtime_malloc", self.ctx.FunctionType(false, self.ctx.PointerType(self.ctx.IntegerType(8)), self.ctx.IntPtrType(self.target)))
+	fn := self.getExternFunction("sim_runtime_malloc", self.ctx.FunctionType(false, self.ctx.OpaquePointerType(), self.ctx.IntPtrType(self.target)))
 	size := stlmath.RoundTo(self.target.GetStoreSizeOfType(t), self.target.GetABIAlignOfType(t))
-	ptr := self.builder.CreateCall("", fn.FunctionType(), fn, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(size)))
-	return self.builder.CreateBitCast("", ptr, self.ctx.PointerType(t))
+	return self.builder.CreateCall("", fn.FunctionType(), fn, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(size)))
 }
 
 func (self *CodeGenerator) usizeType() llvm.IntegerType {
 	return self.codegenType(self.hir.BuildinTypes.Usize).(llvm.IntegerType)
-}
-
-func (self *CodeGenerator) ptrType() llvm.PointerType {
-	return self.ctx.PointerType(self.codegenType(self.hir.BuildinTypes.U8))
 }
 
 func (self *CodeGenerator) boolType() llvm.IntegerType {

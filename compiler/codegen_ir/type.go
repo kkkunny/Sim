@@ -17,16 +17,14 @@ func (self *CodeGenerator) codegenType(t hir.Type) llvm.Type {
 		return self.codegenUintType(t)
 	case *hir.FloatType:
 		return self.codegenFloatType(t)
-	case *hir.FuncType:
-		return self.codegenFuncTypePtr(t)
 	case *hir.ArrayType:
 		return self.codegenArrayType(t)
 	case *hir.TupleType:
 		return self.codegenTupleType(t)
 	case *hir.CustomType:
 		return self.codegenCustomType(t)
-	case *hir.RefType:
-		return self.codegenRefType(t)
+	case *hir.FuncType, *hir.RefType:
+		return self.codegenRefType()
 	case *hir.StructType:
 		return self.codegenStructType(t)
 	case *hir.LambdaType:
@@ -67,10 +65,6 @@ func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) llvm.FloatType {
 	return self.ctx.FloatType(ft)
 }
 
-func (self *CodeGenerator) codegenFuncTypePtr(ir *hir.FuncType) llvm.PointerType {
-	return self.ctx.PointerType(self.codegenFuncType(ir))
-}
-
 func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) llvm.FunctionType {
 	ft, _, _ := self.codegenCallableType(ir)
 	return ft
@@ -91,8 +85,8 @@ func (self *CodeGenerator) codegenCallableType(ir hir.CallableType) (llvm.Functi
 			return self.codegenType(e)
 		})
 		ft1 := self.ctx.FunctionType(false, ret, params...)
-		ft2 := self.ctx.FunctionType(false, ret, append([]llvm.Type{self.ptrType()}, params...)...)
-		return ft1, self.ctx.StructType(false, self.ctx.PointerType(ft1), self.ctx.PointerType(ft2), self.ptrType()), ft2
+		ft2 := self.ctx.FunctionType(false, ret, append([]llvm.Type{self.ctx.OpaquePointerType()}, params...)...)
+		return ft1, self.ctx.StructType(false, self.ctx.OpaquePointerType(), self.ctx.OpaquePointerType(), self.ctx.OpaquePointerType()), ft2
 	}
 }
 
@@ -109,7 +103,6 @@ func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) llvm.StructType {
 }
 
 func (self *CodeGenerator) codegenCustomType(ir *hir.CustomType) llvm.Type {
-	// TODO: 支持除结构体之外的类型循环
 	return self.codegenType(ir.Target)
 }
 
@@ -125,9 +118,8 @@ func (self *CodeGenerator) codegenStructType(ir *hir.StructType) llvm.StructType
 	return st
 }
 
-func (self *CodeGenerator) codegenRefType(ir *hir.RefType) llvm.PointerType {
-	elem := self.codegenType(ir.Elem)
-	return self.ctx.PointerType(elem)
+func (self *CodeGenerator) codegenRefType() llvm.PointerType {
+	return self.ctx.OpaquePointerType()
 }
 
 func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) llvm.StructType {

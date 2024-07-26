@@ -307,9 +307,8 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 			caseType := self.codegenTupleType(hir.NewTupleType(stlslices.Map(iter.Value().Second.Elems, func(_ int, e *hir.Param) hir.Type {
 				return e.GetType()
 			})...))
-			ptr := self.builder.CreateBitCast("", self.buildStructIndex(t.(llvm.StructType), value, 0, true), self.ctx.PointerType(caseType))
 			for i, elem := range iter.Value().Second.Elems {
-				self.values.Set(elem, self.buildStructIndex(caseType, ptr, uint(i), true))
+				self.values.Set(elem, self.buildStructIndex(caseType, self.buildStructIndex(t.(llvm.StructType), value, 0, true), uint(i), true))
 			}
 		})
 		self.builder.MoveToAfter(caseCurBlock)

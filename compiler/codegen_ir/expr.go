@@ -535,7 +535,7 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 		return self.buildPackStruct(st, f, self.ctx.ConstZero(st.GetElem(1)), self.ctx.ConstZero(st.GetElem(2)))
 	} else {
 		ctxType := self.ctx.StructType(false, stlslices.Map(ir.Context, func(_ int, e hir.Ident) llvm.Type {
-			return self.ctx.PointerType(self.codegenType(e.GetType()))
+			return self.ctx.OpaquePointerType()
 		})...)
 		externalCtxPtr := self.buildMalloc(ctxType)
 		for i, identIr := range ir.Context {
@@ -554,9 +554,8 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 		}
 
 		captureMap := hashmap.NewHashMapWithCapacity[hir.Ident, llvm.Value](uint(len(ir.Context)))
-		innerCtxPtr := self.builder.CreateBitCast("", f.GetParam(0), self.ctx.PointerType(ctxType))
 		for i, identIr := range ir.Context {
-			captureMap.Set(identIr, self.buildStructIndex(ctxType, innerCtxPtr, uint(i), false))
+			captureMap.Set(identIr, self.buildStructIndex(ctxType, f.GetParam(0), uint(i), false))
 		}
 
 		self.lambdaCaptureMap.Push(captureMap)
@@ -568,7 +567,7 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 		self.builder.CreateBr(block)
 		self.builder.MoveToAfter(preBlock)
 
-		return self.buildPackStruct(st, self.ctx.ConstZero(st.GetElem(0)), f, self.builder.CreateBitCast("", externalCtxPtr, st.GetElem(2)))
+		return self.buildPackStruct(st, self.ctx.ConstZero(st.GetElem(0)), f, externalCtxPtr)
 	}
 }
 
@@ -589,8 +588,7 @@ func (self *CodeGenerator) codegenMethod(ir *hir.Method) llvm.Value {
 	preBlock := self.builder.CurrentBlock()
 	self.builder.MoveToAfter(f.NewBlock(""))
 	method := self.codegenIdent(ir.Define, true)
-	innerCtxPtr := self.builder.CreateBitCast("", f.GetParam(0), self.ctx.PointerType(ctxType))
-	selfVal := self.buildStructIndex(ctxType, innerCtxPtr, 0, false)
+	selfVal := self.buildStructIndex(ctxType, f.GetParam(0), 0, false)
 	args := []llvm.Value{selfVal}
 	args = append(args, stlslices.Map(f.Params()[1:], func(i int, e llvm.Param) llvm.Value {
 		return e
@@ -603,7 +601,7 @@ func (self *CodeGenerator) codegenMethod(ir *hir.Method) llvm.Value {
 	}
 
 	self.builder.MoveToAfter(preBlock)
-	return self.buildPackStruct(st, self.ctx.ConstZero(st.GetElem(0)), f, self.builder.CreateBitCast("", externalCtxPtr, st.GetElem(2)))
+	return self.buildPackStruct(st, self.ctx.ConstZero(st.GetElem(0)), f, externalCtxPtr)
 }
 
 func (self *CodeGenerator) codegenGetEnumField(ir *hir.Enum) llvm.Value {
@@ -616,9 +614,7 @@ func (self *CodeGenerator) codegenGetEnumField(ir *hir.Enum) llvm.Value {
 	ut := self.codegenType(ir.GetType()).(llvm.StructType)
 	value := self.codegenTuple(&hir.Tuple{Elems: ir.Elems})
 	ptr := self.builder.CreateAlloca("", ut)
-	dataPtr := self.buildStructIndex(ut, ptr, 0, true)
-	dataPtr = self.builder.CreateBitCast("", dataPtr, self.ctx.PointerType(value.Type()))
-	self.builder.CreateStore(value, dataPtr)
+	self.builder.CreateStore(value, self.buildStructIndex(ut, ptr, 0, true))
 	self.builder.CreateStore(
 		self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)),
 		self.buildStructIndex(ut, ptr, 1, true),

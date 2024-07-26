@@ -1,54 +1,3 @@
-pub type isize __buildin_i64
-
-func (isize) default()Self{
-    return 0
-}
-func (isize) add(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 + dst as __buildin_i64) as isize
-}
-func (isize) sub(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 - dst as __buildin_i64) as isize
-}
-func (isize) mul(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 * dst as __buildin_i64) as isize
-}
-func (isize) div(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 / dst as __buildin_i64) as isize
-}
-func (isize) rem(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 % dst as __buildin_i64) as isize
-}
-func (isize) and(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 & dst as __buildin_i64) as isize
-}
-func (isize) or(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 | dst as __buildin_i64) as isize
-}
-func (isize) xor(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 ^ dst as __buildin_i64) as isize
-}
-func (isize) shl(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 << dst as __buildin_i64) as isize
-}
-func (isize) shr(self: Self, dst: Self)Self{
-    return (self as __buildin_i64 >> dst as __buildin_i64) as isize
-}
-func (isize) eq(self: Self, dst: Self)bool{
-    return self as __buildin_i64 == dst as __buildin_i64
-}
-func (isize) lt(self: Self, dst: Self)bool{
-    return self as __buildin_i64 < dst as __buildin_i64
-}
-func (isize) gt(self: Self, dst: Self)bool{
-    return self as __buildin_i64 > dst as __buildin_i64
-}
-func (isize) neg(self: Self)Self{
-    return (-(self as __buildin_i64)) as isize
-}
-func (isize) not(self: Self)Self{
-    return (!(self as __buildin_i64)) as isize
-}
-
 pub type i8 __buildin_i8
 
 func (i8) default()Self{
@@ -251,54 +200,6 @@ func (i64) neg(self: Self)Self{
 }
 func (i64) not(self: Self)Self{
     return (!(self as __buildin_i64)) as i64
-}
-
-pub type usize __buildin_u64
-
-func (usize) default()Self{
-    return 0
-}
-func (usize) add(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 + dst as __buildin_u64) as usize
-}
-func (usize) sub(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 - dst as __buildin_u64) as usize
-}
-func (usize) mul(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 * dst as __buildin_u64) as usize
-}
-func (usize) div(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 / dst as __buildin_u64) as usize
-}
-func (usize) rem(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 % dst as __buildin_u64) as usize
-}
-func (usize) and(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 & dst as __buildin_u64) as usize
-}
-func (usize) or(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 | dst as __buildin_u64) as usize
-}
-func (usize) xor(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 ^ dst as __buildin_u64) as usize
-}
-func (usize) shl(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 << dst as __buildin_u64) as usize
-}
-func (usize) shr(self: Self, dst: Self)Self{
-    return (self as __buildin_u64 >> dst as __buildin_u64) as usize
-}
-func (usize) eq(self: Self, dst: Self)bool{
-    return self as __buildin_u64 == dst as __buildin_u64
-}
-func (usize) lt(self: Self, dst: Self)bool{
-    return self as __buildin_u64 < dst as __buildin_u64
-}
-func (usize) gt(self: Self, dst: Self)bool{
-    return self as __buildin_u64 > dst as __buildin_u64
-}
-func (usize) not(self: Self)Self{
-    return (!(self as __buildin_u64)) as usize
 }
 
 pub type u8 __buildin_u8
@@ -596,3 +497,5 @@ func (str) default()Self{
 }
 
 pub type byte = u8
+pub type isize = i64
+pub type usize = u64
