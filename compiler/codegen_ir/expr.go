@@ -257,44 +257,54 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) llvm.Value {
 
 func (self *CodeGenerator) codegenCall(ir *hir.Call) llvm.Value {
 	ft1, st, ft2 := self.codegenCallableType(hir.AsType[hir.CallableType](ir.Func.GetType()))
-	f := self.codegenExpr(ir.Func, true)
-	args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) llvm.Value {
-		return self.codegenExpr(e, true)
-	})
-	if hir.IsType[*hir.LambdaType](ir.Func.GetType()) {
-		ctxPtr := self.buildStructIndex(st, f, 2, false)
-		cf := self.builder.CurrentBlock().Belong()
-		f1block, f2block, endblock := cf.NewBlock(""), cf.NewBlock(""), cf.NewBlock("")
-		self.builder.CreateCondBr(self.builder.CreateIntCmp("", llvm.IntEQ, ctxPtr, self.ctx.ConstZero(ctxPtr.Type())), f1block, f2block)
-
-		self.builder.MoveToAfter(f1block)
-		f1ret := self.builder.CreateCall("", ft1, self.buildStructIndex(st, f, 0, false), args...)
-		self.builder.CreateBr(endblock)
-
-		self.builder.MoveToAfter(f2block)
-		f2ret := self.builder.CreateCall("", ft2, self.buildStructIndex(st, f, 1, false), append([]llvm.Value{ctxPtr}, args...)...)
-		self.builder.CreateBr(endblock)
-
-		self.builder.MoveToAfter(endblock)
-		if f1ret.Type().Equal(self.ctx.VoidType()) {
-			return f1ret
-		} else {
-			return self.builder.CreatePHI(
-				"",
-				f1ret.Type(),
-				struct {
-					Value llvm.Value
-					Block llvm.Block
-				}{Value: f1ret, Block: f1block},
-				struct {
-					Value llvm.Value
-					Block llvm.Block
-				}{Value: f2ret, Block: f2block},
-			)
-		}
+	if method, ok := ir.Func.(*hir.Method); ok {
+		this := self.codegenExpr(method.Self, true)
+		f := self.codegenExpr(method.Define, true)
+		args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) llvm.Value {
+			return self.codegenExpr(e, true)
+		})
+		return self.builder.CreateCall("", ft2, f, append([]llvm.Value{this}, args...)...)
 	} else {
-		return self.builder.CreateCall("", ft1, f, args...)
+		f := self.codegenExpr(ir.Func, true)
+		args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) llvm.Value {
+			return self.codegenExpr(e, true)
+		})
+		if hir.IsType[*hir.LambdaType](ir.Func.GetType()) {
+			ctxPtr := self.buildStructIndex(st, f, 2, false)
+			cf := self.builder.CurrentBlock().Belong()
+			f1block, f2block, endblock := cf.NewBlock(""), cf.NewBlock(""), cf.NewBlock("")
+			self.builder.CreateCondBr(self.builder.CreateIntCmp("", llvm.IntEQ, ctxPtr, self.ctx.ConstZero(ctxPtr.Type())), f1block, f2block)
+
+			self.builder.MoveToAfter(f1block)
+			f1ret := self.builder.CreateCall("", ft1, self.buildStructIndex(st, f, 0, false), args...)
+			self.builder.CreateBr(endblock)
+
+			self.builder.MoveToAfter(f2block)
+			f2ret := self.builder.CreateCall("", ft2, self.buildStructIndex(st, f, 1, false), append([]llvm.Value{ctxPtr}, args...)...)
+			self.builder.CreateBr(endblock)
+
+			self.builder.MoveToAfter(endblock)
+			if f1ret.Type().Equal(self.ctx.VoidType()) {
+				return f1ret
+			} else {
+				return self.builder.CreatePHI(
+					"",
+					f1ret.Type(),
+					struct {
+						Value llvm.Value
+						Block llvm.Block
+					}{Value: f1ret, Block: f1block},
+					struct {
+						Value llvm.Value
+						Block llvm.Block
+					}{Value: f2ret, Block: f2block},
+				)
+			}
+		} else {
+			return self.builder.CreateCall("", ft1, f, args...)
+		}
 	}
+
 }
 
 func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) llvm.Value {
