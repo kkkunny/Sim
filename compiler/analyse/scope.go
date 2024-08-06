@@ -178,6 +178,7 @@ func (self *_PkgScope) Str() hir.GlobalType   { return stlbasic.IgnoreWith(self.
 func (self *_PkgScope) True() hir.Ident       { return stlbasic.IgnoreWith(self.getValue("true")) }
 func (self *_PkgScope) False() hir.Ident      { return stlbasic.IgnoreWith(self.getValue("false")) }
 func (self *_PkgScope) Default() *hir.Trait   { return stlbasic.IgnoreWith(self.getTrait("Default")) }
+func (self *_PkgScope) Copy() *hir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Copy")) }
 func (self *_PkgScope) Add() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Add")) }
 func (self *_PkgScope) Sub() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Sub")) }
 func (self *_PkgScope) Mul() *hir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Mul")) }

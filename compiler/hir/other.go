@@ -13,6 +13,7 @@ type Result struct {
 		F32, F64                 Type
 		Bool, Str                Type
 		Default                  *Trait
+		Copy                     *Trait
 		Add, Sub, Mul, Div, Rem  *Trait
 		And, Or, Xor, Shl, Shr   *Trait
 		Eq, Lt, Gt, Land, Lor    *Trait

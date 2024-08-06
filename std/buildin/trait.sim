@@ -1,7 +1,3 @@
-pub trait Default{
-	func default()Self
-}
-
 pub trait Add{
 	func add(self: Self, dst: Self)Self
 }
@@ -55,4 +51,11 @@ pub trait Neg{
 }
 pub trait Not{
 	func not(self: Self)Self
+}
+
+pub trait Default{
+	func default()Self
+}
+pub trait Copy{
+	func copy(self: Self)Self
 }

@@ -1001,8 +1001,8 @@ type Method struct {
 	Define *MethodDef
 }
 
-// LoopFindMethodWithNoCheck 循环寻找方法
-func LoopFindMethodWithNoCheck(ct *CustomType, selfVal util.Option[Expr], name string) util.Option[Expr] {
+// LoopFindMethodWithSelf 循环寻找方法
+func LoopFindMethodWithSelf(ct *CustomType, selfVal util.Option[Expr], name string) util.Option[Expr] {
 	method := ct.Methods.Get(name)
 	if method != nil {
 		if method.IsStatic() {
@@ -1020,11 +1020,24 @@ func LoopFindMethodWithNoCheck(ct *CustomType, selfVal util.Option[Expr], name s
 	if !ok {
 		return util.None[Expr]()
 	}
-	return LoopFindMethodWithNoCheck(tct, stlbasic.TernaryAction(selfVal.IsSome(), func() util.Option[Expr] {
+	return LoopFindMethodWithSelf(tct, stlbasic.TernaryAction(selfVal.IsSome(), func() util.Option[Expr] {
 		return util.Some[Expr](&DoNothingCovert{From: selfVal.MustValue(), To: tct})
 	}, func() util.Option[Expr] {
 		return util.None[Expr]()
 	}), name)
+}
+
+// LoopFindMethod 循环寻找方法
+func LoopFindMethod(ct *CustomType, name string) util.Option[*MethodDef] {
+	method := ct.Methods.Get(name)
+	if method != nil {
+		return util.Some[*MethodDef](method)
+	}
+	tct, ok := TryCustomType(ct.Target)
+	if !ok {
+		return util.None[*MethodDef]()
+	}
+	return LoopFindMethod(tct, name)
 }
 
 func (self *Method) stmt() {}

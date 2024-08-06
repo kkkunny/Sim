@@ -63,12 +63,12 @@ func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
 	if vir, ok := ir.Value.Value(); ok {
 		v := self.codegenExpr(vir, true)
 		if vir.GetType().EqualTo(hir.NoThing) || vir.GetType().EqualTo(hir.NoReturn) {
-			self.builder.CreateRet(nil)
+			self.buildReturn(nil)
 		} else {
-			self.builder.CreateRet(stlbasic.Ptr(v))
+			self.buildReturn(vir.GetType(), v)
 		}
 	} else {
-		self.builder.CreateRet(nil)
+		self.buildReturn(nil)
 	}
 }
 
@@ -82,7 +82,7 @@ func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) llvm.Value 
 	}
 	self.values.Set(ir, ptr)
 	value := self.codegenExpr(ir.Value, true)
-	self.builder.CreateStore(value, ptr)
+	self.buildStore(ir.Type, value, ptr)
 	return ptr
 }
 

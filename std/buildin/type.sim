@@ -5,6 +5,10 @@ func (i8) default()Self{
     return 0
 }
 @inline
+func (i8) copy(self: Self)Self{
+    return self
+}
+@inline
 func (i8) add(self: Self, dst: Self)Self{
     return (self as __buildin_i8 + dst as __buildin_i8) as i8
 }
@@ -69,6 +73,10 @@ pub type i16 __buildin_i16
 
 func (i16) default()Self{
     return 0
+}
+@inline
+func (i16) copy(self: Self)Self{
+    return self
 }
 @inline
 func (i16) add(self: Self, dst: Self)Self{
@@ -138,6 +146,10 @@ func (i32) default()Self{
     return 0
 }
 @inline
+func (i32) copy(self: Self)Self{
+    return self
+}
+@inline
 func (i32) add(self: Self, dst: Self)Self{
     return (self as __buildin_i32 + dst as __buildin_i32) as i32
 }
@@ -203,6 +215,10 @@ pub type i64 __buildin_i64
 @inline
 func (i64) default()Self{
     return 0
+}
+@inline
+func (i64) copy(self: Self)Self{
+    return self
 }
 @inline
 func (i64) add(self: Self, dst: Self)Self{
@@ -272,6 +288,10 @@ func (u8) default()Self{
     return 0
 }
 @inline
+func (u8) copy(self: Self)Self{
+    return self
+}
+@inline
 func (u8) add(self: Self, dst: Self)Self{
     return (self as __buildin_u8 + dst as __buildin_u8) as u8
 }
@@ -333,6 +353,10 @@ pub type u16 __buildin_u16
 @inline
 func (u16) default()Self{
     return 0
+}
+@inline
+func (u16) copy(self: Self)Self{
+    return self
 }
 @inline
 func (u16) add(self: Self, dst: Self)Self{
@@ -398,6 +422,10 @@ func (u32) default()Self{
     return 0
 }
 @inline
+func (u32) copy(self: Self)Self{
+    return self
+}
+@inline
 func (u32) add(self: Self, dst: Self)Self{
     return (self as __buildin_u32 + dst as __buildin_u32) as u32
 }
@@ -459,6 +487,10 @@ pub type u64 __buildin_u64
 @inline
 func (u64) default()Self{
     return 0
+}
+@inline
+func (u64) copy(self: Self)Self{
+    return self
 }
 @inline
 func (u64) add(self: Self, dst: Self)Self{
@@ -524,6 +556,10 @@ func (f32) default()Self{
     return 0
 }
 @inline
+func (f32) copy(self: Self)Self{
+    return self
+}
+@inline
 func (f32) add(self: Self, dst: Self)Self{
     return (self as __buildin_f32 + dst as __buildin_f32) as f32
 }
@@ -565,6 +601,10 @@ pub type f64 __buildin_f64
 @inline
 func (f64) default()Self{
     return 0
+}
+@inline
+func (f64) copy(self: Self)Self{
+    return self
 }
 @inline
 func (f64) add(self: Self, dst: Self)Self{
@@ -615,6 +655,10 @@ func (bool) default()Self{
     return false
 }
 @inline
+func (bool) copy(self: Self)Self{
+    return self
+}
+@inline
 func (bool) logic_and(self: Self, dst: Self)Self{
     return (self as __buildin_u8 & dst as __buildin_u8) as Self
 }
@@ -643,6 +687,10 @@ pub type str struct{
 @inline
 func (str) default()Self{
     return ""
+}
+@inline
+func (str) copy(self: Self)Self{
+    return self
 }
 
 pub type byte = u8

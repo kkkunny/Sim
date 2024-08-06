@@ -7,10 +7,7 @@ var modulePasses = []string{
 
 var functionPasses = []string{
 	"dce",           // 死代码消除
-	"dse",           // 死store代码消除
 	"gvn",           // 删除冗余指令
 	"instcombine",   // 合并冗余指令
 	"always-inline", // 函数内联
-	"instcombine",   // 合并冗余指令
-	"gvn",           // 删除冗余指令
 }
