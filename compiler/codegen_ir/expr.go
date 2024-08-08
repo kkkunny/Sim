@@ -55,7 +55,7 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) llvm.Value {
 	case *hir.Method:
 		return self.codegenMethod(expr)
 	case *hir.Enum:
-		return self.codegenGetEnumField(expr)
+		return self.codegenEnum(expr)
 	default:
 		panic("unreachable")
 	}
@@ -614,7 +614,7 @@ func (self *CodeGenerator) codegenMethod(ir *hir.Method) llvm.Value {
 	return self.buildPackStruct(st, self.ctx.ConstZero(st.GetElem(0)), f, externalCtxPtr)
 }
 
-func (self *CodeGenerator) codegenGetEnumField(ir *hir.Enum) llvm.Value {
+func (self *CodeGenerator) codegenEnum(ir *hir.Enum) llvm.Value {
 	etIr := hir.AsType[*hir.EnumType](ir.GetType())
 	index := slices.Index(etIr.Fields.Keys().ToSlice(), ir.Field)
 	if etIr.IsSimple() {
@@ -622,7 +622,7 @@ func (self *CodeGenerator) codegenGetEnumField(ir *hir.Enum) llvm.Value {
 	}
 
 	ut := self.codegenType(ir.GetType()).(llvm.StructType)
-	value := self.codegenTuple(&hir.Tuple{Elems: ir.Elems})
+	value := self.codegenExpr(ir.Elem.MustValue(), true)
 	ptr := self.builder.CreateAlloca("", ut)
 	self.builder.CreateStore(value, self.buildStructIndex(ut, ptr, 0, true))
 	self.builder.CreateStore(

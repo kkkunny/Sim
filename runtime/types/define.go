@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/samber/lo"
 )
@@ -395,14 +396,14 @@ func (self *LambdaType) Equal(dst Type) bool {
 }
 
 type EnumField struct {
-	Name  string
-	Elems []Type
+	Name string
+	Elem optional.Optional[Type]
 }
 
-func NewEnumField(name string, elems ...Type) EnumField {
+func NewEnumField(name string, elem ...Type) EnumField {
 	return EnumField{
-		Name:  name,
-		Elems: elems,
+		Name: name,
+		Elem: stlbasic.Ternary(len(elem) == 0, optional.None[Type](), optional.Some(stlslices.Last(elem))),
 	}
 }
 

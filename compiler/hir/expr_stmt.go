@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/util"
@@ -1112,7 +1113,7 @@ func (*Func2Lambda) Temporary() bool {
 type Enum struct {
 	From  Type
 	Field string
-	Elems []Expr
+	Elem  optional.Optional[Expr]
 }
 
 func (self *Enum) stmt() {}

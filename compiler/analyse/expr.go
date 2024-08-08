@@ -6,6 +6,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashset"
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
 	"github.com/samber/lo"
@@ -512,7 +513,7 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
-	if dotNode, ok := node.Func.(*ast.Dot); ok {
+	if dotNode, ok := node.Func.(*ast.Dot); ok && len(node.Args) == 1 {
 		if identNode, ok := dotNode.From.(*ast.IdentExpr); ok {
 			ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
 			if ok {
@@ -522,16 +523,13 @@ func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
 						fieldName := dotNode.Index.Source()
 						if et.Fields.ContainKey(fieldName) {
 							caseDef := et.Fields.Get(fieldName)
-							if len(caseDef.Elems) != len(node.Args) {
-								errors.ThrowParameterNumberNotMatchError(identNode.Position(), uint(len(caseDef.Elems)), uint(len(node.Args)))
-							}
-							elems := stlslices.Map(node.Args, func(i int, e ast.Expr) hir.Expr {
-								return self.analyseExpr(caseDef.Elems[i], e)
-							})
-							return &hir.Enum{
-								From:  t,
-								Field: fieldName,
-								Elems: elems,
+							if caseDef.Elem.IsSome() {
+								elem := self.analyseExpr(caseDef.Elem.MustValue(), stlslices.First(node.Args))
+								return &hir.Enum{
+									From:  t,
+									Field: fieldName,
+									Elem:  optional.Some(elem),
+								}
 							}
 						}
 					}
@@ -787,12 +785,11 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 				if et, ok := hir.TryType[*hir.EnumType](t); ok {
 					// 枚举值
 					if et.Fields.ContainKey(fieldName) {
-						if len(et.Fields.Get(fieldName).Elems) != 0 {
-							errors.ThrowParameterNumberNotMatchError(identNode.Position(), uint(len(et.Fields.Get(fieldName).Elems)), 0)
-						}
-						return &hir.Enum{
-							From:  t,
-							Field: fieldName,
+						if et.Fields.Get(fieldName).Elem.IsNone() {
+							return &hir.Enum{
+								From:  t,
+								Field: fieldName,
+							}
 						}
 					}
 				}

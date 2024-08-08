@@ -1,6 +1,8 @@
 package parse
 
 import (
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/ast"
 
 	errors "github.com/kkkunny/Sim/compiler/error"
@@ -124,14 +126,13 @@ func (self *Parser) parseEnumType() *ast.EnumType {
 	self.expectNextIs(token.LBR)
 	fields := loopParseWithUtil(self, token.COM, token.RBR, func() ast.EnumField {
 		name := self.expectNextIs(token.IDENT)
-		var elems []ast.Type
-		if self.skipNextIs(token.LPA) {
-			elems = self.parseTypeList(token.RPA)
-			self.expectNextIs(token.RPA)
+		var elem optional.Optional[ast.Type]
+		if self.skipNextIs(token.COL) {
+			elem = optional.Some(self.parseType())
 		}
 		return ast.EnumField{
-			Name:  name,
-			Elems: elems,
+			Name: name,
+			Elem: elem,
 		}
 	})
 	end := self.expectNextIs(token.RBR).Position

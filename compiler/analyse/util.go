@@ -131,8 +131,9 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[hir.Type], t hir
 		}
 	case *hir.EnumType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
-			for _, e := range iter.Value().Second.Elems {
-				if self.checkTypeDefCircle(trace, e) {
+			elemOp := iter.Value().Second.Elem
+			if elem, ok := elemOp.Value(); ok {
+				if self.checkTypeDefCircle(trace, elem) {
 					return true
 				}
 			}
@@ -191,8 +192,9 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[hir.Type], t h
 		}
 	case *hir.EnumType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
-			for _, e := range iter.Value().Second.Elems {
-				if self.checkTypeAliasCircle(trace, e) {
+			elemOp := iter.Value().Second.Elem
+			if elem, ok := elemOp.Value(); ok {
+				if self.checkTypeDefCircle(trace, elem) {
 					return true
 				}
 			}

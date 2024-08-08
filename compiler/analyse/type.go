@@ -5,6 +5,7 @@ import (
 
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -156,12 +157,13 @@ func (self *Analyser) analyseEnumType(node *ast.EnumType) *hir.EnumType {
 		if fields.ContainKey(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
-		elems := stlslices.Map(f.Elems, func(_ int, e ast.Type) hir.Type {
-			return self.analyseType(e)
-		})
 		fields.Set(f.Name.Source(), hir.EnumField{
-			Name:  f.Name.Source(),
-			Elems: elems,
+			Name: f.Name.Source(),
+			Elem: stlbasic.TernaryAction(f.Elem.IsNone(), func() optional.Optional[hir.Type] {
+				return optional.None[hir.Type]()
+			}, func() optional.Optional[hir.Type] {
+				return optional.Some(self.analyseType(f.Elem.MustValue()))
+			}),
 		})
 	}
 	return hir.NewEnumType(self.selfType, fields)

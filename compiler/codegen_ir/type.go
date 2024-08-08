@@ -140,10 +140,10 @@ func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) llvm.Type {
 	var maxSizeType llvm.Type
 	var maxSize uint
 	for iter := ir.Fields.Iterator(); iter.Next(); {
-		if len(iter.Value().Second.Elems) == 0 {
+		if iter.Value().Second.Elem.IsNone() {
 			continue
 		}
-		et := self.codegenTupleType(hir.NewTupleType(iter.Value().Second.Elems...))
+		et := self.codegenType(iter.Value().Second.Elem.MustValue())
 		if esize := self.target.GetStoreSizeOfType(et); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}

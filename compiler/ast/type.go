@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/token"
@@ -111,8 +113,8 @@ func (self *LambdaType) Position() reader.Position {
 func (self *LambdaType) typ() {}
 
 type EnumField struct {
-	Name  token.Token
-	Elems []Type
+	Name token.Token
+	Elem optional.Optional[Type]
 }
 
 // EnumType 枚举类型

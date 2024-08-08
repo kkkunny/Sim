@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
@@ -678,8 +679,8 @@ func (self *LambdaType) GetParams() []Type {
 
 // EnumField 枚举字段
 type EnumField struct {
-	Name  string
-	Elems []Type
+	Name string
+	Elem optional.Optional[Type]
 }
 
 // EnumType 枚举类型
@@ -713,8 +714,10 @@ func (self *EnumType) HasDefault() bool {
 
 func (self *EnumType) Runtime() runtimeType.Type {
 	fields := stliter.Map[pair.Pair[string, EnumField], runtimeType.EnumField, dynarray.DynArray[runtimeType.EnumField]](self.Fields, func(e pair.Pair[string, EnumField]) runtimeType.EnumField {
-		return runtimeType.NewEnumField(e.Second.Name, stlslices.Map(e.Second.Elems, func(_ int, e Type) runtimeType.Type {
-			return e.Runtime()
+		return runtimeType.NewEnumField(e.Second.Name, stlbasic.TernaryAction(e.Second.Elem.IsNone(), func() []runtimeType.Type {
+			return nil
+		}, func() []runtimeType.Type {
+			return []runtimeType.Type{e.Second.Elem.MustValue().Runtime()}
 		})...)
 	}).ToSlice()
 	return runtimeType.NewEnumType(self.Def.Pkg.String(), fields...)
@@ -726,6 +729,6 @@ func (self *EnumType) runtime() {}
 // IsSimple 是否是简单枚举
 func (self *EnumType) IsSimple() bool {
 	return stliter.All(self.Fields, func(e pair.Pair[string, EnumField]) bool {
-		return len(e.Second.Elems) == 0
+		return e.Second.Elem.IsNone()
 	})
 }

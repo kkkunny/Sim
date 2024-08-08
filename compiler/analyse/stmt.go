@@ -276,13 +276,15 @@ func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 			errors.ThrowIdentifierDuplicationError(caseNode.Name.Position, caseNode.Name)
 		}
 		caseDef := vt.Fields.Get(caseName)
-		if len(caseNode.Elems) != len(caseDef.Elems) {
-			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), uint(len(caseDef.Elems)), uint(len(caseNode.Elems)))
+		if caseDef.Elem.IsNone() && len(caseNode.Elems) != 0 {
+			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 0, uint(len(caseNode.Elems)))
+		} else if caseDef.Elem.IsSome() && len(caseNode.Elems) != 1 {
+			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 1, uint(len(caseNode.Elems)))
 		}
 		elems := stlslices.Map(caseNode.Elems, func(i int, e ast.MatchCaseElem) *hir.Param {
 			return &hir.Param{
 				Mut:  e.Mutable,
-				Type: caseDef.Elems[i],
+				Type: caseDef.Elem.MustValue(),
 				Name: util.Some(e.Name.Source()),
 			}
 		})

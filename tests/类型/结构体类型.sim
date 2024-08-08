@@ -1,7 +1,8 @@
 import std::os
 
 type a struct{
-    pub v: u8
+    pub v: u8,
+    pub v2: u8
 }
 
 type b struct{}
