@@ -7,6 +7,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -403,7 +404,7 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) llvm.Value
 
 func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	switch tir := hir.ToRuntimeType(ir).(type) {
-	case *hir.NoThingType, *hir.EnumType:
+	case *hir.NoThingType, *hir.NoReturnType:
 		panic("unreachable")
 	case *hir.RefType:
 		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str) {
@@ -491,6 +492,46 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 		t := self.codegenLambdaType(tir)
 		fn := self.codegenDefault(tir.ToFuncType())
 		return self.buildPackStruct(t, fn, self.ctx.ConstZero(t.Elems()[1]), self.ctx.ConstZero(t.Elems()[2]))
+	case *hir.EnumType:
+		if tir.IsSimple() {
+			return self.ctx.ConstInteger(self.codegenType(tir).(llvm.IntegerType), 0)
+		}
+
+		f := func(e optional.Optional[hir.Type]) (v llvm.Value, ok bool) {
+			defer func() {
+				if err := recover(); err != nil {
+					ok = false
+				}
+			}()
+			if e.IsNone() {
+				return nil, true
+			}
+			return self.codegenDefault(e.MustValue()), true
+		}
+		var index int
+		var data llvm.Value
+		var ok bool
+		for i, e := range tir.Fields.Values().ToSlice() {
+			data, ok = f(e.Elem)
+			if ok {
+				index = i
+				break
+			}
+		}
+		if !ok {
+			panic("unreachable")
+		}
+
+		ut := self.codegenType(tir).(llvm.StructType)
+		ptr := self.builder.CreateAlloca("", ut)
+		if data != nil {
+			self.builder.CreateStore(data, self.buildStructIndex(ut, ptr, 0, true))
+		}
+		self.builder.CreateStore(
+			self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)),
+			self.buildStructIndex(ut, ptr, 1, true),
+		)
+		return self.builder.CreateLoad("", ut, ptr)
 	default:
 		panic("unreachable")
 	}

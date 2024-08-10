@@ -1,8 +1,8 @@
 import std::os
 
 type A enum{
-	A1: &i8,
-	A2: &i8
+	A1,
+	A2
 }
 
 func main(){

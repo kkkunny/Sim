@@ -25,7 +25,6 @@ var (
 type Type interface {
 	fmt.Stringer
 	EqualTo(dst Type) bool
-	HasDefault() bool
 	Runtime() runtimeType.Type
 }
 
@@ -117,10 +116,6 @@ func (self *NoThingType) EqualTo(dst Type) bool {
 	return stlbasic.Is[*NoThingType](ToRuntimeType(dst))
 }
 
-func (self *NoThingType) HasDefault() bool {
-	return false
-}
-
 func (self *NoThingType) Runtime() runtimeType.Type {
 	return runtimeType.TypeNoThing
 }
@@ -137,10 +132,6 @@ func (*NoReturnType) String() string {
 
 func (self *NoReturnType) EqualTo(dst Type) bool {
 	return stlbasic.Is[*NoReturnType](ToRuntimeType(dst))
-}
-
-func (self *NoReturnType) HasDefault() bool {
-	return false
 }
 
 func (self *NoReturnType) Runtime() runtimeType.Type {
@@ -171,10 +162,6 @@ func (self *SintType) EqualTo(dst Type) bool {
 	return self.Bits == at.Bits
 }
 
-func (self *SintType) HasDefault() bool {
-	return true
-}
-
 func (self *SintType) Runtime() runtimeType.Type {
 	return runtimeType.NewSintType(self.Bits)
 }
@@ -203,10 +190,6 @@ func (self *UintType) EqualTo(dst Type) bool {
 	return self.Bits == at.Bits
 }
 
-func (self *UintType) HasDefault() bool {
-	return true
-}
-
 func (self *UintType) Runtime() runtimeType.Type {
 	return runtimeType.NewUintType(self.Bits)
 }
@@ -233,10 +216,6 @@ func (self *FloatType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Bits == at.Bits
-}
-
-func (self *FloatType) HasDefault() bool {
-	return true
 }
 
 func (self *FloatType) Runtime() runtimeType.Type {
@@ -281,13 +260,6 @@ func (self *FuncType) EqualTo(dst Type) bool {
 	return true
 }
 
-func (self *FuncType) HasDefault() bool {
-	if self.Ret.EqualTo(NoThing) {
-		return true
-	}
-	return self.Ret.HasDefault()
-}
-
 func (self *FuncType) Runtime() runtimeType.Type {
 	return runtimeType.NewFuncType(self.Ret.Runtime(), stlslices.Map(self.Params, func(_ int, e Type) runtimeType.Type {
 		return e.Runtime()
@@ -330,10 +302,6 @@ func (self *ArrayType) EqualTo(dst Type) bool {
 	return self.Size == at.Size && self.Elem.EqualTo(at.Elem)
 }
 
-func (self *ArrayType) HasDefault() bool {
-	return self.Elem.HasDefault()
-}
-
 func (self *ArrayType) Runtime() runtimeType.Type {
 	return runtimeType.NewArrayType(self.Size, self.Elem.Runtime())
 }
@@ -373,12 +341,6 @@ func (self *TupleType) EqualTo(dst Type) bool {
 	return true
 }
 
-func (self *TupleType) HasDefault() bool {
-	return stlslices.All(self.Elems, func(_ int, e Type) bool {
-		return e.HasDefault()
-	})
-}
-
 func (self *TupleType) Runtime() runtimeType.Type {
 	return runtimeType.NewTupleType(stlslices.Map(self.Elems, func(_ int, e Type) runtimeType.Type {
 		return e.Runtime()
@@ -411,10 +373,6 @@ func (self *RefType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Mut == at.Mut && self.Elem.EqualTo(at.Elem)
-}
-
-func (self *RefType) HasDefault() bool {
-	return false
 }
 
 func (self *RefType) Runtime() runtimeType.Type {
@@ -455,12 +413,6 @@ func (self *StructType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Def.EqualTo(at.Def)
-}
-
-func (self *StructType) HasDefault() bool {
-	return stliter.All(self.Fields, func(e pair.Pair[string, Field]) bool {
-		return e.Second.Type.HasDefault()
-	})
 }
 
 func (self *StructType) Runtime() runtimeType.Type {
@@ -525,10 +477,6 @@ func (self *SelfType) EqualTo(_ Type) bool {
 	panic("unreachable")
 }
 
-func (self *SelfType) HasDefault() bool {
-	panic("unreachable")
-}
-
 func (self *SelfType) Runtime() runtimeType.Type {
 	panic("unreachable")
 }
@@ -574,10 +522,6 @@ func (self *CustomType) EqualTo(dst Type) bool {
 	return self.Pkg == at.Pkg && self.Name == at.Name
 }
 
-func (self *CustomType) HasDefault() bool {
-	return self.Target.HasDefault()
-}
-
 var customTypeRuntimeCache = make(map[*CustomType]runtimeType.Type)
 
 func (self *CustomType) Runtime() runtimeType.Type {
@@ -605,10 +549,6 @@ func (self *AliasType) String() string {
 
 func (self *AliasType) EqualTo(dst Type) bool {
 	return self.Target.EqualTo(dst)
-}
-
-func (self *AliasType) HasDefault() bool {
-	return self.Target.HasDefault()
 }
 
 func (self *AliasType) Runtime() runtimeType.Type {
@@ -647,13 +587,6 @@ func (self *LambdaType) EqualTo(dst Type) bool {
 		}
 	}
 	return true
-}
-
-func (self *LambdaType) HasDefault() bool {
-	if self.Ret.EqualTo(NoThing) {
-		return true
-	}
-	return self.Ret.HasDefault()
 }
 
 func (self *LambdaType) Runtime() runtimeType.Type {
@@ -706,10 +639,6 @@ func (self *EnumType) EqualTo(dst Type) bool {
 		return false
 	}
 	return self.Def.EqualTo(at.Def)
-}
-
-func (self *EnumType) HasDefault() bool {
-	return false
 }
 
 func (self *EnumType) Runtime() runtimeType.Type {

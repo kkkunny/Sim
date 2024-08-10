@@ -7,6 +7,7 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashset"
+	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -89,7 +90,7 @@ func (self *Analyser) setSelfType(td *hir.CustomType) (callback func()) {
 
 // 获取类型默认值
 func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default {
-	if !t.HasDefault() && !t.EqualTo(hir.NewRefType(false, self.pkgScope.Str())) && !self.pkgScope.Default().HasBeImpled(t) {
+	if !self.hasTypeDefault(t) {
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return &hir.Default{Type: t}
@@ -302,6 +303,54 @@ func (self *Analyser) analyseFuncDecl(node ast.FuncDecl) hir.FuncDecl {
 		Name:   node.Name.Source(),
 		Params: params,
 		Ret:    self.analyseOptionTypeWith(node.Ret, noReturnTypeAnalyser),
+	}
+}
+
+// 类型是否有默认值
+func (self *Analyser) hasTypeDefault(t hir.Type) bool {
+	switch tt := t.(type) {
+	case *hir.NoThingType, *hir.NoReturnType:
+		return false
+	case *hir.SintType, *hir.UintType, *hir.FloatType:
+		return true
+	case *hir.FuncType:
+		if tt.Ret.EqualTo(hir.NoThing) {
+			return true
+		}
+		return self.hasTypeDefault(tt.Ret)
+	case *hir.LambdaType:
+		if tt.Ret.EqualTo(hir.NoThing) {
+			return true
+		}
+		return self.hasTypeDefault(tt.Ret)
+	case *hir.CustomType:
+		if self.pkgScope.Default().HasBeImpled(t) {
+			return true
+		}
+		return self.hasTypeDefault(tt.Target)
+	case *hir.AliasType:
+		return self.hasTypeDefault(tt.Target)
+	case *hir.RefType:
+		if tt.Elem.EqualTo(self.pkgScope.Str()) {
+			return true
+		}
+		return false
+	case *hir.ArrayType:
+		return self.hasTypeDefault(tt.Elem)
+	case *hir.TupleType:
+		return stlslices.All(tt.Elems, func(_ int, e hir.Type) bool {
+			return self.hasTypeDefault(e)
+		})
+	case *hir.StructType:
+		return stliter.All(tt.Fields, func(e pair.Pair[string, hir.Field]) bool {
+			return self.hasTypeDefault(e.Second.Type)
+		})
+	case *hir.EnumType:
+		return stliter.Any(tt.Fields, func(p pair.Pair[string, hir.EnumField]) bool {
+			return p.Second.Elem.IsNone() || self.hasTypeDefault(p.Second.Elem.MustValue())
+		})
+	default:
+		panic("unreachable")
 	}
 }
 

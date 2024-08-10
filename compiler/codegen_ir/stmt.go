@@ -81,8 +81,10 @@ func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) llvm.Value 
 		ptr = self.buildMalloc(t)
 	}
 	self.values.Set(ir, ptr)
-	value := self.codegenExpr(ir.Value, true)
-	self.buildStore(ir.Type, value, ptr)
+	if valueIr, ok := ir.Value.Value(); ok {
+		value := self.codegenExpr(valueIr, true)
+		self.buildStore(ir.Type, value, ptr)
+	}
 	return ptr
 }
 

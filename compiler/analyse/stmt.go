@@ -4,6 +4,7 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -107,13 +108,13 @@ func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *h
 	if typeNode, ok := node.Var.Type.Value(); ok {
 		v.Type = self.analyseType(typeNode)
 		if valueNode, ok := node.Value.Value(); ok {
-			v.Value = self.expectExpr(v.Type, valueNode)
+			v.Value = optional.Some(self.expectExpr(v.Type, valueNode))
 		} else {
-			v.Value = self.getTypeDefaultValue(typeNode.Position(), v.Type)
+			v.Value = optional.Some[hir.Expr](self.getTypeDefaultValue(typeNode.Position(), v.Type))
 		}
 	} else {
-		v.Value = self.analyseExpr(nil, node.Value.MustValue())
-		v.Type = v.Value.GetType()
+		v.Value = optional.Some(self.analyseExpr(nil, node.Value.MustValue()))
+		v.Type = v.Value.MustValue().GetType()
 	}
 	return v
 }
@@ -162,9 +163,6 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 		value = &hir.Tuple{Elems: elems}
 	}
 
-	for _, v := range vars {
-		v.Value = &hir.Default{Type: v.Type}
-	}
 	return &hir.MultiLocalVarDef{
 		Vars:  vars,
 		Value: value,
@@ -242,7 +240,6 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 				Type: et,
 				Name: node.Cursor.Source(),
 			},
-			Value: &hir.Default{Type: et},
 		},
 	}
 	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {

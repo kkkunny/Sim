@@ -66,9 +66,14 @@ clean:
 .PHONY: test
 test:
 	@make build > /dev/null
-	@files=`find $(TEST_DIR) -type f -name "*.$(EXT_NAME)"`; \
-	for file in $$files; do \
-	  	name=`basename $$file .$(EXT_NAME)`; \
-		(./$(BIN_FILE) $$file > /dev/null 2>&1 || (echo -e "\e[33m 测试失败 $$name \e[0m"; exit 1)) && echo -e "\e[32m 测试成功 $$name \e[0m"; \
-    done; \
-    make clean > /dev/null
+	@okfiles=`find $(TEST_DIR)/success -type f -name "*.$(EXT_NAME)"`; \
+		for file in $$okfiles; do \
+			name=`basename $$file .$(EXT_NAME)`; \
+			(./$(BIN_FILE) $$file > /dev/null 2>&1 || (echo -e "\e[33m 测试失败 $$name \e[0m"; exit 1)) && echo -e "\e[32m 测试成功 $$name \e[0m"; \
+		done;
+	@errfiles=`find $(TEST_DIR)/failed -type f -name "*.$(EXT_NAME)"`; \
+		for file in $$errfiles; do \
+			name=`basename $$file .$(EXT_NAME)`; \
+			(./$(BIN_FILE) $$file > /dev/null 2>&1 || (echo -e "\e[32m 测试成功 $$name \e[0m"; exit 1)) && echo -e "\e[33m 测试失败 $$name \e[0m"; \
+		done; \
+		make clean > /dev/null

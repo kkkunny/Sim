@@ -3,6 +3,7 @@ package hir
 import (
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/util"
 )
@@ -118,7 +119,7 @@ func (*Match) stmt() {}
 // LocalVarDef 局部变量定义
 type LocalVarDef struct {
 	VarDecl
-	Value   Expr
+	Value   optional.Optional[Expr]
 	Escaped bool
 }
 
