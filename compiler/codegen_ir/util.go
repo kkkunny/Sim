@@ -152,8 +152,82 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 			return self.builder.CreateOr("", self.builder.CreateOr("", f1p, f2p), pp)
 		})
 	case *hir.EnumType:
-		// TODO: 枚举类型比较
-		return self.ctx.ConstBoolean(true)
+		if irType.IsSimple() {
+			return self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
+		}
+
+		t := self.codegenType(irType).(llvm.StructType)
+		beginBlock := self.builder.CurrentBlock()
+		li, ri := self.buildStructIndex(t, l, 1, false), self.buildStructIndex(t, r, 1, false)
+		indexEq := self.builder.CreateIntCmp("", llvm.IntEQ, li, ri)
+		bodyBlock := beginBlock.Belong().NewBlock("")
+		self.builder.MoveToAfter(bodyBlock)
+
+		values := make([]llvm.Value, irType.Fields.Length())
+		indexBlockPairs := stlslices.Map(irType.Fields.Values().ToSlice(), func(i int, f hir.EnumField) struct {
+			Value llvm.Value
+			Block llvm.Block
+		} {
+			if f.Elem.IsNone() {
+				return struct {
+					Value llvm.Value
+					Block llvm.Block
+				}{Value: self.ctx.ConstInteger(li.Type().(llvm.IntegerType), int64(i)), Block: bodyBlock}
+			}
+
+			filedBlock := beginBlock.Belong().NewBlock("")
+			self.builder.MoveToAfter(filedBlock)
+
+			ldp, rdp := self.buildStructIndex(t, l, 0, true), self.buildStructIndex(t, r, 0, true)
+			ftIr := f.Elem.MustValue()
+			ft := self.codegenType(ftIr)
+			values[i] = self.buildEqual(ftIr, self.builder.CreateLoad("", ft, ldp), self.builder.CreateLoad("", ft, rdp), false)
+			return struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.ctx.ConstInteger(li.Type().(llvm.IntegerType), int64(i)), Block: filedBlock}
+		})
+
+		endBlock := beginBlock.Belong().NewBlock("")
+		for i, p := range indexBlockPairs {
+			if p.Block != bodyBlock {
+				continue
+			}
+			p.Block = endBlock
+			indexBlockPairs[i] = p
+		}
+		self.builder.MoveToAfter(beginBlock)
+		self.builder.CreateCondBr(indexEq, bodyBlock, endBlock)
+
+		self.builder.MoveToAfter(bodyBlock)
+		self.builder.CreateSwitch(li, endBlock, indexBlockPairs...)
+		self.builder.MoveToAfter(endBlock)
+
+		phi := self.builder.CreatePHI("", self.ctx.BooleanType())
+		phi.AddIncomings(struct {
+			Value llvm.Value
+			Block llvm.Block
+		}{Value: self.ctx.ConstBoolean(false), Block: beginBlock})
+		phi.AddIncomings(struct {
+			Value llvm.Value
+			Block llvm.Block
+		}{Value: self.ctx.ConstBoolean(true), Block: bodyBlock})
+		for i, p := range indexBlockPairs {
+			if p.Block == endBlock {
+				continue
+			}
+			self.builder.MoveToAfter(p.Block)
+			self.builder.CreateBr(endBlock)
+			phi.AddIncomings(struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: values[i], Block: p.Block})
+			self.builder.MoveToAfter(endBlock)
+		}
+		if not {
+			return self.builder.CreateNot("", phi)
+		}
+		return phi
 	default:
 		panic("unreachable")
 	}

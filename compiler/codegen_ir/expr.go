@@ -404,8 +404,6 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) llvm.Value
 
 func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	switch tir := hir.ToRuntimeType(ir).(type) {
-	case *hir.NoThingType, *hir.NoReturnType:
-		panic("unreachable")
 	case *hir.RefType:
 		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str) {
 			return self.constStringPtr("")
@@ -663,9 +661,11 @@ func (self *CodeGenerator) codegenEnum(ir *hir.Enum) llvm.Value {
 	}
 
 	ut := self.codegenType(ir.GetType()).(llvm.StructType)
-	value := self.codegenExpr(ir.Elem.MustValue(), true)
 	ptr := self.builder.CreateAlloca("", ut)
-	self.builder.CreateStore(value, self.buildStructIndex(ut, ptr, 0, true))
+	if elemIr, ok := ir.Elem.Value(); ok {
+		value := self.codegenExpr(elemIr, true)
+		self.builder.CreateStore(value, self.buildStructIndex(ut, ptr, 0, true))
+	}
 	self.builder.CreateStore(
 		self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)),
 		self.buildStructIndex(ut, ptr, 1, true),
