@@ -454,8 +454,70 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 		}
 		return self.builder.CreateLoad("", t, newStructPtr)
 	case *hir.EnumType:
-		// TODO: 枚举类型拷贝
-		return v
+		if tir.IsSimple() {
+			return v
+		}
+
+		t := self.codegenType(tir).(llvm.StructType)
+		beginBlock := self.builder.CurrentBlock()
+		index := self.buildStructIndex(t, v, 1, false)
+
+		values := make([]llvm.Value, tir.Fields.Length())
+		indexBlockPairs := stlslices.Map(tir.Fields.Values().ToSlice(), func(i int, f hir.EnumField) struct {
+			Value llvm.Value
+			Block llvm.Block
+		} {
+			if f.Elem.IsNone() {
+				return struct {
+					Value llvm.Value
+					Block llvm.Block
+				}{Value: self.ctx.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: beginBlock}
+			}
+
+			filedBlock := beginBlock.Belong().NewBlock("")
+			self.builder.MoveToAfter(filedBlock)
+
+			data := self.buildStructIndex(t, v, 0, false)
+			ptr := self.builder.CreateAlloca("", t)
+			self.builder.CreateStore(self.buildCopy(f.Elem.MustValue(), data), self.buildStructIndex(t, ptr, 0, true))
+			self.builder.CreateStore(index, self.buildStructIndex(t, ptr, 1, true))
+			values[i] = self.builder.CreateLoad("", t, ptr)
+			return struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.ctx.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: filedBlock}
+		})
+
+		endBlock := beginBlock.Belong().NewBlock("")
+		for i, p := range indexBlockPairs {
+			if p.Block != beginBlock {
+				continue
+			}
+			p.Block = endBlock
+			indexBlockPairs[i] = p
+		}
+		self.builder.MoveToAfter(beginBlock)
+		self.builder.CreateSwitch(index, endBlock, indexBlockPairs...)
+		self.builder.MoveToAfter(endBlock)
+
+		phi := self.builder.CreatePHI("", v.Type())
+		phi.AddIncomings(struct {
+			Value llvm.Value
+			Block llvm.Block
+		}{Value: v, Block: beginBlock})
+		for i, p := range indexBlockPairs {
+			if p.Block == endBlock {
+				continue
+			}
+			self.builder.MoveToAfter(p.Block)
+			self.builder.CreateBr(endBlock)
+			phi.AddIncomings(struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: values[i], Block: p.Block})
+			self.builder.MoveToAfter(endBlock)
+		}
+		return phi
 	default:
 		panic("unreachable")
 	}
