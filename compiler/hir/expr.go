@@ -2,8 +2,7 @@ package hir
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
-
-	"github.com/kkkunny/Sim/compiler/util"
+	"github.com/kkkunny/stl/container/optional"
 )
 
 // Expr 表达式
@@ -54,7 +53,7 @@ func (*VarDecl) Temporary() bool {
 type Param struct {
 	Mut  bool
 	Type Type
-	Name util.Option[string]
+	Name optional.Optional[string]
 }
 
 func (self *Param) GetName() string {

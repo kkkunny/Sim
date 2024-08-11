@@ -2,12 +2,12 @@ package ast
 
 import (
 	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Global 全局ast
@@ -20,7 +20,7 @@ type Global interface {
 type Import struct {
 	Begin reader.Position
 	Paths dynarray.DynArray[token.Token]
-	Alias util.Option[token.Token]
+	Alias optional.Optional[token.Token]
 }
 
 func (self *Import) Position() reader.Position {
@@ -41,7 +41,7 @@ type VariableDef interface {
 type VarDef struct {
 	Mutable bool
 	Name    token.Token
-	Type    util.Option[Type]
+	Type    optional.Optional[Type]
 }
 
 // SingleVariableDef 单变量定义
@@ -50,7 +50,7 @@ type SingleVariableDef struct {
 	Begin  reader.Position
 	Public bool
 	Var    VarDef
-	Value  util.Option[Expr]
+	Value  optional.Optional[Expr]
 }
 
 func (self *SingleVariableDef) Position() reader.Position {
@@ -73,7 +73,7 @@ type MultipleVariableDef struct {
 	Begin  reader.Position
 	Public bool
 	Vars   []VarDef
-	Value  util.Option[Expr]
+	Value  optional.Optional[Expr]
 	End    reader.Position
 }
 
@@ -94,7 +94,7 @@ func (self *MultipleVariableDef) ToSingleList() []*SingleVariableDef {
 			Begin:  self.Begin,
 			Public: self.Public,
 			Var:    item,
-			Value:  util.None[Expr](),
+			Value:  optional.None[Expr](),
 		}
 	})
 }
@@ -104,9 +104,9 @@ type FuncDef struct {
 	Attrs    []Attr
 	Begin    reader.Position
 	Public   bool
-	SelfType util.Option[token.Token]
+	SelfType optional.Optional[token.Token]
 	FuncDecl
-	Body util.Option[*Block]
+	Body optional.Optional[*Block]
 }
 
 func (self *FuncDef) Position() reader.Position {

@@ -1,10 +1,11 @@
 package ast
 
 import (
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Ast 抽象语法树
@@ -13,8 +14,8 @@ type Ast interface {
 }
 
 type Param struct {
-	Mutable util.Option[token.Token]
-	Name    util.Option[token.Token]
+	Mutable optional.Optional[token.Token]
+	Name    optional.Optional[token.Token]
 	Type    Type
 }
 
@@ -47,7 +48,7 @@ func (self List[T]) Position() reader.Position {
 
 // Ident 标识符
 type Ident struct {
-	Pkg  util.Option[token.Token]
+	Pkg  optional.Optional[token.Token]
 	Name token.Token
 }
 
@@ -63,7 +64,7 @@ type FuncDecl struct {
 	Begin  reader.Position
 	Name   token.Token
 	Params []Param
-	Ret    util.Option[Type]
+	Ret    optional.Optional[Type]
 	End    reader.Position
 }
 

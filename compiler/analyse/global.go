@@ -5,6 +5,7 @@ import (
 	"github.com/kkkunny/stl/container/dynarray"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -163,9 +164,9 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 			temp := attr.Name.Source()
 			f.ExternName = util.ParseEscapeCharacter(temp[1:len(temp)-1], `\"`, `"`)
 		case *ast.Inline:
-			f.InlineControl = util.Some[bool](true)
+			f.InlineControl = optional.Some[bool](true)
 		case *ast.NoInline:
-			f.InlineControl = util.Some[bool](false)
+			f.InlineControl = optional.Some[bool](false)
 		case *ast.VarArg:
 			f.VarArg = true
 		default:
@@ -200,9 +201,9 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 			temp := attr.Name.Source()
 			f.ExternName = util.ParseEscapeCharacter(temp[1:len(temp)-1], `\"`, `"`)
 		case *ast.Inline:
-			f.InlineControl = util.Some[bool](true)
+			f.InlineControl = optional.Some[bool](true)
 		case *ast.NoInline:
-			f.InlineControl = util.Some[bool](false)
+			f.InlineControl = optional.Some[bool](false)
 		case *ast.VarArg:
 			f.VarArg = true
 		default:
@@ -303,7 +304,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 		}
 	}
 
-	f.Body = util.Some(self.analyseFuncBody(node.Body.MustValue()))
+	f.Body = optional.Some(self.analyseFuncBody(node.Body.MustValue()))
 	return f
 }
 
@@ -328,7 +329,7 @@ func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
 		}
 	}
 
-	f.Body = util.Some(self.analyseFuncBody(node.Body.MustValue()))
+	f.Body = optional.Some(self.analyseFuncBody(node.Body.MustValue()))
 	return f
 }
 
@@ -340,9 +341,9 @@ func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *hir.
 	v := value.(*hir.GlobalVarDef)
 
 	if valueNode, ok := node.Value.Value(); ok {
-		v.Value = util.Some(self.expectExpr(v.Type, valueNode))
+		v.Value = optional.Some(self.expectExpr(v.Type, valueNode))
 	} else if v.ExternName == "" {
-		v.Value = util.Some[hir.Expr](self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type))
+		v.Value = optional.Some[hir.Expr](self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type))
 	}
 	return v
 }

@@ -2,11 +2,11 @@ package ast
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Stmt 语句ast
@@ -31,7 +31,7 @@ func (*Block) stmt() {}
 // Return 函数返回
 type Return struct {
 	Begin reader.Position
-	Value util.Option[Expr]
+	Value optional.Optional[Expr]
 }
 
 func (self *Return) Position() reader.Position {
@@ -47,9 +47,9 @@ func (*Return) stmt() {}
 // IfElse if else
 type IfElse struct {
 	Begin reader.Position
-	Cond  util.Option[Expr]
+	Cond  optional.Optional[Expr]
 	Body  *Block
-	Next  util.Option[*IfElse]
+	Next  optional.Optional[*IfElse]
 }
 
 func (self *IfElse) IsIf() bool {
@@ -137,7 +137,7 @@ type Match struct {
 	Begin reader.Position
 	Value Expr
 	Cases []MatchCase
-	Other util.Option[*Block]
+	Other optional.Optional[*Block]
 	End   reader.Position
 }
 

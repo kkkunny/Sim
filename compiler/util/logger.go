@@ -7,4 +7,4 @@ import (
 )
 
 // Logger 日志管理器
-var Logger = stllog.DefaultLogger(config.Debug)
+var Logger = stllog.Default(config.Debug)

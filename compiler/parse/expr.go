@@ -1,6 +1,7 @@
 package parse
 
 import (
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
@@ -9,10 +10,9 @@ import (
 	errors "github.com/kkkunny/Sim/compiler/error"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
-func (self *Parser) mustExpr(op util.Option[ast.Expr]) ast.Expr {
+func (self *Parser) mustExpr(op optional.Optional[ast.Expr]) ast.Expr {
 	v, ok := op.Value()
 	if !ok {
 		errors.ThrowIllegalExpression(self.nextTok.Position)
@@ -20,36 +20,36 @@ func (self *Parser) mustExpr(op util.Option[ast.Expr]) ast.Expr {
 	return v
 }
 
-func (self *Parser) parseOptionExpr(canStruct bool) util.Option[ast.Expr] {
+func (self *Parser) parseOptionExpr(canStruct bool) optional.Optional[ast.Expr] {
 	return self.parseOptionBinary(0, canStruct)
 }
 
-func (self *Parser) parseOptionPrimary(canStruct bool) util.Option[ast.Expr] {
+func (self *Parser) parseOptionPrimary(canStruct bool) optional.Optional[ast.Expr] {
 	switch self.nextTok.Kind {
 	case token.INTEGER:
-		return util.Some[ast.Expr](self.parseInteger())
+		return optional.Some[ast.Expr](self.parseInteger())
 	case token.CHAR:
-		return util.Some[ast.Expr](self.parseChar())
+		return optional.Some[ast.Expr](self.parseChar())
 	case token.FLOAT:
-		return util.Some[ast.Expr](self.parseFloat())
+		return optional.Some[ast.Expr](self.parseFloat())
 	case token.IDENT:
 		ident := (*ast.IdentExpr)(self.parseIdent())
 		if canStruct && self.nextIs(token.LBR) {
-			return util.Some[ast.Expr](self.parseStruct((*ast.IdentType)(ident)))
+			return optional.Some[ast.Expr](self.parseStruct((*ast.IdentType)(ident)))
 		} else {
-			return util.Some[ast.Expr](ident)
+			return optional.Some[ast.Expr](ident)
 		}
 	case token.LPA:
-		return util.Some(self.parseTupleOrLambda())
+		return optional.Some(self.parseTupleOrLambda())
 	case token.LBA:
-		return util.Some[ast.Expr](self.parseArray())
+		return optional.Some[ast.Expr](self.parseArray())
 	case token.STRING:
-		return util.Some[ast.Expr](self.parseString())
+		return optional.Some[ast.Expr](self.parseString())
 	case token.SELF:
 		st := &ast.SelfType{Token: self.expectNextIs(token.SELF)}
-		return util.Some[ast.Expr](self.parseStruct(st))
+		return optional.Some[ast.Expr](self.parseStruct(st))
 	default:
-		return util.None[ast.Expr]()
+		return optional.None[ast.Expr]()
 	}
 }
 
@@ -77,9 +77,9 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 		if first {
 			first = false
 
-			var mut util.Option[token.Token]
+			var mut optional.Optional[token.Token]
 			if self.skipNextIs(token.MUT) {
-				isLambda, mut = true, util.Some(self.curTok)
+				isLambda, mut = true, optional.Some(self.curTok)
 			}
 			firstParam := self.mustExpr(self.parseOptionExpr(true))
 			firstIdent, ok := firstParam.(*ast.IdentExpr)
@@ -91,7 +91,7 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 				pt := self.parseType()
 				return ast.Param{
 					Mutable: mut,
-					Name:    util.Some(firstIdent.Name),
+					Name:    optional.Some(firstIdent.Name),
 					Type:    pt,
 				}
 			} else {
@@ -131,7 +131,7 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 	}
 }
 
-func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[ast.Expr] {
+func (self *Parser) parseOptionPrefixUnary(canStruct bool) optional.Optional[ast.Expr] {
 	switch self.nextTok.Kind {
 	case token.SUB, token.NOT, token.AND, token.MUL:
 		self.next()
@@ -140,7 +140,7 @@ func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[ast.Expr]
 			opera.Kind = token.AND_WITH_MUT
 		}
 		value := self.mustExpr(self.parseOptionUnary(canStruct))
-		return util.Some[ast.Expr](&ast.Unary{
+		return optional.Some[ast.Expr](&ast.Unary{
 			Opera: opera,
 			Value: value,
 		})
@@ -149,7 +149,7 @@ func (self *Parser) parseOptionPrefixUnary(canStruct bool) util.Option[ast.Expr]
 	}
 }
 
-func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruct bool) util.Option[ast.Expr] {
+func (self *Parser) parseOptionSuffixUnary(front optional.Optional[ast.Expr], canStruct bool) optional.Optional[ast.Expr] {
 	fv, ok := front.Value()
 	if !ok {
 		return front
@@ -160,7 +160,7 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 		self.expectNextIs(token.LPA)
 		args := self.parseExprList(token.RPA)
 		end := self.expectNextIs(token.RPA).Position
-		front = util.Some[ast.Expr](&ast.Call{
+		front = optional.Some[ast.Expr](&ast.Call{
 			Func: fv,
 			Args: args,
 			End:  end,
@@ -169,25 +169,25 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 		self.expectNextIs(token.LBA)
 		index := self.mustExpr(self.parseOptionExpr(canStruct))
 		self.expectNextIs(token.RBA)
-		front = util.Some[ast.Expr](&ast.Index{
+		front = optional.Some[ast.Expr](&ast.Index{
 			From:  fv,
 			Index: index,
 		})
 	case token.DOT:
 		self.expectNextIs(token.DOT)
 		if self.skipNextIs(token.INTEGER) {
-			front = util.Some[ast.Expr](&ast.Extract{
+			front = optional.Some[ast.Expr](&ast.Extract{
 				From:  fv,
 				Index: self.curTok,
 			})
 		} else {
-			front = util.Some[ast.Expr](&ast.Dot{
+			front = optional.Some[ast.Expr](&ast.Dot{
 				From:  fv,
 				Index: self.expectNextIs(token.IDENT),
 			})
 		}
 	case token.NOT:
-		front = util.Some[ast.Expr](&ast.CheckNull{
+		front = optional.Some[ast.Expr](&ast.CheckNull{
 			Value: fv,
 			End:   self.expectNextIs(token.NOT).Position,
 		})
@@ -198,7 +198,7 @@ func (self *Parser) parseOptionSuffixUnary(front util.Option[ast.Expr], canStruc
 	return self.parseOptionSuffixUnary(front, canStruct)
 }
 
-func (self *Parser) parseOptionTailUnary(front util.Option[ast.Expr]) util.Option[ast.Expr] {
+func (self *Parser) parseOptionTailUnary(front optional.Optional[ast.Expr]) optional.Optional[ast.Expr] {
 	fv, ok := front.Value()
 	if !ok {
 		return front
@@ -208,14 +208,14 @@ func (self *Parser) parseOptionTailUnary(front util.Option[ast.Expr]) util.Optio
 	case token.AS:
 		self.expectNextIs(token.AS)
 		t := self.parseType()
-		front = util.Some[ast.Expr](&ast.Covert{
+		front = optional.Some[ast.Expr](&ast.Covert{
 			Value: fv,
 			Type:  t,
 		})
 	case token.IS:
 		self.expectNextIs(token.IS)
 		t := self.parseType()
-		front = util.Some[ast.Expr](&ast.Judgment{
+		front = optional.Some[ast.Expr](&ast.Judgment{
 			Value: fv,
 			Type:  t,
 		})
@@ -226,18 +226,18 @@ func (self *Parser) parseOptionTailUnary(front util.Option[ast.Expr]) util.Optio
 	return self.parseOptionTailUnary(front)
 }
 
-func (self *Parser) parseOptionUnary(canStruct bool) util.Option[ast.Expr] {
+func (self *Parser) parseOptionUnary(canStruct bool) optional.Optional[ast.Expr] {
 	return self.parseOptionSuffixUnary(self.parseOptionPrefixUnary(canStruct), canStruct)
 }
 
-func (self *Parser) parseOptionUnaryWithTail(canStruct bool) util.Option[ast.Expr] {
+func (self *Parser) parseOptionUnaryWithTail(canStruct bool) optional.Optional[ast.Expr] {
 	return self.parseOptionTailUnary(self.parseOptionUnary(canStruct))
 }
 
-func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) util.Option[ast.Expr] {
+func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) optional.Optional[ast.Expr] {
 	left, ok := self.parseOptionUnaryWithTail(canStruct).Value()
 	if !ok {
-		return util.None[ast.Expr]()
+		return optional.None[ast.Expr]()
 	}
 	for {
 		nextOp := self.nextTok
@@ -253,7 +253,7 @@ func (self *Parser) parseOptionBinary(priority uint8, canStruct bool) util.Optio
 			Right: right,
 		}
 	}
-	return util.Some(left)
+	return optional.Some[ast.Expr](left)
 }
 
 func (self *Parser) parseArray() *ast.Array {

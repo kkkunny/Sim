@@ -4,8 +4,6 @@ import (
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/optional"
-
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Stmt 语句
@@ -34,7 +32,7 @@ func (*Block) stmt() {}
 // Return 函数返回
 type Return struct {
 	Func  CallableDef
-	Value util.Option[Expr]
+	Value optional.Optional[Expr]
 }
 
 func (*Return) stmt() {}
@@ -43,9 +41,9 @@ func (*Return) out() {}
 
 // IfElse if else
 type IfElse struct {
-	Cond util.Option[Expr]
+	Cond optional.Optional[Expr]
 	Body *Block
-	Next util.Option[*IfElse]
+	Next optional.Optional[*IfElse]
 }
 
 func (self *IfElse) IsIf() bool {
@@ -111,7 +109,7 @@ type MatchCase struct {
 type Match struct {
 	Value Expr
 	Cases linkedhashmap.LinkedHashMap[string, *MatchCase]
-	Other util.Option[*Block]
+	Other optional.Optional[*Block]
 }
 
 func (*Match) stmt() {}

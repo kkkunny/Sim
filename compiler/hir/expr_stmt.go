@@ -6,8 +6,6 @@ import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
-
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // ExprStmt 表达式语句
@@ -1003,15 +1001,15 @@ type Method struct {
 }
 
 // LoopFindMethodWithSelf 循环寻找方法
-func LoopFindMethodWithSelf(ct *CustomType, selfVal util.Option[Expr], name string) util.Option[Expr] {
+func LoopFindMethodWithSelf(ct *CustomType, selfVal optional.Optional[Expr], name string) optional.Optional[Expr] {
 	method := ct.Methods.Get(name)
 	if method != nil {
 		if method.IsStatic() {
-			return util.Some[Expr](method)
+			return optional.Some[Expr](method)
 		} else if selfVal.IsNone() {
-			return util.None[Expr]()
+			return optional.None[Expr]()
 		} else {
-			return util.Some[Expr](&Method{
+			return optional.Some[Expr](&Method{
 				Self:   selfVal.MustValue(),
 				Define: method,
 			})
@@ -1019,24 +1017,24 @@ func LoopFindMethodWithSelf(ct *CustomType, selfVal util.Option[Expr], name stri
 	}
 	tct, ok := TryCustomType(ct.Target)
 	if !ok {
-		return util.None[Expr]()
+		return optional.None[Expr]()
 	}
-	return LoopFindMethodWithSelf(tct, stlbasic.TernaryAction(selfVal.IsSome(), func() util.Option[Expr] {
-		return util.Some[Expr](&DoNothingCovert{From: selfVal.MustValue(), To: tct})
-	}, func() util.Option[Expr] {
-		return util.None[Expr]()
+	return LoopFindMethodWithSelf(tct, stlbasic.TernaryAction(selfVal.IsSome(), func() optional.Optional[Expr] {
+		return optional.Some[Expr](&DoNothingCovert{From: selfVal.MustValue(), To: tct})
+	}, func() optional.Optional[Expr] {
+		return optional.None[Expr]()
 	}), name)
 }
 
 // LoopFindMethod 循环寻找方法
-func LoopFindMethod(ct *CustomType, name string) util.Option[*MethodDef] {
+func LoopFindMethod(ct *CustomType, name string) optional.Optional[*MethodDef] {
 	method := ct.Methods.Get(name)
 	if method != nil {
-		return util.Some[*MethodDef](method)
+		return optional.Some[*MethodDef](method)
 	}
 	tct, ok := TryCustomType(ct.Target)
 	if !ok {
-		return util.None[*MethodDef]()
+		return optional.None[*MethodDef]()
 	}
 	return LoopFindMethod(tct, name)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/kkkunny/stl/container/hashset"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
@@ -23,8 +24,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	errors "github.com/kkkunny/Sim/compiler/error"
-
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 type importPackageErrorKind uint8
@@ -224,7 +223,7 @@ func (self *Analyser) isInDstStructScope(st *hir.CustomType) bool {
 }
 
 // 分析标识符，表达式优先
-func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[either.Either[hir.Ident, hir.Type]] {
+func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) optional.Optional[either.Either[hir.Ident, hir.Type]] {
 	var pkgName string
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()
@@ -242,7 +241,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 			return pair.NewPair[hir.Ident, bool](self.localScope.GetValue(pkgName, node.Name.Source()))
 		})
 		if value.Second {
-			return util.Some(either.Left[hir.Ident, hir.Type](value.First))
+			return optional.Some(either.Left[hir.Ident, hir.Type](value.First))
 		}
 	}
 
@@ -253,25 +252,25 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[ei
 		if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_i") {
 			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
 			if err == nil && bits > 0 && bits <= 128 {
-				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewSintType(uint8(bits))))
+				return optional.Some(either.Right[hir.Ident, hir.Type](hir.NewSintType(uint8(bits))))
 			}
 		} else if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_u") {
 			bits, err := strconv.ParseUint(name[len("__buildin_u"):], 10, 8)
 			if err == nil && bits > 0 && bits <= 128 {
-				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewUintType(uint8(bits))))
+				return optional.Some(either.Right[hir.Ident, hir.Type](hir.NewUintType(uint8(bits))))
 			}
 		} else if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_f") {
 			bits, err := strconv.ParseUint(name[len("__buildin_f"):], 10, 8)
 			if err == nil && (bits == 16 || bits == 32 || bits == 64 || bits == 128) {
-				return util.Some(either.Right[hir.Ident, hir.Type](hir.NewFloatType(uint8(bits))))
+				return optional.Some(either.Right[hir.Ident, hir.Type](hir.NewFloatType(uint8(bits))))
 			}
 		}
 		// 类型定义
 		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
-			return util.Some(either.Right[hir.Ident, hir.Type](td))
+			return optional.Some(either.Right[hir.Ident, hir.Type](td))
 		}
 	}
-	return util.None[either.Either[hir.Ident, hir.Type]]()
+	return optional.None[either.Either[hir.Ident, hir.Type]]()
 }
 
 func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {
@@ -284,7 +283,7 @@ func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {
 		}
 		body.Stmts.PushBack(&hir.Return{
 			Func:  fn,
-			Value: util.None[hir.Expr](),
+			Value: optional.None[hir.Expr](),
 		})
 	}
 	return body

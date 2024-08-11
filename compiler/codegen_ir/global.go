@@ -3,10 +3,10 @@ package codegen_ir
 import (
 	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/hir"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
@@ -91,7 +91,7 @@ func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
 }
 
 func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
-	f := self.values.Get(ir).(llvm.Function)
+	f := self.values.GetValue(ir).(llvm.Function)
 	self.builder.MoveToAfter(f.NewBlock(""))
 	for i, pir := range ir.Params {
 		p := self.builder.CreateAlloca("", self.codegenType(pir.Type))
@@ -107,11 +107,11 @@ func (self *CodeGenerator) defMethodDef(ir *hir.MethodDef) {
 }
 
 func (self *CodeGenerator) defFuncDecl(ir *hir.FuncDef) {
-	_ = self.values.Get(ir).(llvm.Function)
+	_ = self.values.GetValue(ir).(llvm.Function)
 }
 
 func (self *CodeGenerator) defGlobalVariableDef(ir *hir.GlobalVarDef) {
-	gv := self.values.Get(ir).(llvm.GlobalValue)
+	gv := self.values.GetValue(ir).(llvm.GlobalValue)
 	self.builder.MoveToAfter(stlslices.First(self.getInitFunction().Blocks()))
 	value := self.codegenExpr(ir.Value.MustValue(), true)
 	if constValue, ok := value.(llvm.Constant); ok {
@@ -122,13 +122,13 @@ func (self *CodeGenerator) defGlobalVariableDef(ir *hir.GlobalVarDef) {
 }
 
 func (self *CodeGenerator) defGlobalVariableDecl(ir *hir.GlobalVarDef) {
-	_ = self.values.Get(ir).(llvm.GlobalValue)
+	_ = self.values.GetValue(ir).(llvm.GlobalValue)
 }
 
 func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 	if constant, ok := ir.Value.(*hir.Tuple); ok && len(constant.Elems) == len(ir.Vars) {
 		for i, varNode := range ir.Vars {
-			varNode.Value = util.Some(constant.Elems[i])
+			varNode.Value = optional.Some(constant.Elems[i])
 			self.defGlobalVariableDef(varNode)
 		}
 	} else {

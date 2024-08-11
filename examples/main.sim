@@ -1,17 +1,13 @@
 import std::os
 
-type A enum{
-	A1: i8,
-	A2: i64,
-	A3
+type A i8
+
+func (A) copy(self: Self)Self{
+	debug("copy~")
+	return self
 }
 
 func main(){
-	let a = A.A1(1)
-	match a{
-	case A1(v):
-		os::exit(v as u8 - 1)
-	other:
-		os::exit(1)
-	}
+	let a = 1
+	os::exit(a as u8)
 }

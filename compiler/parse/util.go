@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
@@ -19,7 +20,6 @@ import (
 	errors "github.com/kkkunny/Sim/compiler/error"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T, atLeastOne ...bool) (res []T) {
@@ -59,19 +59,19 @@ func (self *Parser) parseParam() ast.Param {
 		self.expectNextIs(token.COL)
 		typ := self.parseType()
 		return ast.Param{
-			Mutable: util.Some(mut),
-			Name:    util.Some(name),
+			Mutable: optional.Some(mut),
+			Name:    optional.Some(name),
 			Type:    typ,
 		}
 	} else {
-		var name util.Option[token.Token]
+		var name optional.Optional[token.Token]
 		typ := self.parseType()
 		if ident, ok := typ.(*ast.IdentType); ok && ident.Pkg.IsNone() && self.skipNextIs(token.COL) {
-			name = util.Some(ident.Name)
+			name = optional.Some(ident.Name)
 			typ = self.parseType()
 		}
 		return ast.Param{
-			Mutable: util.None[token.Token](),
+			Mutable: optional.None[token.Token](),
 			Name:    name,
 			Type:    typ,
 		}
@@ -114,13 +114,13 @@ loop:
 }
 
 func (self *Parser) parseIdent() *ast.Ident {
-	var pkg util.Option[token.Token]
+	var pkg optional.Optional[token.Token]
 	var name token.Token
 	pkgOrName := self.expectNextIs(token.IDENT)
 	if !self.skipNextIs(token.SCOPE) {
-		pkg, name = util.None[token.Token](), pkgOrName
+		pkg, name = optional.None[token.Token](), pkgOrName
 	} else {
-		pkg, name = util.Some(pkgOrName), self.expectNextIs(token.IDENT)
+		pkg, name = optional.Some(pkgOrName), self.expectNextIs(token.IDENT)
 	}
 	return &ast.Ident{
 		Pkg:  pkg,

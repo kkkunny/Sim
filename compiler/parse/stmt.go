@@ -2,11 +2,11 @@ package parse
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *Parser) parseStmt() ast.Stmt {
@@ -74,13 +74,13 @@ func (self *Parser) parseIfElse() *ast.IfElse {
 	begin := self.expectNextIs(token.IF).Position
 	cond := self.mustExpr(self.parseOptionExpr(false))
 	body := self.parseBlock()
-	var next util.Option[*ast.IfElse]
+	var next optional.Optional[*ast.IfElse]
 	if self.skipNextIs(token.ELSE) {
 		nextBegin := self.curTok.Position
 		if self.nextIs(token.IF) {
-			next = util.Some(self.parseIfElse())
+			next = optional.Some(self.parseIfElse())
 		} else {
-			next = util.Some(&ast.IfElse{
+			next = optional.Some(&ast.IfElse{
 				Begin: nextBegin,
 				Body:  self.parseBlock(),
 			})
@@ -88,7 +88,7 @@ func (self *Parser) parseIfElse() *ast.IfElse {
 	}
 	return &ast.IfElse{
 		Begin: begin,
-		Cond:  util.Some(cond),
+		Cond:  optional.Some(cond),
 		Body:  body,
 		Next:  next,
 	}
@@ -134,7 +134,7 @@ func (self *Parser) parseMatch() *ast.Match {
 	value := self.mustExpr(self.parseOptionExpr(false))
 	self.expectNextIs(token.LBR)
 	var cases []ast.MatchCase
-	other := util.None[*ast.Block]()
+	other := optional.None[*ast.Block]()
 	for self.skipSEM(); !self.nextIs(token.RBR) && (self.skipNextIs(token.CASE) || self.expectNextIs(token.OTHER).Is(token.OTHER)); self.skipSEM() {
 		caseBeginTok := self.curTok
 		if caseBeginTok.Is(token.CASE) {
@@ -171,7 +171,7 @@ func (self *Parser) parseMatch() *ast.Match {
 				Stmts: self.parseStmtList(token.CASE, token.OTHER, token.RBR),
 				End:   self.curTok.Position,
 			}
-			other = util.Some(body)
+			other = optional.Some(body)
 			break
 		}
 	}

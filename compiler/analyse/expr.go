@@ -176,7 +176,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.And().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.And().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.And().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
@@ -189,7 +189,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Or().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Or().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Or().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
@@ -202,7 +202,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Xor().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Xor().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Xor().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
@@ -215,7 +215,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Shl().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Shl().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Shl().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
@@ -228,7 +228,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Shr().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Shr().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Shr().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
@@ -241,7 +241,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Add().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Add().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Add().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
@@ -254,7 +254,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Sub().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Sub().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Sub().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
@@ -267,7 +267,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Mul().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Mul().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Mul().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
@@ -280,7 +280,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Div().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Div().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Div().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
@@ -297,7 +297,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Rem().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Rem().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Rem().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
@@ -314,7 +314,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Eq().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) {
@@ -331,7 +331,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		if ok && self.pkgScope.Eq().HasBeImpled(ct) {
 			return &hir.BoolNegate{
 				Value: &hir.Call{
-					Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(),
+					Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(),
 					Args: []hir.Expr{right},
 				},
 			}
@@ -346,7 +346,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Lt().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
@@ -360,7 +360,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Gt().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
@@ -375,11 +375,11 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		if ok && self.pkgScope.Lt().HasBeImpled(ct) && self.pkgScope.Eq().HasBeImpled(ct) {
 			return &hir.BoolOrBool{
 				Left: &hir.Call{
-					Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(),
+					Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(),
 					Args: []hir.Expr{right},
 				},
 				Right: &hir.Call{
-					Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(),
+					Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(),
 					Args: []hir.Expr{right},
 				},
 			}
@@ -395,11 +395,11 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		if ok && self.pkgScope.Gt().HasBeImpled(ct) && self.pkgScope.Eq().HasBeImpled(ct) {
 			return &hir.BoolOrBool{
 				Left: &hir.Call{
-					Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(),
+					Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(),
 					Args: []hir.Expr{right},
 				},
 				Right: &hir.Call{
-					Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(),
+					Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(),
 					Args: []hir.Expr{right},
 				},
 			}
@@ -414,7 +414,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Land().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Land().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Land().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
@@ -427,7 +427,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		ct, ok := hir.TryCustomType(lt)
 		if ok && self.pkgScope.Lor().HasBeImpled(ct) {
 			return &hir.Call{
-				Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](left), self.pkgScope.Lor().FirstMethodName()).MustValue(),
+				Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lor().FirstMethodName()).MustValue(),
 				Args: []hir.Expr{right},
 			}
 		} else if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
@@ -451,7 +451,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Expr {
 		vt := value.GetType()
 		ct, ok := hir.TryCustomType(vt)
 		if ok && self.pkgScope.Neg().HasBeImpled(ct) {
-			return &hir.Call{Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](value), self.pkgScope.Neg().FirstMethodName()).MustValue()}
+			return &hir.Call{Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](value), self.pkgScope.Neg().FirstMethodName()).MustValue()}
 		} else if hir.IsType[*hir.SintType](vt) || hir.IsType[*hir.FloatType](vt) {
 			return &hir.NumNegate{Value: value}
 		}
@@ -462,7 +462,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Expr {
 		vt := value.GetType()
 		ct, ok := hir.TryCustomType(vt)
 		if ok && self.pkgScope.Not().HasBeImpled(ct) {
-			return &hir.Call{Func: hir.LoopFindMethodWithSelf(ct, util.Some[hir.Expr](value), self.pkgScope.Not().FirstMethodName()).MustValue()}
+			return &hir.Call{Func: hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](value), self.pkgScope.Not().FirstMethodName()).MustValue()}
 		}
 		switch {
 		case hir.IsIntType(vt):
@@ -899,7 +899,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 
 func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lambda {
 	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *hir.Param { return self.analyseParam(e) })
-	ret := self.analyseOptionTypeWith(util.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
+	ret := self.analyseOptionTypeWith(optional.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
 	f := &hir.Lambda{
 		Params: params,
 		Ret:    ret,
@@ -938,10 +938,10 @@ func (self *Analyser) analyseParam(node ast.Param) *hir.Param {
 	return &hir.Param{
 		Mut:  !node.Mutable.IsNone(),
 		Type: self.analyseType(node.Type),
-		Name: stlbasic.TernaryAction(node.Name.IsNone(), func() util.Option[string] {
-			return util.None[string]()
-		}, func() util.Option[string] {
-			return util.Some(node.Name.MustValue().Source())
+		Name: stlbasic.TernaryAction(node.Name.IsNone(), func() optional.Optional[string] {
+			return optional.None[string]()
+		}, func() optional.Optional[string] {
+			return optional.Some(node.Name.MustValue().Source())
 		}),
 	}
 }

@@ -11,7 +11,6 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/hir"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) llvm.Value {
@@ -243,11 +242,11 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) llvm.Value {
 
 	switch identNode := ir.(type) {
 	case *hir.FuncDef:
-		return self.values.Get(identNode)
+		return self.values.GetValue(identNode)
 	case *hir.MethodDef:
-		return self.values.Get(&identNode.FuncDef)
+		return self.values.GetValue(&identNode.FuncDef)
 	case hir.Variable:
-		p := self.values.Get(identNode)
+		p := self.values.GetValue(identNode)
 		if !load {
 			return p
 		}
@@ -459,7 +458,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 		return self.buildPackStruct(self.codegenTupleType(tir), elems...)
 	case *hir.CustomType:
 		if self.hir.BuildinTypes.Default.HasBeImpled(tir) {
-			return self.codegenCall(&hir.Call{Func: hir.LoopFindMethodWithSelf(tir, util.None[hir.Expr](), self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()})
+			return self.codegenCall(&hir.Call{Func: hir.LoopFindMethodWithSelf(tir, optional.None[hir.Expr](), self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()})
 		}
 		return self.codegenDefault(tir.Target)
 	case *hir.StructType:

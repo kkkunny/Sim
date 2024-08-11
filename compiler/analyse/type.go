@@ -13,7 +13,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 
 	errors "github.com/kkkunny/Sim/compiler/error"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *Analyser) analyseType(node ast.Type) hir.Type {
@@ -41,29 +40,29 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 	}
 }
 
-var voidTypeAnalyser = func(node util.Option[ast.Type]) util.Option[hir.Type] {
+var voidTypeAnalyser = func(node optional.Optional[ast.Type]) optional.Optional[hir.Type] {
 	typeNode, ok := node.Value()
 	if !ok {
-		return util.None[hir.Type]()
+		return optional.None[hir.Type]()
 	}
 	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == hir.NoThing.String() {
-		return util.Some[hir.Type](hir.NoThing)
+		return optional.Some[hir.Type](hir.NoThing)
 	}
-	return util.None[hir.Type]()
+	return optional.None[hir.Type]()
 }
 
-var noReturnTypeAnalyser = func(node util.Option[ast.Type]) util.Option[hir.Type] {
+var noReturnTypeAnalyser = func(node optional.Optional[ast.Type]) optional.Optional[hir.Type] {
 	typeNode, ok := node.Value()
 	if !ok {
-		return util.None[hir.Type]()
+		return optional.None[hir.Type]()
 	}
 	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == hir.NoReturn.String() {
-		return util.Some[hir.Type](hir.NoReturn)
+		return optional.Some[hir.Type](hir.NoReturn)
 	}
-	return util.None[hir.Type]()
+	return optional.None[hir.Type]()
 }
 
-func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
+func (self *Analyser) analyseOptionType(node optional.Optional[ast.Type]) hir.Type {
 	t, ok := node.Value()
 	if !ok {
 		return hir.NoThing
@@ -71,7 +70,7 @@ func (self *Analyser) analyseOptionType(node util.Option[ast.Type]) hir.Type {
 	return self.analyseType(t)
 }
 
-func (self *Analyser) analyseOptionTypeWith(node util.Option[ast.Type], analysers ...func(node util.Option[ast.Type]) util.Option[hir.Type]) hir.Type {
+func (self *Analyser) analyseOptionTypeWith(node optional.Optional[ast.Type], analysers ...func(node optional.Optional[ast.Type]) optional.Optional[hir.Type]) hir.Type {
 	for _, analyser := range analysers {
 		if t, ok := analyser(node).Value(); ok {
 			return t
@@ -147,7 +146,7 @@ func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *hir.LambdaType {
 	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
 		return self.analyseType(e)
 	})
-	ret := self.analyseOptionTypeWith(util.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
+	ret := self.analyseOptionTypeWith(optional.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
 	return hir.NewLambdaType(ret, params...)
 }
 

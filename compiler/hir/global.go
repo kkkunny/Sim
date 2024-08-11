@@ -5,9 +5,8 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/pair"
-
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Global 全局
@@ -22,7 +21,7 @@ type GlobalVarDef struct {
 	Pkg        Package
 	Public     bool
 	ExternName string
-	Value      util.Option[Expr]
+	Value      optional.Optional[Expr]
 }
 
 func (self *GlobalVarDef) GetPackage() Package {
@@ -63,9 +62,9 @@ type FuncDef struct {
 	Public     bool
 	ExternName string
 	FuncDecl
-	Body util.Option[*Block]
+	Body optional.Optional[*Block]
 
-	InlineControl util.Option[bool]
+	InlineControl optional.Optional[bool]
 	VarArg        bool
 }
 
@@ -103,7 +102,7 @@ type GlobalMethod interface {
 	GlobalFuncOrMethod
 	GetSelfType() *TypeDef
 	GetMethodType() *FuncType
-	GetSelfParam() util.Option[*Param]
+	GetSelfParam() optional.Optional[*Param]
 	IsStatic() bool
 	IsRef() bool
 }
@@ -126,9 +125,9 @@ func (self *MethodDef) GetMethodType() *FuncType {
 	return ft
 }
 
-func (self *MethodDef) GetSelfParam() util.Option[*Param] {
+func (self *MethodDef) GetSelfParam() optional.Optional[*Param] {
 	if len(self.Params) == 0 {
-		return util.None[*Param]()
+		return optional.None[*Param]()
 	}
 	selfType := self.GetSelfType()
 	firstParam := self.Params[0]
@@ -138,9 +137,9 @@ func (self *MethodDef) GetSelfParam() util.Option[*Param] {
 		return firstParam.GetType()
 	})
 	if !selfType.EqualTo(firstParamType) {
-		return util.None[*Param]()
+		return optional.None[*Param]()
 	}
-	return util.Some(firstParam)
+	return optional.Some(firstParam)
 }
 
 func (self *MethodDef) IsStatic() bool {

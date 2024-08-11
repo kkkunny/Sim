@@ -3,6 +3,7 @@ package parse
 import (
 	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
@@ -11,7 +12,6 @@ import (
 	errors "github.com/kkkunny/Sim/compiler/error"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *Parser) parseGlobal() ast.Global {
@@ -41,10 +41,10 @@ func (self *Parser) parseGlobal() ast.Global {
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global {
 	expectAttrIn(attrs, new(ast.Extern), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
-	var selfType util.Option[token.Token]
+	var selfType optional.Optional[token.Token]
 	decl := self.parseFuncDecl(func() {
 		if self.skipNextIs(token.LPA) {
-			selfType = util.Some(self.expectNextIs(token.IDENT))
+			selfType = optional.Some(self.expectNextIs(token.IDENT))
 			self.expectNextIs(token.RPA)
 		}
 	})
@@ -53,10 +53,10 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 	}, func() reader.Position {
 		return pub.Position
 	})
-	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() util.Option[*ast.Block] {
-		return util.Some(self.parseBlock())
-	}, func() util.Option[*ast.Block] {
-		return util.None[*ast.Block]()
+	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() optional.Optional[*ast.Block] {
+		return optional.Some(self.parseBlock())
+	}, func() optional.Optional[*ast.Block] {
+		return optional.None[*ast.Block]()
 	})
 	return &ast.FuncDef{
 		Attrs:    attrs,
@@ -71,10 +71,10 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 func (self *Parser) parseVarDef(global bool) ast.VarDef {
 	mut := self.skipNextIs(token.MUT)
 	name := self.expectNextIs(token.IDENT)
-	typ := util.None[ast.Type]()
+	typ := optional.None[ast.Type]()
 	if self.nextIs(token.COL) || global {
 		self.expectNextIs(token.COL)
-		typ = util.Some(self.parseType())
+		typ = optional.Some(self.parseType())
 	}
 	return ast.VarDef{
 		Mutable: mut,
@@ -99,10 +99,10 @@ func (self *Parser) parseSingleVariable(begin reader.Position, attrs []ast.Attr,
 	expectAttrIn(attrs, new(ast.Extern))
 
 	varDef := self.parseVarDef(global)
-	value := util.None[ast.Expr]()
+	value := optional.None[ast.Expr]()
 	if self.nextIs(token.ASS) || varDef.Type.IsNone() {
 		self.expectNextIs(token.ASS)
-		value = util.Some(self.mustExpr(self.parseOptionExpr(true)))
+		value = optional.Some(self.mustExpr(self.parseOptionExpr(true)))
 	}
 	return &ast.SingleVariableDef{
 		Attrs:  attrs,
@@ -124,10 +124,10 @@ func (self *Parser) parseMultipleVariable(begin reader.Position, attrs []ast.Att
 		return varDef
 	}, true)
 	self.expectNextIs(token.RPA)
-	value := util.None[ast.Expr]()
+	value := optional.None[ast.Expr]()
 	if self.nextIs(token.ASS) || anyNoType {
 		self.expectNextIs(token.ASS)
-		value = util.Some(self.mustExpr(self.parseOptionExpr(true)))
+		value = optional.Some(self.mustExpr(self.parseOptionExpr(true)))
 	}
 	return &ast.MultipleVariableDef{
 		Attrs:  attrs,
@@ -150,12 +150,12 @@ func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
 			break
 		}
 	}
-	alias := util.None[token.Token]()
+	alias := optional.None[token.Token]()
 	if self.skipNextIs(token.AS) {
 		if self.skipNextIs(token.MUL) {
-			alias = util.Some(self.curTok)
+			alias = optional.Some(self.curTok)
 		} else {
-			alias = util.Some(self.expectNextIs(token.IDENT))
+			alias = optional.Some(self.expectNextIs(token.IDENT))
 		}
 	}
 	return &ast.Import{

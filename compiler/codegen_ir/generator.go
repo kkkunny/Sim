@@ -3,6 +3,7 @@ package codegen_ir
 import (
 	"github.com/kkkunny/go-llvm"
 	stlbasic "github.com/kkkunny/stl/basic"
+	"github.com/kkkunny/stl/container/bimap"
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/queue"
@@ -20,7 +21,7 @@ type CodeGenerator struct {
 	module  llvm.Module
 	builder llvm.Builder
 
-	values           hashmap.HashMap[hir.Expr, llvm.Value]
+	values           bimap.BiMap[hir.Expr, llvm.Value]
 	types            hashmap.HashMap[*hir.CustomType, llvm.StructType]
 	loops            hashmap.HashMap[hir.Loop, loop]
 	strings          hashmap.HashMap[string, llvm.Constant]
@@ -63,7 +64,7 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 	// 主函数
 	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
 		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {
-			f := self.values.Get(funcNode).(llvm.Function)
+			f := self.values.GetValue(funcNode).(llvm.Function)
 			self.builder.MoveToAfter(stlslices.First(self.getMainFunction().Blocks()))
 			self.builder.CreateCall("", f.FunctionType(), f)
 			self.builder.CreateRet(stlbasic.Ptr[llvm.Value](self.ctx.ConstInteger(self.ctx.IntegerType(8), 0)))

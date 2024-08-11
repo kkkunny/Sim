@@ -14,7 +14,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/ast"
 
 	errors "github.com/kkkunny/Sim/compiler/error"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
@@ -81,7 +80,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 		value := self.expectExpr(ft.Ret, v)
 		return &hir.Return{
 			Func:  f,
-			Value: util.Some[hir.Expr](value),
+			Value: optional.Some[hir.Expr](value),
 		}
 	} else {
 		if !ft.Ret.EqualTo(hir.NoThing) {
@@ -89,7 +88,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 		}
 		return &hir.Return{
 			Func:  f,
-			Value: util.None[hir.Expr](),
+			Value: optional.None[hir.Expr](),
 		}
 	}
 }
@@ -174,17 +173,17 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof
 		cond := self.expectExpr(self.pkgScope.Bool(), condNode)
 		body, jump := self.analyseBlock(node.Body, nil)
 
-		var next util.Option[*hir.IfElse]
+		var next optional.Optional[*hir.IfElse]
 		if nextNode, ok := node.Next.Value(); ok {
 			nextIf, nextJump := self.analyseIfElse(nextNode)
-			next = util.Some(nextIf)
+			next = optional.Some(nextIf)
 			jump = max(jump, nextJump)
 		} else {
 			jump = hir.BlockEofNone
 		}
 
 		return &hir.IfElse{
-			Cond: util.Some(cond),
+			Cond: optional.Some(cond),
 			Body: body,
 			Next: next,
 		}, jump
@@ -282,7 +281,7 @@ func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 			return &hir.Param{
 				Mut:  e.Mutable,
 				Type: caseDef.Elem.MustValue(),
-				Name: util.Some(e.Name.Source()),
+				Name: optional.Some(e.Name.Source()),
 			}
 		})
 		fn := func(scope _LocalScope) {
@@ -300,9 +299,9 @@ func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 		})
 	}
 
-	var other util.Option[*hir.Block]
+	var other optional.Optional[*hir.Block]
 	if otherNode, ok := node.Other.Value(); ok {
-		other = util.Some(stlbasic.IgnoreWith(self.analyseBlock(otherNode, nil)))
+		other = optional.Some(stlbasic.IgnoreWith(self.analyseBlock(otherNode, nil)))
 	}
 
 	if other.IsNone() && cases.Length() != vt.Fields.Length() {

@@ -8,25 +8,24 @@ import (
 	errors "github.com/kkkunny/Sim/compiler/error"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
-func (self *Parser) parseOptionType() util.Option[ast.Type] {
+func (self *Parser) parseOptionType() optional.Optional[ast.Type] {
 	switch self.nextTok.Kind {
 	case token.IDENT:
-		return util.Some[ast.Type]((*ast.IdentType)(self.parseIdent()))
+		return optional.Some[ast.Type]((*ast.IdentType)(self.parseIdent()))
 	case token.FUNC:
-		return util.Some[ast.Type](self.parseFuncType())
+		return optional.Some[ast.Type](self.parseFuncType())
 	case token.LBA:
-		return util.Some[ast.Type](self.parseArrayType())
+		return optional.Some[ast.Type](self.parseArrayType())
 	case token.LPA:
-		return util.Some[ast.Type](self.parseTupleOrLambdaType())
+		return optional.Some[ast.Type](self.parseTupleOrLambdaType())
 	case token.AND:
-		return util.Some[ast.Type](self.parseRefType())
+		return optional.Some[ast.Type](self.parseRefType())
 	case token.SELF:
-		return util.Some[ast.Type](self.parseSelfType())
+		return optional.Some[ast.Type](self.parseSelfType())
 	default:
-		return util.None[ast.Type]()
+		return optional.None[ast.Type]()
 	}
 }
 

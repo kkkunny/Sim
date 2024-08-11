@@ -6,7 +6,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/token"
-	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // Type 类型
@@ -28,7 +27,7 @@ func (self *IdentType) typ() {}
 type FuncType struct {
 	Begin  reader.Position
 	Params []Type
-	Ret    util.Option[Type]
+	Ret    optional.Optional[Type]
 	End    reader.Position
 }
 
