@@ -56,8 +56,8 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) llvm.Value {
 		return self.codegenMethod(expr)
 	case *hir.Enum:
 		return self.codegenEnum(expr)
-	case *hir.MoveOrCopy:
-		return self.analyseMoveOrCopy(expr)
+	case *hir.Copy:
+		return self.analyseCopy(expr)
 	default:
 		panic("unreachable")
 	}
@@ -671,10 +671,6 @@ func (self *CodeGenerator) codegenEnum(ir *hir.Enum) llvm.Value {
 	return self.builder.CreateLoad("", ut, ptr)
 }
 
-func (self *CodeGenerator) analyseMoveOrCopy(ir *hir.MoveOrCopy) llvm.Value {
-	value := self.codegenExpr(ir.Value, true)
-	if ir.Value.Temporary() {
-		return value
-	}
-	return self.buildCopy(ir.GetType(), value)
+func (self *CodeGenerator) analyseCopy(ir *hir.Copy) llvm.Value {
+	return self.buildCopy(ir.GetType(), self.codegenExpr(ir.Value, true))
 }

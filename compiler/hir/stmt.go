@@ -43,7 +43,7 @@ func NewReturn(f CallableDef, value ...Expr) *Return {
 		Value: stlbasic.TernaryAction(stlslices.Empty(value), func() optional.Optional[Expr] {
 			return optional.None[Expr]()
 		}, func() optional.Optional[Expr] {
-			return optional.Some[Expr](&MoveOrCopy{Value: stlslices.Last(value)})
+			return optional.Some[Expr](NewMoveOrCopy(stlslices.Last(value)))
 		}),
 	}
 }
@@ -144,7 +144,7 @@ func NewLocalVarDef(mut bool, name string, t Type, value ...Expr) *LocalVarDef {
 		Value: stlbasic.TernaryAction(stlslices.Empty(value), func() optional.Optional[Expr] {
 			return optional.None[Expr]()
 		}, func() optional.Optional[Expr] {
-			return optional.Some[Expr](&MoveOrCopy{Value: stlslices.Last(value)})
+			return optional.Some[Expr](NewMoveOrCopy(stlslices.Last(value)))
 		}),
 	}
 }
@@ -152,7 +152,7 @@ func NewLocalVarDef(mut bool, name string, t Type, value ...Expr) *LocalVarDef {
 func (*LocalVarDef) stmt() {}
 
 func (self *LocalVarDef) SetValue(value Expr) {
-	self.Value = optional.Some[Expr](&MoveOrCopy{Value: value})
+	self.Value = optional.Some[Expr](NewMoveOrCopy(value))
 }
 
 // MultiLocalVarDef 多局部变量定义
