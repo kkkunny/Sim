@@ -66,6 +66,13 @@ type Assign struct {
 	Left, Right Expr
 }
 
+func NewAssign(l, r Expr) *Assign {
+	return &Assign{
+		Left:  l,
+		Right: &MoveOrCopy{Value: r},
+	}
+}
+
 func (self *Assign) stmt() {}
 
 func (self *Assign) GetType() Type {
@@ -661,6 +668,15 @@ type Call struct {
 	Args []Expr
 }
 
+func NewCall(f Expr, args ...Expr) *Call {
+	return &Call{
+		Func: f,
+		Args: stlslices.Map(args, func(_ int, a Expr) Expr {
+			return &MoveOrCopy{Value: a}
+		}),
+	}
+}
+
 func (self *Call) stmt() {}
 
 func (self *Call) GetType() Type {
@@ -1173,5 +1189,24 @@ func (self *Number2Enum) GetFrom() Expr {
 }
 
 func (*Number2Enum) Temporary() bool {
+	return true
+}
+
+// MoveOrCopy 移动或拷贝
+type MoveOrCopy struct {
+	Value Expr
+}
+
+func (self *MoveOrCopy) stmt() {}
+
+func (self *MoveOrCopy) GetType() Type {
+	return self.Value.GetType()
+}
+
+func (*MoveOrCopy) Mutable() bool {
+	return false
+}
+
+func (*MoveOrCopy) Temporary() bool {
 	return true
 }

@@ -78,28 +78,17 @@ func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
 	ft := f.GetFuncType()
 	if v, ok := node.Value.Value(); ok {
 		value := self.expectExpr(ft.Ret, v)
-		return &hir.Return{
-			Func:  f,
-			Value: optional.Some[hir.Expr](value),
-		}
+		return hir.NewReturn(f, value)
 	} else {
 		if !ft.Ret.EqualTo(hir.NoThing) {
 			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, hir.NoThing)
 		}
-		return &hir.Return{
-			Func:  f,
-			Value: optional.None[hir.Expr](),
-		}
+		return hir.NewReturn(f)
 	}
 }
 
 func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *hir.LocalVarDef {
-	v := &hir.LocalVarDef{
-		VarDecl: hir.VarDecl{
-			Mut:  node.Var.Mutable,
-			Name: node.Var.Name.Source(),
-		},
-	}
+	v := hir.NewLocalVarDef(node.Var.Mutable, node.Var.Name.Source(), nil)
 	if !self.localScope.SetValue(v.Name, v) {
 		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
@@ -107,12 +96,12 @@ func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *h
 	if typeNode, ok := node.Var.Type.Value(); ok {
 		v.Type = self.analyseType(typeNode)
 		if valueNode, ok := node.Value.Value(); ok {
-			v.Value = optional.Some(self.expectExpr(v.Type, valueNode))
+			v.SetValue(self.expectExpr(v.Type, valueNode))
 		} else {
-			v.Value = optional.Some[hir.Expr](self.getTypeDefaultValue(typeNode.Position(), v.Type))
+			v.SetValue(self.getTypeDefaultValue(typeNode.Position(), v.Type))
 		}
 	} else {
-		v.Value = optional.Some(self.analyseExpr(nil, node.Value.MustValue()))
+		v.SetValue(self.analyseExpr(nil, node.Value.MustValue()))
 		v.Type = v.Value.MustValue().GetType()
 	}
 	return v
@@ -121,12 +110,7 @@ func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *h
 func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *hir.MultiLocalVarDef {
 	allHaveType := true
 	vars := stlslices.Map(node.Vars, func(_ int, e ast.VarDef) *hir.LocalVarDef {
-		v := &hir.LocalVarDef{
-			VarDecl: hir.VarDecl{
-				Mut:  e.Mutable,
-				Name: e.Name.Source(),
-			},
-		}
+		v := hir.NewLocalVarDef(e.Mutable, e.Name.Source(), nil)
 		if typeNode, ok := e.Type.Value(); ok {
 			v.Type = self.analyseType(typeNode)
 		} else {
@@ -233,13 +217,7 @@ func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
 	et := hir.AsType[*hir.ArrayType](iterType).Elem
 	loop := &hir.For{
 		Iterator: iterator,
-		Cursor: &hir.LocalVarDef{
-			VarDecl: hir.VarDecl{
-				Mut:  node.CursorMut,
-				Type: et,
-				Name: node.Cursor.Source(),
-			},
-		},
+		Cursor:   hir.NewLocalVarDef(node.CursorMut, node.Cursor.Source(), et),
 	}
 	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {
 		if !scope.SetValue(loop.Cursor.Name, loop.Cursor) {

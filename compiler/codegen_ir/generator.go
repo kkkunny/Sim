@@ -47,7 +47,7 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 		return true
 	})
 	// 初始化函数
-	for _, b := range self.getInitFunction().Blocks() {
+	for _, b := range self.builder.GetInitFunction().Blocks() {
 		if !b.IsTerminating() {
 			self.builder.MoveToAfter(b)
 			self.builder.CreateRet(nil)
@@ -57,7 +57,7 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
 		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {
 			f := self.values.GetValue(funcNode).(llvm.Function)
-			self.builder.MoveToAfter(stlslices.First(self.getMainFunction().Blocks()))
+			self.builder.MoveToAfter(stlslices.First(self.builder.GetMainFunction().Blocks()))
 			self.builder.CreateCall("", f.FunctionType(), f)
 			self.builder.CreateRet(stlbasic.Ptr[llvm.Value](self.builder.ConstInteger(self.builder.IntegerType(8), 0)))
 			return false

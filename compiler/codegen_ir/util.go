@@ -254,25 +254,6 @@ func (self *CodeGenerator) buildStructIndex(st llvm.StructType, v llvm.Value, i 
 	}
 }
 
-func (self *CodeGenerator) getMainFunction() llvm.Function {
-	mainFn, ok := self.builder.GetFunction("main")
-	if !ok {
-		mainFn = self.builder.NewFunction("main", self.builder.FunctionType(false, self.builder.IntegerType(8)))
-		mainFn.NewBlock("")
-	}
-	return mainFn
-}
-
-func (self *CodeGenerator) getInitFunction() llvm.Function {
-	initFn, ok := self.builder.GetFunction("sim_runtime_init")
-	if !ok {
-		initFn = self.builder.NewFunction("sim_runtime_init", self.builder.FunctionType(false, self.builder.VoidType()))
-		self.builder.AddConstructor(65535, initFn)
-		initFn.NewBlock("")
-	}
-	return initFn
-}
-
 func (self *CodeGenerator) constString(s string) llvm.Constant {
 	if !self.strings.ContainKey(s) {
 		st := self.codegenType(self.hir.BuildinTypes.Str).(llvm.StructType)
@@ -391,7 +372,7 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 
 		// body
 		self.builder.MoveToAfter(bodyBlock)
-		self.buildStore(tir.Elem, self.buildArrayIndex(t, v, index, false), self.buildArrayIndex(t, newArrayPtr, index, true))
+		self.builder.CreateStore(self.buildCopy(tir.Elem, self.buildArrayIndex(t, v, index, false)), self.buildArrayIndex(t, newArrayPtr, index, true))
 		actionBlock := self.builder.CurrentFunction().NewBlock("")
 		self.builder.CreateBr(actionBlock)
 
@@ -424,7 +405,7 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 
 		newStructPtr := self.builder.CreateAlloca("", t)
 		for i := range t.Elems() {
-			self.buildStore(fields[i], self.buildStructIndex(t, v, uint(i), false), self.buildStructIndex(t, newStructPtr, uint(i), true))
+			self.builder.CreateStore(self.buildCopy(fields[i], self.buildStructIndex(t, v, uint(i), false)), self.buildStructIndex(t, newStructPtr, uint(i), true))
 		}
 		return self.builder.CreateLoad("", t, newStructPtr)
 	case *hir.EnumType:
@@ -495,17 +476,6 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 	default:
 		panic("unreachable")
 	}
-}
-
-func (self *CodeGenerator) buildStore(t hir.Type, from, to llvm.Value) llvm.Store {
-	return self.builder.CreateStore(self.buildCopy(t, from), to)
-}
-
-func (self *CodeGenerator) buildReturn(t hir.Type, v ...llvm.Value) llvm.Return {
-	if stlslices.Empty(v) {
-		return self.builder.CreateRet(nil)
-	}
-	return self.builder.CreateRet(stlbasic.Ptr(self.buildCopy(t, stlslices.First(v))))
 }
 
 // CodegenIr 中间代码生成

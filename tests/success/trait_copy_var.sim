@@ -9,12 +9,8 @@ func (A) copy(self: Self)Self{
 	return self
 }
 
-func get()A{
-	let a: A = A{v: 1}
-	return a
-}
-
 func main(){
-	let a = get()
-	os::exit(a.v)
+	let a: A = A{v: 1}
+	let b = a
+	os::exit(b.v)
 }

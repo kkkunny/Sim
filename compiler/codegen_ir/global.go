@@ -112,7 +112,7 @@ func (self *CodeGenerator) defFuncDecl(ir *hir.FuncDef) {
 
 func (self *CodeGenerator) defGlobalVariableDef(ir *hir.GlobalVarDef) {
 	gv := self.values.GetValue(ir).(llvm.GlobalValue)
-	self.builder.MoveToAfter(stlslices.First(self.getInitFunction().Blocks()))
+	self.builder.MoveToAfter(stlslices.First(self.builder.GetInitFunction().Blocks()))
 	value := self.codegenExpr(ir.Value.MustValue(), true)
 	if constValue, ok := value.(llvm.Constant); ok {
 		gv.SetInitializer(constValue)
@@ -132,7 +132,7 @@ func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
 			self.defGlobalVariableDef(varNode)
 		}
 	} else {
-		self.builder.MoveToAfter(stlslices.First(self.getInitFunction().Blocks()))
+		self.builder.MoveToAfter(stlslices.First(self.builder.GetInitFunction().Blocks()))
 		self.codegenUnTuple(ir.Value, stlslices.Map(ir.Vars, func(_ int, item *hir.GlobalVarDef) hir.Expr { return item }))
 	}
 }

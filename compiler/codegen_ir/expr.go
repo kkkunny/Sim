@@ -56,6 +56,8 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) llvm.Value {
 		return self.codegenMethod(expr)
 	case *hir.Enum:
 		return self.codegenEnum(expr)
+	case *hir.MoveOrCopy:
+		return self.analyseMoveOrCopy(expr)
 	default:
 		panic("unreachable")
 	}
@@ -75,17 +77,14 @@ func (self *CodeGenerator) codegenAssign(ir *hir.Assign) {
 		self.codegenUnTuple(ir.Right, l.Elems)
 	} else {
 		left, right := self.codegenExpr(ir.GetLeft(), false), self.codegenExpr(ir.GetRight(), true)
-		self.buildStore(ir.Right.GetType(), right, left)
+		self.builder.CreateStore(right, left)
 	}
 }
 
 func (self *CodeGenerator) codegenUnTuple(fromIr hir.Expr, toIrs []hir.Expr) {
 	if tupleNode, ok := fromIr.(*hir.Tuple); ok {
 		for i, l := range toIrs {
-			self.codegenAssign(&hir.Assign{
-				Left:  l,
-				Right: tupleNode.Elems[i],
-			})
+			self.codegenAssign(hir.NewAssign(l, tupleNode.Elems[i]))
 		}
 	} else {
 		var unTuple func(t hir.Type, from llvm.Value, toNodes []hir.Expr)
@@ -99,7 +98,7 @@ func (self *CodeGenerator) codegenUnTuple(fromIr hir.Expr, toIrs []hir.Expr) {
 				} else {
 					value := self.buildStructIndex(st, from, uint(i), false)
 					to := self.codegenExpr(toNode, false)
-					self.buildStore(tt.Elems[i], value, to)
+					self.builder.CreateStore(self.buildCopy(tt.Elems[i], value), to)
 				}
 			}
 		}
@@ -262,13 +261,13 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) llvm.Value {
 		this := self.codegenExpr(method.Self, true)
 		f := self.codegenExpr(method.Define, true)
 		args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) llvm.Value {
-			return self.buildCopy(e.GetType(), self.codegenExpr(e, true))
+			return self.codegenExpr(e, true)
 		})
 		return self.builder.CreateCall("", ft2, f, append([]llvm.Value{this}, args...)...)
 	} else {
 		f := self.codegenExpr(ir.Func, true)
 		args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) llvm.Value {
-			return self.buildCopy(e.GetType(), self.codegenExpr(e, true))
+			return self.codegenExpr(e, true)
 		})
 		if hir.IsType[*hir.LambdaType](ir.Func.GetType()) {
 			ctxPtr := self.buildStructIndex(st, f, 2, false)
@@ -458,7 +457,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 		return self.buildPackStruct(self.codegenTupleType(tir), elems...)
 	case *hir.CustomType:
 		if self.hir.BuildinTypes.Default.HasBeImpled(tir) {
-			return self.codegenCall(&hir.Call{Func: hir.LoopFindMethodWithSelf(tir, optional.None[hir.Expr](), self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()})
+			return self.codegenCall(hir.NewCall(hir.LoopFindMethodWithSelf(tir, optional.None[hir.Expr](), self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()))
 		}
 		return self.codegenDefault(tir.Target)
 	case *hir.StructType:
@@ -476,9 +475,9 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			self.funcCache.Set(key, fn)
 			self.builder.MoveToAfter(fn.NewBlock(""))
 			if ft.ReturnType().Equal(self.builder.VoidType()) {
-				self.buildReturn(nil)
+				self.builder.CreateRet(nil)
 			} else {
-				self.buildReturn(tir.Ret, self.codegenDefault(hir.AsType[*hir.FuncType](tir).Ret))
+				self.builder.CreateRet(stlbasic.Ptr(self.buildCopy(tir.Ret, self.codegenDefault(hir.AsType[*hir.FuncType](tir).Ret))))
 			}
 			self.builder.MoveToAfter(curBlock)
 		} else {
@@ -670,4 +669,12 @@ func (self *CodeGenerator) codegenEnum(ir *hir.Enum) llvm.Value {
 		self.buildStructIndex(ut, ptr, 1, true),
 	)
 	return self.builder.CreateLoad("", ut, ptr)
+}
+
+func (self *CodeGenerator) analyseMoveOrCopy(ir *hir.MoveOrCopy) llvm.Value {
+	value := self.codegenExpr(ir.Value, true)
+	if ir.Value.Temporary() {
+		return value
+	}
+	return self.buildCopy(ir.GetType(), value)
 }

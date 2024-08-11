@@ -1,9 +1,11 @@
 package hir
 
 import (
+	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
 )
 
 // Stmt 语句
@@ -33,6 +35,17 @@ func (*Block) stmt() {}
 type Return struct {
 	Func  CallableDef
 	Value optional.Optional[Expr]
+}
+
+func NewReturn(f CallableDef, value ...Expr) *Return {
+	return &Return{
+		Func: f,
+		Value: stlbasic.TernaryAction(stlslices.Empty(value), func() optional.Optional[Expr] {
+			return optional.None[Expr]()
+		}, func() optional.Optional[Expr] {
+			return optional.Some[Expr](&MoveOrCopy{Value: stlslices.Last(value)})
+		}),
+	}
 }
 
 func (*Return) stmt() {}
@@ -121,7 +134,26 @@ type LocalVarDef struct {
 	Escaped bool
 }
 
+func NewLocalVarDef(mut bool, name string, t Type, value ...Expr) *LocalVarDef {
+	return &LocalVarDef{
+		VarDecl: VarDecl{
+			Mut:  mut,
+			Name: name,
+			Type: t,
+		},
+		Value: stlbasic.TernaryAction(stlslices.Empty(value), func() optional.Optional[Expr] {
+			return optional.None[Expr]()
+		}, func() optional.Optional[Expr] {
+			return optional.Some[Expr](&MoveOrCopy{Value: stlslices.Last(value)})
+		}),
+	}
+}
+
 func (*LocalVarDef) stmt() {}
+
+func (self *LocalVarDef) SetValue(value Expr) {
+	self.Value = optional.Some[Expr](&MoveOrCopy{Value: value})
+}
 
 // MultiLocalVarDef 多局部变量定义
 type MultiLocalVarDef struct {
