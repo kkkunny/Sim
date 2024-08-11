@@ -10,10 +10,6 @@ type Function struct {
 var FuncList = [...]Function{
 	// runtime
 	{
-		Name: "sim_runtime_str_eq_str",
-		To:   StrEqStr,
-	},
-	{
 		Name: "sim_runtime_debug",
 		To:   Debug,
 	},

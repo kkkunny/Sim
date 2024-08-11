@@ -308,7 +308,7 @@ func (self *Analyser) analyseFuncDecl(node ast.FuncDecl) hir.FuncDecl {
 // 类型是否有默认值
 func (self *Analyser) hasTypeDefault(t hir.Type) bool {
 	switch tt := t.(type) {
-	case *hir.NoThingType, *hir.NoReturnType:
+	case *hir.NoThingType, *hir.NoReturnType, *hir.RefType:
 		return false
 	case *hir.SintType, *hir.UintType, *hir.FloatType:
 		return true
@@ -329,11 +329,6 @@ func (self *Analyser) hasTypeDefault(t hir.Type) bool {
 		return self.hasTypeDefault(tt.Target)
 	case *hir.AliasType:
 		return self.hasTypeDefault(tt.Target)
-	case *hir.RefType:
-		if tt.Elem.EqualTo(self.pkgScope.Str()) {
-			return true
-		}
-		return false
 	case *hir.ArrayType:
 		return self.hasTypeDefault(tt.Elem)
 	case *hir.TupleType:

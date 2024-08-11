@@ -875,7 +875,7 @@ func (self *Analyser) analyseString(node *ast.String) *hir.String {
 	s := node.Value.Source()
 	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
 	return &hir.String{
-		Type:  hir.NewRefType(false, self.pkgScope.Str()),
+		Type:  self.pkgScope.Str(),
 		Value: s,
 	}
 }

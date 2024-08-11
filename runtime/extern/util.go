@@ -9,8 +9,6 @@ import "C"
 import (
 	"unsafe"
 
-	stlbasic "github.com/kkkunny/stl/basic"
-
 	"github.com/kkkunny/Sim/runtime/types"
 )
 
@@ -26,15 +24,10 @@ func GCFree(p types.Ptr) {
 	C.free(unsafe.Pointer(p))
 }
 
-// StrEqStr 字符串比较
-func StrEqStr(l, r types.Str) types.Bool {
-	return types.NewBool(l.Value() == r.Value())
-}
-
 // CheckNull 检查空指针
 func CheckNull(p types.Ptr) types.Ptr {
 	if p == nil {
-		Panic(stlbasic.Ptr(types.NewStr("zero exception")))
+		Panic(types.NewStr("zero exception"))
 	}
 	return p
 }

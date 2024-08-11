@@ -405,7 +405,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	switch tir := hir.ToRuntimeType(ir).(type) {
 	case *hir.RefType:
 		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str) {
-			return self.constStringPtr("")
+			return self.constString("")
 		}
 		panic("unreachable")
 	case *hir.SintType, *hir.UintType, *hir.FloatType:
@@ -551,7 +551,7 @@ func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) llvm.Value 
 }
 
 func (self *CodeGenerator) codegenString(ir *hir.String) llvm.Value {
-	return self.constStringPtr(ir.Value)
+	return self.constString(ir.Value)
 }
 
 func (self *CodeGenerator) codegenTypeJudgment(ir *hir.TypeJudgment) llvm.Value {

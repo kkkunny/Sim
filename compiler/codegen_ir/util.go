@@ -121,17 +121,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 		}
 		return phi
 	case *hir.CustomType:
-		switch {
-		case irType.EqualTo(self.hir.BuildinTypes.Str):
-			f := self.builder.GetExternFunction("sim_runtime_str_eq_str", self.builder.FunctionType(false, self.boolType(), l.Type(), r.Type()))
-			var res llvm.Value = self.builder.CreateCall("", f.FunctionType(), f, l, r)
-			if not {
-				res = self.builder.CreateNot("", res)
-			}
-			return res
-		default:
-			return self.buildEqual(irType.Target, l, r, not)
-		}
+		return self.buildEqual(irType.Target, l, r, not)
 	case *hir.LambdaType:
 		st := self.codegenType(irType).(llvm.StructType)
 		f1p := self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 0, false), self.buildStructIndex(st, r, 0, false))
@@ -283,7 +273,7 @@ func (self *CodeGenerator) getInitFunction() llvm.Function {
 	return initFn
 }
 
-func (self *CodeGenerator) constStringPtr(s string) llvm.Constant {
+func (self *CodeGenerator) constString(s string) llvm.Constant {
 	if !self.strings.ContainKey(s) {
 		st := self.codegenType(self.hir.BuildinTypes.Str).(llvm.StructType)
 		dataPtr := stlbasic.TernaryAction(s == "", func() llvm.Constant {
@@ -291,18 +281,11 @@ func (self *CodeGenerator) constStringPtr(s string) llvm.Constant {
 		}, func() llvm.Constant {
 			data := self.builder.NewConstant("", self.builder.ConstString(s))
 			data.SetLinkage(llvm.PrivateLinkage)
-			return self.builder.ConstInBoundsGEP(
-				data.Type(),
-				data,
-				self.builder.ConstIntPtr(0),
-				self.builder.ConstIntPtr(0),
-			)
+			return data
 		})
-		str := self.builder.NewConstant("", self.builder.ConstStruct(false, dataPtr, self.builder.ConstIntPtr(int64(len(s)))))
-		str.SetLinkage(llvm.PrivateLinkage)
-		self.strings.Set(s, str)
+		self.strings.Set(s, dataPtr)
 	}
-	return self.strings.Get(s)
+	return self.builder.ConstStruct(false, self.strings.Get(s), self.builder.ConstIntPtr(int64(len(s))))
 }
 
 func (self *CodeGenerator) buildPackStruct(st llvm.StructType, elems ...llvm.Value) llvm.Value {
@@ -325,7 +308,7 @@ func (self *CodeGenerator) buildPackArray(at llvm.ArrayType, elems ...llvm.Value
 
 func (self *CodeGenerator) buildPanic(s string) {
 	fn := self.builder.GetExternFunction("sim_runtime_panic", self.builder.FunctionType(false, self.builder.VoidType(), self.builder.OpaquePointerType()))
-	self.builder.CreateCall("", fn.FunctionType(), fn, self.constStringPtr(s))
+	self.builder.CreateCall("", fn.FunctionType(), fn, self.constString(s))
 	self.builder.CreateUnreachable()
 }
 
