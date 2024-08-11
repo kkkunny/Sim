@@ -9,6 +9,7 @@ import (
 	"github.com/kkkunny/stl/container/queue"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
+	llvmUtil "github.com/kkkunny/Sim/compiler/codegen_ir/llvm"
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
@@ -16,10 +17,7 @@ import (
 type CodeGenerator struct {
 	hir *hir.Result
 
-	target  llvm.Target
-	ctx     llvm.Context
-	module  llvm.Module
-	builder llvm.Builder
+	builder *llvmUtil.Builder
 
 	values           bimap.BiMap[hir.Expr, llvm.Value]
 	types            hashmap.HashMap[*hir.CustomType, llvm.StructType]
@@ -30,15 +28,9 @@ type CodeGenerator struct {
 }
 
 func New(target llvm.Target, ir *hir.Result) *CodeGenerator {
-	ctx := llvm.GlobalContext
-	module := ctx.NewModule("main")
-	module.SetTarget(target)
 	return &CodeGenerator{
 		hir:     ir,
-		target:  target,
-		ctx:     ctx,
-		module:  module,
-		builder: ctx.NewBuilder(),
+		builder: llvmUtil.NewBuilder(target),
 	}
 }
 
@@ -67,10 +59,10 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 			f := self.values.GetValue(funcNode).(llvm.Function)
 			self.builder.MoveToAfter(stlslices.First(self.getMainFunction().Blocks()))
 			self.builder.CreateCall("", f.FunctionType(), f)
-			self.builder.CreateRet(stlbasic.Ptr[llvm.Value](self.ctx.ConstInteger(self.ctx.IntegerType(8), 0)))
+			self.builder.CreateRet(stlbasic.Ptr[llvm.Value](self.builder.ConstInteger(self.builder.IntegerType(8), 0)))
 			return false
 		}
 		return true
 	})
-	return self.module
+	return self.builder.Module
 }

@@ -62,12 +62,12 @@ func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenInteger(ir *hir.Integer) llvm.ConstInteger {
-	return self.ctx.ConstInteger(self.codegenType(ir.Type).(llvm.IntegerType), ir.Value.Int64())
+	return self.builder.ConstInteger(self.codegenType(ir.Type).(llvm.IntegerType), ir.Value.Int64())
 }
 
 func (self *CodeGenerator) codegenFloat(ir *hir.Float) llvm.ConstFloat {
 	v, _ := ir.Value.Float64()
-	return self.ctx.ConstFloat(self.codegenType(ir.Type).(llvm.FloatType), v)
+	return self.builder.ConstFloat(self.codegenType(ir.Type).(llvm.FloatType), v)
 }
 
 func (self *CodeGenerator) codegenAssign(ir *hir.Assign) {
@@ -272,9 +272,9 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) llvm.Value {
 		})
 		if hir.IsType[*hir.LambdaType](ir.Func.GetType()) {
 			ctxPtr := self.buildStructIndex(st, f, 2, false)
-			cf := self.builder.CurrentBlock().Belong()
+			cf := self.builder.CurrentFunction()
 			f1block, f2block, endblock := cf.NewBlock(""), cf.NewBlock(""), cf.NewBlock("")
-			self.builder.CreateCondBr(self.builder.CreateIntCmp("", llvm.IntEQ, ctxPtr, self.ctx.ConstZero(ctxPtr.Type())), f1block, f2block)
+			self.builder.CreateCondBr(self.builder.CreateIntCmp("", llvm.IntEQ, ctxPtr, self.builder.ConstZero(ctxPtr.Type())), f1block, f2block)
 
 			self.builder.MoveToAfter(f1block)
 			f1ret := self.builder.CreateCall("", ft1, self.buildStructIndex(st, f, 0, false), args...)
@@ -285,7 +285,7 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) llvm.Value {
 			self.builder.CreateBr(endblock)
 
 			self.builder.MoveToAfter(endblock)
-			if f1ret.Type().Equal(self.ctx.VoidType()) {
+			if f1ret.Type().Equal(self.builder.VoidType()) {
 				return f1ret
 			} else {
 				return self.builder.CreatePHI(
@@ -355,12 +355,12 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) llvm.Valu
 		if ir.GetType().EqualTo(hir.NoThing) {
 			return v
 		} else {
-			return self.ctx.ConstZero(self.codegenType(ir.GetType()))
+			return self.builder.ConstZero(self.codegenType(ir.GetType()))
 		}
 	case *hir.Func2Lambda:
 		t := self.codegenType(ir.GetType()).(llvm.StructType)
 		f := self.codegenExpr(ir.GetFrom(), true)
-		return self.buildPackStruct(t, f, self.ctx.ConstZero(t.Elems()[1]), self.ctx.ConstZero(t.Elems()[2]))
+		return self.buildPackStruct(t, f, self.builder.ConstZero(t.Elems()[1]), self.builder.ConstZero(t.Elems()[2]))
 	default:
 		panic("unreachable")
 	}
@@ -409,38 +409,38 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 		}
 		panic("unreachable")
 	case *hir.SintType, *hir.UintType, *hir.FloatType:
-		return self.ctx.ConstZero(self.codegenType(ir))
+		return self.builder.ConstZero(self.codegenType(ir))
 	case *hir.ArrayType:
 		at := self.codegenArrayType(tir)
 		if tir.Size == 0 {
-			return self.ctx.ConstZero(at)
+			return self.builder.ConstZero(at)
 		}
 
 		key := fmt.Sprintf("default:%s", tir.String())
 		var fn llvm.Function
 		if !self.funcCache.ContainKey(key) {
 			curBlock := self.builder.CurrentBlock()
-			ft := self.ctx.FunctionType(false, at)
-			fn = self.module.NewFunction("", ft)
+			ft := self.builder.FunctionType(false, at)
+			fn = self.builder.NewFunction("", ft)
 			self.funcCache.Set(key, fn)
 			self.builder.MoveToAfter(fn.NewBlock(""))
 
 			arrayPtr := self.builder.CreateAlloca("", at)
-			indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
-			self.builder.CreateStore(self.ctx.ConstZero(self.ctx.IntPtrType(self.target)), indexPtr)
+			indexPtr := self.builder.CreateAlloca("", self.builder.IntPtrType())
+			self.builder.CreateStore(self.builder.ConstZero(self.builder.IntPtrType()), indexPtr)
 			condBlock := fn.NewBlock("")
 			self.builder.CreateBr(condBlock)
 
 			self.builder.MoveToAfter(condBlock)
-			index := self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr)
-			cond := self.builder.CreateIntCmp("", llvm.IntULT, index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(tir.Size)))
+			index := self.builder.CreateLoad("", self.builder.IntPtrType(), indexPtr)
+			cond := self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIntPtr(int64(tir.Size)))
 			loopBlock, endBlock := fn.NewBlock(""), fn.NewBlock("")
 			self.builder.CreateCondBr(cond, loopBlock, endBlock)
 
 			self.builder.MoveToAfter(loopBlock)
 			elemPtr := self.buildArrayIndex(at, arrayPtr, index, true)
 			self.builder.CreateStore(self.codegenDefault(tir.Elem), elemPtr)
-			self.builder.CreateStore(self.builder.CreateUAdd("", index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
+			self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIntPtr(1)), indexPtr)
 			self.builder.CreateBr(condBlock)
 
 			self.builder.MoveToAfter(endBlock)
@@ -472,10 +472,10 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 		var fn llvm.Function
 		if !self.funcCache.ContainKey(key) {
 			curBlock := self.builder.CurrentBlock()
-			fn = self.module.NewFunction("", ft)
+			fn = self.builder.NewFunction("", ft)
 			self.funcCache.Set(key, fn)
 			self.builder.MoveToAfter(fn.NewBlock(""))
-			if ft.ReturnType().Equal(self.ctx.VoidType()) {
+			if ft.ReturnType().Equal(self.builder.VoidType()) {
 				self.buildReturn(nil)
 			} else {
 				self.buildReturn(tir.Ret, self.codegenDefault(hir.AsType[*hir.FuncType](tir).Ret))
@@ -488,10 +488,10 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	case *hir.LambdaType:
 		t := self.codegenLambdaType(tir)
 		fn := self.codegenDefault(tir.ToFuncType())
-		return self.buildPackStruct(t, fn, self.ctx.ConstZero(t.Elems()[1]), self.ctx.ConstZero(t.Elems()[2]))
+		return self.buildPackStruct(t, fn, self.builder.ConstZero(t.Elems()[1]), self.builder.ConstZero(t.Elems()[2]))
 	case *hir.EnumType:
 		if tir.IsSimple() {
-			return self.ctx.ConstInteger(self.codegenType(tir).(llvm.IntegerType), 0)
+			return self.builder.ConstInteger(self.codegenType(tir).(llvm.IntegerType), 0)
 		}
 
 		f := func(e optional.Optional[hir.Type]) (v llvm.Value, ok bool) {
@@ -525,7 +525,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			self.builder.CreateStore(data, self.buildStructIndex(ut, ptr, 0, true))
 		}
 		self.builder.CreateStore(
-			self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)),
+			self.builder.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)),
 			self.buildStructIndex(ut, ptr, 1, true),
 		)
 		return self.builder.CreateLoad("", ut, ptr)
@@ -555,14 +555,14 @@ func (self *CodeGenerator) codegenString(ir *hir.String) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenTypeJudgment(ir *hir.TypeJudgment) llvm.Value {
-	return self.builder.CreateZExt("", self.ctx.ConstBoolean(ir.Value.GetType().EqualTo(ir.Type)), self.boolType())
+	return self.builder.CreateZExt("", self.builder.ConstBoolean(ir.Value.GetType().EqualTo(ir.Type)), self.boolType())
 }
 
 func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 	ft1, st, ft2 := self.codegenCallableType(hir.AsType[hir.CallableType](ir.GetType()))
 	isSimpleFunc := len(ir.Context) == 0
 	ft := stlbasic.Ternary(isSimpleFunc, ft1, ft2)
-	f := self.module.NewFunction("", ft)
+	f := self.builder.NewFunction("", ft)
 	if ir.Ret.EqualTo(hir.NoReturn) {
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}
@@ -580,10 +580,10 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 		self.builder.CreateBr(block)
 		self.builder.MoveToAfter(preBlock)
 
-		return self.buildPackStruct(st, f, self.ctx.ConstZero(st.GetElem(1)), self.ctx.ConstZero(st.GetElem(2)))
+		return self.buildPackStruct(st, f, self.builder.ConstZero(st.GetElem(1)), self.builder.ConstZero(st.GetElem(2)))
 	} else {
-		ctxType := self.ctx.StructType(false, stlslices.Map(ir.Context, func(_ int, e hir.Ident) llvm.Type {
-			return self.ctx.OpaquePointerType()
+		ctxType := self.builder.StructType(false, stlslices.Map(ir.Context, func(_ int, e hir.Ident) llvm.Type {
+			return self.builder.OpaquePointerType()
 		})...)
 		externalCtxPtr := self.buildMalloc(ctxType)
 		for i, identIr := range ir.Context {
@@ -615,18 +615,18 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 		self.builder.CreateBr(block)
 		self.builder.MoveToAfter(preBlock)
 
-		return self.buildPackStruct(st, self.ctx.ConstZero(st.GetElem(0)), f, externalCtxPtr)
+		return self.buildPackStruct(st, self.builder.ConstZero(st.GetElem(0)), f, externalCtxPtr)
 	}
 }
 
 func (self *CodeGenerator) codegenMethod(ir *hir.Method) llvm.Value {
 	_, st, ft2 := self.codegenCallableType(hir.AsType[hir.CallableType](ir.GetType()))
-	f := self.module.NewFunction("", ft2)
+	f := self.builder.NewFunction("", ft2)
 	if ir.Define.Ret.EqualTo(hir.NoReturn) {
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}
 
-	ctxType := self.ctx.StructType(false, self.codegenType(ir.Self.GetType()))
+	ctxType := self.builder.StructType(false, self.codegenType(ir.Self.GetType()))
 	externalCtxPtr := self.buildMalloc(ctxType)
 	self.builder.CreateStore(
 		self.codegenExpr(ir.Self, true),
@@ -642,21 +642,21 @@ func (self *CodeGenerator) codegenMethod(ir *hir.Method) llvm.Value {
 		return e
 	})...)
 	ret := self.builder.CreateCall("", self.codegenFuncType(ir.Define.GetMethodType()), method, args...)
-	if ret.Type().Equal(self.ctx.VoidType()) {
+	if ret.Type().Equal(self.builder.VoidType()) {
 		self.builder.CreateRet(nil)
 	} else {
 		self.builder.CreateRet(stlbasic.Ptr[llvm.Value](ret))
 	}
 
 	self.builder.MoveToAfter(preBlock)
-	return self.buildPackStruct(st, self.ctx.ConstZero(st.GetElem(0)), f, externalCtxPtr)
+	return self.buildPackStruct(st, self.builder.ConstZero(st.GetElem(0)), f, externalCtxPtr)
 }
 
 func (self *CodeGenerator) codegenEnum(ir *hir.Enum) llvm.Value {
 	etIr := hir.AsType[*hir.EnumType](ir.GetType())
 	index := slices.Index(etIr.Fields.Keys().ToSlice(), ir.Field)
 	if etIr.IsSimple() {
-		return self.ctx.ConstInteger(self.codegenType(etIr).(llvm.IntegerType), int64(index))
+		return self.builder.ConstInteger(self.codegenType(etIr).(llvm.IntegerType), int64(index))
 	}
 
 	ut := self.codegenType(ir.GetType()).(llvm.StructType)
@@ -666,7 +666,7 @@ func (self *CodeGenerator) codegenEnum(ir *hir.Enum) llvm.Value {
 		self.builder.CreateStore(value, self.buildStructIndex(ut, ptr, 0, true))
 	}
 	self.builder.CreateStore(
-		self.ctx.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)),
+		self.builder.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)),
 		self.buildStructIndex(ut, ptr, 1, true),
 	)
 	return self.builder.CreateLoad("", ut, ptr)

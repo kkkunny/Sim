@@ -123,7 +123,7 @@ func (self *CodeGenerator) codegenIfElse(ir *hir.IfElse) {
 
 func (self *CodeGenerator) codegenIfElseNode(ir *hir.IfElse) []llvm.Block {
 	if condNode, ok := ir.Cond.Value(); ok {
-		cond := self.builder.CreateTrunc("", self.codegenExpr(condNode, true), self.ctx.BooleanType())
+		cond := self.builder.CreateTrunc("", self.codegenExpr(condNode, true), self.builder.BooleanType())
 		trueStartBlock, trueEndBlock := self.codegenBlock(ir.Body, nil)
 		falseBlock := trueStartBlock.Belong().NewBlock("")
 		self.builder.CreateCondBr(cond, trueStartBlock, falseBlock)
@@ -168,12 +168,12 @@ func (self *whileLoop) GetNextBlock() llvm.Block {
 }
 
 func (self *CodeGenerator) codegenWhile(ir *hir.While) {
-	f := self.builder.CurrentBlock().Belong()
+	f := self.builder.CurrentFunction()
 	condBlock, endBlock := f.NewBlock(""), f.NewBlock("")
 
 	self.builder.CreateBr(condBlock)
 	self.builder.MoveToAfter(condBlock)
-	cond := self.builder.CreateTrunc("", self.codegenExpr(ir.Cond, true), self.ctx.BooleanType())
+	cond := self.builder.CreateTrunc("", self.codegenExpr(ir.Cond, true), self.builder.BooleanType())
 
 	bodyEntryBlock, bodyEndBlock := self.codegenBlock(ir.Body, func(block llvm.Block) {
 		self.loops.Set(ir, &whileLoop{Cond: condBlock, Out: optional.Some(endBlock)})
@@ -189,7 +189,7 @@ func (self *CodeGenerator) codegenWhile(ir *hir.While) {
 func (self *CodeGenerator) codegenBreak(ir *hir.Break) {
 	loop := self.loops.Get(ir.Loop)
 	if _, ok := loop.GetOutBlock(); !ok {
-		loop.SetOutBlock(self.builder.CurrentBlock().Belong().NewBlock(""))
+		loop.SetOutBlock(self.builder.CurrentFunction().NewBlock(""))
 	}
 	endBlock, _ := loop.GetOutBlock()
 	self.builder.CreateBr(endBlock)
@@ -219,10 +219,10 @@ func (self *CodeGenerator) codegenFor(ir *hir.For) {
 	// pre
 	size := hir.AsType[*hir.ArrayType](ir.Iterator.GetType()).Size
 	iter := self.codegenExpr(ir.Iterator, false)
-	indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
-	self.builder.CreateStore(self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0), indexPtr)
+	indexPtr := self.builder.CreateAlloca("", self.builder.IntPtrType())
+	self.builder.CreateStore(self.builder.ConstIntPtr(0), indexPtr)
 	cursorPtr := self.codegenLocalVariable(ir.Cursor)
-	condBlock := self.builder.CurrentBlock().Belong().NewBlock("")
+	condBlock := self.builder.CurrentFunction().NewBlock("")
 	self.builder.CreateBr(condBlock)
 	self.builder.MoveToAfter(condBlock)
 	var actionBlock llvm.Block
@@ -238,16 +238,16 @@ func (self *CodeGenerator) codegenFor(ir *hir.For) {
 
 		// cond
 		self.builder.MoveToAfter(condBlock)
-		index := self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr)
+		index := self.builder.CreateLoad("", self.builder.IntPtrType(), indexPtr)
 		self.builder.CreateCondBr(
-			self.builder.CreateIntCmp("", llvm.IntULT, index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(size))),
+			self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIntPtr(int64(size))),
 			entry,
 			outBlock,
 		)
 
 		// action
 		self.builder.MoveToAfter(actionBlock)
-		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
+		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIntPtr(1)), indexPtr)
 		self.builder.CreateBr(condBlock)
 
 		// body
@@ -319,7 +319,7 @@ func (self *CodeGenerator) codegenMatch(ir *hir.Match) {
 		cases = append(cases, struct {
 			Value llvm.Value
 			Block llvm.Block
-		}{Value: self.ctx.ConstInteger(index.Type().(llvm.IntegerType), int64(caseIndex)), Block: caseBlock})
+		}{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(caseIndex)), Block: caseBlock})
 	}
 
 	var otherBlock llvm.Block

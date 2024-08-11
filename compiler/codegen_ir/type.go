@@ -37,15 +37,15 @@ func (self *CodeGenerator) codegenType(t hir.Type) llvm.Type {
 }
 
 func (self *CodeGenerator) codegenEmptyType() llvm.VoidType {
-	return self.ctx.VoidType()
+	return self.builder.VoidType()
 }
 
 func (self *CodeGenerator) codegenSintType(ir *hir.SintType) llvm.IntegerType {
-	return self.ctx.IntegerType(uint32(ir.Bits))
+	return self.builder.IntegerType(uint32(ir.Bits))
 }
 
 func (self *CodeGenerator) codegenUintType(ir *hir.UintType) llvm.IntegerType {
-	return self.ctx.IntegerType(uint32(ir.Bits))
+	return self.builder.IntegerType(uint32(ir.Bits))
 }
 
 func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) llvm.FloatType {
@@ -62,7 +62,7 @@ func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) llvm.FloatType {
 	default:
 		panic("unreachable")
 	}
-	return self.ctx.FloatType(ft)
+	return self.builder.FloatType(ft)
 }
 
 func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) llvm.FunctionType {
@@ -77,29 +77,29 @@ func (self *CodeGenerator) codegenCallableType(ir hir.CallableType) (llvm.Functi
 		params := stlslices.Map(ft.Params, func(_ int, e hir.Type) llvm.Type {
 			return self.codegenType(e)
 		})
-		return self.ctx.FunctionType(false, ret, params...), llvm.StructType{}, llvm.FunctionType{}
+		return self.builder.FunctionType(false, ret, params...), llvm.StructType{}, llvm.FunctionType{}
 	} else {
 		lbdt := hir.AsType[*hir.LambdaType](ir)
 		ret := self.codegenType(lbdt.Ret)
 		params := stlslices.Map(lbdt.Params, func(_ int, e hir.Type) llvm.Type {
 			return self.codegenType(e)
 		})
-		ft1 := self.ctx.FunctionType(false, ret, params...)
-		ft2 := self.ctx.FunctionType(false, ret, append([]llvm.Type{self.ctx.OpaquePointerType()}, params...)...)
-		return ft1, self.ctx.StructType(false, self.ctx.OpaquePointerType(), self.ctx.OpaquePointerType(), self.ctx.OpaquePointerType()), ft2
+		ft1 := self.builder.FunctionType(false, ret, params...)
+		ft2 := self.builder.FunctionType(false, ret, append([]llvm.Type{self.builder.OpaquePointerType()}, params...)...)
+		return ft1, self.builder.StructType(false, self.builder.OpaquePointerType(), self.builder.OpaquePointerType(), self.builder.OpaquePointerType()), ft2
 	}
 }
 
 func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) llvm.ArrayType {
 	elem := self.codegenType(ir.Elem)
-	return self.ctx.ArrayType(elem, uint32(ir.Size))
+	return self.builder.ArrayType(elem, uint32(ir.Size))
 }
 
 func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) llvm.StructType {
 	elems := stlslices.Map(ir.Elems, func(_ int, e hir.Type) llvm.Type {
 		return self.codegenType(e)
 	})
-	return self.ctx.StructType(false, elems...)
+	return self.builder.StructType(false, elems...)
 }
 
 func (self *CodeGenerator) codegenCustomType(ir *hir.CustomType) llvm.Type {
@@ -110,7 +110,7 @@ func (self *CodeGenerator) codegenStructType(ir *hir.StructType) llvm.StructType
 	if self.types.ContainKey(ir.Def) {
 		return self.types.Get(ir.Def)
 	}
-	st := self.ctx.NamedStructType("", false)
+	st := self.builder.NamedStructType("", false)
 	self.types.Set(ir.Def, st)
 	st.SetElems(false, stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e hir.Field) llvm.Type {
 		return self.codegenType(e.Type)
@@ -119,7 +119,7 @@ func (self *CodeGenerator) codegenStructType(ir *hir.StructType) llvm.StructType
 }
 
 func (self *CodeGenerator) codegenRefType() llvm.PointerType {
-	return self.ctx.OpaquePointerType()
+	return self.builder.OpaquePointerType()
 }
 
 func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) llvm.StructType {
@@ -129,13 +129,13 @@ func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) llvm.StructType
 
 func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) llvm.Type {
 	if ir.IsSimple() {
-		return self.ctx.IntegerType(8)
+		return self.builder.IntegerType(8)
 	}
 
 	if self.types.ContainKey(ir.Def) {
 		return self.types.Get(ir.Def)
 	}
-	st := self.ctx.NamedStructType("", false)
+	st := self.builder.NamedStructType("", false)
 	self.types.Set(ir.Def, st)
 	var maxSizeType llvm.Type
 	var maxSize uint
@@ -144,10 +144,10 @@ func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) llvm.Type {
 			continue
 		}
 		et := self.codegenType(iter.Value().Second.Elem.MustValue())
-		if esize := self.target.GetStoreSizeOfType(et); esize > maxSize {
+		if esize := self.builder.GetStoreSizeOfType(et); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}
 	}
-	st.SetElems(false, maxSizeType, self.ctx.IntegerType(8))
+	st.SetElems(false, maxSizeType, self.builder.IntegerType(8))
 	return st
 }

@@ -28,9 +28,9 @@ func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
 func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 	ft := self.codegenFuncType(ir.GetFuncType())
 	if ir.VarArg {
-		ft = self.ctx.FunctionType(true, ft.ReturnType(), ft.Params()...)
+		ft = self.builder.FunctionType(true, ft.ReturnType(), ft.Params()...)
 	}
-	f := self.module.NewFunction(ir.ExternName, ft)
+	f := self.builder.NewFunction(ir.ExternName, ft)
 	if ir.ExternName == "" {
 		f.SetLinkage(llvm.PrivateLinkage)
 	} else {
@@ -51,7 +51,7 @@ func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
 
 func (self *CodeGenerator) declGlobalVariable(ir *hir.GlobalVarDef) {
 	t := self.codegenType(ir.Type)
-	v := self.module.NewGlobal(ir.ExternName, t, nil)
+	v := self.builder.NewGlobal(ir.ExternName, t, nil)
 	if ir.ExternName == "" {
 		v.SetLinkage(llvm.PrivateLinkage)
 	} else {

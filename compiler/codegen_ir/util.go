@@ -13,15 +13,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (self *CodeGenerator) getExternFunction(name string, t llvm.FunctionType) llvm.Function {
-	fn, ok := self.module.GetFunction(name)
-	if !ok {
-		fn = self.module.NewFunction(name, t)
-		fn.SetLinkage(llvm.ExternalLinkage)
-	}
-	return fn
-}
-
 func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llvm.Value {
 	switch irType := hir.ToRuntimeType(t).(type) {
 	case *hir.SintType, *hir.UintType, *hir.RefType:
@@ -31,19 +22,19 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 	case *hir.ArrayType:
 		t := self.codegenType(irType).(llvm.ArrayType)
 		if t.Capacity() == 0 {
-			return self.ctx.ConstBoolean(true)
+			return self.builder.ConstBoolean(true)
 		}
 
-		indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
-		self.builder.CreateStore(self.ctx.ConstZero(self.ctx.IntPtrType(self.target)), indexPtr)
-		condBlock := self.builder.CurrentBlock().Belong().NewBlock("")
+		indexPtr := self.builder.CreateAlloca("", self.builder.IntPtrType())
+		self.builder.CreateStore(self.builder.ConstZero(self.builder.IntPtrType()), indexPtr)
+		condBlock := self.builder.CurrentFunction().NewBlock("")
 		self.builder.CreateBr(condBlock)
 
 		// cond
 		self.builder.MoveToAfter(condBlock)
-		index := self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr)
-		var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(t.Capacity())))
-		bodyBlock, outBlock := self.builder.CurrentBlock().Belong().NewBlock(""), self.builder.CurrentBlock().Belong().NewBlock("")
+		index := self.builder.CreateLoad("", self.builder.IntPtrType(), indexPtr)
+		var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIntPtr(int64(t.Capacity())))
+		bodyBlock, outBlock := self.builder.CurrentFunction().NewBlock(""), self.builder.CurrentFunction().NewBlock("")
 		self.builder.CreateCondBr(cond, bodyBlock, outBlock)
 
 		// body
@@ -55,22 +46,22 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 
 		// action
 		self.builder.MoveToAfter(actionBlock)
-		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
+		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIntPtr(1)), indexPtr)
 		self.builder.CreateBr(condBlock)
 
 		// out
 		self.builder.MoveToAfter(outBlock)
 		phi := self.builder.CreatePHI(
 			"",
-			self.ctx.BooleanType(),
+			self.builder.BooleanType(),
 			struct {
 				Value llvm.Value
 				Block llvm.Block
-			}{Value: self.ctx.ConstBoolean(true), Block: condBlock},
+			}{Value: self.builder.ConstBoolean(true), Block: condBlock},
 			struct {
 				Value llvm.Value
 				Block llvm.Block
-			}{Value: self.ctx.ConstBoolean(false), Block: bodyEndBlock},
+			}{Value: self.builder.ConstBoolean(false), Block: bodyEndBlock},
 		)
 		if not {
 			return self.builder.CreateNot("", phi)
@@ -93,7 +84,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 		})
 
 		if len(t.Elems()) == 0 {
-			return self.ctx.ConstBoolean(true)
+			return self.builder.ConstBoolean(true)
 		}
 
 		beginBlock := self.builder.CurrentBlock()
@@ -118,12 +109,12 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 			self.builder.MoveToAfter(p.Second)
 		}
 
-		phi := self.builder.CreatePHI("", self.ctx.BooleanType())
+		phi := self.builder.CreatePHI("", self.builder.BooleanType())
 		for i, b := range srcBlocks {
 			phi.AddIncomings(struct {
 				Value llvm.Value
 				Block llvm.Block
-			}{Value: stlbasic.Ternary[llvm.Value](i != len(srcBlocks)-1, self.ctx.ConstBoolean(false), stlslices.Last(nextBlocks).First), Block: b})
+			}{Value: stlbasic.Ternary[llvm.Value](i != len(srcBlocks)-1, self.builder.ConstBoolean(false), stlslices.Last(nextBlocks).First), Block: b})
 		}
 		if not {
 			return self.builder.CreateNot("", phi)
@@ -132,7 +123,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 	case *hir.CustomType:
 		switch {
 		case irType.EqualTo(self.hir.BuildinTypes.Str):
-			f := self.getExternFunction("sim_runtime_str_eq_str", self.ctx.FunctionType(false, self.boolType(), l.Type(), r.Type()))
+			f := self.builder.GetExternFunction("sim_runtime_str_eq_str", self.builder.FunctionType(false, self.boolType(), l.Type(), r.Type()))
 			var res llvm.Value = self.builder.CreateCall("", f.FunctionType(), f, l, r)
 			if not {
 				res = self.builder.CreateNot("", res)
@@ -172,7 +163,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 				return struct {
 					Value llvm.Value
 					Block llvm.Block
-				}{Value: self.ctx.ConstInteger(li.Type().(llvm.IntegerType), int64(i)), Block: bodyBlock}
+				}{Value: self.builder.ConstInteger(li.Type().(llvm.IntegerType), int64(i)), Block: bodyBlock}
 			}
 
 			filedBlock := beginBlock.Belong().NewBlock("")
@@ -185,7 +176,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 			return struct {
 				Value llvm.Value
 				Block llvm.Block
-			}{Value: self.ctx.ConstInteger(li.Type().(llvm.IntegerType), int64(i)), Block: filedBlock}
+			}{Value: self.builder.ConstInteger(li.Type().(llvm.IntegerType), int64(i)), Block: filedBlock}
 		})
 
 		endBlock := beginBlock.Belong().NewBlock("")
@@ -203,15 +194,15 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 		self.builder.CreateSwitch(li, endBlock, indexBlockPairs...)
 		self.builder.MoveToAfter(endBlock)
 
-		phi := self.builder.CreatePHI("", self.ctx.BooleanType())
+		phi := self.builder.CreatePHI("", self.builder.BooleanType())
 		phi.AddIncomings(struct {
 			Value llvm.Value
 			Block llvm.Block
-		}{Value: self.ctx.ConstBoolean(false), Block: beginBlock})
+		}{Value: self.builder.ConstBoolean(false), Block: beginBlock})
 		phi.AddIncomings(struct {
 			Value llvm.Value
 			Block llvm.Block
-		}{Value: self.ctx.ConstBoolean(true), Block: bodyBlock})
+		}{Value: self.builder.ConstBoolean(true), Block: bodyBlock})
 		for i, p := range indexBlockPairs {
 			if p.Block == endBlock {
 				continue
@@ -236,7 +227,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 func (self *CodeGenerator) buildArrayIndex(at llvm.ArrayType, v, i llvm.Value, expectPtr ...bool) llvm.Value {
 	switch {
 	case stlbasic.Is[llvm.ArrayType](v.Type()) && stlbasic.Is[llvm.ConstInteger](i):
-		var value llvm.Value = self.builder.CreateInBoundsGEP("", at, self.ctx.ConstInteger(i.Type().(llvm.IntegerType), 0), i)
+		var value llvm.Value = self.builder.CreateInBoundsGEP("", at, self.builder.ConstInteger(i.Type().(llvm.IntegerType), 0), i)
 		if !stlslices.Empty(expectPtr) && !stlslices.Last(expectPtr) {
 			value = self.builder.CreateLoad("", at.Elem(), value)
 		}
@@ -247,7 +238,7 @@ func (self *CodeGenerator) buildArrayIndex(at llvm.ArrayType, v, i llvm.Value, e
 		v = ptr
 		fallthrough
 	default:
-		var value llvm.Value = self.builder.CreateInBoundsGEP("", at, v, self.ctx.ConstInteger(i.Type().(llvm.IntegerType), 0), i)
+		var value llvm.Value = self.builder.CreateInBoundsGEP("", at, v, self.builder.ConstInteger(i.Type().(llvm.IntegerType), 0), i)
 		if !stlslices.Empty(expectPtr) && !stlslices.Last(expectPtr) {
 			value = self.builder.CreateLoad("", at.Elem(), value)
 		}
@@ -274,19 +265,19 @@ func (self *CodeGenerator) buildStructIndex(st llvm.StructType, v llvm.Value, i 
 }
 
 func (self *CodeGenerator) getMainFunction() llvm.Function {
-	mainFn, ok := self.module.GetFunction("main")
+	mainFn, ok := self.builder.GetFunction("main")
 	if !ok {
-		mainFn = self.module.NewFunction("main", self.ctx.FunctionType(false, self.ctx.IntegerType(8)))
+		mainFn = self.builder.NewFunction("main", self.builder.FunctionType(false, self.builder.IntegerType(8)))
 		mainFn.NewBlock("")
 	}
 	return mainFn
 }
 
 func (self *CodeGenerator) getInitFunction() llvm.Function {
-	initFn, ok := self.module.GetFunction("sim_runtime_init")
+	initFn, ok := self.builder.GetFunction("sim_runtime_init")
 	if !ok {
-		initFn = self.module.NewFunction("sim_runtime_init", self.ctx.FunctionType(false, self.ctx.VoidType()))
-		self.module.AddConstructor(65535, initFn)
+		initFn = self.builder.NewFunction("sim_runtime_init", self.builder.FunctionType(false, self.builder.VoidType()))
+		self.builder.AddConstructor(65535, initFn)
 		initFn.NewBlock("")
 	}
 	return initFn
@@ -296,18 +287,18 @@ func (self *CodeGenerator) constStringPtr(s string) llvm.Constant {
 	if !self.strings.ContainKey(s) {
 		st := self.codegenType(self.hir.BuildinTypes.Str).(llvm.StructType)
 		dataPtr := stlbasic.TernaryAction(s == "", func() llvm.Constant {
-			return self.ctx.ConstZero(st.Elems()[0])
+			return self.builder.ConstZero(st.Elems()[0])
 		}, func() llvm.Constant {
-			data := self.module.NewConstant("", self.ctx.ConstString(s))
+			data := self.builder.NewConstant("", self.builder.ConstString(s))
 			data.SetLinkage(llvm.PrivateLinkage)
-			return self.ctx.ConstInBoundsGEP(
+			return self.builder.ConstInBoundsGEP(
 				data.Type(),
 				data,
-				self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0),
-				self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0),
+				self.builder.ConstIntPtr(0),
+				self.builder.ConstIntPtr(0),
 			)
 		})
-		str := self.module.NewConstant("", self.ctx.ConstStruct(false, dataPtr, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(len(s)))))
+		str := self.builder.NewConstant("", self.builder.ConstStruct(false, dataPtr, self.builder.ConstIntPtr(int64(len(s)))))
 		str.SetLinkage(llvm.PrivateLinkage)
 		self.strings.Set(s, str)
 	}
@@ -326,14 +317,14 @@ func (self *CodeGenerator) buildPackStruct(st llvm.StructType, elems ...llvm.Val
 func (self *CodeGenerator) buildPackArray(at llvm.ArrayType, elems ...llvm.Value) llvm.Value {
 	ptr := self.builder.CreateAlloca("", at)
 	for i, elem := range elems {
-		elemPtr := self.builder.CreateInBoundsGEP("", at, ptr, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 0), self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(i)))
+		elemPtr := self.builder.CreateInBoundsGEP("", at, ptr, self.builder.ConstIntPtr(0), self.builder.ConstIntPtr(int64(i)))
 		self.builder.CreateStore(elem, elemPtr)
 	}
 	return self.builder.CreateLoad("", at, ptr)
 }
 
 func (self *CodeGenerator) buildPanic(s string) {
-	fn := self.getExternFunction("sim_runtime_panic", self.ctx.FunctionType(false, self.ctx.VoidType(), self.ctx.OpaquePointerType()))
+	fn := self.builder.GetExternFunction("sim_runtime_panic", self.builder.FunctionType(false, self.builder.VoidType(), self.builder.OpaquePointerType()))
 	self.builder.CreateCall("", fn.FunctionType(), fn, self.constStringPtr(s))
 	self.builder.CreateUnreachable()
 }
@@ -341,11 +332,11 @@ func (self *CodeGenerator) buildPanic(s string) {
 func (self *CodeGenerator) buildCheckZero(v llvm.Value) {
 	var cond llvm.Value
 	if stlbasic.Is[llvm.FloatType](v.Type()) {
-		cond = self.builder.CreateFloatCmp("", llvm.FloatOEQ, v, self.ctx.ConstZero(v.Type()))
+		cond = self.builder.CreateFloatCmp("", llvm.FloatOEQ, v, self.builder.ConstZero(v.Type()))
 	} else {
-		cond = self.builder.CreateIntCmp("", llvm.IntEQ, v, self.ctx.ConstZero(v.Type()))
+		cond = self.builder.CreateIntCmp("", llvm.IntEQ, v, self.builder.ConstZero(v.Type()))
 	}
-	f := self.builder.CurrentBlock().Belong()
+	f := self.builder.CurrentFunction()
 	panicBlock, endBlock := f.NewBlock(""), f.NewBlock("")
 	self.builder.CreateCondBr(cond, panicBlock, endBlock)
 
@@ -356,8 +347,8 @@ func (self *CodeGenerator) buildCheckZero(v llvm.Value) {
 }
 
 func (self *CodeGenerator) buildCheckIndex(index llvm.Value, rangev uint64) {
-	cond := self.builder.CreateIntCmp("", llvm.IntUGE, index, self.ctx.ConstInteger(index.Type().(llvm.IntegerType), int64(rangev)))
-	f := self.builder.CurrentBlock().Belong()
+	cond := self.builder.CreateIntCmp("", llvm.IntUGE, index, self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(rangev)))
+	f := self.builder.CurrentFunction()
 	panicBlock, endBlock := f.NewBlock(""), f.NewBlock("")
 	self.builder.CreateCondBr(cond, panicBlock, endBlock)
 
@@ -368,9 +359,9 @@ func (self *CodeGenerator) buildCheckIndex(index llvm.Value, rangev uint64) {
 }
 
 func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
-	fn := self.getExternFunction("sim_runtime_malloc", self.ctx.FunctionType(false, self.ctx.OpaquePointerType(), self.ctx.IntPtrType(self.target)))
-	size := stlmath.RoundTo(self.target.GetStoreSizeOfType(t), self.target.GetABIAlignOfType(t))
-	return self.builder.CreateCall("", fn.FunctionType(), fn, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(size)))
+	fn := self.builder.GetExternFunction("sim_runtime_malloc", self.builder.FunctionType(false, self.builder.OpaquePointerType(), self.builder.IntPtrType()))
+	size := stlmath.RoundTo(self.builder.GetStoreSizeOfType(t), self.builder.GetABIAlignOfType(t))
+	return self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.ConstIntPtr(int64(size)))
 }
 
 func (self *CodeGenerator) usizeType() llvm.IntegerType {
@@ -390,7 +381,7 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 			return self.buildCopy(tir.Target, v)
 		}
 		method := self.codegenExpr(hir.LoopFindMethod(tir, self.hir.BuildinTypes.Copy.FirstMethodName()).MustValue(), true).(llvm.Function)
-		if self.builder.CurrentBlock().Belong() == method {
+		if self.builder.CurrentFunction() == method {
 			return self.buildCopy(tir.Target, v)
 		}
 		return self.builder.CreateCall("", method.FunctionType(), method, v)
@@ -403,27 +394,27 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 		}
 
 		newArrayPtr := self.builder.CreateAlloca("", t)
-		indexPtr := self.builder.CreateAlloca("", self.ctx.IntPtrType(self.target))
-		self.builder.CreateStore(self.ctx.ConstZero(self.ctx.IntPtrType(self.target)), indexPtr)
-		condBlock := self.builder.CurrentBlock().Belong().NewBlock("")
+		indexPtr := self.builder.CreateAlloca("", self.builder.IntPtrType())
+		self.builder.CreateStore(self.builder.ConstZero(self.builder.IntPtrType()), indexPtr)
+		condBlock := self.builder.CurrentFunction().NewBlock("")
 		self.builder.CreateBr(condBlock)
 
 		// cond
 		self.builder.MoveToAfter(condBlock)
-		index := self.builder.CreateLoad("", self.ctx.IntPtrType(self.target), indexPtr)
-		var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), int64(t.Capacity())))
-		bodyBlock, outBlock := self.builder.CurrentBlock().Belong().NewBlock(""), self.builder.CurrentBlock().Belong().NewBlock("")
+		index := self.builder.CreateLoad("", self.builder.IntPtrType(), indexPtr)
+		var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIntPtr(int64(t.Capacity())))
+		bodyBlock, outBlock := self.builder.CurrentFunction().NewBlock(""), self.builder.CurrentFunction().NewBlock("")
 		self.builder.CreateCondBr(cond, bodyBlock, outBlock)
 
 		// body
 		self.builder.MoveToAfter(bodyBlock)
 		self.buildStore(tir.Elem, self.buildArrayIndex(t, v, index, false), self.buildArrayIndex(t, newArrayPtr, index, true))
-		actionBlock := self.builder.CurrentBlock().Belong().NewBlock("")
+		actionBlock := self.builder.CurrentFunction().NewBlock("")
 		self.builder.CreateBr(actionBlock)
 
 		// action
 		self.builder.MoveToAfter(actionBlock)
-		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.ctx.ConstInteger(self.ctx.IntPtrType(self.target), 1)), indexPtr)
+		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIntPtr(1)), indexPtr)
 		self.builder.CreateBr(condBlock)
 
 		// out
@@ -471,7 +462,7 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 				return struct {
 					Value llvm.Value
 					Block llvm.Block
-				}{Value: self.ctx.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: beginBlock}
+				}{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: beginBlock}
 			}
 
 			filedBlock := beginBlock.Belong().NewBlock("")
@@ -485,7 +476,7 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 			return struct {
 				Value llvm.Value
 				Block llvm.Block
-			}{Value: self.ctx.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: filedBlock}
+			}{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: filedBlock}
 		})
 
 		endBlock := beginBlock.Belong().NewBlock("")
