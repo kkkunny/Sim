@@ -15,7 +15,7 @@ import (
 	errors "github.com/kkkunny/Sim/compiler/error"
 )
 
-func (self *Analyser) analyseType(node ast.Type) hir.Type {
+func (self *Analyser) analyseType(node ast.Type) oldhir.Type {
 	switch typeNode := node.(type) {
 	case *ast.IdentType:
 		return self.analyseIdentType(typeNode)
@@ -40,37 +40,37 @@ func (self *Analyser) analyseType(node ast.Type) hir.Type {
 	}
 }
 
-var voidTypeAnalyser = func(node optional.Optional[ast.Type]) optional.Optional[hir.Type] {
+var voidTypeAnalyser = func(node optional.Optional[ast.Type]) optional.Optional[oldhir.Type] {
 	typeNode, ok := node.Value()
 	if !ok {
-		return optional.None[hir.Type]()
+		return optional.None[oldhir.Type]()
 	}
-	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == hir.NoThing.String() {
-		return optional.Some[hir.Type](hir.NoThing)
+	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == oldhir.NoThing.String() {
+		return optional.Some[oldhir.Type](oldhir.NoThing)
 	}
-	return optional.None[hir.Type]()
+	return optional.None[oldhir.Type]()
 }
 
-var noReturnTypeAnalyser = func(node optional.Optional[ast.Type]) optional.Optional[hir.Type] {
+var noReturnTypeAnalyser = func(node optional.Optional[ast.Type]) optional.Optional[oldhir.Type] {
 	typeNode, ok := node.Value()
 	if !ok {
-		return optional.None[hir.Type]()
+		return optional.None[oldhir.Type]()
 	}
-	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == hir.NoReturn.String() {
-		return optional.Some[hir.Type](hir.NoReturn)
+	if ident, ok := typeNode.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == oldhir.NoReturn.String() {
+		return optional.Some[oldhir.Type](oldhir.NoReturn)
 	}
-	return optional.None[hir.Type]()
+	return optional.None[oldhir.Type]()
 }
 
-func (self *Analyser) analyseOptionType(node optional.Optional[ast.Type]) hir.Type {
+func (self *Analyser) analyseOptionType(node optional.Optional[ast.Type]) oldhir.Type {
 	t, ok := node.Value()
 	if !ok {
-		return hir.NoThing
+		return oldhir.NoThing
 	}
 	return self.analyseType(t)
 }
 
-func (self *Analyser) analyseOptionTypeWith(node optional.Optional[ast.Type], analysers ...func(node optional.Optional[ast.Type]) optional.Optional[hir.Type]) hir.Type {
+func (self *Analyser) analyseOptionTypeWith(node optional.Optional[ast.Type], analysers ...func(node optional.Optional[ast.Type]) optional.Optional[oldhir.Type]) oldhir.Type {
 	for _, analyser := range analysers {
 		if t, ok := analyser(node).Value(); ok {
 			return t
@@ -79,7 +79,7 @@ func (self *Analyser) analyseOptionTypeWith(node optional.Optional[ast.Type], an
 	return self.analyseOptionType(node)
 }
 
-func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
+func (self *Analyser) analyseIdentType(node *ast.IdentType) oldhir.Type {
 	typ := self.analyseIdent((*ast.Ident)(node), false)
 	if typ.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
@@ -87,15 +87,15 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	return stlbasic.IgnoreWith(typ.MustValue().Right())
 }
 
-func (self *Analyser) analyseFuncType(node *ast.FuncType) *hir.FuncType {
-	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
+func (self *Analyser) analyseFuncType(node *ast.FuncType) *oldhir.FuncType {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Type) oldhir.Type {
 		return self.analyseType(e)
 	})
 	ret := self.analyseOptionTypeWith(node.Ret, noReturnTypeAnalyser)
-	return hir.NewFuncType(ret, params...)
+	return oldhir.NewFuncType(ret, params...)
 }
 
-func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
+func (self *Analyser) analyseArrayType(node *ast.ArrayType) *oldhir.ArrayType {
 	size, ok := big.NewInt(0).SetString(node.Size.Source(), 10)
 	if !ok {
 		panic("unreachable")
@@ -103,67 +103,67 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType) *hir.ArrayType {
 		errors.ThrowIllegalInteger(node.Position(), node.Size)
 	}
 	elem := self.analyseType(node.Elem)
-	return hir.NewArrayType(size.Uint64(), elem)
+	return oldhir.NewArrayType(size.Uint64(), elem)
 }
 
-func (self *Analyser) analyseTupleType(node *ast.TupleType) *hir.TupleType {
-	elems := stlslices.Map(node.Elems, func(_ int, e ast.Type) hir.Type {
+func (self *Analyser) analyseTupleType(node *ast.TupleType) *oldhir.TupleType {
+	elems := stlslices.Map(node.Elems, func(_ int, e ast.Type) oldhir.Type {
 		return self.analyseType(e)
 	})
-	return hir.NewTupleType(elems...)
+	return oldhir.NewTupleType(elems...)
 }
 
-func (self *Analyser) analyseRefType(node *ast.RefType) *hir.RefType {
-	return hir.NewRefType(node.Mut, self.analyseType(node.Elem))
+func (self *Analyser) analyseRefType(node *ast.RefType) *oldhir.RefType {
+	return oldhir.NewRefType(node.Mut, self.analyseType(node.Elem))
 }
 
-func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type {
+func (self *Analyser) analyseSelfType(node *ast.SelfType) oldhir.Type {
 	if !self.selfCanBeNil && self.selfType == nil {
 		errors.ThrowUnknownIdentifierError(node.Position(), node.Token)
 	} else if self.selfType != nil {
 		return self.selfType
 	}
-	return hir.NewSelfType()
+	return oldhir.NewSelfType()
 }
 
-func (self *Analyser) analyseStructType(node *ast.StructType) *hir.StructType {
-	fields := linkedhashmap.NewLinkedHashMap[string, hir.Field]()
+func (self *Analyser) analyseStructType(node *ast.StructType) *oldhir.StructType {
+	fields := linkedhashmap.NewLinkedHashMap[string, oldhir.Field]()
 	for _, f := range node.Fields {
 		if fields.ContainKey(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
-		fields.Set(f.Name.Source(), hir.Field{
+		fields.Set(f.Name.Source(), oldhir.Field{
 			Public:  f.Public,
 			Mutable: f.Mutable,
 			Name:    f.Name.Source(),
 			Type:    self.analyseType(f.Type),
 		})
 	}
-	return hir.NewStructType(self.selfType, fields)
+	return oldhir.NewStructType(self.selfType, fields)
 }
 
-func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *hir.LambdaType {
-	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
+func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *oldhir.LambdaType {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Type) oldhir.Type {
 		return self.analyseType(e)
 	})
 	ret := self.analyseOptionTypeWith(optional.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
-	return hir.NewLambdaType(ret, params...)
+	return oldhir.NewLambdaType(ret, params...)
 }
 
-func (self *Analyser) analyseEnumType(node *ast.EnumType) *hir.EnumType {
-	fields := linkedhashmap.NewLinkedHashMap[string, hir.EnumField]()
+func (self *Analyser) analyseEnumType(node *ast.EnumType) *oldhir.EnumType {
+	fields := linkedhashmap.NewLinkedHashMap[string, oldhir.EnumField]()
 	for _, f := range node.Fields {
 		if fields.ContainKey(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
-		fields.Set(f.Name.Source(), hir.EnumField{
+		fields.Set(f.Name.Source(), oldhir.EnumField{
 			Name: f.Name.Source(),
-			Elem: stlbasic.TernaryAction(f.Elem.IsNone(), func() optional.Optional[hir.Type] {
-				return optional.None[hir.Type]()
-			}, func() optional.Optional[hir.Type] {
+			Elem: stlbasic.TernaryAction(f.Elem.IsNone(), func() optional.Optional[oldhir.Type] {
+				return optional.None[oldhir.Type]()
+			}, func() optional.Optional[oldhir.Type] {
 				return optional.Some(self.analyseType(f.Elem.MustValue()))
 			}),
 		})
 	}
-	return hir.NewEnumType(self.selfType, fields)
+	return oldhir.NewEnumType(self.selfType, fields)
 }

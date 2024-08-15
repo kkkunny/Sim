@@ -21,22 +21,22 @@ type Analyser struct {
 	parent *Analyser
 	asts   linkedlist.LinkedList[ast.Global]
 
-	pkgs       *hashmap.HashMap[hir.Package, *_PkgScope]
+	pkgs       *hashmap.HashMap[oldhir.Package, *_PkgScope]
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 
 	selfCanBeNil bool
-	selfType     *hir.CustomType
+	selfType     *oldhir.CustomType
 
 	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
 }
 
 func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
-	var pkg hir.Package
+	var pkg oldhir.Package
 	if !asts.Empty() {
-		pkg = stlerror.MustWith(hir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
+		pkg = stlerror.MustWith(oldhir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
 	}
-	pkgs := hashmap.NewHashMap[hir.Package, *_PkgScope]()
+	pkgs := hashmap.NewHashMap[oldhir.Package, *_PkgScope]()
 	return &Analyser{
 		asts:     asts,
 		pkgs:     &pkgs,
@@ -45,9 +45,9 @@ func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
 }
 
 func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser {
-	var pkg hir.Package
+	var pkg oldhir.Package
 	if !asts.Empty() {
-		pkg = stlerror.MustWith(hir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
+		pkg = stlerror.MustWith(oldhir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
 	}
 	return &Analyser{
 		parent:   parent,
@@ -58,12 +58,12 @@ func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser 
 }
 
 // Analyse 分析语义
-func (self *Analyser) Analyse() *hir.Result {
-	globalIrs := linkedlist.NewLinkedList[hir.Global]()
+func (self *Analyser) Analyse() *oldhir.Result {
+	globalIrs := linkedlist.NewLinkedList[oldhir.Global]()
 
 	// 包
-	if self.pkgScope.pkg != hir.BuildInPackage {
-		hirs, _ := self.importPackage(hir.BuildInPackage, "", true)
+	if self.pkgScope.pkg != oldhir.BuildInPackage {
+		hirs, _ := self.importPackage(oldhir.BuildInPackage, "", true)
 		globalIrs.Append(hirs)
 	}
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
@@ -98,7 +98,7 @@ func (self *Analyser) Analyse() *hir.Result {
 	})
 	// 类型循环检测
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		trace := hashset.NewHashSet[hir.Type]()
+		trace := hashset.NewHashSet[oldhir.Type]()
 		var circle bool
 		var name token.Token
 		switch node := v.(type) {
@@ -126,42 +126,42 @@ func (self *Analyser) Analyse() *hir.Result {
 		}
 		return true
 	})
-	return &hir.Result{
+	return &oldhir.Result{
 		Globals: globalIrs,
 		BuildinTypes: struct {
-			Isize   hir.Type
-			I8      hir.Type
-			I16     hir.Type
-			I32     hir.Type
-			I64     hir.Type
-			Usize   hir.Type
-			U8      hir.Type
-			U16     hir.Type
-			U32     hir.Type
-			U64     hir.Type
-			F32     hir.Type
-			F64     hir.Type
-			Bool    hir.Type
-			Str     hir.Type
-			Default *hir.Trait
-			Copy    *hir.Trait
-			Add     *hir.Trait
-			Sub     *hir.Trait
-			Mul     *hir.Trait
-			Div     *hir.Trait
-			Rem     *hir.Trait
-			And     *hir.Trait
-			Or      *hir.Trait
-			Xor     *hir.Trait
-			Shl     *hir.Trait
-			Shr     *hir.Trait
-			Eq      *hir.Trait
-			Lt      *hir.Trait
-			Gt      *hir.Trait
-			Land    *hir.Trait
-			Lor     *hir.Trait
-			Neg     *hir.Trait
-			Not     *hir.Trait
+			Isize   oldhir.Type
+			I8      oldhir.Type
+			I16     oldhir.Type
+			I32     oldhir.Type
+			I64     oldhir.Type
+			Usize   oldhir.Type
+			U8      oldhir.Type
+			U16     oldhir.Type
+			U32     oldhir.Type
+			U64     oldhir.Type
+			F32     oldhir.Type
+			F64     oldhir.Type
+			Bool    oldhir.Type
+			Str     oldhir.Type
+			Default *oldhir.Trait
+			Copy    *oldhir.Trait
+			Add     *oldhir.Trait
+			Sub     *oldhir.Trait
+			Mul     *oldhir.Trait
+			Div     *oldhir.Trait
+			Rem     *oldhir.Trait
+			And     *oldhir.Trait
+			Or      *oldhir.Trait
+			Xor     *oldhir.Trait
+			Shl     *oldhir.Trait
+			Shr     *oldhir.Trait
+			Eq      *oldhir.Trait
+			Lt      *oldhir.Trait
+			Gt      *oldhir.Trait
+			Land    *oldhir.Trait
+			Lor     *oldhir.Trait
+			Neg     *oldhir.Trait
+			Not     *oldhir.Trait
 		}{
 			Isize:   self.pkgScope.Isize(),
 			I8:      self.pkgScope.I8(),

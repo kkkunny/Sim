@@ -9,23 +9,23 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (self *CodeGenerator) codegenGlobalDecl(ir hir.Global) {
+func (self *CodeGenerator) codegenGlobalDecl(ir oldhir.Global) {
 	switch global := ir.(type) {
-	case *hir.FuncDef:
+	case *oldhir.FuncDef:
 		self.declFuncDef(global)
-	case *hir.MethodDef:
+	case *oldhir.MethodDef:
 		self.declMethodDef(global)
-	case *hir.GlobalVarDef:
+	case *oldhir.GlobalVarDef:
 		self.declGlobalVariable(global)
-	case *hir.MultiGlobalVarDef:
+	case *oldhir.MultiGlobalVarDef:
 		self.declMultiGlobalVariable(global)
-	case *hir.TypeDef, *hir.TypeAliasDef, *hir.Trait:
+	case *oldhir.TypeDef, *oldhir.TypeAliasDef, *oldhir.Trait:
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
+func (self *CodeGenerator) declFuncDef(ir *oldhir.FuncDef) {
 	ft := self.codegenFuncType(ir.GetFuncType())
 	if ir.VarArg {
 		ft = self.builder.FunctionType(true, ft.ReturnType(), ft.Params()...)
@@ -36,7 +36,7 @@ func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 	} else {
 		f.SetLinkage(llvm.ExternalLinkage)
 	}
-	if ir.Ret.EqualTo(hir.NoReturn) {
+	if ir.Ret.EqualTo(oldhir.NoReturn) {
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}
 	if inline, ok := ir.InlineControl.Value(); ok {
@@ -45,11 +45,11 @@ func (self *CodeGenerator) declFuncDef(ir *hir.FuncDef) {
 	self.values.Set(ir, f)
 }
 
-func (self *CodeGenerator) declMethodDef(ir *hir.MethodDef) {
+func (self *CodeGenerator) declMethodDef(ir *oldhir.MethodDef) {
 	self.declFuncDef(&ir.FuncDef)
 }
 
-func (self *CodeGenerator) declGlobalVariable(ir *hir.GlobalVarDef) {
+func (self *CodeGenerator) declGlobalVariable(ir *oldhir.GlobalVarDef) {
 	t := self.codegenType(ir.Type)
 	v := self.builder.NewGlobal(ir.ExternName, t, nil)
 	if ir.ExternName == "" {
@@ -60,37 +60,37 @@ func (self *CodeGenerator) declGlobalVariable(ir *hir.GlobalVarDef) {
 	self.values.Set(ir, v)
 }
 
-func (self *CodeGenerator) declMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
+func (self *CodeGenerator) declMultiGlobalVariable(ir *oldhir.MultiGlobalVarDef) {
 	for _, varDef := range ir.Vars {
 		self.declGlobalVariable(varDef)
 	}
 }
 
-func (self *CodeGenerator) codegenGlobalDef(ir hir.Global) {
+func (self *CodeGenerator) codegenGlobalDef(ir oldhir.Global) {
 	switch global := ir.(type) {
-	case *hir.FuncDef:
+	case *oldhir.FuncDef:
 		if global.Body.IsNone() {
 			self.defFuncDecl(global)
 		} else {
 			self.defFuncDef(global)
 		}
-	case *hir.MethodDef:
+	case *oldhir.MethodDef:
 		self.defMethodDef(global)
-	case *hir.GlobalVarDef:
+	case *oldhir.GlobalVarDef:
 		if global.Value.IsNone() {
 			self.defGlobalVariableDecl(global)
 		} else {
 			self.defGlobalVariableDef(global)
 		}
-	case *hir.MultiGlobalVarDef:
+	case *oldhir.MultiGlobalVarDef:
 		self.defMultiGlobalVariable(global)
-	case *hir.TypeAliasDef, *hir.Trait, *hir.TypeDef:
+	case *oldhir.TypeAliasDef, *oldhir.Trait, *oldhir.TypeDef:
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
+func (self *CodeGenerator) defFuncDef(ir *oldhir.FuncDef) {
 	f := self.values.GetValue(ir).(llvm.Function)
 	self.builder.MoveToAfter(f.NewBlock(""))
 	for i, pir := range ir.Params {
@@ -102,15 +102,15 @@ func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
 	self.builder.CreateBr(block)
 }
 
-func (self *CodeGenerator) defMethodDef(ir *hir.MethodDef) {
+func (self *CodeGenerator) defMethodDef(ir *oldhir.MethodDef) {
 	self.defFuncDef(&ir.FuncDef)
 }
 
-func (self *CodeGenerator) defFuncDecl(ir *hir.FuncDef) {
+func (self *CodeGenerator) defFuncDecl(ir *oldhir.FuncDef) {
 	_ = self.values.GetValue(ir).(llvm.Function)
 }
 
-func (self *CodeGenerator) defGlobalVariableDef(ir *hir.GlobalVarDef) {
+func (self *CodeGenerator) defGlobalVariableDef(ir *oldhir.GlobalVarDef) {
 	gv := self.values.GetValue(ir).(llvm.GlobalValue)
 	self.builder.MoveToAfter(stlslices.First(self.builder.GetInitFunction().Blocks()))
 	value := self.codegenExpr(ir.Value.MustValue(), true)
@@ -121,18 +121,18 @@ func (self *CodeGenerator) defGlobalVariableDef(ir *hir.GlobalVarDef) {
 	}
 }
 
-func (self *CodeGenerator) defGlobalVariableDecl(ir *hir.GlobalVarDef) {
+func (self *CodeGenerator) defGlobalVariableDecl(ir *oldhir.GlobalVarDef) {
 	_ = self.values.GetValue(ir).(llvm.GlobalValue)
 }
 
-func (self *CodeGenerator) defMultiGlobalVariable(ir *hir.MultiGlobalVarDef) {
-	if constant, ok := ir.Value.(*hir.Tuple); ok && len(constant.Elems) == len(ir.Vars) {
+func (self *CodeGenerator) defMultiGlobalVariable(ir *oldhir.MultiGlobalVarDef) {
+	if constant, ok := ir.Value.(*oldhir.Tuple); ok && len(constant.Elems) == len(ir.Vars) {
 		for i, varNode := range ir.Vars {
 			varNode.Value = optional.Some(constant.Elems[i])
 			self.defGlobalVariableDef(varNode)
 		}
 	} else {
 		self.builder.MoveToAfter(stlslices.First(self.builder.GetInitFunction().Blocks()))
-		self.codegenUnTuple(ir.Value, stlslices.Map(ir.Vars, func(_ int, item *hir.GlobalVarDef) hir.Expr { return item }))
+		self.codegenUnTuple(ir.Value, stlslices.Map(ir.Vars, func(_ int, item *oldhir.GlobalVarDef) oldhir.Expr { return item }))
 	}
 }

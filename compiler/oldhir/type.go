@@ -1,4 +1,4 @@
-package hir
+package oldhir
 
 import (
 	"fmt"

@@ -13,13 +13,13 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llvm.Value {
-	switch irType := hir.ToRuntimeType(t).(type) {
-	case *hir.SintType, *hir.UintType, *hir.RefType:
+func (self *CodeGenerator) buildEqual(t oldhir.Type, l, r llvm.Value, not bool) llvm.Value {
+	switch irType := oldhir.ToRuntimeType(t).(type) {
+	case *oldhir.SintType, *oldhir.UintType, *oldhir.RefType:
 		return self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
-	case *hir.FloatType:
+	case *oldhir.FloatType:
 		return self.builder.CreateFloatCmp("", stlbasic.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
-	case *hir.ArrayType:
+	case *oldhir.ArrayType:
 		t := self.codegenType(irType).(llvm.ArrayType)
 		if t.Capacity() == 0 {
 			return self.builder.ConstBoolean(true)
@@ -67,14 +67,14 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 			return self.builder.CreateNot("", phi)
 		}
 		return phi
-	case *hir.TupleType, *hir.StructType:
-		_, isTuple := irType.(*hir.TupleType)
+	case *oldhir.TupleType, *oldhir.StructType:
+		_, isTuple := irType.(*oldhir.TupleType)
 		t := self.codegenType(irType).(llvm.StructType)
-		fields := stlbasic.TernaryAction(isTuple, func() []hir.Type {
-			return irType.(*hir.TupleType).Elems
-		}, func() []hir.Type {
-			values := irType.(*hir.StructType).Fields.Values()
-			res := make([]hir.Type, values.Length())
+		fields := stlbasic.TernaryAction(isTuple, func() []oldhir.Type {
+			return irType.(*oldhir.TupleType).Elems
+		}, func() []oldhir.Type {
+			values := irType.(*oldhir.StructType).Fields.Values()
+			res := make([]oldhir.Type, values.Length())
 			var i uint
 			for iter := values.Iterator(); iter.Next(); {
 				res[i] = iter.Value().Type
@@ -120,9 +120,9 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 			return self.builder.CreateNot("", phi)
 		}
 		return phi
-	case *hir.CustomType:
+	case *oldhir.CustomType:
 		return self.buildEqual(irType.Target, l, r, not)
-	case *hir.LambdaType:
+	case *oldhir.LambdaType:
 		st := self.codegenType(irType).(llvm.StructType)
 		f1p := self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 0, false), self.buildStructIndex(st, r, 0, false))
 		f2p := self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 1, false), self.buildStructIndex(st, r, 1, false))
@@ -132,7 +132,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 		}, func() llvm.Value {
 			return self.builder.CreateOr("", self.builder.CreateOr("", f1p, f2p), pp)
 		})
-	case *hir.EnumType:
+	case *oldhir.EnumType:
 		if irType.IsSimple() {
 			return self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
 		}
@@ -145,7 +145,7 @@ func (self *CodeGenerator) buildEqual(t hir.Type, l, r llvm.Value, not bool) llv
 		self.builder.MoveToAfter(bodyBlock)
 
 		values := make([]llvm.Value, irType.Fields.Length())
-		indexBlockPairs := stlslices.Map(irType.Fields.Values().ToSlice(), func(i int, f hir.EnumField) struct {
+		indexBlockPairs := stlslices.Map(irType.Fields.Values().ToSlice(), func(i int, f oldhir.EnumField) struct {
 			Value llvm.Value
 			Block llvm.Block
 		} {
@@ -336,22 +336,22 @@ func (self *CodeGenerator) boolType() llvm.IntegerType {
 	return self.codegenType(self.hir.BuildinTypes.Bool).(llvm.IntegerType)
 }
 
-func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
-	switch tir := hir.ToRuntimeType(t).(type) {
-	case *hir.NoReturnType, *hir.NoThingType:
+func (self *CodeGenerator) buildCopy(t oldhir.Type, v llvm.Value) llvm.Value {
+	switch tir := oldhir.ToRuntimeType(t).(type) {
+	case *oldhir.NoReturnType, *oldhir.NoThingType:
 		panic("unreachable")
-	case *hir.CustomType:
+	case *oldhir.CustomType:
 		if !self.hir.BuildinTypes.Copy.HasBeImpled(tir) {
 			return self.buildCopy(tir.Target, v)
 		}
-		method := self.codegenExpr(hir.LoopFindMethod(tir, self.hir.BuildinTypes.Copy.FirstMethodName()).MustValue(), true).(llvm.Function)
+		method := self.codegenExpr(oldhir.LoopFindMethod(tir, self.hir.BuildinTypes.Copy.FirstMethodName()).MustValue(), true).(llvm.Function)
 		if self.builder.CurrentFunction() == method {
 			return self.buildCopy(tir.Target, v)
 		}
 		return self.builder.CreateCall("", method.FunctionType(), method, v)
-	case *hir.RefType, *hir.FuncType, *hir.LambdaType, *hir.SintType, *hir.UintType, *hir.FloatType:
+	case *oldhir.RefType, *oldhir.FuncType, *oldhir.LambdaType, *oldhir.SintType, *oldhir.UintType, *oldhir.FloatType:
 		return v
-	case *hir.ArrayType:
+	case *oldhir.ArrayType:
 		t := self.codegenType(tir).(llvm.ArrayType)
 		if t.Capacity() == 0 {
 			return v
@@ -384,13 +384,13 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 		// out
 		self.builder.MoveToAfter(outBlock)
 		return self.builder.CreateLoad("", t, newArrayPtr)
-	case *hir.TupleType, *hir.StructType:
+	case *oldhir.TupleType, *oldhir.StructType:
 		t := self.codegenType(t).(llvm.StructType)
-		fields := stlbasic.TernaryAction(stlbasic.Is[*hir.TupleType](tir), func() []hir.Type {
-			return tir.(*hir.TupleType).Elems
-		}, func() []hir.Type {
-			values := tir.(*hir.StructType).Fields.Values()
-			res := make([]hir.Type, values.Length())
+		fields := stlbasic.TernaryAction(stlbasic.Is[*oldhir.TupleType](tir), func() []oldhir.Type {
+			return tir.(*oldhir.TupleType).Elems
+		}, func() []oldhir.Type {
+			values := tir.(*oldhir.StructType).Fields.Values()
+			res := make([]oldhir.Type, values.Length())
 			var i uint
 			for iter := values.Iterator(); iter.Next(); {
 				res[i] = iter.Value().Type
@@ -408,7 +408,7 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 			self.builder.CreateStore(self.buildCopy(fields[i], self.buildStructIndex(t, v, uint(i), false)), self.buildStructIndex(t, newStructPtr, uint(i), true))
 		}
 		return self.builder.CreateLoad("", t, newStructPtr)
-	case *hir.EnumType:
+	case *oldhir.EnumType:
 		if tir.IsSimple() {
 			return v
 		}
@@ -418,7 +418,7 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 		index := self.buildStructIndex(t, v, 1, false)
 
 		values := make([]llvm.Value, tir.Fields.Length())
-		indexBlockPairs := stlslices.Map(tir.Fields.Values().ToSlice(), func(i int, f hir.EnumField) struct {
+		indexBlockPairs := stlslices.Map(tir.Fields.Values().ToSlice(), func(i int, f oldhir.EnumField) struct {
 			Value llvm.Value
 			Block llvm.Block
 		} {

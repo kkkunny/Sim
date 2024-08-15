@@ -1,4 +1,4 @@
-package hir
+package oldhir
 
 import (
 	stlbasic "github.com/kkkunny/stl/basic"

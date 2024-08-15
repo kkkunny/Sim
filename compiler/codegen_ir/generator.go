@@ -15,19 +15,19 @@ import (
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	hir *hir.Result
+	hir *oldhir.Result
 
 	builder *llvmUtil.Builder
 
-	values           bimap.BiMap[hir.Expr, llvm.Value]
-	types            hashmap.HashMap[*hir.CustomType, llvm.StructType]
-	loops            hashmap.HashMap[hir.Loop, loop]
+	values           bimap.BiMap[oldhir.Expr, llvm.Value]
+	types            hashmap.HashMap[*oldhir.CustomType, llvm.StructType]
+	loops            hashmap.HashMap[oldhir.Loop, loop]
 	strings          hashmap.HashMap[string, llvm.Constant]
 	funcCache        hashmap.HashMap[string, llvm.Function]
-	lambdaCaptureMap queue.Queue[hashmap.HashMap[hir.Ident, llvm.Value]]
+	lambdaCaptureMap queue.Queue[hashmap.HashMap[oldhir.Ident, llvm.Value]]
 }
 
-func New(target llvm.Target, ir *hir.Result) *CodeGenerator {
+func New(target llvm.Target, ir *oldhir.Result) *CodeGenerator {
 	return &CodeGenerator{
 		hir:     ir,
 		builder: llvmUtil.NewBuilder(target),
@@ -37,12 +37,12 @@ func New(target llvm.Target, ir *hir.Result) *CodeGenerator {
 // Codegen 代码生成
 func (self *CodeGenerator) Codegen() llvm.Module {
 	// 值声明
-	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
+	stliter.Foreach[oldhir.Global](self.hir.Globals, func(v oldhir.Global) bool {
 		self.codegenGlobalDecl(v)
 		return true
 	})
 	// 值定义
-	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
+	stliter.Foreach[oldhir.Global](self.hir.Globals, func(v oldhir.Global) bool {
 		self.codegenGlobalDef(v)
 		return true
 	})
@@ -54,8 +54,8 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 		}
 	}
 	// 主函数
-	stliter.Foreach[hir.Global](self.hir.Globals, func(v hir.Global) bool {
-		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {
+	stliter.Foreach[oldhir.Global](self.hir.Globals, func(v oldhir.Global) bool {
+		if funcNode, ok := v.(*oldhir.FuncDef); ok && funcNode.Name == "main" {
 			f := self.values.GetValue(funcNode).(llvm.Function)
 			self.builder.MoveToAfter(stlslices.First(self.builder.GetMainFunction().Blocks()))
 			self.builder.CreateCall("", f.FunctionType(), f)

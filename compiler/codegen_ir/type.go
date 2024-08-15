@@ -7,29 +7,29 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (self *CodeGenerator) codegenType(t hir.Type) llvm.Type {
-	switch t := hir.ToRuntimeType(t).(type) {
-	case *hir.NoThingType, *hir.NoReturnType:
+func (self *CodeGenerator) codegenType(t oldhir.Type) llvm.Type {
+	switch t := oldhir.ToRuntimeType(t).(type) {
+	case *oldhir.NoThingType, *oldhir.NoReturnType:
 		return self.codegenEmptyType()
-	case *hir.SintType:
+	case *oldhir.SintType:
 		return self.codegenSintType(t)
-	case *hir.UintType:
+	case *oldhir.UintType:
 		return self.codegenUintType(t)
-	case *hir.FloatType:
+	case *oldhir.FloatType:
 		return self.codegenFloatType(t)
-	case *hir.ArrayType:
+	case *oldhir.ArrayType:
 		return self.codegenArrayType(t)
-	case *hir.TupleType:
+	case *oldhir.TupleType:
 		return self.codegenTupleType(t)
-	case *hir.CustomType:
+	case *oldhir.CustomType:
 		return self.codegenCustomType(t)
-	case *hir.FuncType, *hir.RefType:
+	case *oldhir.FuncType, *oldhir.RefType:
 		return self.codegenRefType()
-	case *hir.StructType:
+	case *oldhir.StructType:
 		return self.codegenStructType(t)
-	case *hir.LambdaType:
+	case *oldhir.LambdaType:
 		return self.codegenLambdaType(t)
-	case *hir.EnumType:
+	case *oldhir.EnumType:
 		return self.codegenEnumType(t)
 	default:
 		panic("unreachable")
@@ -40,15 +40,15 @@ func (self *CodeGenerator) codegenEmptyType() llvm.VoidType {
 	return self.builder.VoidType()
 }
 
-func (self *CodeGenerator) codegenSintType(ir *hir.SintType) llvm.IntegerType {
+func (self *CodeGenerator) codegenSintType(ir *oldhir.SintType) llvm.IntegerType {
 	return self.builder.IntegerType(uint32(ir.Bits))
 }
 
-func (self *CodeGenerator) codegenUintType(ir *hir.UintType) llvm.IntegerType {
+func (self *CodeGenerator) codegenUintType(ir *oldhir.UintType) llvm.IntegerType {
 	return self.builder.IntegerType(uint32(ir.Bits))
 }
 
-func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) llvm.FloatType {
+func (self *CodeGenerator) codegenFloatType(ir *oldhir.FloatType) llvm.FloatType {
 	var ft llvm.FloatTypeKind
 	switch ir.Bits {
 	case 16:
@@ -65,23 +65,23 @@ func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) llvm.FloatType {
 	return self.builder.FloatType(ft)
 }
 
-func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) llvm.FunctionType {
+func (self *CodeGenerator) codegenFuncType(ir *oldhir.FuncType) llvm.FunctionType {
 	ft, _, _ := self.codegenCallableType(ir)
 	return ft
 }
 
-func (self *CodeGenerator) codegenCallableType(ir hir.CallableType) (llvm.FunctionType, llvm.StructType, llvm.FunctionType) {
-	if hir.IsType[*hir.FuncType](ir) {
-		ft := hir.AsType[*hir.FuncType](ir)
+func (self *CodeGenerator) codegenCallableType(ir oldhir.CallableType) (llvm.FunctionType, llvm.StructType, llvm.FunctionType) {
+	if oldhir.IsType[*oldhir.FuncType](ir) {
+		ft := oldhir.AsType[*oldhir.FuncType](ir)
 		ret := self.codegenType(ft.Ret)
-		params := stlslices.Map(ft.Params, func(_ int, e hir.Type) llvm.Type {
+		params := stlslices.Map(ft.Params, func(_ int, e oldhir.Type) llvm.Type {
 			return self.codegenType(e)
 		})
 		return self.builder.FunctionType(false, ret, params...), llvm.StructType{}, llvm.FunctionType{}
 	} else {
-		lbdt := hir.AsType[*hir.LambdaType](ir)
+		lbdt := oldhir.AsType[*oldhir.LambdaType](ir)
 		ret := self.codegenType(lbdt.Ret)
-		params := stlslices.Map(lbdt.Params, func(_ int, e hir.Type) llvm.Type {
+		params := stlslices.Map(lbdt.Params, func(_ int, e oldhir.Type) llvm.Type {
 			return self.codegenType(e)
 		})
 		ft1 := self.builder.FunctionType(false, ret, params...)
@@ -90,29 +90,29 @@ func (self *CodeGenerator) codegenCallableType(ir hir.CallableType) (llvm.Functi
 	}
 }
 
-func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) llvm.ArrayType {
+func (self *CodeGenerator) codegenArrayType(ir *oldhir.ArrayType) llvm.ArrayType {
 	elem := self.codegenType(ir.Elem)
 	return self.builder.ArrayType(elem, uint32(ir.Size))
 }
 
-func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) llvm.StructType {
-	elems := stlslices.Map(ir.Elems, func(_ int, e hir.Type) llvm.Type {
+func (self *CodeGenerator) codegenTupleType(ir *oldhir.TupleType) llvm.StructType {
+	elems := stlslices.Map(ir.Elems, func(_ int, e oldhir.Type) llvm.Type {
 		return self.codegenType(e)
 	})
 	return self.builder.StructType(false, elems...)
 }
 
-func (self *CodeGenerator) codegenCustomType(ir *hir.CustomType) llvm.Type {
+func (self *CodeGenerator) codegenCustomType(ir *oldhir.CustomType) llvm.Type {
 	return self.codegenType(ir.Target)
 }
 
-func (self *CodeGenerator) codegenStructType(ir *hir.StructType) llvm.StructType {
+func (self *CodeGenerator) codegenStructType(ir *oldhir.StructType) llvm.StructType {
 	if self.types.ContainKey(ir.Def) {
 		return self.types.Get(ir.Def)
 	}
 	st := self.builder.NamedStructType("", false)
 	self.types.Set(ir.Def, st)
-	st.SetElems(false, stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e hir.Field) llvm.Type {
+	st.SetElems(false, stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e oldhir.Field) llvm.Type {
 		return self.codegenType(e.Type)
 	})...)
 	return st
@@ -122,12 +122,12 @@ func (self *CodeGenerator) codegenRefType() llvm.PointerType {
 	return self.builder.OpaquePointerType()
 }
 
-func (self *CodeGenerator) codegenLambdaType(ir *hir.LambdaType) llvm.StructType {
+func (self *CodeGenerator) codegenLambdaType(ir *oldhir.LambdaType) llvm.StructType {
 	_, st, _ := self.codegenCallableType(ir)
 	return st
 }
 
-func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) llvm.Type {
+func (self *CodeGenerator) codegenEnumType(ir *oldhir.EnumType) llvm.Type {
 	if ir.IsSimple() {
 		return self.builder.IntegerType(8)
 	}

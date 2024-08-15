@@ -13,67 +13,67 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (self *CodeGenerator) codegenExpr(ir hir.Expr, load bool) llvm.Value {
+func (self *CodeGenerator) codegenExpr(ir oldhir.Expr, load bool) llvm.Value {
 	switch expr := ir.(type) {
-	case *hir.Integer:
+	case *oldhir.Integer:
 		return self.codegenInteger(expr)
-	case *hir.Float:
+	case *oldhir.Float:
 		return self.codegenFloat(expr)
-	case *hir.Assign:
+	case *oldhir.Assign:
 		self.codegenAssign(expr)
 		return nil
-	case hir.Binary:
+	case oldhir.Binary:
 		return self.codegenBinary(expr)
-	case hir.Unary:
+	case oldhir.Unary:
 		return self.codegenUnary(expr, load)
-	case hir.Ident:
+	case oldhir.Ident:
 		return self.codegenIdent(expr, load)
-	case *hir.Call:
+	case *oldhir.Call:
 		return self.codegenCall(expr)
-	case hir.TypeCovert:
+	case oldhir.TypeCovert:
 		return self.codegenCovert(expr, load)
-	case *hir.Array:
+	case *oldhir.Array:
 		return self.codegenArray(expr)
-	case *hir.Index:
+	case *oldhir.Index:
 		return self.codegenIndex(expr, load)
-	case *hir.Tuple:
+	case *oldhir.Tuple:
 		return self.codegenTuple(expr)
-	case *hir.Extract:
+	case *oldhir.Extract:
 		return self.codegenExtract(expr, load)
-	case *hir.Default:
+	case *oldhir.Default:
 		return self.codegenDefault(expr.GetType())
-	case *hir.Struct:
+	case *oldhir.Struct:
 		return self.codegenStruct(expr)
-	case *hir.GetField:
+	case *oldhir.GetField:
 		return self.codegenField(expr, load)
-	case *hir.String:
+	case *oldhir.String:
 		return self.codegenString(expr)
-	case *hir.TypeJudgment:
+	case *oldhir.TypeJudgment:
 		return self.codegenTypeJudgment(expr)
-	case *hir.Lambda:
+	case *oldhir.Lambda:
 		return self.codegenLambda(expr)
-	case *hir.Method:
+	case *oldhir.Method:
 		return self.codegenMethod(expr)
-	case *hir.Enum:
+	case *oldhir.Enum:
 		return self.codegenEnum(expr)
-	case *hir.Copy:
+	case *oldhir.Copy:
 		return self.analyseCopy(expr)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenInteger(ir *hir.Integer) llvm.ConstInteger {
+func (self *CodeGenerator) codegenInteger(ir *oldhir.Integer) llvm.ConstInteger {
 	return self.builder.ConstInteger(self.codegenType(ir.Type).(llvm.IntegerType), ir.Value.Int64())
 }
 
-func (self *CodeGenerator) codegenFloat(ir *hir.Float) llvm.ConstFloat {
+func (self *CodeGenerator) codegenFloat(ir *oldhir.Float) llvm.ConstFloat {
 	v, _ := ir.Value.Float64()
 	return self.builder.ConstFloat(self.codegenType(ir.Type).(llvm.FloatType), v)
 }
 
-func (self *CodeGenerator) codegenAssign(ir *hir.Assign) {
-	if l, ok := ir.Left.(*hir.Tuple); ok {
+func (self *CodeGenerator) codegenAssign(ir *oldhir.Assign) {
+	if l, ok := ir.Left.(*oldhir.Tuple); ok {
 		self.codegenUnTuple(ir.Right, l.Elems)
 	} else {
 		left, right := self.codegenExpr(ir.GetLeft(), false), self.codegenExpr(ir.GetRight(), true)
@@ -81,20 +81,20 @@ func (self *CodeGenerator) codegenAssign(ir *hir.Assign) {
 	}
 }
 
-func (self *CodeGenerator) codegenUnTuple(fromIr hir.Expr, toIrs []hir.Expr) {
-	if tupleNode, ok := fromIr.(*hir.Tuple); ok {
+func (self *CodeGenerator) codegenUnTuple(fromIr oldhir.Expr, toIrs []oldhir.Expr) {
+	if tupleNode, ok := fromIr.(*oldhir.Tuple); ok {
 		for i, l := range toIrs {
-			self.codegenAssign(hir.NewAssign(l, tupleNode.Elems[i]))
+			self.codegenAssign(oldhir.NewAssign(l, tupleNode.Elems[i]))
 		}
 	} else {
-		var unTuple func(t hir.Type, from llvm.Value, toNodes []hir.Expr)
-		unTuple = func(t hir.Type, from llvm.Value, toNodes []hir.Expr) {
-			tt := hir.AsType[*hir.TupleType](t)
+		var unTuple func(t oldhir.Type, from llvm.Value, toNodes []oldhir.Expr)
+		unTuple = func(t oldhir.Type, from llvm.Value, toNodes []oldhir.Expr) {
+			tt := oldhir.AsType[*oldhir.TupleType](t)
 			st := self.codegenTupleType(tt)
 			for i, toNode := range toNodes {
-				if toNodes, ok := toNode.(*hir.Tuple); ok {
+				if toNodes, ok := toNode.(*oldhir.Tuple); ok {
 					index := self.buildStructIndex(st, from, uint(i))
-					unTuple(hir.AsType[*hir.TupleType](t).Elems[i], index, toNodes.Elems)
+					unTuple(oldhir.AsType[*oldhir.TupleType](t).Elems[i], index, toNodes.Elems)
 				} else {
 					value := self.buildStructIndex(st, from, uint(i), false)
 					to := self.codegenExpr(toNode, false)
@@ -107,118 +107,118 @@ func (self *CodeGenerator) codegenUnTuple(fromIr hir.Expr, toIrs []hir.Expr) {
 	}
 }
 
-func (self *CodeGenerator) codegenBinary(ir hir.Binary) llvm.Value {
+func (self *CodeGenerator) codegenBinary(ir oldhir.Binary) llvm.Value {
 	left, right := self.codegenExpr(ir.GetLeft(), true), self.codegenExpr(ir.GetRight(), true)
 	switch ir.(type) {
-	case *hir.IntAndInt, *hir.BoolAndBool:
+	case *oldhir.IntAndInt, *oldhir.BoolAndBool:
 		return self.builder.CreateAnd("", left, right)
-	case *hir.IntOrInt, *hir.BoolOrBool:
+	case *oldhir.IntOrInt, *oldhir.BoolOrBool:
 		return self.builder.CreateOr("", left, right)
-	case *hir.IntXorInt:
+	case *oldhir.IntXorInt:
 		return self.builder.CreateXor("", left, right)
-	case *hir.IntShlInt:
+	case *oldhir.IntShlInt:
 		return self.builder.CreateShl("", left, right)
-	case *hir.IntShrInt:
-		if t := ir.GetType(); hir.IsType[*hir.SintType](t) {
+	case *oldhir.IntShrInt:
+		if t := ir.GetType(); oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateAShr("", left, right)
 		} else {
 			return self.builder.CreateLShr("", left, right)
 		}
-	case *hir.NumAddNum:
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+	case *oldhir.NumAddNum:
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFAdd("", left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateSAdd("", left, right)
 		} else {
 			return self.builder.CreateUAdd("", left, right)
 		}
-	case *hir.NumSubNum:
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+	case *oldhir.NumSubNum:
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFSub("", left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateSSub("", left, right)
 		} else {
 			return self.builder.CreateUSub("", left, right)
 		}
-	case *hir.NumMulNum:
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+	case *oldhir.NumMulNum:
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFMul("", left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateSMul("", left, right)
 		} else {
 			return self.builder.CreateUMul("", left, right)
 		}
-	case *hir.NumDivNum:
+	case *oldhir.NumDivNum:
 		self.buildCheckZero(right)
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFDiv("", left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateSDiv("", left, right)
 		} else {
 			return self.builder.CreateUDiv("", left, right)
 		}
-	case *hir.NumRemNum:
+	case *oldhir.NumRemNum:
 		self.buildCheckZero(right)
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFRem("", left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateSRem("", left, right)
 		} else {
 			return self.builder.CreateURem("", left, right)
 		}
-	case *hir.NumLtNum:
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+	case *oldhir.NumLtNum:
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFloatCmp("", llvm.FloatOLT, left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateIntCmp("", llvm.IntSLT, left, right)
 		} else {
 			return self.builder.CreateIntCmp("", llvm.IntULT, left, right)
 		}
-	case *hir.NumGtNum:
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+	case *oldhir.NumGtNum:
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFloatCmp("", llvm.FloatOGT, left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateIntCmp("", llvm.IntSGT, left, right)
 		} else {
 			return self.builder.CreateIntCmp("", llvm.IntUGT, left, right)
 		}
-	case *hir.NumLeNum:
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+	case *oldhir.NumLeNum:
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFloatCmp("", llvm.FloatOLE, left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateIntCmp("", llvm.IntSLE, left, right)
 		} else {
 			return self.builder.CreateIntCmp("", llvm.IntULE, left, right)
 		}
-	case *hir.NumGeNum:
-		if t := ir.GetType(); hir.IsType[*hir.FloatType](t) {
+	case *oldhir.NumGeNum:
+		if t := ir.GetType(); oldhir.IsType[*oldhir.FloatType](t) {
 			return self.builder.CreateFloatCmp("", llvm.FloatOGE, left, right)
-		} else if hir.IsType[*hir.SintType](t) {
+		} else if oldhir.IsType[*oldhir.SintType](t) {
 			return self.builder.CreateIntCmp("", llvm.IntSGE, left, right)
 		} else {
 			return self.builder.CreateIntCmp("", llvm.IntUGE, left, right)
 		}
-	case *hir.Equal:
+	case *oldhir.Equal:
 		return self.builder.CreateZExt("", self.buildEqual(ir.GetLeft().GetType(), left, right, false), self.boolType())
-	case *hir.NotEqual:
+	case *oldhir.NotEqual:
 		return self.builder.CreateZExt("", self.buildEqual(ir.GetLeft().GetType(), left, right, true), self.boolType())
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenUnary(ir hir.Unary, load bool) llvm.Value {
+func (self *CodeGenerator) codegenUnary(ir oldhir.Unary, load bool) llvm.Value {
 	switch ir.(type) {
-	case *hir.NumNegate:
-		return self.codegenBinary(&hir.NumSubNum{
-			Left:  &hir.Default{Type: ir.GetValue().GetType()},
+	case *oldhir.NumNegate:
+		return self.codegenBinary(&oldhir.NumSubNum{
+			Left:  &oldhir.Default{Type: ir.GetValue().GetType()},
 			Right: ir.GetValue(),
 		})
-	case *hir.IntBitNegate, *hir.BoolNegate:
+	case *oldhir.IntBitNegate, *oldhir.BoolNegate:
 		return self.builder.CreateNot("", self.codegenExpr(ir.GetValue(), true))
-	case *hir.GetRef:
+	case *oldhir.GetRef:
 		return self.codegenExpr(ir.GetValue(), false)
-	case *hir.DeRef:
+	case *oldhir.DeRef:
 		ptr := self.codegenExpr(ir.GetValue(), true)
 		if !load {
 			return ptr
@@ -229,7 +229,7 @@ func (self *CodeGenerator) codegenUnary(ir hir.Unary, load bool) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) llvm.Value {
+func (self *CodeGenerator) codegenIdent(ir oldhir.Ident, load bool) llvm.Value {
 	if !self.lambdaCaptureMap.Empty() {
 		if mapVal := self.lambdaCaptureMap.Peek().Get(ir); mapVal != nil {
 			if !load {
@@ -240,11 +240,11 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) llvm.Value {
 	}
 
 	switch identNode := ir.(type) {
-	case *hir.FuncDef:
+	case *oldhir.FuncDef:
 		return self.values.GetValue(identNode)
-	case *hir.MethodDef:
+	case *oldhir.MethodDef:
 		return self.values.GetValue(&identNode.FuncDef)
-	case hir.Variable:
+	case oldhir.Variable:
 		p := self.values.GetValue(identNode)
 		if !load {
 			return p
@@ -255,21 +255,21 @@ func (self *CodeGenerator) codegenIdent(ir hir.Ident, load bool) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenCall(ir *hir.Call) llvm.Value {
-	ft1, st, ft2 := self.codegenCallableType(hir.AsType[hir.CallableType](ir.Func.GetType()))
-	if method, ok := ir.Func.(*hir.Method); ok {
+func (self *CodeGenerator) codegenCall(ir *oldhir.Call) llvm.Value {
+	ft1, st, ft2 := self.codegenCallableType(oldhir.AsType[oldhir.CallableType](ir.Func.GetType()))
+	if method, ok := ir.Func.(*oldhir.Method); ok {
 		this := self.codegenExpr(method.Self, true)
 		f := self.codegenExpr(method.Define, true)
-		args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) llvm.Value {
+		args := stlslices.Map(ir.Args, func(_ int, e oldhir.Expr) llvm.Value {
 			return self.codegenExpr(e, true)
 		})
 		return self.builder.CreateCall("", ft2, f, append([]llvm.Value{this}, args...)...)
 	} else {
 		f := self.codegenExpr(ir.Func, true)
-		args := stlslices.Map(ir.Args, func(_ int, e hir.Expr) llvm.Value {
+		args := stlslices.Map(ir.Args, func(_ int, e oldhir.Expr) llvm.Value {
 			return self.codegenExpr(e, true)
 		})
-		if hir.IsType[*hir.LambdaType](ir.Func.GetType()) {
+		if oldhir.IsType[*oldhir.LambdaType](ir.Func.GetType()) {
 			ctxPtr := self.buildStructIndex(st, f, 2, false)
 			cf := self.builder.CurrentFunction()
 			f1block, f2block, endblock := cf.NewBlock(""), cf.NewBlock(""), cf.NewBlock("")
@@ -306,19 +306,19 @@ func (self *CodeGenerator) codegenCall(ir *hir.Call) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) llvm.Value {
+func (self *CodeGenerator) codegenCovert(ir oldhir.TypeCovert, load bool) llvm.Value {
 	switch ir.(type) {
-	case *hir.DoNothingCovert, *hir.Enum2Number, *hir.Number2Enum:
+	case *oldhir.DoNothingCovert, *oldhir.Enum2Number, *oldhir.Number2Enum:
 		return self.codegenExpr(ir.GetFrom(), load)
-	case *hir.Num2Num:
+	case *oldhir.Num2Num:
 		ft := ir.GetFrom().GetType()
 		from := self.codegenExpr(ir.GetFrom(), true)
 		to := self.codegenType(ir.GetType())
 		switch {
-		case hir.IsIntType(ft) && hir.IsIntType(ir.GetType()):
+		case oldhir.IsIntType(ft) && oldhir.IsIntType(ir.GetType()):
 			ftSize, toSize := from.Type().(llvm.IntegerType).Bits(), to.(llvm.IntegerType).Bits()
 			if ftSize < toSize {
-				if hir.IsType[*hir.SintType](ft) {
+				if oldhir.IsType[*oldhir.SintType](ft) {
 					return self.builder.CreateSExt("", from, to.(llvm.IntegerType))
 				} else {
 					return self.builder.CreateZExt("", from, to.(llvm.IntegerType))
@@ -328,7 +328,7 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) llvm.Valu
 			} else {
 				return from
 			}
-		case hir.IsType[*hir.FloatType](ft) && hir.IsType[*hir.FloatType](ir.GetType()):
+		case oldhir.IsType[*oldhir.FloatType](ft) && oldhir.IsType[*oldhir.FloatType](ir.GetType()):
 			ftSize, toSize := from.Type().(llvm.FloatType).Kind(), to.(llvm.FloatType).Kind()
 			if ftSize < toSize {
 				return self.builder.CreateFPExt("", from, to.(llvm.FloatType))
@@ -337,26 +337,26 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) llvm.Valu
 			} else {
 				return from
 			}
-		case hir.IsType[*hir.SintType](ft) && hir.IsType[*hir.FloatType](ir.GetType()):
+		case oldhir.IsType[*oldhir.SintType](ft) && oldhir.IsType[*oldhir.FloatType](ir.GetType()):
 			return self.builder.CreateSIToFP("", from, to.(llvm.FloatType))
-		case hir.IsType[*hir.UintType](ft) && hir.IsType[*hir.FloatType](ir.GetType()):
+		case oldhir.IsType[*oldhir.UintType](ft) && oldhir.IsType[*oldhir.FloatType](ir.GetType()):
 			return self.builder.CreateUIToFP("", from, to.(llvm.FloatType))
-		case hir.IsType[*hir.FloatType](ft) && hir.IsType[*hir.SintType](ir.GetType()):
+		case oldhir.IsType[*oldhir.FloatType](ft) && oldhir.IsType[*oldhir.SintType](ir.GetType()):
 			return self.builder.CreateFPToSI("", from, to.(llvm.IntegerType))
-		case hir.IsType[*hir.FloatType](ft) && hir.IsType[*hir.UintType](ir.GetType()):
+		case oldhir.IsType[*oldhir.FloatType](ft) && oldhir.IsType[*oldhir.UintType](ir.GetType()):
 			return self.builder.CreateFPToUI("", from, to.(llvm.IntegerType))
 		default:
 			panic("unreachable")
 		}
-	case *hir.NoReturn2Any:
+	case *oldhir.NoReturn2Any:
 		v := self.codegenExpr(ir.GetFrom(), false)
 		self.builder.CreateUnreachable()
-		if ir.GetType().EqualTo(hir.NoThing) {
+		if ir.GetType().EqualTo(oldhir.NoThing) {
 			return v
 		} else {
 			return self.builder.ConstZero(self.codegenType(ir.GetType()))
 		}
-	case *hir.Func2Lambda:
+	case *oldhir.Func2Lambda:
 		t := self.codegenType(ir.GetType()).(llvm.StructType)
 		f := self.codegenExpr(ir.GetFrom(), true)
 		return self.buildPackStruct(t, f, self.builder.ConstZero(t.Elems()[1]), self.builder.ConstZero(t.Elems()[2]))
@@ -365,14 +365,14 @@ func (self *CodeGenerator) codegenCovert(ir hir.TypeCovert, load bool) llvm.Valu
 	}
 }
 
-func (self *CodeGenerator) codegenArray(ir *hir.Array) llvm.Value {
-	elems := stlslices.Map(ir.Elems, func(_ int, item hir.Expr) llvm.Value {
+func (self *CodeGenerator) codegenArray(ir *oldhir.Array) llvm.Value {
+	elems := stlslices.Map(ir.Elems, func(_ int, item oldhir.Expr) llvm.Value {
 		return self.codegenExpr(item, true)
 	})
 	return self.buildPackArray(self.codegenType(ir.GetType()).(llvm.ArrayType), elems...)
 }
 
-func (self *CodeGenerator) codegenIndex(ir *hir.Index, load bool) llvm.Value {
+func (self *CodeGenerator) codegenIndex(ir *oldhir.Index, load bool) llvm.Value {
 	at := self.codegenType(ir.From.GetType()).(llvm.ArrayType)
 	index := self.codegenExpr(ir.Index, true)
 	self.buildCheckIndex(index, uint64(at.Capacity()))
@@ -384,14 +384,14 @@ func (self *CodeGenerator) codegenIndex(ir *hir.Index, load bool) llvm.Value {
 	return self.buildArrayIndex(at, from, index, expectPtr...)
 }
 
-func (self *CodeGenerator) codegenTuple(ir *hir.Tuple) llvm.Value {
-	elems := stlslices.Map(ir.Elems, func(_ int, item hir.Expr) llvm.Value {
+func (self *CodeGenerator) codegenTuple(ir *oldhir.Tuple) llvm.Value {
+	elems := stlslices.Map(ir.Elems, func(_ int, item oldhir.Expr) llvm.Value {
 		return self.codegenExpr(item, true)
 	})
 	return self.buildPackStruct(self.codegenType(ir.GetType()).(llvm.StructType), elems...)
 }
 
-func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) llvm.Value {
+func (self *CodeGenerator) codegenExtract(ir *oldhir.Extract, load bool) llvm.Value {
 	from := self.codegenExpr(ir.From, false)
 	var expectPtr []bool
 	if load {
@@ -400,16 +400,16 @@ func (self *CodeGenerator) codegenExtract(ir *hir.Extract, load bool) llvm.Value
 	return self.buildStructIndex(self.codegenType(ir.From.GetType()).(llvm.StructType), from, ir.Index, expectPtr...)
 }
 
-func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
-	switch tir := hir.ToRuntimeType(ir).(type) {
-	case *hir.RefType:
+func (self *CodeGenerator) codegenDefault(ir oldhir.Type) llvm.Value {
+	switch tir := oldhir.ToRuntimeType(ir).(type) {
+	case *oldhir.RefType:
 		if tir.Elem.EqualTo(self.hir.BuildinTypes.Str) {
 			return self.constString("")
 		}
 		panic("unreachable")
-	case *hir.SintType, *hir.UintType, *hir.FloatType:
+	case *oldhir.SintType, *oldhir.UintType, *oldhir.FloatType:
 		return self.builder.ConstZero(self.codegenType(ir))
-	case *hir.ArrayType:
+	case *oldhir.ArrayType:
 		at := self.codegenArrayType(tir)
 		if tir.Size == 0 {
 			return self.builder.ConstZero(at)
@@ -450,22 +450,22 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			fn = self.funcCache.Get(key)
 		}
 		return self.builder.CreateCall("", fn.FunctionType(), fn)
-	case *hir.TupleType:
-		elems := stlslices.Map(hir.AsType[*hir.TupleType](tir).Elems, func(_ int, e hir.Type) llvm.Value {
+	case *oldhir.TupleType:
+		elems := stlslices.Map(oldhir.AsType[*oldhir.TupleType](tir).Elems, func(_ int, e oldhir.Type) llvm.Value {
 			return self.codegenDefault(e)
 		})
 		return self.buildPackStruct(self.codegenTupleType(tir), elems...)
-	case *hir.CustomType:
+	case *oldhir.CustomType:
 		if self.hir.BuildinTypes.Default.HasBeImpled(tir) {
-			return self.codegenCall(hir.NewCall(hir.LoopFindMethodWithSelf(tir, optional.None[hir.Expr](), self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()))
+			return self.codegenCall(oldhir.NewCall(oldhir.LoopFindMethodWithSelf(tir, optional.None[oldhir.Expr](), self.hir.BuildinTypes.Default.FirstMethodName()).MustValue()))
 		}
 		return self.codegenDefault(tir.Target)
-	case *hir.StructType:
-		elems := stlslices.Map(hir.AsType[*hir.StructType](tir).Fields.Values().ToSlice(), func(_ int, e hir.Field) llvm.Value {
+	case *oldhir.StructType:
+		elems := stlslices.Map(oldhir.AsType[*oldhir.StructType](tir).Fields.Values().ToSlice(), func(_ int, e oldhir.Field) llvm.Value {
 			return self.codegenDefault(e.Type)
 		})
 		return self.buildPackStruct(self.codegenStructType(tir), elems...)
-	case *hir.FuncType:
+	case *oldhir.FuncType:
 		ft := self.codegenFuncType(tir)
 		key := fmt.Sprintf("default:%s", tir.String())
 		var fn llvm.Function
@@ -477,23 +477,23 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			if ft.ReturnType().Equal(self.builder.VoidType()) {
 				self.builder.CreateRet(nil)
 			} else {
-				self.builder.CreateRet(stlbasic.Ptr(self.buildCopy(tir.Ret, self.codegenDefault(hir.AsType[*hir.FuncType](tir).Ret))))
+				self.builder.CreateRet(stlbasic.Ptr(self.buildCopy(tir.Ret, self.codegenDefault(oldhir.AsType[*oldhir.FuncType](tir).Ret))))
 			}
 			self.builder.MoveToAfter(curBlock)
 		} else {
 			fn = self.funcCache.Get(key)
 		}
 		return fn
-	case *hir.LambdaType:
+	case *oldhir.LambdaType:
 		t := self.codegenLambdaType(tir)
 		fn := self.codegenDefault(tir.ToFuncType())
 		return self.buildPackStruct(t, fn, self.builder.ConstZero(t.Elems()[1]), self.builder.ConstZero(t.Elems()[2]))
-	case *hir.EnumType:
+	case *oldhir.EnumType:
 		if tir.IsSimple() {
 			return self.builder.ConstInteger(self.codegenType(tir).(llvm.IntegerType), 0)
 		}
 
-		f := func(e optional.Optional[hir.Type]) (v llvm.Value, ok bool) {
+		f := func(e optional.Optional[oldhir.Type]) (v llvm.Value, ok bool) {
 			defer func() {
 				if err := recover(); err != nil {
 					ok = false
@@ -533,14 +533,14 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenStruct(ir *hir.Struct) llvm.Value {
-	fields := stlslices.Map(ir.Fields, func(_ int, item hir.Expr) llvm.Value {
+func (self *CodeGenerator) codegenStruct(ir *oldhir.Struct) llvm.Value {
+	fields := stlslices.Map(ir.Fields, func(_ int, item oldhir.Expr) llvm.Value {
 		return self.codegenExpr(item, true)
 	})
 	return self.buildPackStruct(self.codegenType(ir.Type).(llvm.StructType), fields...)
 }
 
-func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) llvm.Value {
+func (self *CodeGenerator) codegenField(ir *oldhir.GetField, load bool) llvm.Value {
 	from := self.codegenExpr(ir.From, false)
 	var expectPtr []bool
 	if load {
@@ -549,20 +549,20 @@ func (self *CodeGenerator) codegenField(ir *hir.GetField, load bool) llvm.Value 
 	return self.buildStructIndex(self.codegenType(ir.From.GetType()).(llvm.StructType), from, ir.Index, expectPtr...)
 }
 
-func (self *CodeGenerator) codegenString(ir *hir.String) llvm.Value {
+func (self *CodeGenerator) codegenString(ir *oldhir.String) llvm.Value {
 	return self.constString(ir.Value)
 }
 
-func (self *CodeGenerator) codegenTypeJudgment(ir *hir.TypeJudgment) llvm.Value {
+func (self *CodeGenerator) codegenTypeJudgment(ir *oldhir.TypeJudgment) llvm.Value {
 	return self.builder.CreateZExt("", self.builder.ConstBoolean(ir.Value.GetType().EqualTo(ir.Type)), self.boolType())
 }
 
-func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
-	ft1, st, ft2 := self.codegenCallableType(hir.AsType[hir.CallableType](ir.GetType()))
+func (self *CodeGenerator) codegenLambda(ir *oldhir.Lambda) llvm.Value {
+	ft1, st, ft2 := self.codegenCallableType(oldhir.AsType[oldhir.CallableType](ir.GetType()))
 	isSimpleFunc := len(ir.Context) == 0
 	ft := stlbasic.Ternary(isSimpleFunc, ft1, ft2)
 	f := self.builder.NewFunction("", ft)
-	if ir.Ret.EqualTo(hir.NoReturn) {
+	if ir.Ret.EqualTo(oldhir.NoReturn) {
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}
 
@@ -581,7 +581,7 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 
 		return self.buildPackStruct(st, f, self.builder.ConstZero(st.GetElem(1)), self.builder.ConstZero(st.GetElem(2)))
 	} else {
-		ctxType := self.builder.StructType(false, stlslices.Map(ir.Context, func(_ int, e hir.Ident) llvm.Type {
+		ctxType := self.builder.StructType(false, stlslices.Map(ir.Context, func(_ int, e oldhir.Ident) llvm.Type {
 			return self.builder.OpaquePointerType()
 		})...)
 		externalCtxPtr := self.buildMalloc(ctxType)
@@ -600,7 +600,7 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 			self.values.Set(pir, p)
 		}
 
-		captureMap := hashmap.NewHashMapWithCapacity[hir.Ident, llvm.Value](uint(len(ir.Context)))
+		captureMap := hashmap.NewHashMapWithCapacity[oldhir.Ident, llvm.Value](uint(len(ir.Context)))
 		for i, identIr := range ir.Context {
 			captureMap.Set(identIr, self.buildStructIndex(ctxType, f.GetParam(0), uint(i), false))
 		}
@@ -618,10 +618,10 @@ func (self *CodeGenerator) codegenLambda(ir *hir.Lambda) llvm.Value {
 	}
 }
 
-func (self *CodeGenerator) codegenMethod(ir *hir.Method) llvm.Value {
-	_, st, ft2 := self.codegenCallableType(hir.AsType[hir.CallableType](ir.GetType()))
+func (self *CodeGenerator) codegenMethod(ir *oldhir.Method) llvm.Value {
+	_, st, ft2 := self.codegenCallableType(oldhir.AsType[oldhir.CallableType](ir.GetType()))
 	f := self.builder.NewFunction("", ft2)
-	if ir.Define.Ret.EqualTo(hir.NoReturn) {
+	if ir.Define.Ret.EqualTo(oldhir.NoReturn) {
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}
 
@@ -651,8 +651,8 @@ func (self *CodeGenerator) codegenMethod(ir *hir.Method) llvm.Value {
 	return self.buildPackStruct(st, self.builder.ConstZero(st.GetElem(0)), f, externalCtxPtr)
 }
 
-func (self *CodeGenerator) codegenEnum(ir *hir.Enum) llvm.Value {
-	etIr := hir.AsType[*hir.EnumType](ir.GetType())
+func (self *CodeGenerator) codegenEnum(ir *oldhir.Enum) llvm.Value {
+	etIr := oldhir.AsType[*oldhir.EnumType](ir.GetType())
 	index := slices.Index(etIr.Fields.Keys().ToSlice(), ir.Field)
 	if etIr.IsSimple() {
 		return self.builder.ConstInteger(self.codegenType(etIr).(llvm.IntegerType), int64(index))
@@ -671,6 +671,6 @@ func (self *CodeGenerator) codegenEnum(ir *hir.Enum) llvm.Value {
 	return self.builder.CreateLoad("", ut, ptr)
 }
 
-func (self *CodeGenerator) analyseCopy(ir *hir.Copy) llvm.Value {
+func (self *CodeGenerator) analyseCopy(ir *oldhir.Copy) llvm.Value {
 	return self.buildCopy(ir.GetType(), self.codegenExpr(ir.Value, true))
 }

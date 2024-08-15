@@ -20,7 +20,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
-func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.Global] {
+func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[oldhir.Global] {
 	// 包名
 	var pkgName string
 	var importAll bool
@@ -35,7 +35,7 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.
 	paths := stliter.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
 		return v.Source()
 	}).ToSlice()
-	pkg, err := hir.OfficialPackage.GetSon(paths...)
+	pkg, err := oldhir.OfficialPackage.GetSon(paths...)
 	if err != nil {
 		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
 	}
@@ -57,7 +57,7 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.
 }
 
 func (self *Analyser) declTypeDef(node *ast.TypeDef) {
-	st := &hir.TypeDef{
+	st := &oldhir.TypeDef{
 		Pkg:    self.pkgScope.pkg,
 		Public: node.Public,
 		Name:   node.Name.Source(),
@@ -69,7 +69,7 @@ func (self *Analyser) declTypeDef(node *ast.TypeDef) {
 }
 
 func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
-	tad := &hir.TypeAliasDef{
+	tad := &oldhir.TypeAliasDef{
 		Pkg:    self.pkgScope.pkg,
 		Public: node.Public,
 		Name:   node.Name.Source(),
@@ -80,7 +80,7 @@ func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
 }
 
 func (self *Analyser) declTrait(node *ast.Trait) {
-	trait := &hir.Trait{
+	trait := &oldhir.Trait{
 		Pkg:    self.pkgScope.pkg,
 		Public: node.Public,
 		Name:   node.Name.Source(),
@@ -90,12 +90,12 @@ func (self *Analyser) declTrait(node *ast.Trait) {
 	}
 }
 
-func (self *Analyser) defTypeDef(node *ast.TypeDef) *hir.TypeDef {
+func (self *Analyser) defTypeDef(node *ast.TypeDef) *oldhir.TypeDef {
 	gt, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	td := gt.(*hir.TypeDef)
+	td := gt.(*oldhir.TypeDef)
 
 	defer self.setSelfType(td)()
 
@@ -103,18 +103,18 @@ func (self *Analyser) defTypeDef(node *ast.TypeDef) *hir.TypeDef {
 	return td
 }
 
-func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *hir.TypeAliasDef {
+func (self *Analyser) defTypeAlias(node *ast.TypeAlias) *oldhir.TypeAliasDef {
 	gt, ok := self.pkgScope.getLocalTypeDef(node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	tad := gt.(*hir.TypeAliasDef)
+	tad := gt.(*oldhir.TypeAliasDef)
 
 	tad.Target = self.analyseType(node.Target)
 	return tad
 }
 
-func (self *Analyser) defTrait(node *ast.Trait) *hir.Trait {
+func (self *Analyser) defTrait(node *ast.Trait) *oldhir.Trait {
 	trait, ok := self.pkgScope.getLocalTrait(node.Name.Source())
 	if !ok {
 		panic("unreachable")
@@ -154,7 +154,7 @@ func (self *Analyser) analyseGlobalDecl(node ast.Global) {
 }
 
 func (self *Analyser) declFuncDef(node *ast.FuncDef) {
-	f := &hir.FuncDef{
+	f := &oldhir.FuncDef{
 		Pkg:    self.pkgScope.pkg,
 		Public: node.Public,
 	}
@@ -180,8 +180,8 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 
 	f.FuncDecl = self.analyseFuncDecl(node.FuncDecl)
 
-	if f.Name == "main" && !f.GetType().EqualTo(&hir.FuncType{Ret: hir.NoThing}) {
-		errors.ThrowTypeMismatchError(node.Position(), f.GetType(), &hir.FuncType{Ret: hir.NoThing})
+	if f.Name == "main" && !f.GetType().EqualTo(&oldhir.FuncType{Ret: oldhir.NoThing}) {
+		errors.ThrowTypeMismatchError(node.Position(), f.GetType(), &oldhir.FuncType{Ret: oldhir.NoThing})
 	}
 	if !self.pkgScope.SetValue(f.Name, f) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
@@ -189,8 +189,8 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) {
 }
 
 func (self *Analyser) declMethodDef(node *ast.FuncDef) {
-	f := &hir.MethodDef{
-		FuncDef: hir.FuncDef{
+	f := &oldhir.MethodDef{
+		FuncDef: oldhir.FuncDef{
 			Pkg:    self.pkgScope.pkg,
 			Public: node.Public,
 		},
@@ -216,15 +216,15 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 	}
 
 	td, ok := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
-	if !ok || !stlbasic.Is[*hir.TypeDef](td) {
+	if !ok || !stlbasic.Is[*oldhir.TypeDef](td) {
 		errors.ThrowUnknownIdentifierError(node.SelfType.MustValue().Position, node.SelfType.MustValue())
 	}
-	f.Scope = td.(*hir.TypeDef)
+	f.Scope = td.(*oldhir.TypeDef)
 	defer self.setSelfType(f.Scope)()
 
 	f.FuncDecl = self.analyseFuncDecl(node.FuncDecl)
 
-	if f.Scope.Methods.ContainKey(f.Name) || (hir.IsType[*hir.StructType](f.Scope.Target) && hir.AsType[*hir.StructType](f.Scope.Target).Fields.ContainKey(f.Name)) {
+	if f.Scope.Methods.ContainKey(f.Name) || (oldhir.IsType[*oldhir.StructType](f.Scope.Target) && oldhir.AsType[*oldhir.StructType](f.Scope.Target).Fields.ContainKey(f.Name)) {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
 	f.Scope.Methods.Set(f.Name, f)
@@ -242,8 +242,8 @@ func (self *Analyser) declSingleGlobalVariable(node *ast.SingleVariableDef) {
 		}
 	}
 
-	v := &hir.GlobalVarDef{
-		VarDecl: hir.VarDecl{
+	v := &oldhir.GlobalVarDef{
+		VarDecl: oldhir.VarDecl{
 			Mut:  node.Var.Mutable,
 			Type: self.analyseType(node.Var.Type.MustValue()),
 			Name: node.Var.Name.Source(),
@@ -263,7 +263,7 @@ func (self *Analyser) declMultiGlobalVariable(node *ast.MultipleVariableDef) {
 	}
 }
 
-func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
+func (self *Analyser) analyseGlobalDef(node ast.Global) oldhir.Global {
 	switch global := node.(type) {
 	case *ast.FuncDef:
 		if global.SelfType.IsNone() {
@@ -282,12 +282,12 @@ func (self *Analyser) analyseGlobalDef(node ast.Global) hir.Global {
 	}
 }
 
-func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
+func (self *Analyser) defFuncDef(node *ast.FuncDef) *oldhir.FuncDef {
 	value, ok := self.pkgScope.getLocalValue(node.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	f := value.(*hir.FuncDef)
+	f := value.(*oldhir.FuncDef)
 
 	if node.Body.IsNone() {
 		return f
@@ -308,9 +308,9 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *hir.FuncDef {
 	return f
 }
 
-func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
+func (self *Analyser) defMethodDef(node *ast.FuncDef) *oldhir.MethodDef {
 	td, _ := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
-	st := td.(*hir.TypeDef)
+	st := td.(*oldhir.TypeDef)
 	f := st.Methods.Get(node.Name.Source())
 
 	if node.Body.IsNone() {
@@ -333,44 +333,44 @@ func (self *Analyser) defMethodDef(node *ast.FuncDef) *hir.MethodDef {
 	return f
 }
 
-func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *hir.GlobalVarDef {
+func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *oldhir.GlobalVarDef {
 	value, ok := self.pkgScope.GetValue("", node.Var.Name.Source())
 	if !ok {
 		panic("unreachable")
 	}
-	v := value.(*hir.GlobalVarDef)
+	v := value.(*oldhir.GlobalVarDef)
 
 	if valueNode, ok := node.Value.Value(); ok {
 		v.Value = optional.Some(self.expectExpr(v.Type, valueNode))
 	} else if v.ExternName == "" {
-		v.Value = optional.Some[hir.Expr](self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type))
+		v.Value = optional.Some[oldhir.Expr](self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type))
 	}
 	return v
 }
 
-func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) *hir.MultiGlobalVarDef {
-	vars := lo.Map(node.Vars, func(item ast.VarDef, _ int) *hir.GlobalVarDef {
+func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) *oldhir.MultiGlobalVarDef {
+	vars := lo.Map(node.Vars, func(item ast.VarDef, _ int) *oldhir.GlobalVarDef {
 		value, ok := self.pkgScope.GetValue("", item.Name.Source())
 		if !ok {
 			panic("unreachable")
 		}
-		return value.(*hir.GlobalVarDef)
+		return value.(*oldhir.GlobalVarDef)
 	})
-	varTypes := lo.Map(vars, func(item *hir.GlobalVarDef, _ int) hir.Type {
+	varTypes := lo.Map(vars, func(item *oldhir.GlobalVarDef, _ int) oldhir.Type {
 		return item.GetType()
 	})
 
-	var value hir.Expr
+	var value oldhir.Expr
 	if valueNode, ok := node.Value.Value(); ok {
-		value = self.expectExpr(&hir.TupleType{Elems: varTypes}, valueNode)
+		value = self.expectExpr(&oldhir.TupleType{Elems: varTypes}, valueNode)
 	} else {
-		tupleValue := &hir.Tuple{Elems: make([]hir.Expr, len(vars))}
+		tupleValue := &oldhir.Tuple{Elems: make([]oldhir.Expr, len(vars))}
 		for i, varDef := range node.Vars {
 			tupleValue.Elems[i] = self.getTypeDefaultValue(varDef.Type.MustValue().Position(), varTypes[i])
 		}
 		value = tupleValue
 	}
-	return &hir.MultiGlobalVarDef{
+	return &oldhir.MultiGlobalVarDef{
 		Vars:  vars,
 		Value: value,
 	}

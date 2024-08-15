@@ -21,7 +21,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
-func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
+func (self *Analyser) analyseExpr(expect oldhir.Type, node ast.Expr) oldhir.Expr {
 	switch exprNode := node.(type) {
 	case *ast.Integer:
 		return self.analyseInteger(expect, exprNode)
@@ -62,23 +62,23 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 	}
 }
 
-func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.ExprStmt {
-	if expect == nil || !hir.IsNumberType(expect) {
+func (self *Analyser) analyseInteger(expect oldhir.Type, node *ast.Integer) oldhir.ExprStmt {
+	if expect == nil || !oldhir.IsNumberType(expect) {
 		expect = self.pkgScope.Isize()
 	}
 	switch {
-	case hir.IsIntType(expect):
+	case oldhir.IsIntType(expect):
 		value, ok := big.NewInt(0).SetString(node.Value.Source(), 10)
 		if !ok {
 			panic("unreachable")
 		}
-		return &hir.Integer{
+		return &oldhir.Integer{
 			Type:  expect,
 			Value: value,
 		}
-	case hir.IsType[*hir.FloatType](expect):
+	case oldhir.IsType[*oldhir.FloatType](expect):
 		value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
-		return &hir.Float{
+		return &oldhir.Float{
 			Type:  expect,
 			Value: value,
 		}
@@ -87,22 +87,22 @@ func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.Exp
 	}
 }
 
-func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.ExprStmt {
-	if expect == nil || !hir.IsNumberType(expect) {
+func (self *Analyser) analyseChar(expect oldhir.Type, node *ast.Char) oldhir.ExprStmt {
+	if expect == nil || !oldhir.IsNumberType(expect) {
 		expect = self.pkgScope.I32()
 	}
 	s := node.Value.Source()
 	char := util.ParseEscapeCharacter(s[1:len(s)-1], `\'`, `'`)[0]
 	switch {
-	case hir.IsIntType(expect):
+	case oldhir.IsIntType(expect):
 		value := big.NewInt(int64(char))
-		return &hir.Integer{
+		return &oldhir.Integer{
 			Type:  expect,
 			Value: value,
 		}
-	case hir.IsType[*hir.SintType](expect):
+	case oldhir.IsType[*oldhir.SintType](expect):
 		value := big.NewFloat(float64(char))
-		return &hir.Float{
+		return &oldhir.Float{
 			Type:  expect,
 			Value: value,
 		}
@@ -111,12 +111,12 @@ func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.ExprStmt 
 	}
 }
 
-func (self *Analyser) analyseFloat(expect hir.Type, node *ast.Float) *hir.Float {
-	if expect == nil || !hir.IsType[*hir.FloatType](expect) {
+func (self *Analyser) analyseFloat(expect oldhir.Type, node *ast.Float) *oldhir.Float {
+	if expect == nil || !oldhir.IsType[*oldhir.FloatType](expect) {
 		expect = self.pkgScope.F64()
 	}
 	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
-	return &hir.Float{
+	return &oldhir.Float{
 		Type:  expect,
 		Value: value,
 	}
@@ -137,7 +137,7 @@ var assMap = map[token.Kind]token.Kind{
 	token.LORASS:  token.LOR,
 }
 
-func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr {
+func (self *Analyser) analyseBinary(expect oldhir.Type, node *ast.Binary) oldhir.Expr {
 	left := self.analyseExpr(expect, node.Left)
 	lt := left.GetType()
 	right := self.analyseExpr(lt, node.Right)
@@ -151,7 +151,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 			} else if !left.Mutable() {
 				errors.ThrowNotMutableError(node.Left.Position())
 			}
-			return hir.NewAssign(left, right)
+			return oldhir.NewAssign(left, right)
 		}
 	case token.ANDASS, token.ORASS, token.XORASS, token.SHLASS, token.SHRASS, token.ADDASS, token.SUBASS, token.MULASS, token.DIVASS, token.REMASS, token.LANDASS, token.LORASS:
 		return self.analyseBinary(expect, &ast.Binary{
@@ -170,120 +170,120 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 			},
 		})
 	case token.AND:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.And().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.And().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntAndInt{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.And().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsIntType(lt) {
+			return &oldhir.IntAndInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.OR:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Or().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Or().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntOrInt{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Or().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsIntType(lt) {
+			return &oldhir.IntOrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.XOR:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Xor().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Xor().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntXorInt{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Xor().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsIntType(lt) {
+			return &oldhir.IntXorInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHL:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Shl().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Shl().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntShlInt{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Shl().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsIntType(lt) {
+			return &oldhir.IntShlInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SHR:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Shr().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Shr().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntShrInt{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Shr().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsIntType(lt) {
+			return &oldhir.IntShrInt{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.ADD:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Add().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Add().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumAddNum{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Add().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			return &oldhir.NumAddNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.SUB:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Sub().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Sub().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumSubNum{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Sub().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			return &oldhir.NumSubNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.MUL:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Mul().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Mul().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumMulNum{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Mul().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			return &oldhir.NumMulNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.DIV:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Div().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Div().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
-				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Div().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			if (stlbasic.Is[*oldhir.Integer](right) && right.(*oldhir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
+				(stlbasic.Is[*oldhir.Float](right) && right.(*oldhir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
 				errors.ThrowDivZero(node.Right.Position())
 			}
-			return &hir.NumDivNum{
+			return &oldhir.NumDivNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.REM:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Rem().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Rem().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
-				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Rem().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			if (stlbasic.Is[*oldhir.Integer](right) && right.(*oldhir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
+				(stlbasic.Is[*oldhir.Float](right) && right.(*oldhir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
 				errors.ThrowDivZero(node.Right.Position())
 			}
-			return &hir.NumRemNum{
+			return &oldhir.NumRemNum{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.EQ:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Eq().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right)
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right)
 		} else if lt.EqualTo(rt) {
-			if !lt.EqualTo(hir.NoThing) {
-				return &hir.Equal{
+			if !lt.EqualTo(oldhir.NoThing) {
+				return &oldhir.Equal{
 					BoolType: self.pkgScope.Bool(),
 					Left:     left,
 					Right:    right,
@@ -291,84 +291,84 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 			}
 		}
 	case token.NE:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Eq().HasBeImpled(ct) {
-			return &hir.BoolNegate{
-				Value: hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
+			return &oldhir.BoolNegate{
+				Value: oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
 			}
-		} else if !lt.EqualTo(hir.NoThing) {
-			return &hir.NotEqual{
+		} else if !lt.EqualTo(oldhir.NoThing) {
+			return &oldhir.NotEqual{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
 				Right:    right,
 			}
 		}
 	case token.LT:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Lt().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumLtNum{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			return &oldhir.NumLtNum{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
 				Right:    right,
 			}
 		}
 	case token.GT:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Gt().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumGtNum{
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(), right)
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			return &oldhir.NumGtNum{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
 				Right:    right,
 			}
 		}
 	case token.LE:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Lt().HasBeImpled(ct) && self.pkgScope.Eq().HasBeImpled(ct) {
-			return &hir.BoolOrBool{
-				Left:  hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(), right),
-				Right: hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
+			return &oldhir.BoolOrBool{
+				Left:  oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(), right),
+				Right: oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
 			}
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumLeNum{
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			return &oldhir.NumLeNum{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
 				Right:    right,
 			}
 		}
 	case token.GE:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Gt().HasBeImpled(ct) && self.pkgScope.Eq().HasBeImpled(ct) {
-			return &hir.BoolOrBool{
-				Left:  hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(), right),
-				Right: hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
+			return &oldhir.BoolOrBool{
+				Left:  oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(), right),
+				Right: oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
 			}
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumGeNum{
+		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
+			return &oldhir.NumGeNum{
 				BoolType: self.pkgScope.Bool(),
 				Left:     left,
 				Right:    right,
 			}
 		}
 	case token.LAND:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Land().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Land().FirstMethodName()).MustValue(), right)
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Land().FirstMethodName()).MustValue(), right)
 		} else if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
-			return &hir.BoolAndBool{
+			return &oldhir.BoolAndBool{
 				Left:  left,
 				Right: right,
 			}
 		}
 	case token.LOR:
-		ct, ok := hir.TryCustomType(lt)
+		ct, ok := oldhir.TryCustomType(lt)
 		if ok && self.pkgScope.Lor().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lor().FirstMethodName()).MustValue(), right)
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Lor().FirstMethodName()).MustValue(), right)
 		} else if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
-			return &hir.BoolOrBool{
+			return &oldhir.BoolOrBool{
 				Left:  left,
 				Right: right,
 			}
@@ -381,67 +381,67 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 	return nil
 }
 
-func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Expr {
+func (self *Analyser) analyseUnary(expect oldhir.Type, node *ast.Unary) oldhir.Expr {
 	switch node.Opera.Kind {
 	case token.SUB:
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
-		ct, ok := hir.TryCustomType(vt)
+		ct, ok := oldhir.TryCustomType(vt)
 		if ok && self.pkgScope.Neg().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](value), self.pkgScope.Neg().FirstMethodName()).MustValue())
-		} else if hir.IsType[*hir.SintType](vt) || hir.IsType[*hir.FloatType](vt) {
-			return &hir.NumNegate{Value: value}
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](value), self.pkgScope.Neg().FirstMethodName()).MustValue())
+		} else if oldhir.IsType[*oldhir.SintType](vt) || oldhir.IsType[*oldhir.FloatType](vt) {
+			return &oldhir.NumNegate{Value: value}
 		}
 		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 		return nil
 	case token.NOT:
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
-		ct, ok := hir.TryCustomType(vt)
+		ct, ok := oldhir.TryCustomType(vt)
 		if ok && self.pkgScope.Not().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](value), self.pkgScope.Not().FirstMethodName()).MustValue())
+			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](value), self.pkgScope.Not().FirstMethodName()).MustValue())
 		}
 		switch {
-		case hir.IsIntType(vt):
-			return &hir.IntBitNegate{Value: value}
+		case oldhir.IsIntType(vt):
+			return &oldhir.IntBitNegate{Value: value}
 		case vt.EqualTo(self.pkgScope.Bool()):
-			return &hir.BoolNegate{Value: value}
+			return &oldhir.BoolNegate{Value: value}
 		default:
 			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 			return nil
 		}
 	case token.AND, token.AND_WITH_MUT:
-		if expect != nil && hir.IsType[*hir.RefType](expect) {
-			expect = hir.AsType[*hir.RefType](expect).Elem
+		if expect != nil && oldhir.IsType[*oldhir.RefType](expect) {
+			expect = oldhir.AsType[*oldhir.RefType](expect).Elem
 		}
 		value := self.analyseExpr(expect, node.Value)
 		if value.Temporary() {
 			errors.ThrowExprTemporaryError(node.Value.Position())
 		} else if node.Opera.Is(token.AND_WITH_MUT) && !value.Mutable() {
 			errors.ThrowNotMutableError(node.Value.Position())
-		} else if localVarDef, ok := value.(*hir.LocalVarDef); ok {
+		} else if localVarDef, ok := value.(*oldhir.LocalVarDef); ok {
 			localVarDef.Escaped = true
 		}
-		return &hir.GetRef{
+		return &oldhir.GetRef{
 			Mut:   node.Opera.Is(token.AND_WITH_MUT),
 			Value: value,
 		}
 	case token.MUL:
 		if expect != nil {
-			expect = hir.NewRefType(false, expect)
+			expect = oldhir.NewRefType(false, expect)
 		}
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.GetType()
-		if !hir.IsType[*hir.RefType](vt) {
+		if !oldhir.IsType[*oldhir.RefType](vt) {
 			errors.ThrowExpectReferenceError(node.Value.Position(), vt)
 		}
-		return &hir.DeRef{Value: value}
+		return &oldhir.DeRef{Value: value}
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
+func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) oldhir.Ident {
 	expr := self.analyseIdent((*ast.Ident)(node), true)
 	if expr.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
@@ -449,20 +449,20 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
 	return stlbasic.IgnoreWith(expr.MustValue().Left())
 }
 
-func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
+func (self *Analyser) analyseCall(node *ast.Call) oldhir.Expr {
 	if dotNode, ok := node.Func.(*ast.Dot); ok && len(node.Args) == 1 {
 		if identNode, ok := dotNode.From.(*ast.IdentExpr); ok {
 			ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
 			if ok {
 				if t, ok := ident.Right(); ok {
-					if et, ok := hir.TryType[*hir.EnumType](t); ok {
+					if et, ok := oldhir.TryType[*oldhir.EnumType](t); ok {
 						// 枚举值
 						fieldName := dotNode.Index.Source()
 						if et.Fields.ContainKey(fieldName) {
 							caseDef := et.Fields.Get(fieldName)
 							if caseDef.Elem.IsSome() {
 								elem := self.analyseExpr(caseDef.Elem.MustValue(), stlslices.First(node.Args))
-								return &hir.Enum{
+								return &oldhir.Enum{
 									From:  t,
 									Field: fieldName,
 									Elem:  optional.Some(elem),
@@ -476,33 +476,33 @@ func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
 	}
 
 	f := self.analyseExpr(nil, node.Func)
-	ct, ok := hir.TryType[hir.CallableType](f.GetType())
+	ct, ok := oldhir.TryType[oldhir.CallableType](f.GetType())
 	if !ok {
 		errors.ThrowExpectCallableError(node.Func.Position(), f.GetType())
 	}
-	vararg := stlbasic.Is[*hir.FuncDef](f) && f.(*hir.FuncDef).VarArg
+	vararg := stlbasic.Is[*oldhir.FuncDef](f) && f.(*oldhir.FuncDef).VarArg
 	if (!vararg && len(node.Args) != len(ct.GetParams())) || (vararg && len(node.Args) < len(ct.GetParams())) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ct.GetParams())), uint(len(node.Args)))
 	}
-	args := stlslices.Map(node.Args, func(index int, item ast.Expr) hir.Expr {
+	args := stlslices.Map(node.Args, func(index int, item ast.Expr) oldhir.Expr {
 		if vararg && index >= len(ct.GetParams()) {
 			return self.analyseExpr(nil, item)
 		} else {
 			return self.expectExpr(ct.GetParams()[index], item)
 		}
 	})
-	return hir.NewCall(f, args...)
+	return oldhir.NewCall(f, args...)
 }
 
-func (self *Analyser) analyseTuple(expect hir.Type, node *ast.Tuple) hir.Expr {
-	if len(node.Elems) == 1 && (expect == nil || !hir.IsType[*hir.TupleType](expect)) {
+func (self *Analyser) analyseTuple(expect oldhir.Type, node *ast.Tuple) oldhir.Expr {
+	if len(node.Elems) == 1 && (expect == nil || !oldhir.IsType[*oldhir.TupleType](expect)) {
 		return self.analyseExpr(expect, node.Elems[0])
 	}
 
-	elemExpects := make([]hir.Type, len(node.Elems))
+	elemExpects := make([]oldhir.Type, len(node.Elems))
 	if expect != nil {
-		if hir.IsType[*hir.TupleType](expect) {
-			tt := hir.AsType[*hir.TupleType](expect)
+		if oldhir.IsType[*oldhir.TupleType](expect) {
+			tt := oldhir.AsType[*oldhir.TupleType](expect)
 			if len(tt.Elems) < len(node.Elems) {
 				copy(elemExpects, tt.Elems)
 			} else if len(tt.Elems) > len(node.Elems) {
@@ -512,13 +512,13 @@ func (self *Analyser) analyseTuple(expect hir.Type, node *ast.Tuple) hir.Expr {
 			}
 		}
 	}
-	elems := lo.Map(node.Elems, func(item ast.Expr, index int) hir.Expr {
+	elems := lo.Map(node.Elems, func(item ast.Expr, index int) oldhir.Expr {
 		return self.analyseExpr(elemExpects[index], item)
 	})
-	return &hir.Tuple{Elems: elems}
+	return &oldhir.Tuple{Elems: elems}
 }
 
-func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
+func (self *Analyser) analyseCovert(node *ast.Covert) oldhir.Expr {
 	tt := self.analyseType(node.Type)
 	from := self.analyseExpr(tt, node.Value)
 	ft := from.GetType()
@@ -527,14 +527,14 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 	}
 
 	switch {
-	case hir.ToBuildInType(ft).EqualTo(hir.ToBuildInType(tt)):
-		return &hir.DoNothingCovert{
+	case oldhir.ToBuildInType(ft).EqualTo(oldhir.ToBuildInType(tt)):
+		return &oldhir.DoNothingCovert{
 			From: from,
 			To:   tt,
 		}
-	case hir.IsNumberType(ft) && hir.IsNumberType(tt):
+	case oldhir.IsNumberType(ft) && oldhir.IsNumberType(tt):
 		// i8 -> u8
-		return &hir.Num2Num{
+		return &oldhir.Num2Num{
 			From: from,
 			To:   tt,
 		}
@@ -544,7 +544,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
 	}
 }
 
-func (self *Analyser) expectExpr(expect hir.Type, node ast.Expr) hir.Expr {
+func (self *Analyser) expectExpr(expect oldhir.Type, node ast.Expr) oldhir.Expr {
 	value := self.analyseExpr(expect, node)
 	newValue, ok := self.autoTypeCovert(expect, value)
 	if !ok {
@@ -554,43 +554,43 @@ func (self *Analyser) expectExpr(expect hir.Type, node ast.Expr) hir.Expr {
 }
 
 // 自动类型转换
-func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, bool) {
+func (self *Analyser) autoTypeCovert(expect oldhir.Type, v oldhir.Expr) (oldhir.Expr, bool) {
 	vt := v.GetType()
 	if vt.EqualTo(expect) {
 		return v, true
 	}
 
 	switch {
-	case hir.IsType[*hir.RefType](vt) && hir.AsType[*hir.RefType](vt).Elem.EqualTo(expect):
+	case oldhir.IsType[*oldhir.RefType](vt) && oldhir.AsType[*oldhir.RefType](vt).Elem.EqualTo(expect):
 		// &i8 -> i8
-		return &hir.DeRef{Value: v}, true
-	case hir.IsType[*hir.RefType](vt) && hir.IsType[*hir.RefType](expect) && hir.NewRefType(false, hir.AsType[*hir.RefType](vt).Elem).EqualTo(expect):
+		return &oldhir.DeRef{Value: v}, true
+	case oldhir.IsType[*oldhir.RefType](vt) && oldhir.IsType[*oldhir.RefType](expect) && oldhir.NewRefType(false, oldhir.AsType[*oldhir.RefType](vt).Elem).EqualTo(expect):
 		// &mut i8 -> &i8
-		return &hir.DoNothingCovert{
+		return &oldhir.DoNothingCovert{
 			From: v,
 			To:   expect,
 		}, true
-	case vt.EqualTo(hir.NoReturn) && (self.hasTypeDefault(expect) || expect.EqualTo(hir.NoThing)):
+	case vt.EqualTo(oldhir.NoReturn) && (self.hasTypeDefault(expect) || expect.EqualTo(oldhir.NoThing)):
 		// X -> any
-		return &hir.NoReturn2Any{
+		return &oldhir.NoReturn2Any{
 			From: v,
 			To:   expect,
 		}, true
-	case hir.IsType[*hir.FuncType](vt) && hir.IsType[*hir.LambdaType](expect) && hir.AsType[*hir.FuncType](vt).EqualTo(hir.AsType[*hir.LambdaType](expect).ToFuncType()):
+	case oldhir.IsType[*oldhir.FuncType](vt) && oldhir.IsType[*oldhir.LambdaType](expect) && oldhir.AsType[*oldhir.FuncType](vt).EqualTo(oldhir.AsType[*oldhir.LambdaType](expect).ToFuncType()):
 		// func -> ()->void
-		return &hir.Func2Lambda{
+		return &oldhir.Func2Lambda{
 			From: v,
 			To:   expect,
 		}, true
-	case hir.IsType[*hir.EnumType](vt) && hir.IsType[*hir.UintType](expect) && hir.AsType[*hir.EnumType](vt).IsSimple() && hir.AsType[*hir.UintType](expect).EqualTo(hir.NewUintType(8)):
+	case oldhir.IsType[*oldhir.EnumType](vt) && oldhir.IsType[*oldhir.UintType](expect) && oldhir.AsType[*oldhir.EnumType](vt).IsSimple() && oldhir.AsType[*oldhir.UintType](expect).EqualTo(oldhir.NewUintType(8)):
 		// simple enum -> u8
-		return &hir.Enum2Number{
+		return &oldhir.Enum2Number{
 			From: v,
 			To:   expect,
 		}, true
-	case hir.IsType[*hir.UintType](vt) && hir.IsType[*hir.EnumType](expect) && hir.AsType[*hir.UintType](vt).EqualTo(hir.NewUintType(8)) && hir.AsType[*hir.EnumType](expect).IsSimple():
+	case oldhir.IsType[*oldhir.UintType](vt) && oldhir.IsType[*oldhir.EnumType](expect) && oldhir.AsType[*oldhir.UintType](vt).EqualTo(oldhir.NewUintType(8)) && oldhir.AsType[*oldhir.EnumType](expect).IsSimple():
 		// u8 -> simple enum
-		return &hir.Number2Enum{
+		return &oldhir.Number2Enum{
 			From: v,
 			To:   expect,
 		}, true
@@ -599,49 +599,49 @@ func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, boo
 	}
 }
 
-func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array {
-	var expectArray *hir.ArrayType
-	var expectElem hir.Type
-	if expect != nil && hir.IsType[*hir.ArrayType](expect) {
-		expectArray = hir.AsType[*hir.ArrayType](expect)
+func (self *Analyser) analyseArray(expect oldhir.Type, node *ast.Array) *oldhir.Array {
+	var expectArray *oldhir.ArrayType
+	var expectElem oldhir.Type
+	if expect != nil && oldhir.IsType[*oldhir.ArrayType](expect) {
+		expectArray = oldhir.AsType[*oldhir.ArrayType](expect)
 		expectElem = expectArray.Elem
 	}
 	if expectArray == nil && len(node.Elems) == 0 {
-		errors.ThrowExpectArrayTypeError(node.Position(), hir.NoThing)
+		errors.ThrowExpectArrayTypeError(node.Position(), oldhir.NoThing)
 	}
-	elems := make([]hir.Expr, len(node.Elems))
+	elems := make([]oldhir.Expr, len(node.Elems))
 	for i, elemNode := range node.Elems {
-		elems[i] = stlbasic.TernaryAction(i == 0, func() hir.Expr {
+		elems[i] = stlbasic.TernaryAction(i == 0, func() oldhir.Expr {
 			return self.analyseExpr(expectElem, elemNode)
-		}, func() hir.Expr {
+		}, func() oldhir.Expr {
 			return self.expectExpr(elems[0].GetType(), elemNode)
 		})
 	}
-	return &hir.Array{
-		Type: stlbasic.TernaryAction(len(elems) != 0, func() hir.Type {
-			return hir.NewArrayType(uint64(len(elems)), elems[0].GetType())
-		}, func() hir.Type { return expectArray }),
+	return &oldhir.Array{
+		Type: stlbasic.TernaryAction(len(elems) != 0, func() oldhir.Type {
+			return oldhir.NewArrayType(uint64(len(elems)), elems[0].GetType())
+		}, func() oldhir.Type { return expectArray }),
 		Elems: elems,
 	}
 }
 
-func (self *Analyser) analyseIndex(node *ast.Index) *hir.Index {
+func (self *Analyser) analyseIndex(node *ast.Index) *oldhir.Index {
 	from := self.analyseExpr(nil, node.From)
-	if !hir.IsType[*hir.ArrayType](from.GetType()) {
+	if !oldhir.IsType[*oldhir.ArrayType](from.GetType()) {
 		errors.ThrowExpectArrayError(node.From.Position(), from.GetType())
 	}
-	at := hir.AsType[*hir.ArrayType](from.GetType())
+	at := oldhir.AsType[*oldhir.ArrayType](from.GetType())
 	index := self.expectExpr(self.pkgScope.Usize(), node.Index)
-	if stlbasic.Is[*hir.Integer](index) && index.(*hir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0 {
+	if stlbasic.Is[*oldhir.Integer](index) && index.(*oldhir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0 {
 		errors.ThrowIndexOutOfRange(node.Index.Position())
 	}
-	return &hir.Index{
+	return &oldhir.Index{
 		From:  from,
 		Index: index,
 	}
 }
 
-func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *hir.Extract {
+func (self *Analyser) analyseExtract(expect oldhir.Type, node *ast.Extract) *oldhir.Extract {
 	indexValue, ok := big.NewInt(0).SetString(node.Index.Source(), 10)
 	if !ok {
 		panic("unreachable")
@@ -651,32 +651,32 @@ func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *hir.Ex
 	}
 	index := uint(indexValue.Uint64())
 
-	expectFrom := &hir.TupleType{Elems: make([]hir.Type, index+1)}
+	expectFrom := &oldhir.TupleType{Elems: make([]oldhir.Type, index+1)}
 	expectFrom.Elems[index] = expect
 
 	from := self.analyseExpr(expectFrom, node.From)
-	if !hir.IsType[*hir.TupleType](from.GetType()) {
+	if !oldhir.IsType[*oldhir.TupleType](from.GetType()) {
 		errors.ThrowExpectTupleError(node.From.Position(), from.GetType())
 	}
 
-	tt := hir.AsType[*hir.TupleType](from.GetType())
+	tt := oldhir.AsType[*oldhir.TupleType](from.GetType())
 	if index >= uint(len(tt.Elems)) {
 		errors.ThrowInvalidIndexError(node.Index.Position, index)
 	}
-	return &hir.Extract{
+	return &oldhir.Extract{
 		From:  from,
 		Index: index,
 	}
 }
 
-func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
+func (self *Analyser) analyseStruct(node *ast.Struct) *oldhir.Struct {
 	stObj := self.analyseType(node.Type)
-	st, ok := hir.TryType[*hir.StructType](stObj)
+	st, ok := oldhir.TryType[*oldhir.StructType](stObj)
 	if !ok {
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
 
-	existedFields := make(map[string]hir.Expr)
+	existedFields := make(map[string]oldhir.Expr)
 	for _, nf := range node.Fields {
 		fn := nf.First.Source()
 		if !st.Fields.ContainKey(fn) || (!self.pkgScope.pkg.Equal(st.Def.Pkg) && !st.Fields.Get(fn).Public) {
@@ -685,7 +685,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.Second)
 	}
 
-	fields := make([]hir.Expr, st.Fields.Length())
+	fields := make([]oldhir.Expr, st.Fields.Length())
 	var i int
 	for iter := st.Fields.Iterator(); iter.Next(); i++ {
 		fn, ft := iter.Value().First, iter.Value().Second.Type
@@ -696,31 +696,31 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 		}
 	}
 
-	return &hir.Struct{
+	return &oldhir.Struct{
 		Type:   stObj,
 		Fields: fields,
 	}
 }
 
-func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
+func (self *Analyser) analyseDot(node *ast.Dot) oldhir.Expr {
 	fieldName := node.Index.Source()
 
 	if identNode, ok := node.From.(*ast.IdentExpr); ok {
 		ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
 		if ok {
 			if t, ok := ident.Right(); ok {
-				if ct, ok := hir.TryCustomType(t); ok {
+				if ct, ok := oldhir.TryCustomType(t); ok {
 					// 静态方法
 					f := ct.Methods.Get(fieldName)
 					if f != nil && (f.GetPublic() || self.pkgScope.pkg.Equal(f.GetPackage())) {
 						return f
 					}
 				}
-				if et, ok := hir.TryType[*hir.EnumType](t); ok {
+				if et, ok := oldhir.TryType[*oldhir.EnumType](t); ok {
 					// 枚举值
 					if et.Fields.ContainKey(fieldName) {
 						if et.Fields.Get(fieldName).Elem.IsNone() {
-							return &hir.Enum{
+							return &oldhir.Enum{
 								From:  t,
 								Field: fieldName,
 							}
@@ -739,35 +739,35 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 	ft := fromValObj.GetType()
 
 	// 字段
-	var structVal hir.Expr
-	if hir.IsType[*hir.StructType](ft) {
+	var structVal oldhir.Expr
+	if oldhir.IsType[*oldhir.StructType](ft) {
 		structVal = fromValObj
-	} else if hir.IsType[*hir.RefType](ft) && hir.IsType[*hir.StructType](hir.AsType[*hir.RefType](ft).Elem) {
-		structVal = &hir.DeRef{Value: fromValObj}
+	} else if oldhir.IsType[*oldhir.RefType](ft) && oldhir.IsType[*oldhir.StructType](oldhir.AsType[*oldhir.RefType](ft).Elem) {
+		structVal = &oldhir.DeRef{Value: fromValObj}
 	} else {
 		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
-	st := hir.AsType[*hir.StructType](structVal.GetType())
+	st := oldhir.AsType[*oldhir.StructType](structVal.GetType())
 	if field := st.Fields.Get(fieldName); !st.Fields.ContainKey(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Def.Pkg)) {
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
-	return &hir.GetField{
+	return &oldhir.GetField{
 		Internal: self.pkgScope.pkg.Equal(st.Def.Pkg),
 		From:     structVal,
 		Index:    uint(slices.Index(st.Fields.Keys().ToSlice(), fieldName)),
 	}
 }
 
-func (self *Analyser) analyseMethod(node *ast.Dot) (hir.Expr, bool) {
+func (self *Analyser) analyseMethod(node *ast.Dot) (oldhir.Expr, bool) {
 	fieldName := node.Index.Source()
 	fromObj := self.analyseExpr(nil, node.From)
 	ft := fromObj.GetType()
 
-	var customType *hir.CustomType
-	if hir.IsCustomType(ft) {
-		customType = hir.AsCustomType(ft)
-	} else if hir.IsType[*hir.RefType](ft) && hir.IsCustomType(hir.AsType[*hir.RefType](ft).Elem) {
-		customType = hir.AsCustomType(hir.AsType[*hir.RefType](ft).Elem)
+	var customType *oldhir.CustomType
+	if oldhir.IsCustomType(ft) {
+		customType = oldhir.AsCustomType(ft)
+	} else if oldhir.IsType[*oldhir.RefType](ft) && oldhir.IsCustomType(oldhir.AsType[*oldhir.RefType](ft).Elem) {
+		customType = oldhir.AsCustomType(oldhir.AsType[*oldhir.RefType](ft).Elem)
 	}
 	if customType == nil {
 		return nil, false
@@ -778,43 +778,43 @@ func (self *Analyser) analyseMethod(node *ast.Dot) (hir.Expr, bool) {
 		return nil, false
 	}
 
-	var customFrom hir.Expr
+	var customFrom oldhir.Expr
 	if method.IsStatic() {
 		return method, true
-	} else if method.IsRef() && hir.IsCustomType(ft) {
+	} else if method.IsRef() && oldhir.IsCustomType(ft) {
 		if fromObj.Temporary() {
 			errors.ThrowExprTemporaryError(node.From.Position())
 		}
-		customFrom = &hir.GetRef{
+		customFrom = &oldhir.GetRef{
 			Mut:   method.GetSelfParam().MustValue().Mutable(),
 			Value: fromObj,
 		}
-	} else if method.IsRef() && !hir.IsCustomType(ft) {
+	} else if method.IsRef() && !oldhir.IsCustomType(ft) {
 		customFrom = fromObj
-	} else if !method.IsRef() && hir.IsCustomType(ft) {
+	} else if !method.IsRef() && oldhir.IsCustomType(ft) {
 		customFrom = fromObj
-	} else if !method.IsRef() && !hir.IsCustomType(ft) {
-		customFrom = &hir.DeRef{Value: fromObj}
+	} else if !method.IsRef() && !oldhir.IsCustomType(ft) {
+		customFrom = &oldhir.DeRef{Value: fromObj}
 	} else {
 		panic("unreachable")
 	}
 
-	return &hir.Method{
+	return &oldhir.Method{
 		Self:   customFrom,
 		Define: method,
 	}, true
 }
 
-func (self *Analyser) analyseString(node *ast.String) *hir.String {
+func (self *Analyser) analyseString(node *ast.String) *oldhir.String {
 	s := node.Value.Source()
 	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
-	return &hir.String{
+	return &oldhir.String{
 		Type:  self.pkgScope.Str(),
 		Value: s,
 	}
 }
 
-func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
+func (self *Analyser) analyseJudgment(node *ast.Judgment) oldhir.Expr {
 	target := self.analyseType(node.Type)
 	value := self.analyseExpr(target, node.Value)
 	vt := value.GetType()
@@ -823,7 +823,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	case vt.EqualTo(target):
 		return self.pkgScope.True()
 	default:
-		return &hir.TypeJudgment{
+		return &oldhir.TypeJudgment{
 			BoolType: self.pkgScope.Bool(),
 			Value:    value,
 			Type:     target,
@@ -831,24 +831,24 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
 	}
 }
 
-func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lambda {
-	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *hir.Param { return self.analyseParam(e) })
+func (self *Analyser) analyseLambda(expect oldhir.Type, node *ast.Lambda) *oldhir.Lambda {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *oldhir.Param { return self.analyseParam(e) })
 	ret := self.analyseOptionTypeWith(optional.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
-	f := &hir.Lambda{
+	f := &oldhir.Lambda{
 		Params: params,
 		Ret:    ret,
 	}
 
-	if expect == nil || !hir.IsType[*hir.LambdaType](expect) || !hir.AsType[*hir.LambdaType](expect).ToFuncType().EqualTo(f.GetFuncType()) {
-		expect = hir.NewLambdaType(f.Ret, stlslices.Map(f.Params, func(_ int, e *hir.Param) hir.Type {
+	if expect == nil || !oldhir.IsType[*oldhir.LambdaType](expect) || !oldhir.AsType[*oldhir.LambdaType](expect).ToFuncType().EqualTo(f.GetFuncType()) {
+		expect = oldhir.NewLambdaType(f.Ret, stlslices.Map(f.Params, func(_ int, e *oldhir.Param) oldhir.Type {
 			return e.GetType()
 		})...)
 	}
 	f.Type = expect
 
-	captureIdents := hashset.NewHashSet[hir.Ident]()
-	self.localScope = _NewLambdaScope(self.localScope, f, func(ident hir.Ident) {
-		if v, ok := ident.(*hir.LocalVarDef); ok {
+	captureIdents := hashset.NewHashSet[oldhir.Ident]()
+	self.localScope = _NewLambdaScope(self.localScope, f, func(ident oldhir.Ident) {
+		if v, ok := ident.(*oldhir.LocalVarDef); ok {
 			v.Escaped = true
 		}
 		captureIdents.Add(ident)
@@ -868,8 +868,8 @@ func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lamb
 	return f
 }
 
-func (self *Analyser) analyseParam(node ast.Param) *hir.Param {
-	return &hir.Param{
+func (self *Analyser) analyseParam(node ast.Param) *oldhir.Param {
+	return &oldhir.Param{
 		Mut:  !node.Mutable.IsNone(),
 		Type: self.analyseType(node.Type),
 		Name: stlbasic.TernaryAction(node.Name.IsNone(), func() optional.Optional[string] {

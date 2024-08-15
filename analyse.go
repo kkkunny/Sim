@@ -18,7 +18,7 @@ import (
 
 func main() {
 	res := stlerror.MustWith(analyse.Analyse(stlos.NewFilePath(os.Args[1])))
-	stliter.Foreach(res.Globals, func(v hir.Global) bool {
+	stliter.Foreach(res.Globals, func(v oldhir.Global) bool {
 		fmt.Println(reflect.TypeOf(v).String())
 		return true
 	})
