@@ -4,20 +4,25 @@ import (
 	"fmt"
 )
 
+var (
+	I8    SintType = &_SintType_{kind: IntTypeKindByte}
+	I16   SintType = &_SintType_{kind: IntTypeKindShort}
+	I32   SintType = &_SintType_{kind: IntTypeKindInt}
+	I64   SintType = &_SintType_{kind: IntTypeKindLong}
+	Isize SintType = &_SintType_{kind: IntTypeKindSize}
+)
+
 // SintType 有符号整型
-type SintType struct {
+type SintType interface {
+	IntType
+	SignedType
+}
+
+type _SintType_ struct {
 	kind IntTypeKind
 }
 
-var (
-	I8    = &SintType{kind: IntTypeKindByte}
-	I16   = &SintType{kind: IntTypeKindShort}
-	I32   = &SintType{kind: IntTypeKindInt}
-	I64   = &SintType{kind: IntTypeKindLong}
-	Isize = &SintType{kind: IntTypeKindSize}
-)
-
-func (self *SintType) String() string {
+func (self *_SintType_) String() string {
 	if self.kind == IntTypeKindSize {
 		return "isize"
 	} else {
@@ -25,14 +30,14 @@ func (self *SintType) String() string {
 	}
 }
 
-func (self *SintType) Equal(dst Type) bool {
-	t, ok := dst.(*SintType)
-	return ok && self.kind == t.kind
+func (self *_SintType_) Equal(dst Type) bool {
+	t, ok := dst.(SintType)
+	return ok && self.kind == t.Kind()
 }
 
-func (self *SintType) Kind() IntTypeKind {
+func (self *_SintType_) Kind() IntTypeKind {
 	return self.kind
 }
 
-func (self *SintType) num()    {}
-func (self *SintType) signed() {}
+func (self *_SintType_) Number() {}
+func (self *_SintType_) Signed() {}

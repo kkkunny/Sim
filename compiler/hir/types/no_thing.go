@@ -1,17 +1,22 @@
 package types
 
 // NoThingType 无返回值类型
-type NoThingType struct{}
+type NoThingType interface {
+	Type
+	_NoThingType_()
+}
 
-var NoThing = new(NoThingType)
+type _NoThingType_ struct{}
 
-func (self *NoThingType) String() string {
+var NoThing = new(_NoThingType_)
+
+func (self *_NoThingType_) String() string {
 	return ""
 }
 
-func (self *NoThingType) Equal(dst Type) bool {
-	_, ok := dst.(*NoThingType)
+func (self *_NoThingType_) Equal(dst Type) bool {
+	_, ok := dst.(NoThingType)
 	return ok
 }
 
-func (self *NoThingType) nothing() {}
+func (self *_NoThingType_) _NoThingType_() {}

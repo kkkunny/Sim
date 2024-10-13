@@ -1,17 +1,22 @@
 package types
 
 // NoReturnType 无返回类型
-type NoReturnType struct{}
+type NoReturnType interface {
+	Type
+	_NoReturnType_()
+}
 
-var NoReturn = new(NoReturnType)
+type _NoReturnType_ struct{}
 
-func (self *NoReturnType) String() string {
+var NoReturn NoReturnType = new(_NoReturnType_)
+
+func (self *_NoReturnType_) String() string {
 	return "X"
 }
 
-func (self *NoReturnType) Equal(dst Type) bool {
-	_, ok := dst.(*NoReturnType)
+func (self *_NoReturnType_) Equal(dst Type) bool {
+	_, ok := dst.(NoReturnType)
 	return ok
 }
 
-func (self *NoReturnType) nothing() {}
+func (self *_NoReturnType_) _NoReturnType_() {}

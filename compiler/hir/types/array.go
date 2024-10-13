@@ -5,31 +5,37 @@ import (
 )
 
 // ArrayType 数组类型
-type ArrayType struct {
+type ArrayType interface {
+	Type
+	Elem() Type
+	Size() uint
+}
+
+type _ArrayType_ struct {
 	elem Type
 	size uint
 }
 
-func NewArrayType(e Type, s uint) *ArrayType {
-	return &ArrayType{
+func NewArrayType(e Type, s uint) ArrayType {
+	return &_ArrayType_{
 		elem: e,
 		size: s,
 	}
 }
 
-func (self *ArrayType) String() string {
+func (self *_ArrayType_) String() string {
 	return fmt.Sprintf("[%d]%s", self.size, self.elem.String())
 }
 
-func (self *ArrayType) Equal(dst Type) bool {
-	t, ok := dst.(*ArrayType)
-	return ok && self.size == t.size && self.elem.Equal(t.elem)
+func (self *_ArrayType_) Equal(dst Type) bool {
+	t, ok := dst.(ArrayType)
+	return ok && self.size == t.Size() && self.elem.Equal(t.Elem())
 }
 
-func (self *ArrayType) Elem() Type {
+func (self *_ArrayType_) Elem() Type {
 	return self.elem
 }
 
-func (self *ArrayType) Size() uint {
+func (self *_ArrayType_) Size() uint {
 	return self.size
 }

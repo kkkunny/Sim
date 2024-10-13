@@ -7,8 +7,7 @@ import (
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/compiler/hir"
-
+	"github.com/kkkunny/Sim/compiler/oldhir"
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/ast"

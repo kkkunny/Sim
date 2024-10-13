@@ -13,34 +13,33 @@ const (
 )
 
 var (
-	F32 = newFloatType(FloatTypeKindFloat)
-	F64 = newFloatType(FloatTypeKindDouble)
+	F32 FloatType = &_FloatType_{kind: FloatTypeKindFloat}
+	F64 FloatType = &_FloatType_{kind: FloatTypeKindDouble}
 )
 
 // FloatType 浮点型
-type FloatType struct {
+type FloatType interface {
+	NumType
+	SignedType
+	Kind() FloatTypeKind
+}
+
+type _FloatType_ struct {
 	kind FloatTypeKind
 }
 
-func newFloatType(kind FloatTypeKind) *FloatType {
-	return &FloatType{
-		kind: kind,
-	}
-}
-
-func (self *FloatType) String() string {
+func (self *_FloatType_) String() string {
 	return fmt.Sprintf("f%d", self.kind*8)
 }
 
-func (self *FloatType) Equal(dst Type) bool {
-	t, ok := dst.(*FloatType)
-	return ok && self.kind == t.kind
+func (self *_FloatType_) Equal(dst Type) bool {
+	t, ok := dst.(FloatType)
+	return ok && self.kind == t.Kind()
 }
 
-func (self *FloatType) Kind() FloatTypeKind {
+func (self *_FloatType_) Kind() FloatTypeKind {
 	return self.kind
 }
 
-func (self *FloatType) num()    {}
-func (self *FloatType) float()  {}
-func (self *FloatType) signed() {}
+func (self *_FloatType_) Number() {}
+func (self *_FloatType_) Signed() {}

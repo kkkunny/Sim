@@ -4,20 +4,25 @@ import (
 	"fmt"
 )
 
+var (
+	U8    UintType = &_UintType_{kind: IntTypeKindByte}
+	U16   UintType = &_UintType_{kind: IntTypeKindShort}
+	U32   UintType = &_UintType_{kind: IntTypeKindInt}
+	U64   UintType = &_UintType_{kind: IntTypeKindLong}
+	Usize UintType = &_UintType_{kind: IntTypeKindSize}
+)
+
 // UintType 无符号整型
-type UintType struct {
+type UintType interface {
+	IntType
+	Unsigned()
+}
+
+type _UintType_ struct {
 	kind IntTypeKind
 }
 
-var (
-	U8    = &UintType{kind: IntTypeKindByte}
-	U16   = &UintType{kind: IntTypeKindShort}
-	U32   = &UintType{kind: IntTypeKindInt}
-	U64   = &UintType{kind: IntTypeKindLong}
-	Usize = &UintType{kind: IntTypeKindSize}
-)
-
-func (self *UintType) String() string {
+func (self *_UintType_) String() string {
 	if self.kind == IntTypeKindSize {
 		return "usize"
 	} else {
@@ -25,14 +30,14 @@ func (self *UintType) String() string {
 	}
 }
 
-func (self *UintType) Equal(dst Type) bool {
-	t, ok := dst.(*UintType)
-	return ok && self.kind == t.kind
+func (self *_UintType_) Equal(dst Type) bool {
+	t, ok := dst.(UintType)
+	return ok && self.kind == t.Kind()
 }
 
-func (self *UintType) Kind() IntTypeKind {
+func (self *_UintType_) Kind() IntTypeKind {
 	return self.kind
 }
 
-func (self *UintType) num()      {}
-func (self *UintType) unsigned() {}
+func (self *_UintType_) Number()   {}
+func (self *_UintType_) Unsigned() {}

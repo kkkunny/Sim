@@ -1,31 +1,17 @@
 package global
 
-import "github.com/kkkunny/Sim/compiler/hir/types"
+import (
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/values"
+)
 
 // Function 函数定义
 type Function interface {
 	Global
-	Params() []*Param
+	local.CallableDef
+	values.Ident
+	SetBody(b *local.Block)
 	Attrs() []FuncAttr
-}
-
-// Param 函数形参
-type Param struct {
-	mut  bool
-	typ  types.Type
-	name string
-}
-
-func (self *Param) Type() types.Type {
-	return self.typ
-}
-
-func (self *Param) Mutable() bool {
-	return self.mut
-}
-
-func (self *Param) Name() (string, bool) {
-	return self.name, self.name != ""
 }
 
 // FuncAttr 函数属性

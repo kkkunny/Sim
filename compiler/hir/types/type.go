@@ -12,10 +12,10 @@ type Type interface {
 	stlbasic.Comparable[Type]
 }
 
-// 数字型
-type numType interface {
+// NumType 数字型
+type NumType interface {
 	Type
-	num()
+	Number()
 }
 
 // IntTypeKind 整型类型
@@ -29,14 +29,21 @@ const (
 	IntTypeKindLong
 )
 
-// 整型
-type intType interface {
-	numType
+// IntType 整型
+type IntType interface {
+	NumType
 	Kind() IntTypeKind
 }
 
-// 有符号类型
-type signedType interface {
+// SignedType 有符号类型
+type SignedType interface {
 	Type
-	signed()
+	Signed()
+}
+
+// CallableType 可调用类型
+type CallableType interface {
+	Type
+	Ret() Type
+	Params() []Type
 }

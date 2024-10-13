@@ -7,32 +7,32 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 )
 
-// FuncType 函数类型
-type FuncType interface {
+// LambdaType 匿名函数类型
+type LambdaType interface {
 	Type
-	CallableType
-	Func()
+	Ret() Type
+	Params() []Type
 }
 
-type _FuncType_ struct {
+type _LambdaType_ struct {
 	ret    Type
 	params []Type
 }
 
-func NewFuncType(ret Type, ps ...Type) FuncType {
-	return &_FuncType_{
+func NewLambdaType(ret Type, ps ...Type) LambdaType {
+	return &_LambdaType_{
 		ret:    ret,
 		params: ps,
 	}
 }
 
-func (self *_FuncType_) String() string {
+func (self *_LambdaType_) String() string {
 	params := stlslices.Map(self.params, func(i int, p Type) string { return p.String() })
-	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.ret.String())
+	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), self.ret.String())
 }
 
-func (self *_FuncType_) Equal(dst Type) bool {
-	t, ok := dst.(FuncType)
+func (self *_LambdaType_) Equal(dst Type) bool {
+	t, ok := dst.(LambdaType)
 	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret()) {
 		return false
 	}
@@ -41,12 +41,10 @@ func (self *_FuncType_) Equal(dst Type) bool {
 	})
 }
 
-func (self *_FuncType_) Ret() Type {
+func (self *_LambdaType_) Ret() Type {
 	return self.ret
 }
 
-func (self *_FuncType_) Params() []Type {
+func (self *_LambdaType_) Params() []Type {
 	return self.params
 }
-
-func (self *_FuncType_) Func() {}

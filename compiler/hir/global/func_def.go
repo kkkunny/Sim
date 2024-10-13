@@ -8,15 +8,15 @@ import (
 // FuncDef 函数定义
 type FuncDef struct {
 	pkgGlobalAttr
-	funcType *types.FuncType
-	name     string
-	attrs    []FuncAttr
-	params   []*Param
-	body     *local.Block
+	typ    types.FuncType
+	name   string
+	attrs  []FuncAttr
+	params []*local.Param
+	body   *local.Block
 }
 
-func (self *FuncDef) FuncType() *types.FuncType {
-	return self.funcType
+func (self *FuncDef) CallableType() types.CallableType {
+	return self.typ
 }
 
 func (self *FuncDef) Name() string {
@@ -27,7 +27,7 @@ func (self *FuncDef) Attrs() []FuncAttr {
 	return self.attrs
 }
 
-func (self *FuncDef) Params() []*Param {
+func (self *FuncDef) Params() []*local.Param {
 	return self.params
 }
 
@@ -36,9 +36,21 @@ func (self *FuncDef) Block() (*local.Block, bool) {
 }
 
 func (self *FuncDef) Type() types.Type {
-	return self.FuncType()
+	return self.CallableType()
 }
 
 func (self *FuncDef) Mutable() bool {
 	return false
+}
+
+func (self *FuncDef) SetBody(b *local.Block) {
+	self.body = b
+}
+
+func (self *FuncDef) Storable() bool {
+	return false
+}
+
+func (self *FuncDef) GetName() (string, bool) {
+	return self.name, true
 }

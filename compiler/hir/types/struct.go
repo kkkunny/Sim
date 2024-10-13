@@ -1,0 +1,81 @@
+package types
+
+import (
+	"fmt"
+	"strings"
+
+	stlslices "github.com/kkkunny/stl/container/slices"
+)
+
+type Field struct {
+	pub  bool
+	mut  bool
+	name string
+	typ  Type
+}
+
+func NewField(pub bool, mut bool, name string, typ Type) *Field {
+	return &Field{
+		pub:  pub,
+		mut:  mut,
+		name: name,
+		typ:  typ,
+	}
+}
+
+func (self *Field) Name() string {
+	return self.name
+}
+
+func (self *Field) Type() Type {
+	return self.typ
+}
+
+func (self *Field) Public() bool {
+	return self.pub
+}
+
+func (self *Field) Mutable() bool {
+	return self.mut
+}
+
+// StructType 结构体类型
+type StructType interface {
+	Type
+	Fields() []*Field
+}
+
+func NewStructType(fs ...*Field) StructType {
+	return &_StructType_{
+		fields: fs,
+	}
+}
+
+type _StructType_ struct {
+	fields []*Field
+}
+
+func (self *_StructType_) String() string {
+	fields := stlslices.Map(self.fields, func(i int, f *Field) string {
+		return fmt.Sprintf("%s:%s", f.name, f.typ.String())
+	})
+	return fmt.Sprintf("struct{%s}", strings.Join(fields, ";"))
+}
+
+func (self *_StructType_) Equal(dst Type) bool {
+	t, ok := dst.(StructType)
+	if !ok || len(self.fields) != len(t.Fields()) {
+		return false
+	}
+	return stlslices.All(self.fields, func(i int, f1 *Field) bool {
+		f2 := t.Fields()[i]
+		return f1.pub == f2.pub &&
+			f1.mut == f2.mut &&
+			f1.name == f2.name &&
+			f1.typ.Equal(f2.typ)
+	})
+}
+
+func (self *_StructType_) Fields() []*Field {
+	return self.fields
+}
