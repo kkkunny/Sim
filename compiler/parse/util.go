@@ -148,7 +148,7 @@ func (self *Parser) parseFuncDecl(afterName func()) ast.FuncDecl {
 }
 
 // 语法解析目标文件
-func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
+func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
 	_, r, err := reader.NewReaderFromFile(path)
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
@@ -157,8 +157,8 @@ func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror
 }
 
 // 语法解析目标目录
-func parseDir(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
-	entries, err := stlerror.ErrorWith(os.ReadDir(path.String()))
+func parseDir(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
+	entries, err := stlerror.ErrorWith(os.ReadDir(string(path)))
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
 	}
@@ -177,8 +177,8 @@ func parseDir(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.
 }
 
 // Parse 语法解析
-func Parse(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
-	fs, err := stlerror.ErrorWith(os.Stat(path.String()))
+func Parse(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
+	fs, err := stlerror.ErrorWith(os.Stat(string(path)))
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
 	}

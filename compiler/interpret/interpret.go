@@ -15,7 +15,7 @@ type Engine struct {
 	jiter  *llvm.ExecutionEngine
 }
 
-func NewExecutionEngine(module llvm.Module) (*Engine, stlerror.Error) {
+func NewExecutionEngine(module llvm.Module) (*Engine, error) {
 	target, err := stlerror.ErrorWith(module.GetTarget())
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func NewExecutionEngine(module llvm.Module) (*Engine, stlerror.Error) {
 }
 
 // MapFunction 映射函数 interpreter
-func (self *Engine) MapFunction(name string, to any) stlerror.Error {
+func (self *Engine) MapFunction(name string, to any) error {
 	toVal := reflect.ValueOf(to)
 	toFt := toVal.Type()
 	if toFt.Kind() != reflect.Func {
@@ -44,7 +44,7 @@ func (self *Engine) MapFunction(name string, to any) stlerror.Error {
 	return stlerror.ErrorWrap(self.jiter.MapFunctionToGo(name, to))
 }
 
-func (self *Engine) MapFunctionIgnoreNotFind(name string, to any) stlerror.Error {
+func (self *Engine) MapFunctionIgnoreNotFind(name string, to any) error {
 	err := self.MapFunction(name, to)
 	if err != nil && !strings.Contains(err.Error(), "unknown function") {
 		return err
@@ -52,7 +52,7 @@ func (self *Engine) MapFunctionIgnoreNotFind(name string, to any) stlerror.Error
 	return nil
 }
 
-func (self *Engine) RunMain() (uint8, stlerror.Error) {
+func (self *Engine) RunMain() (uint8, error) {
 	mainFn, ok := self.module.GetFunction("main")
 	if !ok {
 		return 1, stlerror.Errorf("can not find the main function")

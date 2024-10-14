@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	stlbasic "github.com/kkkunny/stl/basic"
+	stlcmp "github.com/kkkunny/stl/cmp"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlhash "github.com/kkkunny/stl/hash"
+	stlval "github.com/kkkunny/stl/value"
 	"github.com/samber/lo"
 )
 
@@ -24,8 +26,8 @@ const (
 // Type 类型描述
 type Type interface {
 	fmt.Stringer
-	stlbasic.Hashable
-	stlbasic.Comparable[Type]
+	stlhash.Hashable
+	stlcmp.Equalable[Type]
 }
 
 // NoThingType 无返回值类型
@@ -40,7 +42,7 @@ func (self *NoThingType) Hash() uint64 {
 }
 
 func (self *NoThingType) Equal(dst Type) bool {
-	return stlbasic.Is[*NoThingType](dst)
+	return stlval.Is[*NoThingType](dst)
 }
 
 // NoReturnType 无返回类型
@@ -55,7 +57,7 @@ func (self *NoReturnType) Hash() uint64 {
 }
 
 func (self *NoReturnType) Equal(dst Type) bool {
-	return stlbasic.Is[*NoReturnType](dst)
+	return stlval.Is[*NoReturnType](dst)
 }
 
 // SintType 有符号整型
@@ -147,7 +149,7 @@ func NewRefType(mut bool, elem Type) *RefType {
 }
 
 func (self *RefType) String() string {
-	return stlbasic.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
+	return stlval.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
 }
 
 func (self *RefType) Hash() uint64 {
@@ -179,12 +181,12 @@ func (self *FuncType) String() string {
 	params := stlslices.Map(self.Params, func(_ int, item Type) string {
 		return item.String()
 	})
-	ret := stlbasic.Ternary(self.Ret.Equal(TypeNoThing), "", self.Ret.String())
+	ret := stlval.Ternary(self.Ret.Equal(TypeNoThing), "", self.Ret.String())
 	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
 }
 
 func (self *FuncType) Hash() uint64 {
-	return self.Ret.Hash() & stlbasic.Hash(self.Params)
+	return self.Ret.Hash() & stlhash.Hash(self.Params)
 }
 
 func (self *FuncType) Equal(dst Type) bool {
@@ -246,7 +248,7 @@ func (self *TupleType) String() string {
 }
 
 func (self *TupleType) Hash() (h uint64) {
-	return stlbasic.Hash(self.Elems)
+	return stlhash.Hash(self.Elems)
 }
 
 func (self *TupleType) Equal(dst Type) bool {
@@ -306,7 +308,7 @@ func (self *StructType) String() string {
 }
 
 func (self *StructType) Hash() uint64 {
-	return stlbasic.Hash(stlslices.Map(self.Fields, func(_ int, e Field) string {
+	return stlhash.Hash(stlslices.Map(self.Fields, func(_ int, e Field) string {
 		return fmt.Sprintf("%s: %s", e.Name, e.Type)
 	}))
 }
@@ -346,7 +348,7 @@ func (self *CustomType) String() string {
 }
 
 func (self *CustomType) Hash() uint64 {
-	return stlbasic.Hash(self.String())
+	return stlhash.Hash(self.String())
 }
 
 func (self *CustomType) Equal(dst Type) bool {
@@ -374,12 +376,12 @@ func (self *LambdaType) String() string {
 	params := stlslices.Map(self.Params, func(_ int, item Type) string {
 		return item.String()
 	})
-	ret := stlbasic.Ternary(self.Ret.Equal(TypeNoThing), "", self.Ret.String())
+	ret := stlval.Ternary(self.Ret.Equal(TypeNoThing), "", self.Ret.String())
 	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), ret)
 }
 
 func (self *LambdaType) Hash() uint64 {
-	return self.Ret.Hash() & stlbasic.Hash(self.Params)
+	return self.Ret.Hash() & stlhash.Hash(self.Params)
 }
 
 func (self *LambdaType) Equal(dst Type) bool {
@@ -403,7 +405,7 @@ type EnumField struct {
 func NewEnumField(name string, elem ...Type) EnumField {
 	return EnumField{
 		Name: name,
-		Elem: stlbasic.Ternary(len(elem) == 0, optional.None[Type](), optional.Some(stlslices.Last(elem))),
+		Elem: stlval.Ternary(len(elem) == 0, optional.None[Type](), optional.Some(stlslices.Last(elem))),
 	}
 }
 
@@ -427,7 +429,7 @@ func (self *EnumType) String() string {
 }
 
 func (self *EnumType) Hash() uint64 {
-	return stlbasic.Hash(stlslices.Map(self.Fields, func(_ int, e EnumField) string {
+	return stlhash.Hash(stlslices.Map(self.Fields, func(_ int, e EnumField) string {
 		return e.Name
 	}))
 }

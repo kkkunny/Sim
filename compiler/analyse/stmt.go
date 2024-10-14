@@ -1,11 +1,11 @@
 package analyse
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
 
@@ -241,12 +241,12 @@ func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 		errors.ThrowExpectEnumTypeError(node.Value.Position(), vtObj)
 	}
 
-	cases := linkedhashmap.NewLinkedHashMapWithCapacity[string, *hir.MatchCase](uint(len(node.Cases)))
+	cases := linkedhashmap.StdWithCap[string, *hir.MatchCase](uint(len(node.Cases)))
 	for _, caseNode := range node.Cases {
 		caseName := caseNode.Name.Source()
-		if !vt.Fields.ContainKey(caseName) {
+		if !vt.Fields.Contain(caseName) {
 			errors.ThrowUnknownIdentifierError(caseNode.Name.Position, caseNode.Name)
-		} else if cases.ContainKey(caseName) {
+		} else if cases.Contain(caseName) {
 			errors.ThrowIdentifierDuplicationError(caseNode.Name.Position, caseNode.Name)
 		}
 		caseDef := vt.Fields.Get(caseName)
@@ -273,13 +273,13 @@ func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
 		cases.Set(caseName, &hir.MatchCase{
 			Name:  caseName,
 			Elems: elems,
-			Body:  stlbasic.IgnoreWith(self.analyseBlock(caseNode.Body, fn)),
+			Body:  stlval.IgnoreWith(self.analyseBlock(caseNode.Body, fn)),
 		})
 	}
 
 	var other optional.Optional[*hir.Block]
 	if otherNode, ok := node.Other.Value(); ok {
-		other = optional.Some(stlbasic.IgnoreWith(self.analyseBlock(otherNode, nil)))
+		other = optional.Some(stlval.IgnoreWith(self.analyseBlock(otherNode, nil)))
 	}
 
 	if other.IsNone() && cases.Length() != vt.Fields.Length() {

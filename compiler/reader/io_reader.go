@@ -16,7 +16,7 @@ type _IOReader struct {
 }
 
 // NewReaderFromIO 从io中新建读取器
-func NewReaderFromIO(path stlos.FilePath, reader io.ReadSeeker) (Reader, stlerror.Error) {
+func NewReaderFromIO(path stlos.FilePath, reader io.ReadSeeker) (Reader, error) {
 	var rowlens []uint
 	var rowLen uint
 	for {

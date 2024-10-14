@@ -1,11 +1,11 @@
 package hir
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 )
 
 // Stmt 语句
@@ -40,7 +40,7 @@ type Return struct {
 func NewReturn(f CallableDef, value ...Expr) *Return {
 	return &Return{
 		Func: f,
-		Value: stlbasic.TernaryAction(stlslices.Empty(value), func() optional.Optional[Expr] {
+		Value: stlval.TernaryAction(stlslices.Empty(value), func() optional.Optional[Expr] {
 			return optional.None[Expr]()
 		}, func() optional.Optional[Expr] {
 			return optional.Some[Expr](NewMoveOrCopy(stlslices.Last(value)))
@@ -141,7 +141,7 @@ func NewLocalVarDef(mut bool, name string, t Type, value ...Expr) *LocalVarDef {
 			Name: name,
 			Type: t,
 		},
-		Value: stlbasic.TernaryAction(stlslices.Empty(value), func() optional.Optional[Expr] {
+		Value: stlval.TernaryAction(stlslices.Empty(value), func() optional.Optional[Expr] {
 			return optional.None[Expr]()
 		}, func() optional.Optional[Expr] {
 			return optional.Some[Expr](NewMoveOrCopy(stlslices.Last(value)))

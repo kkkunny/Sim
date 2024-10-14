@@ -1,11 +1,12 @@
 package analyse
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/dynarray"
-	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -28,27 +29,27 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.
 		pkgName = alias.Source()
 	} else {
 		importAll = alias.Is(token.MUL)
-		pkgName = node.Paths.Back().Source()
+		pkgName = stlslices.Last(node.Paths).Source()
 	}
 
 	// 包地址
-	paths := stliter.Map[token.Token, string, dynarray.DynArray[string]](node.Paths, func(v token.Token) string {
+	paths := stlslices.Map(node.Paths, func(_ int, v token.Token) string {
 		return v.Source()
-	}).ToSlice()
+	})
 	pkg, err := hir.OfficialPackage.GetSon(paths...)
 	if err != nil {
-		errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
+		errors.ThrowInvalidPackage(reader.MixPosition(stlslices.Last(node.Paths).Position, stlslices.Last(node.Paths).Position), node.Paths)
 	}
 
 	hirs, importErrKind := self.importPackage(pkg, pkgName, importAll)
 	if importErrKind != importPackageErrorNone {
 		switch importErrKind {
 		case importPackageErrorCircular:
-			errors.ThrowCircularReference(node.Paths.Back().Position, node.Paths.Back())
+			errors.ThrowCircularReference(stlslices.Last(node.Paths).Position, stlslices.Last(node.Paths))
 		case importPackageErrorDuplication:
-			errors.ThrowIdentifierDuplicationError(node.Paths.Back().Position, node.Paths.Back())
+			errors.ThrowIdentifierDuplicationError(stlslices.Last(node.Paths).Position, stlslices.Last(node.Paths))
 		case importPackageErrorInvalid:
-			errors.ThrowInvalidPackage(reader.MixPosition(node.Paths.Front().Position, node.Paths.Back().Position), node.Paths)
+			errors.ThrowInvalidPackage(reader.MixPosition(stlslices.First(node.Paths).Position, stlslices.Last(node.Paths).Position), node.Paths)
 		default:
 			panic("unreachable")
 		}
@@ -58,9 +59,10 @@ func (self *Analyser) analyseImport(node *ast.Import) linkedlist.LinkedList[hir.
 
 func (self *Analyser) declTypeDef(node *ast.TypeDef) {
 	st := &hir.TypeDef{
-		Pkg:    self.pkgScope.pkg,
-		Public: node.Public,
-		Name:   node.Name.Source(),
+		Pkg:     self.pkgScope.pkg,
+		Public:  node.Public,
+		Name:    node.Name.Source(),
+		Methods: hashmap.StdWith[string, *hir.MethodDef](),
 	}
 
 	if !self.pkgScope.SetTypeDef(st) {
@@ -81,9 +83,10 @@ func (self *Analyser) declTypeAlias(node *ast.TypeAlias) {
 
 func (self *Analyser) declTrait(node *ast.Trait) {
 	trait := &hir.Trait{
-		Pkg:    self.pkgScope.pkg,
-		Public: node.Public,
-		Name:   node.Name.Source(),
+		Pkg:     self.pkgScope.pkg,
+		Public:  node.Public,
+		Name:    node.Name.Source(),
+		Methods: linkedhashmap.StdWithCap[string, *hir.FuncDecl](uint(len(node.Methods))),
 	}
 	if !self.pkgScope.SetTrait(trait) {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
@@ -126,8 +129,8 @@ func (self *Analyser) defTrait(node *ast.Trait) *hir.Trait {
 	}()
 
 	for _, methodNode := range node.Methods {
-		method := stlbasic.Ptr(self.analyseFuncDecl(*methodNode))
-		if trait.Methods.ContainKey(method.Name) {
+		method := stlval.Ptr(self.analyseFuncDecl(*methodNode))
+		if trait.Methods.Contain(method.Name) {
 			errors.ThrowIdentifierDuplicationError(methodNode.Name.Position, methodNode.Name)
 		}
 		trait.Methods.Set(method.Name, method)
@@ -216,7 +219,7 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 	}
 
 	td, ok := self.pkgScope.getLocalTypeDef(node.SelfType.MustValue().Source())
-	if !ok || !stlbasic.Is[*hir.TypeDef](td) {
+	if !ok || !stlval.Is[*hir.TypeDef](td) {
 		errors.ThrowUnknownIdentifierError(node.SelfType.MustValue().Position, node.SelfType.MustValue())
 	}
 	f.Scope = td.(*hir.TypeDef)
@@ -224,7 +227,7 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) {
 
 	f.FuncDecl = self.analyseFuncDecl(node.FuncDecl)
 
-	if f.Scope.Methods.ContainKey(f.Name) || (hir.IsType[*hir.StructType](f.Scope.Target) && hir.AsType[*hir.StructType](f.Scope.Target).Fields.ContainKey(f.Name)) {
+	if f.Scope.Methods.Contain(f.Name) || (hir.IsType[*hir.StructType](f.Scope.Target) && hir.AsType[*hir.StructType](f.Scope.Target).Fields.Contain(f.Name)) {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
 	f.Scope.Methods.Set(f.Name, f)

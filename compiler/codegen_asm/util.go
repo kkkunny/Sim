@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/kkkunny/go-llvm"
-	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/codegen_ir"
@@ -24,7 +23,7 @@ func (self *tempFile) Close() error {
 }
 
 // CodegenAsm 汇编代码生成
-func CodegenAsm(target *llvm.Target, path stlos.FilePath) (io.ReadCloser, stlerror.Error) {
+func CodegenAsm(target *llvm.Target, path stlos.FilePath) (io.ReadCloser, error) {
 	module, err := codegen_ir.CodegenIr(target, path)
 	if err != nil {
 		return nil, err

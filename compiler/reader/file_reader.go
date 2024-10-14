@@ -9,8 +9,8 @@ import (
 )
 
 // NewReaderFromFile 从文件中新建读取器
-func NewReaderFromFile(path stlos.FilePath) (io.Closer, Reader, stlerror.Error) {
-	file, err := stlerror.ErrorWith(os.Open(path.String()))
+func NewReaderFromFile(path stlos.FilePath) (io.Closer, Reader, error) {
+	file, err := stlerror.ErrorWith(os.Open(string(path)))
 	if err != nil {
 		return nil, nil, err
 	}

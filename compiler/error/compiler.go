@@ -5,8 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kkkunny/stl/container/dynarray"
-	stliter "github.com/kkkunny/stl/container/iter"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
@@ -202,11 +201,11 @@ func ThrowIllegalType(pos reader.Position) {
 }
 
 // ThrowInvalidPackage 无效包
-func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Token]) {
-	pathStrs := stliter.Map[token.Token, string, dynarray.DynArray[string]](paths, func(v token.Token) string {
+func ThrowInvalidPackage(pos reader.Position, paths []token.Token) {
+	pathStrs := stlslices.Map(paths, func(_ int, v token.Token) string {
 		return v.Source()
 	})
-	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs.ToSlice(), "."))
+	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs, "."))
 }
 
 // ThrowCircularReference 循环引用

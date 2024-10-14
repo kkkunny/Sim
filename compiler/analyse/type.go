@@ -3,10 +3,10 @@ package analyse
 import (
 	"math/big"
 
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
@@ -84,7 +84,7 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	if typ.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlbasic.IgnoreWith(typ.MustValue().Right())
+	return stlval.IgnoreWith(typ.MustValue().Right())
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType) *hir.FuncType {
@@ -127,9 +127,9 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) hir.Type {
 }
 
 func (self *Analyser) analyseStructType(node *ast.StructType) *hir.StructType {
-	fields := linkedhashmap.NewLinkedHashMap[string, hir.Field]()
+	fields := linkedhashmap.StdWith[string, hir.Field]()
 	for _, f := range node.Fields {
-		if fields.ContainKey(f.Name.Source()) {
+		if fields.Contain(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
 		fields.Set(f.Name.Source(), hir.Field{
@@ -151,14 +151,14 @@ func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *hir.LambdaType {
 }
 
 func (self *Analyser) analyseEnumType(node *ast.EnumType) *hir.EnumType {
-	fields := linkedhashmap.NewLinkedHashMap[string, hir.EnumField]()
+	fields := linkedhashmap.StdWith[string, hir.EnumField]()
 	for _, f := range node.Fields {
-		if fields.ContainKey(f.Name.Source()) {
+		if fields.Contain(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
 		fields.Set(f.Name.Source(), hir.EnumField{
 			Name: f.Name.Source(),
-			Elem: stlbasic.TernaryAction(f.Elem.IsNone(), func() optional.Optional[hir.Type] {
+			Elem: stlval.TernaryAction(f.Elem.IsNone(), func() optional.Optional[hir.Type] {
 				return optional.None[hir.Type]()
 			}, func() optional.Optional[hir.Type] {
 				return optional.Some(self.analyseType(f.Elem.MustValue()))

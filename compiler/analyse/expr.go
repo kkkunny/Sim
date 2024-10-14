@@ -4,11 +4,11 @@ import (
 	"math/big"
 	"slices"
 
-	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/optional"
+	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
+	stlval "github.com/kkkunny/stl/value"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -254,8 +254,8 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		if ok && self.pkgScope.Div().HasBeImpled(ct) {
 			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Div().FirstMethodName()).MustValue(), right)
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
-				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
+			if (stlval.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
+				(stlval.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
 				errors.ThrowDivZero(node.Right.Position())
 			}
 			return &hir.NumDivNum{
@@ -268,8 +268,8 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 		if ok && self.pkgScope.Rem().HasBeImpled(ct) {
 			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Rem().FirstMethodName()).MustValue(), right)
 		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			if (stlbasic.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
-				(stlbasic.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
+			if (stlval.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
+				(stlval.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
 				errors.ThrowDivZero(node.Right.Position())
 			}
 			return &hir.NumRemNum{
@@ -446,7 +446,7 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
 	if expr.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlbasic.IgnoreWith(expr.MustValue().Left())
+	return stlval.IgnoreWith(expr.MustValue().Left())
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
@@ -458,7 +458,7 @@ func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
 					if et, ok := hir.TryType[*hir.EnumType](t); ok {
 						// 枚举值
 						fieldName := dotNode.Index.Source()
-						if et.Fields.ContainKey(fieldName) {
+						if et.Fields.Contain(fieldName) {
 							caseDef := et.Fields.Get(fieldName)
 							if caseDef.Elem.IsSome() {
 								elem := self.analyseExpr(caseDef.Elem.MustValue(), stlslices.First(node.Args))
@@ -480,7 +480,7 @@ func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
 	if !ok {
 		errors.ThrowExpectCallableError(node.Func.Position(), f.GetType())
 	}
-	vararg := stlbasic.Is[*hir.FuncDef](f) && f.(*hir.FuncDef).VarArg
+	vararg := stlval.Is[*hir.FuncDef](f) && f.(*hir.FuncDef).VarArg
 	if (!vararg && len(node.Args) != len(ct.GetParams())) || (vararg && len(node.Args) < len(ct.GetParams())) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ct.GetParams())), uint(len(node.Args)))
 	}
@@ -611,14 +611,14 @@ func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array 
 	}
 	elems := make([]hir.Expr, len(node.Elems))
 	for i, elemNode := range node.Elems {
-		elems[i] = stlbasic.TernaryAction(i == 0, func() hir.Expr {
+		elems[i] = stlval.TernaryAction(i == 0, func() hir.Expr {
 			return self.analyseExpr(expectElem, elemNode)
 		}, func() hir.Expr {
 			return self.expectExpr(elems[0].GetType(), elemNode)
 		})
 	}
 	return &hir.Array{
-		Type: stlbasic.TernaryAction(len(elems) != 0, func() hir.Type {
+		Type: stlval.TernaryAction(len(elems) != 0, func() hir.Type {
 			return hir.NewArrayType(uint64(len(elems)), elems[0].GetType())
 		}, func() hir.Type { return expectArray }),
 		Elems: elems,
@@ -632,7 +632,7 @@ func (self *Analyser) analyseIndex(node *ast.Index) *hir.Index {
 	}
 	at := hir.AsType[*hir.ArrayType](from.GetType())
 	index := self.expectExpr(self.pkgScope.Usize(), node.Index)
-	if stlbasic.Is[*hir.Integer](index) && index.(*hir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0 {
+	if stlval.Is[*hir.Integer](index) && index.(*hir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0 {
 		errors.ThrowIndexOutOfRange(node.Index.Position())
 	}
 	return &hir.Index{
@@ -678,17 +678,17 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 
 	existedFields := make(map[string]hir.Expr)
 	for _, nf := range node.Fields {
-		fn := nf.First.Source()
-		if !st.Fields.ContainKey(fn) || (!self.pkgScope.pkg.Equal(st.Def.Pkg) && !st.Fields.Get(fn).Public) {
-			errors.ThrowUnknownIdentifierError(nf.First.Position, nf.First)
+		fn := nf.E1().Source()
+		if !st.Fields.Contain(fn) || (!self.pkgScope.pkg.Equal(st.Def.Pkg) && !st.Fields.Get(fn).Public) {
+			errors.ThrowUnknownIdentifierError(nf.E1().Position, nf.E1())
 		}
-		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.Second)
+		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.E2())
 	}
 
 	fields := make([]hir.Expr, st.Fields.Length())
 	var i int
 	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		fn, ft := iter.Value().First, iter.Value().Second.Type
+		fn, ft := iter.Value().E1(), iter.Value().E2().Type
 		if fv, ok := existedFields[fn]; ok {
 			fields[i] = fv
 		} else {
@@ -718,7 +718,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 				}
 				if et, ok := hir.TryType[*hir.EnumType](t); ok {
 					// 枚举值
-					if et.Fields.ContainKey(fieldName) {
+					if et.Fields.Contain(fieldName) {
 						if et.Fields.Get(fieldName).Elem.IsNone() {
 							return &hir.Enum{
 								From:  t,
@@ -748,13 +748,13 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
 	st := hir.AsType[*hir.StructType](structVal.GetType())
-	if field := st.Fields.Get(fieldName); !st.Fields.ContainKey(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Def.Pkg)) {
+	if field := st.Fields.Get(fieldName); !st.Fields.Contain(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Def.Pkg)) {
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
 	return &hir.GetField{
 		Internal: self.pkgScope.pkg.Equal(st.Def.Pkg),
 		From:     structVal,
-		Index:    uint(slices.Index(st.Fields.Keys().ToSlice(), fieldName)),
+		Index:    uint(slices.Index(st.Fields.Keys(), fieldName)),
 	}
 }
 
@@ -846,7 +846,7 @@ func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lamb
 	}
 	f.Type = expect
 
-	captureIdents := hashset.NewHashSet[hir.Ident]()
+	captureIdents := set.StdHashSetWith[hir.Ident]()
 	self.localScope = _NewLambdaScope(self.localScope, f, func(ident hir.Ident) {
 		if v, ok := ident.(*hir.LocalVarDef); ok {
 			v.Escaped = true
@@ -864,7 +864,7 @@ func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lamb
 	}
 
 	f.Body = self.analyseFuncBody(node.Body)
-	f.Context = captureIdents.ToSlice().ToSlice()
+	f.Context = captureIdents.ToSlice()
 	return f
 }
 
@@ -872,7 +872,7 @@ func (self *Analyser) analyseParam(node ast.Param) *hir.Param {
 	return &hir.Param{
 		Mut:  !node.Mutable.IsNone(),
 		Type: self.analyseType(node.Type),
-		Name: stlbasic.TernaryAction(node.Name.IsNone(), func() optional.Optional[string] {
+		Name: stlval.TernaryAction(node.Name.IsNone(), func() optional.Optional[string] {
 			return optional.None[string]()
 		}, func() optional.Optional[string] {
 			return optional.Some(node.Name.MustValue().Source())

@@ -2,9 +2,9 @@ package analyse
 
 import (
 	"github.com/kkkunny/stl/container/hashmap"
-	"github.com/kkkunny/stl/container/hashset"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/set"
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -21,14 +21,14 @@ type Analyser struct {
 	parent *Analyser
 	asts   linkedlist.LinkedList[ast.Global]
 
-	pkgs       *hashmap.HashMap[hir.Package, *_PkgScope]
+	pkgs       hashmap.HashMap[hir.Package, *_PkgScope]
 	pkgScope   *_PkgScope
 	localScope _LocalScope
 
 	selfCanBeNil bool
 	selfType     *hir.CustomType
 
-	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
+	typeAliasTrace set.Set[*ast.TypeAlias]
 }
 
 func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
@@ -36,11 +36,11 @@ func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
 	if !asts.Empty() {
 		pkg = stlerror.MustWith(hir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
 	}
-	pkgs := hashmap.NewHashMap[hir.Package, *_PkgScope]()
 	return &Analyser{
-		asts:     asts,
-		pkgs:     &pkgs,
-		pkgScope: _NewPkgScope(pkg),
+		asts:           asts,
+		pkgs:           hashmap.StdWith[hir.Package, *_PkgScope](),
+		pkgScope:       _NewPkgScope(pkg),
+		typeAliasTrace: set.StdHashSetWith[*ast.TypeAlias](),
 	}
 }
 
@@ -98,16 +98,16 @@ func (self *Analyser) Analyse() *hir.Result {
 	})
 	// 类型循环检测
 	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		trace := hashset.NewHashSet[hir.Type]()
+		trace := set.StdHashSetWith[hir.Type]()
 		var circle bool
 		var name token.Token
 		switch node := v.(type) {
 		case *ast.TypeDef:
 			st, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
-			circle, name = self.checkTypeDefCircle(&trace, st), node.Name
+			circle, name = self.checkTypeDefCircle(trace, st), node.Name
 		case *ast.TypeAlias:
 			tad, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
-			circle, name = self.checkTypeAliasCircle(&trace, tad), node.Name
+			circle, name = self.checkTypeAliasCircle(trace, tad), node.Name
 		}
 		if circle {
 			errors.ThrowCircularReference(name.Position, name)

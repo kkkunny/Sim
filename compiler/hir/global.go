@@ -1,12 +1,13 @@
 package hir
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/optional"
-	"github.com/kkkunny/stl/container/pair"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/tuple"
+	stlval "github.com/kkkunny/stl/value"
 )
 
 // Global 全局
@@ -131,7 +132,7 @@ func (self *MethodDef) GetSelfParam() optional.Optional[*Param] {
 	}
 	selfType := self.GetSelfType()
 	firstParam := self.Params[0]
-	firstParamType := stlbasic.TernaryAction(IsType[*RefType](firstParam.GetType()), func() Type {
+	firstParamType := stlval.TernaryAction(IsType[*RefType](firstParam.GetType()), func() Type {
 		return AsType[*RefType](firstParam.GetType()).Elem
 	}, func() Type {
 		return firstParam.GetType()
@@ -224,8 +225,8 @@ func (self *Trait) HasBeImpled(t Type) bool {
 	if !ok {
 		return false
 	}
-	return stliter.All(self.Methods, func(e pair.Pair[string, *FuncDecl]) bool {
-		method := e.Second
+	return stliter.All(self.Methods, func(e tuple.Tuple2[string, *FuncDecl]) bool {
+		method := e.E2()
 		impl := ct.Methods.Get(method.Name)
 		if impl == nil {
 			return false
@@ -235,5 +236,5 @@ func (self *Trait) HasBeImpled(t Type) bool {
 }
 
 func (self *Trait) FirstMethodName() string {
-	return self.Methods.Values().Front().Name
+	return stlslices.First(self.Methods.Values()).Name
 }

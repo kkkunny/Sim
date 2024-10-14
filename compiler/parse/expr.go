@@ -2,8 +2,8 @@ package parse
 
 import (
 	"github.com/kkkunny/stl/container/optional"
-	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/tuple"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
@@ -269,11 +269,11 @@ func (self *Parser) parseArray() *ast.Array {
 
 func (self *Parser) parseStruct(st ast.Type) *ast.Struct {
 	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.COM, token.RBR, func() pair.Pair[token.Token, ast.Expr] {
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() tuple.Tuple2[token.Token, ast.Expr] {
 		fn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		fv := self.mustExpr(self.parseOptionExpr(true))
-		return pair.NewPair(fn, fv)
+		return tuple.Pack2(fn, fv)
 	})
 	end := self.expectNextIs(token.RBR).Position
 	return &ast.Struct{

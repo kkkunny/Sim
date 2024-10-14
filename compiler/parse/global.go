@@ -1,9 +1,8 @@
 package parse
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/optional"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
@@ -48,12 +47,12 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 			self.expectNextIs(token.RPA)
 		}
 	})
-	begin := stlbasic.TernaryAction(pub == nil, func() reader.Position {
+	begin := stlval.TernaryAction(pub == nil, func() reader.Position {
 		return decl.Begin
 	}, func() reader.Position {
 		return pub.Position
 	})
-	body := stlbasic.TernaryAction(self.nextIs(token.LBR), func() optional.Optional[*ast.Block] {
+	body := stlval.TernaryAction(self.nextIs(token.LBR), func() optional.Optional[*ast.Block] {
 		return optional.Some(self.parseBlock())
 	}, func() optional.Optional[*ast.Block] {
 		return optional.None[*ast.Block]()
@@ -143,9 +142,9 @@ func (self *Parser) parseImport(attrs []ast.Attr) *ast.Import {
 	expectAttrIn(attrs)
 
 	begin := self.expectNextIs(token.IMPORT).Position
-	var paths dynarray.DynArray[token.Token]
+	var paths []token.Token
 	for {
-		paths.PushBack(self.expectNextIs(token.IDENT))
+		paths = append(paths, self.expectNextIs(token.IDENT))
 		if !self.skipNextIs(token.SCOPE) {
 			break
 		}
@@ -202,7 +201,7 @@ func (self *Parser) parseTrait(attrs []ast.Attr, pub *token.Token) *ast.Trait {
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
 	methods := loopParseWithUtil(self, token.COM, token.RBR, func() *ast.FuncDecl {
-		return stlbasic.Ptr(self.parseFuncDecl(nil))
+		return stlval.Ptr(self.parseFuncDecl(nil))
 	})
 	end := self.expectNextIs(token.RBR).Position
 

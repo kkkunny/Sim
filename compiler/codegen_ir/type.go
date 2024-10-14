@@ -107,12 +107,12 @@ func (self *CodeGenerator) codegenCustomType(ir *hir.CustomType) llvm.Type {
 }
 
 func (self *CodeGenerator) codegenStructType(ir *hir.StructType) llvm.StructType {
-	if self.types.ContainKey(ir.Def) {
+	if self.types.Contain(ir.Def) {
 		return self.types.Get(ir.Def)
 	}
 	st := self.builder.NamedStructType("", false)
 	self.types.Set(ir.Def, st)
-	st.SetElems(false, stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e hir.Field) llvm.Type {
+	st.SetElems(false, stlslices.Map(ir.Fields.Values(), func(_ int, e hir.Field) llvm.Type {
 		return self.codegenType(e.Type)
 	})...)
 	return st
@@ -132,7 +132,7 @@ func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) llvm.Type {
 		return self.builder.IntegerType(8)
 	}
 
-	if self.types.ContainKey(ir.Def) {
+	if self.types.Contain(ir.Def) {
 		return self.types.Get(ir.Def)
 	}
 	st := self.builder.NamedStructType("", false)
@@ -140,10 +140,10 @@ func (self *CodeGenerator) codegenEnumType(ir *hir.EnumType) llvm.Type {
 	var maxSizeType llvm.Type
 	var maxSize uint
 	for iter := ir.Fields.Iterator(); iter.Next(); {
-		if iter.Value().Second.Elem.IsNone() {
+		if iter.Value().E2().Elem.IsNone() {
 			continue
 		}
-		et := self.codegenType(iter.Value().Second.Elem.MustValue())
+		et := self.codegenType(iter.Value().E2().Elem.MustValue())
 		if esize := self.builder.GetStoreSizeOfType(et); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}
