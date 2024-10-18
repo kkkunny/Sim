@@ -2,23 +2,23 @@ package codegen_ir
 
 import (
 	"github.com/kkkunny/go-llvm"
-	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/tuple"
 	stlerror "github.com/kkkunny/stl/error"
 	stlmath "github.com/kkkunny/stl/math"
 	stlos "github.com/kkkunny/stl/os"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/analyse"
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 )
 
 func (self *CodeGenerator) buildEqual(t oldhir.Type, l, r llvm.Value, not bool) llvm.Value {
 	switch irType := oldhir.ToRuntimeType(t).(type) {
 	case *oldhir.SintType, *oldhir.UintType, *oldhir.RefType:
-		return self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
+		return self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
 	case *oldhir.FloatType:
-		return self.builder.CreateFloatCmp("", stlbasic.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
+		return self.builder.CreateFloatCmp("", stlval.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
 	case *oldhir.ArrayType:
 		t := self.codegenType(irType).(llvm.ArrayType)
 		if t.Capacity() == 0 {
@@ -70,15 +70,13 @@ func (self *CodeGenerator) buildEqual(t oldhir.Type, l, r llvm.Value, not bool) 
 	case *oldhir.TupleType, *oldhir.StructType:
 		_, isTuple := irType.(*oldhir.TupleType)
 		t := self.codegenType(irType).(llvm.StructType)
-		fields := stlbasic.TernaryAction(isTuple, func() []oldhir.Type {
+		fields := stlval.TernaryAction(isTuple, func() []oldhir.Type {
 			return irType.(*oldhir.TupleType).Elems
 		}, func() []oldhir.Type {
 			values := irType.(*oldhir.StructType).Fields.Values()
-			res := make([]oldhir.Type, values.Length())
-			var i uint
-			for iter := values.Iterator(); iter.Next(); {
-				res[i] = iter.Value().Type
-				i++
+			res := make([]oldhir.Type, len(values))
+			for i, v := range values {
+				res[i] = v.Type
 			}
 			return res
 		})
@@ -88,25 +86,25 @@ func (self *CodeGenerator) buildEqual(t oldhir.Type, l, r llvm.Value, not bool) 
 		}
 
 		beginBlock := self.builder.CurrentBlock()
-		nextBlocks := make([]pair.Pair[llvm.Value, llvm.Block], uint(len(t.Elems())))
+		nextBlocks := make([]tuple.Tuple2[llvm.Value, llvm.Block], uint(len(t.Elems())))
 		srcBlocks := make([]llvm.Block, uint(len(t.Elems())))
 		for i := uint(0); i < uint(len(t.Elems())); i++ {
 			cond := self.buildEqual(fields[i], self.buildStructIndex(t, l, i, false), self.buildStructIndex(t, r, i, false), false)
 			nextBlock := beginBlock.Belong().NewBlock("")
-			nextBlocks[i] = pair.NewPair(cond, nextBlock)
+			nextBlocks[i] = tuple.Pack2(cond, nextBlock)
 			srcBlocks[i] = self.builder.CurrentBlock()
 			self.builder.MoveToAfter(nextBlock)
 		}
 		self.builder.MoveToAfter(beginBlock)
 
-		endBlock := stlslices.Last(nextBlocks).Second
+		endBlock := stlslices.Last(nextBlocks).E2()
 		for i, p := range nextBlocks {
 			if i != len(nextBlocks)-1 {
-				self.builder.CreateCondBr(p.First, p.Second, endBlock)
+				self.builder.CreateCondBr(p.E1(), p.E2(), endBlock)
 			} else {
 				self.builder.CreateBr(endBlock)
 			}
-			self.builder.MoveToAfter(p.Second)
+			self.builder.MoveToAfter(p.E2())
 		}
 
 		phi := self.builder.CreatePHI("", self.builder.BooleanType())
@@ -114,7 +112,7 @@ func (self *CodeGenerator) buildEqual(t oldhir.Type, l, r llvm.Value, not bool) 
 			phi.AddIncomings(struct {
 				Value llvm.Value
 				Block llvm.Block
-			}{Value: stlbasic.Ternary[llvm.Value](i != len(srcBlocks)-1, self.builder.ConstBoolean(false), stlslices.Last(nextBlocks).First), Block: b})
+			}{Value: stlval.Ternary[llvm.Value](i != len(srcBlocks)-1, self.builder.ConstBoolean(false), stlslices.Last(nextBlocks).E1()), Block: b})
 		}
 		if not {
 			return self.builder.CreateNot("", phi)
@@ -124,17 +122,17 @@ func (self *CodeGenerator) buildEqual(t oldhir.Type, l, r llvm.Value, not bool) 
 		return self.buildEqual(irType.Target, l, r, not)
 	case *oldhir.LambdaType:
 		st := self.codegenType(irType).(llvm.StructType)
-		f1p := self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 0, false), self.buildStructIndex(st, r, 0, false))
-		f2p := self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 1, false), self.buildStructIndex(st, r, 1, false))
-		pp := self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 2, false), self.buildStructIndex(st, r, 2, false))
-		return stlbasic.TernaryAction(!not, func() llvm.Value {
+		f1p := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 0, false), self.buildStructIndex(st, r, 0, false))
+		f2p := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 1, false), self.buildStructIndex(st, r, 1, false))
+		pp := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.buildStructIndex(st, l, 2, false), self.buildStructIndex(st, r, 2, false))
+		return stlval.TernaryAction(!not, func() llvm.Value {
 			return self.builder.CreateAnd("", self.builder.CreateAnd("", f1p, f2p), pp)
 		}, func() llvm.Value {
 			return self.builder.CreateOr("", self.builder.CreateOr("", f1p, f2p), pp)
 		})
 	case *oldhir.EnumType:
 		if irType.IsSimple() {
-			return self.builder.CreateIntCmp("", stlbasic.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
+			return self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
 		}
 
 		t := self.codegenType(irType).(llvm.StructType)
@@ -145,7 +143,7 @@ func (self *CodeGenerator) buildEqual(t oldhir.Type, l, r llvm.Value, not bool) 
 		self.builder.MoveToAfter(bodyBlock)
 
 		values := make([]llvm.Value, irType.Fields.Length())
-		indexBlockPairs := stlslices.Map(irType.Fields.Values().ToSlice(), func(i int, f oldhir.EnumField) struct {
+		indexBlockPairs := stlslices.Map(irType.Fields.Values(), func(i int, f oldhir.EnumField) struct {
 			Value llvm.Value
 			Block llvm.Block
 		} {
@@ -216,13 +214,13 @@ func (self *CodeGenerator) buildEqual(t oldhir.Type, l, r llvm.Value, not bool) 
 
 func (self *CodeGenerator) buildArrayIndex(at llvm.ArrayType, v, i llvm.Value, expectPtr ...bool) llvm.Value {
 	switch {
-	case stlbasic.Is[llvm.ArrayType](v.Type()) && stlbasic.Is[llvm.ConstInteger](i):
+	case stlval.Is[llvm.ArrayType](v.Type()) && stlval.Is[llvm.ConstInteger](i):
 		var value llvm.Value = self.builder.CreateInBoundsGEP("", at, self.builder.ConstInteger(i.Type().(llvm.IntegerType), 0), i)
 		if !stlslices.Empty(expectPtr) && !stlslices.Last(expectPtr) {
 			value = self.builder.CreateLoad("", at.Elem(), value)
 		}
 		return value
-	case stlbasic.Is[llvm.ArrayType](v.Type()):
+	case stlval.Is[llvm.ArrayType](v.Type()):
 		ptr := self.builder.CreateAlloca("", at)
 		self.builder.CreateStore(v, ptr)
 		v = ptr
@@ -237,7 +235,7 @@ func (self *CodeGenerator) buildArrayIndex(at llvm.ArrayType, v, i llvm.Value, e
 }
 
 func (self *CodeGenerator) buildStructIndex(st llvm.StructType, v llvm.Value, i uint, expectPtr ...bool) llvm.Value {
-	if stlbasic.Is[llvm.StructType](v.Type()) {
+	if stlval.Is[llvm.StructType](v.Type()) {
 		var value llvm.Value = self.builder.CreateExtractValue("", v, i)
 		if !stlslices.Empty(expectPtr) && stlslices.Last(expectPtr) {
 			ptr := self.builder.CreateAlloca("", st.GetElem(uint32(i)))
@@ -255,9 +253,9 @@ func (self *CodeGenerator) buildStructIndex(st llvm.StructType, v llvm.Value, i 
 }
 
 func (self *CodeGenerator) constString(s string) llvm.Constant {
-	if !self.strings.ContainKey(s) {
+	if !self.strings.Contain(s) {
 		st := self.codegenType(self.hir.BuildinTypes.Str).(llvm.StructType)
-		dataPtr := stlbasic.TernaryAction(s == "", func() llvm.Constant {
+		dataPtr := stlval.TernaryAction(s == "", func() llvm.Constant {
 			return self.builder.ConstZero(st.Elems()[0])
 		}, func() llvm.Constant {
 			data := self.builder.NewConstant("", self.builder.ConstString(s))
@@ -295,7 +293,7 @@ func (self *CodeGenerator) buildPanic(s string) {
 
 func (self *CodeGenerator) buildCheckZero(v llvm.Value) {
 	var cond llvm.Value
-	if stlbasic.Is[llvm.FloatType](v.Type()) {
+	if stlval.Is[llvm.FloatType](v.Type()) {
 		cond = self.builder.CreateFloatCmp("", llvm.FloatOEQ, v, self.builder.ConstZero(v.Type()))
 	} else {
 		cond = self.builder.CreateIntCmp("", llvm.IntEQ, v, self.builder.ConstZero(v.Type()))
@@ -386,15 +384,13 @@ func (self *CodeGenerator) buildCopy(t oldhir.Type, v llvm.Value) llvm.Value {
 		return self.builder.CreateLoad("", t, newArrayPtr)
 	case *oldhir.TupleType, *oldhir.StructType:
 		t := self.codegenType(t).(llvm.StructType)
-		fields := stlbasic.TernaryAction(stlbasic.Is[*oldhir.TupleType](tir), func() []oldhir.Type {
+		fields := stlval.TernaryAction(stlval.Is[*oldhir.TupleType](tir), func() []oldhir.Type {
 			return tir.(*oldhir.TupleType).Elems
 		}, func() []oldhir.Type {
 			values := tir.(*oldhir.StructType).Fields.Values()
-			res := make([]oldhir.Type, values.Length())
-			var i uint
-			for iter := values.Iterator(); iter.Next(); {
-				res[i] = iter.Value().Type
-				i++
+			res := make([]oldhir.Type, len(values))
+			for i, v := range values {
+				res[i] = v.Type
 			}
 			return res
 		})
@@ -418,7 +414,7 @@ func (self *CodeGenerator) buildCopy(t oldhir.Type, v llvm.Value) llvm.Value {
 		index := self.buildStructIndex(t, v, 1, false)
 
 		values := make([]llvm.Value, tir.Fields.Length())
-		indexBlockPairs := stlslices.Map(tir.Fields.Values().ToSlice(), func(i int, f oldhir.EnumField) struct {
+		indexBlockPairs := stlslices.Map(tir.Fields.Values(), func(i int, f oldhir.EnumField) struct {
 			Value llvm.Value
 			Block llvm.Block
 		} {
@@ -479,7 +475,7 @@ func (self *CodeGenerator) buildCopy(t oldhir.Type, v llvm.Value) llvm.Value {
 }
 
 // CodegenIr 中间代码生成
-func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, stlerror.Error) {
+func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 	means, err := analyse.Analyse(path)
 	if err != nil {
 		return llvm.Module{}, err

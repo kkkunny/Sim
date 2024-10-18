@@ -4,7 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 )
 
 func (self *CodeGenerator) codegenType(t oldhir.Type) llvm.Type {
@@ -107,12 +107,12 @@ func (self *CodeGenerator) codegenCustomType(ir *oldhir.CustomType) llvm.Type {
 }
 
 func (self *CodeGenerator) codegenStructType(ir *oldhir.StructType) llvm.StructType {
-	if self.types.ContainKey(ir.Def) {
+	if self.types.Contain(ir.Def) {
 		return self.types.Get(ir.Def)
 	}
 	st := self.builder.NamedStructType("", false)
 	self.types.Set(ir.Def, st)
-	st.SetElems(false, stlslices.Map(ir.Fields.Values().ToSlice(), func(_ int, e oldhir.Field) llvm.Type {
+	st.SetElems(false, stlslices.Map(ir.Fields.Values(), func(_ int, e oldhir.Field) llvm.Type {
 		return self.codegenType(e.Type)
 	})...)
 	return st
@@ -132,7 +132,7 @@ func (self *CodeGenerator) codegenEnumType(ir *oldhir.EnumType) llvm.Type {
 		return self.builder.IntegerType(8)
 	}
 
-	if self.types.ContainKey(ir.Def) {
+	if self.types.Contain(ir.Def) {
 		return self.types.Get(ir.Def)
 	}
 	st := self.builder.NamedStructType("", false)
@@ -140,10 +140,10 @@ func (self *CodeGenerator) codegenEnumType(ir *oldhir.EnumType) llvm.Type {
 	var maxSizeType llvm.Type
 	var maxSize uint
 	for iter := ir.Fields.Iterator(); iter.Next(); {
-		if iter.Value().Second.Elem.IsNone() {
+		if iter.Value().E2().Elem.IsNone() {
 			continue
 		}
-		et := self.codegenType(iter.Value().Second.Elem.MustValue())
+		et := self.codegenType(iter.Value().E2().Elem.MustValue())
 		if esize := self.builder.GetStoreSizeOfType(et); esize > maxSize {
 			maxSizeType, maxSize = et, esize
 		}

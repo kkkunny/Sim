@@ -1,12 +1,12 @@
 package analyse
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashmap"
-	"github.com/kkkunny/stl/container/linkedhashset"
+	"github.com/kkkunny/stl/container/set"
+	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 )
 
 // 作用域
@@ -19,7 +19,7 @@ type _Scope interface {
 type _PkgScope struct {
 	pkg     oldhir.Package
 	externs hashmap.HashMap[string, *_PkgScope]
-	links   linkedhashset.LinkedHashSet[*_PkgScope]
+	links   set.Set[*_PkgScope]
 
 	valueDefs hashmap.HashMap[string, oldhir.Ident]
 	typeDefs  hashmap.HashMap[string, oldhir.GlobalType]
@@ -28,7 +28,12 @@ type _PkgScope struct {
 
 func _NewPkgScope(pkg oldhir.Package) *_PkgScope {
 	return &_PkgScope{
-		pkg: pkg,
+		pkg:       pkg,
+		externs:   hashmap.StdWith[string, *_PkgScope](),
+		links:     set.StdLinkedHashSetWith[*_PkgScope](),
+		valueDefs: hashmap.StdWith[string, oldhir.Ident](),
+		typeDefs:  hashmap.StdWith[string, oldhir.GlobalType](),
+		traitDefs: hashmap.StdWith[string, *oldhir.Trait](),
 	}
 }
 
@@ -41,7 +46,7 @@ func (self *_PkgScope) SetValue(name string, v oldhir.Ident) bool {
 }
 
 func (self *_PkgScope) getLocalValue(name string) (oldhir.Ident, bool) {
-	return self.valueDefs.Get(name), self.valueDefs.ContainKey(name)
+	return self.valueDefs.Get(name), self.valueDefs.Contain(name)
 }
 
 func (self *_PkgScope) getValue(name string) (oldhir.Ident, bool) {
@@ -85,7 +90,7 @@ func (self *_PkgScope) SetTypeDef(td oldhir.GlobalType) bool {
 }
 
 func (self *_PkgScope) getLocalTypeDef(name string) (oldhir.GlobalType, bool) {
-	return self.typeDefs.Get(name), self.typeDefs.ContainKey(name)
+	return self.typeDefs.Get(name), self.typeDefs.Contain(name)
 }
 
 func (self *_PkgScope) getTypeDef(name string) (oldhir.GlobalType, bool) {
@@ -129,7 +134,7 @@ func (self *_PkgScope) SetTrait(trait *oldhir.Trait) bool {
 }
 
 func (self *_PkgScope) getLocalTrait(name string) (*oldhir.Trait, bool) {
-	return self.traitDefs.Get(name), self.traitDefs.ContainKey(name)
+	return self.traitDefs.Get(name), self.traitDefs.Contain(name)
 }
 
 func (self *_PkgScope) getTrait(name string) (*oldhir.Trait, bool) {
@@ -162,44 +167,44 @@ func (self *_PkgScope) GetTrait(pkg, name string) (*oldhir.Trait, bool) {
 }
 
 func (self *_PkgScope) Isize() oldhir.GlobalType {
-	return stlbasic.IgnoreWith(self.getTypeDef("isize"))
+	return stlval.IgnoreWith(self.getTypeDef("isize"))
 }
-func (self *_PkgScope) I8() oldhir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("i8")) }
-func (self *_PkgScope) I16() oldhir.GlobalType { return stlbasic.IgnoreWith(self.getTypeDef("i16")) }
-func (self *_PkgScope) I32() oldhir.GlobalType { return stlbasic.IgnoreWith(self.getTypeDef("i32")) }
-func (self *_PkgScope) I64() oldhir.GlobalType { return stlbasic.IgnoreWith(self.getTypeDef("i64")) }
+func (self *_PkgScope) I8() oldhir.GlobalType  { return stlval.IgnoreWith(self.getTypeDef("i8")) }
+func (self *_PkgScope) I16() oldhir.GlobalType { return stlval.IgnoreWith(self.getTypeDef("i16")) }
+func (self *_PkgScope) I32() oldhir.GlobalType { return stlval.IgnoreWith(self.getTypeDef("i32")) }
+func (self *_PkgScope) I64() oldhir.GlobalType { return stlval.IgnoreWith(self.getTypeDef("i64")) }
 func (self *_PkgScope) Usize() oldhir.GlobalType {
-	return stlbasic.IgnoreWith(self.getTypeDef("usize"))
+	return stlval.IgnoreWith(self.getTypeDef("usize"))
 }
-func (self *_PkgScope) U8() oldhir.GlobalType   { return stlbasic.IgnoreWith(self.getTypeDef("u8")) }
-func (self *_PkgScope) U16() oldhir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("u16")) }
-func (self *_PkgScope) U32() oldhir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("u32")) }
-func (self *_PkgScope) U64() oldhir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("u64")) }
-func (self *_PkgScope) F32() oldhir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("f32")) }
-func (self *_PkgScope) F64() oldhir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("f64")) }
-func (self *_PkgScope) Bool() oldhir.GlobalType { return stlbasic.IgnoreWith(self.getTypeDef("bool")) }
-func (self *_PkgScope) Str() oldhir.GlobalType  { return stlbasic.IgnoreWith(self.getTypeDef("str")) }
-func (self *_PkgScope) True() oldhir.Ident      { return stlbasic.IgnoreWith(self.getValue("true")) }
-func (self *_PkgScope) False() oldhir.Ident     { return stlbasic.IgnoreWith(self.getValue("false")) }
-func (self *_PkgScope) Default() *oldhir.Trait  { return stlbasic.IgnoreWith(self.getTrait("Default")) }
-func (self *_PkgScope) Copy() *oldhir.Trait     { return stlbasic.IgnoreWith(self.getTrait("Copy")) }
-func (self *_PkgScope) Add() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Add")) }
-func (self *_PkgScope) Sub() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Sub")) }
-func (self *_PkgScope) Mul() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Mul")) }
-func (self *_PkgScope) Div() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Div")) }
-func (self *_PkgScope) Rem() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Rem")) }
-func (self *_PkgScope) And() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("And")) }
-func (self *_PkgScope) Or() *oldhir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Or")) }
-func (self *_PkgScope) Xor() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Xor")) }
-func (self *_PkgScope) Shl() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Shl")) }
-func (self *_PkgScope) Shr() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Shr")) }
-func (self *_PkgScope) Eq() *oldhir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Eq")) }
-func (self *_PkgScope) Lt() *oldhir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Lt")) }
-func (self *_PkgScope) Gt() *oldhir.Trait       { return stlbasic.IgnoreWith(self.getTrait("Gt")) }
-func (self *_PkgScope) Land() *oldhir.Trait     { return stlbasic.IgnoreWith(self.getTrait("Land")) }
-func (self *_PkgScope) Lor() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Lor")) }
-func (self *_PkgScope) Neg() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Neg")) }
-func (self *_PkgScope) Not() *oldhir.Trait      { return stlbasic.IgnoreWith(self.getTrait("Not")) }
+func (self *_PkgScope) U8() oldhir.GlobalType   { return stlval.IgnoreWith(self.getTypeDef("u8")) }
+func (self *_PkgScope) U16() oldhir.GlobalType  { return stlval.IgnoreWith(self.getTypeDef("u16")) }
+func (self *_PkgScope) U32() oldhir.GlobalType  { return stlval.IgnoreWith(self.getTypeDef("u32")) }
+func (self *_PkgScope) U64() oldhir.GlobalType  { return stlval.IgnoreWith(self.getTypeDef("u64")) }
+func (self *_PkgScope) F32() oldhir.GlobalType  { return stlval.IgnoreWith(self.getTypeDef("f32")) }
+func (self *_PkgScope) F64() oldhir.GlobalType  { return stlval.IgnoreWith(self.getTypeDef("f64")) }
+func (self *_PkgScope) Bool() oldhir.GlobalType { return stlval.IgnoreWith(self.getTypeDef("bool")) }
+func (self *_PkgScope) Str() oldhir.GlobalType  { return stlval.IgnoreWith(self.getTypeDef("str")) }
+func (self *_PkgScope) True() oldhir.Ident      { return stlval.IgnoreWith(self.getValue("true")) }
+func (self *_PkgScope) False() oldhir.Ident     { return stlval.IgnoreWith(self.getValue("false")) }
+func (self *_PkgScope) Default() *oldhir.Trait  { return stlval.IgnoreWith(self.getTrait("Default")) }
+func (self *_PkgScope) Copy() *oldhir.Trait     { return stlval.IgnoreWith(self.getTrait("Copy")) }
+func (self *_PkgScope) Add() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Add")) }
+func (self *_PkgScope) Sub() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Sub")) }
+func (self *_PkgScope) Mul() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Mul")) }
+func (self *_PkgScope) Div() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Div")) }
+func (self *_PkgScope) Rem() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Rem")) }
+func (self *_PkgScope) And() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("And")) }
+func (self *_PkgScope) Or() *oldhir.Trait       { return stlval.IgnoreWith(self.getTrait("Or")) }
+func (self *_PkgScope) Xor() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Xor")) }
+func (self *_PkgScope) Shl() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Shl")) }
+func (self *_PkgScope) Shr() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Shr")) }
+func (self *_PkgScope) Eq() *oldhir.Trait       { return stlval.IgnoreWith(self.getTrait("Eq")) }
+func (self *_PkgScope) Lt() *oldhir.Trait       { return stlval.IgnoreWith(self.getTrait("Lt")) }
+func (self *_PkgScope) Gt() *oldhir.Trait       { return stlval.IgnoreWith(self.getTrait("Gt")) }
+func (self *_PkgScope) Land() *oldhir.Trait     { return stlval.IgnoreWith(self.getTrait("Land")) }
+func (self *_PkgScope) Lor() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Lor")) }
+func (self *_PkgScope) Neg() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Neg")) }
+func (self *_PkgScope) Not() *oldhir.Trait      { return stlval.IgnoreWith(self.getTrait("Not")) }
 
 // 本地作用域
 type _LocalScope interface {
@@ -245,11 +250,11 @@ func (self *_FuncScope) SetValue(name string, v oldhir.Ident) bool {
 }
 
 func (self *_FuncScope) GetValue(pkg, name string) (oldhir.Ident, bool) {
-	if pkg == "" && self.values.ContainKey(name) {
+	if pkg == "" && self.values.Contain(name) {
 		return self.values.Get(name), true
 	}
 	v, ok := self.GetParent().GetValue(pkg, name)
-	if ok && self.lambdaCaptureHandler != nil && !stlbasic.Is[oldhir.Global](v) {
+	if ok && self.lambdaCaptureHandler != nil && !stlval.Is[oldhir.Global](v) {
 		self.lambdaCaptureHandler(v)
 	}
 	return v, ok
@@ -259,7 +264,7 @@ func (self *_FuncScope) GetParent() _Scope {
 	if pkg, ok := self.parent.Left(); ok {
 		return pkg
 	}
-	return stlbasic.IgnoreWith(self.parent.Right())
+	return stlval.IgnoreWith(self.parent.Right())
 }
 
 func (self *_FuncScope) GetFuncScope() *_FuncScope {
@@ -270,7 +275,7 @@ func (self *_FuncScope) GetPkgScope() *_PkgScope {
 	if pkg, ok := self.parent.Left(); ok {
 		return pkg
 	}
-	return stlbasic.IgnoreWith(self.parent.Right()).GetPkgScope()
+	return stlval.IgnoreWith(self.parent.Right()).GetPkgScope()
 }
 
 func (self *_FuncScope) GetFunc() oldhir.CallableDef {
@@ -287,7 +292,7 @@ type _BlockScope struct {
 func _NewBlockScope(p _LocalScope) *_BlockScope {
 	return &_BlockScope{
 		parent: p,
-		values: hashmap.NewHashMap[string, oldhir.Ident](),
+		values: hashmap.StdWith[string, oldhir.Ident](),
 	}
 }
 
@@ -300,7 +305,7 @@ func (self *_BlockScope) GetValue(pkg, name string) (oldhir.Ident, bool) {
 	if pkg != "" {
 		return self.parent.GetValue(pkg, name)
 	}
-	if self.values.ContainKey(name) {
+	if self.values.Contain(name) {
 		return self.values.Get(name), true
 	}
 	return self.parent.GetValue("", name)

@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/dynarray"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/optional"
-	"github.com/kkkunny/stl/container/pair"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/tuple"
+	stlval "github.com/kkkunny/stl/value"
 
 	runtimeType "github.com/kkkunny/Sim/runtime/types"
 )
@@ -76,7 +75,7 @@ func TryType[T BuildInType](t Type) (T, bool) {
 	case T:
 		return tt, true
 	case BuildInType:
-		return stlbasic.Default[T](), false
+		return stlval.Default[T](), false
 	case *AliasType:
 		return TryType[T](tt.Target)
 	case *CustomType:
@@ -113,7 +112,7 @@ func (*NoThingType) String() string {
 }
 
 func (self *NoThingType) EqualTo(dst Type) bool {
-	return stlbasic.Is[*NoThingType](ToRuntimeType(dst))
+	return stlval.Is[*NoThingType](ToRuntimeType(dst))
 }
 
 func (self *NoThingType) Runtime() runtimeType.Type {
@@ -131,7 +130,7 @@ func (*NoReturnType) String() string {
 }
 
 func (self *NoReturnType) EqualTo(dst Type) bool {
-	return stlbasic.Is[*NoReturnType](ToRuntimeType(dst))
+	return stlval.Is[*NoReturnType](ToRuntimeType(dst))
 }
 
 func (self *NoReturnType) Runtime() runtimeType.Type {
@@ -240,7 +239,7 @@ func NewFuncType(ret Type, params ...Type) *FuncType {
 
 func (self *FuncType) String() string {
 	params := stlslices.Map(self.Params, func(_ int, e Type) string { return e.String() })
-	ret := stlbasic.Ternary(self.Ret.EqualTo(NoThing), "", self.Ret.String())
+	ret := stlval.Ternary(self.Ret.EqualTo(NoThing), "", self.Ret.String())
 	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), ret)
 }
 
@@ -364,7 +363,7 @@ func NewRefType(mut bool, elem Type) *RefType {
 }
 
 func (self *RefType) String() string {
-	return stlbasic.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
+	return stlval.Ternary(self.Mut, "&mut ", "&") + self.Elem.String()
 }
 
 func (self *RefType) EqualTo(dst Type) bool {
@@ -416,9 +415,9 @@ func (self *StructType) EqualTo(dst Type) bool {
 }
 
 func (self *StructType) Runtime() runtimeType.Type {
-	fields := stliter.Map[pair.Pair[string, Field], runtimeType.Field, dynarray.DynArray[runtimeType.Field]](self.Fields, func(e pair.Pair[string, Field]) runtimeType.Field {
-		return runtimeType.NewField(e.Second.Type.Runtime(), e.First)
-	}).ToSlice()
+	fields := stlslices.Map(self.Fields.KeyValues(), func(_ int, e tuple.Tuple2[string, Field]) runtimeType.Field {
+		return runtimeType.NewField(e.E2().Type.Runtime(), e.E1())
+	})
 	return runtimeType.NewStructType(self.Def.Pkg.String(), fields...)
 }
 
@@ -443,12 +442,12 @@ func replaceAllSelfType(t Type, to *CustomType) Type {
 			return replaceAllSelfType(e, to)
 		})...)
 	case *StructType:
-		return NewStructType(tt.Def, stliter.Map[pair.Pair[string, Field], pair.Pair[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e pair.Pair[string, Field]) pair.Pair[string, Field] {
-			return pair.NewPair(e.First, Field{
-				Public:  e.Second.Public,
-				Mutable: e.Second.Mutable,
-				Name:    e.Second.Name,
-				Type:    replaceAllSelfType(e.Second.Type, to),
+		return NewStructType(tt.Def, stliter.Map[tuple.Tuple2[string, Field], tuple.Tuple2[string, Field], linkedhashmap.LinkedHashMap[string, Field]](tt.Fields, func(e tuple.Tuple2[string, Field]) tuple.Tuple2[string, Field] {
+			return tuple.Pack2(e.E1(), Field{
+				Public:  e.E2().Public,
+				Mutable: e.E2().Mutable,
+				Name:    e.E2().Name,
+				Type:    replaceAllSelfType(e.E2().Type, to),
 			})
 		}))
 	case *SelfType:
@@ -511,7 +510,7 @@ func AsCustomType(t Type) *CustomType {
 }
 
 func (self *CustomType) String() string {
-	return stlbasic.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
+	return stlval.Ternary(self.Pkg.Equal(BuildInPackage), self.Name, fmt.Sprintf("%s::%s", self.Pkg, self.Name))
 }
 
 func (self *CustomType) EqualTo(dst Type) bool {
@@ -532,9 +531,9 @@ func (self *CustomType) Runtime() runtimeType.Type {
 	rt := runtimeType.NewCustomType(self.Pkg.String(), self.Name, nil, nil)
 	customTypeRuntimeCache[self] = rt
 	rt.Target = self.Target.Runtime()
-	rt.Methods = stliter.Map[pair.Pair[string, *MethodDef], runtimeType.Method, dynarray.DynArray[runtimeType.Method]](self.Methods, func(e pair.Pair[string, *MethodDef]) runtimeType.Method {
-		return runtimeType.NewMethod(e.Second.GetFuncType().Runtime().(*runtimeType.FuncType), e.First)
-	}).ToSlice()
+	rt.Methods = stlslices.Map(self.Methods.KeyValues(), func(_ int, e tuple.Tuple2[string, *MethodDef]) runtimeType.Method {
+		return runtimeType.NewMethod(e.E2().GetFuncType().Runtime().(*runtimeType.FuncType), e.E1())
+	})
 	return rt
 }
 
@@ -642,13 +641,13 @@ func (self *EnumType) EqualTo(dst Type) bool {
 }
 
 func (self *EnumType) Runtime() runtimeType.Type {
-	fields := stliter.Map[pair.Pair[string, EnumField], runtimeType.EnumField, dynarray.DynArray[runtimeType.EnumField]](self.Fields, func(e pair.Pair[string, EnumField]) runtimeType.EnumField {
-		return runtimeType.NewEnumField(e.Second.Name, stlbasic.TernaryAction(e.Second.Elem.IsNone(), func() []runtimeType.Type {
+	fields := stlslices.Map(self.Fields.KeyValues(), func(_ int, e tuple.Tuple2[string, EnumField]) runtimeType.EnumField {
+		return runtimeType.NewEnumField(e.E2().Name, stlval.TernaryAction(e.E2().Elem.IsNone(), func() []runtimeType.Type {
 			return nil
 		}, func() []runtimeType.Type {
-			return []runtimeType.Type{e.Second.Elem.MustValue().Runtime()}
+			return []runtimeType.Type{e.E2().Elem.MustValue().Runtime()}
 		})...)
-	}).ToSlice()
+	})
 	return runtimeType.NewEnumType(self.Def.Pkg.String(), fields...)
 }
 
@@ -657,7 +656,7 @@ func (self *EnumType) runtime() {}
 
 // IsSimple 是否是简单枚举
 func (self *EnumType) IsSimple() bool {
-	return stliter.All(self.Fields, func(e pair.Pair[string, EnumField]) bool {
-		return e.Second.Elem.IsNone()
+	return stliter.All(self.Fields, func(e tuple.Tuple2[string, EnumField]) bool {
+		return e.E2().Elem.IsNone()
 	})
 }

@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	stlbasic "github.com/kkkunny/stl/basic"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
@@ -24,12 +23,12 @@ var (
 // Package 包
 type Package stlos.FilePath
 
-func NewPackage(path stlos.FilePath) (Package, stlerror.Error) {
+func NewPackage(path stlos.FilePath) (Package, error) {
 	path, err := stlerror.ErrorWith(path.Abs())
 	if err != nil {
 		return "", err
 	}
-	info, err := stlerror.ErrorWith(os.Stat(path.String()))
+	info, err := stlerror.ErrorWith(os.Stat(string(path)))
 	if err != nil {
 		return "", err
 	}
@@ -53,13 +52,9 @@ func (self Package) Equal(dst Package) bool {
 	return string(self) == string(dst)
 }
 
-func (self Package) Hash() uint64 {
-	return stlbasic.Hash(string(self))
-}
-
 func (self Package) String() string {
 	relpath := stlerror.MustWith(stlos.FilePath(self).Rel(stlos.FilePath(OfficialPackage)))
-	dirnames := strings.Split(relpath.String(), string([]rune{filepath.Separator}))
+	dirnames := strings.Split(string(relpath), string([]rune{filepath.Separator}))
 	return strings.Join(dirnames, "::")
 }
 

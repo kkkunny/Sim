@@ -3,9 +3,9 @@ package oldhir
 import (
 	"math/big"
 
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 )
 
 // ExprStmt 表达式语句
@@ -905,7 +905,7 @@ type GetField struct {
 func (self *GetField) stmt() {}
 
 func (self *GetField) GetType() Type {
-	return AsType[*StructType](self.From.GetType()).Fields.Values().Get(self.Index).Type
+	return AsType[*StructType](self.From.GetType()).Fields.Values()[self.Index].Type
 }
 
 func (self *GetField) Mutable() bool {
@@ -914,7 +914,7 @@ func (self *GetField) Mutable() bool {
 	} else if self.Internal {
 		return true
 	}
-	return self.From.Mutable() && AsType[*StructType](self.From.GetType()).Fields.Values().Get(self.Index).Mutable
+	return self.From.Mutable() && AsType[*StructType](self.From.GetType()).Fields.Values()[self.Index].Mutable
 }
 
 func (self *GetField) Temporary() bool {
@@ -1035,7 +1035,7 @@ func LoopFindMethodWithSelf(ct *CustomType, selfVal optional.Optional[Expr], nam
 	if !ok {
 		return optional.None[Expr]()
 	}
-	return LoopFindMethodWithSelf(tct, stlbasic.TernaryAction(selfVal.IsSome(), func() optional.Optional[Expr] {
+	return LoopFindMethodWithSelf(tct, stlval.TernaryAction(selfVal.IsSome(), func() optional.Optional[Expr] {
 		return optional.Some[Expr](&DoNothingCovert{From: selfVal.MustValue(), To: tct})
 	}, func() optional.Optional[Expr] {
 		return optional.None[Expr]()

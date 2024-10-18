@@ -1,7 +1,7 @@
 package ast
 
 import (
-	"github.com/kkkunny/stl/container/pair"
+	"github.com/kkkunny/stl/container/tuple"
 
 	"github.com/kkkunny/Sim/compiler/reader"
 
@@ -183,7 +183,7 @@ func (self *Extract) expr() {}
 // Struct 结构体
 type Struct struct {
 	Type   Type
-	Fields []pair.Pair[token.Token, Expr]
+	Fields []tuple.Tuple2[token.Token, Expr]
 	End    reader.Position
 }
 

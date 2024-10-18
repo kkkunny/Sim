@@ -1,8 +1,8 @@
 package oldhir
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/optional"
+	stlval "github.com/kkkunny/stl/value"
 )
 
 // Expr 表达式
@@ -57,7 +57,7 @@ type Param struct {
 }
 
 func (self *Param) GetName() string {
-	return stlbasic.TernaryAction(self.Name.IsNone(), func() string {
+	return stlval.TernaryAction(self.Name.IsNone(), func() string {
 		return ""
 	}, func() string {
 		return self.Name.MustValue()

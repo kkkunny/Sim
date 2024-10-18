@@ -2,15 +2,15 @@ package codegen_ir
 
 import (
 	"github.com/kkkunny/go-llvm"
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/bimap"
 	"github.com/kkkunny/stl/container/hashmap"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/queue"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	llvmUtil "github.com/kkkunny/Sim/compiler/codegen_ir/llvm"
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 )
 
 // CodeGenerator 代码生成器
@@ -29,8 +29,14 @@ type CodeGenerator struct {
 
 func New(target llvm.Target, ir *oldhir.Result) *CodeGenerator {
 	return &CodeGenerator{
-		hir:     ir,
-		builder: llvmUtil.NewBuilder(target),
+		hir:              ir,
+		builder:          llvmUtil.NewBuilder(target),
+		values:           bimap.StdWith[oldhir.Expr, llvm.Value](),
+		types:            hashmap.StdWith[*oldhir.CustomType, llvm.StructType](),
+		loops:            hashmap.StdWith[oldhir.Loop, loop](),
+		strings:          hashmap.StdWith[string, llvm.Constant](),
+		funcCache:        hashmap.StdWith[string, llvm.Function](),
+		lambdaCaptureMap: queue.New[hashmap.HashMap[oldhir.Ident, llvm.Value]](),
 	}
 }
 
@@ -59,7 +65,7 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 			f := self.values.GetValue(funcNode).(llvm.Function)
 			self.builder.MoveToAfter(stlslices.First(self.builder.GetMainFunction().Blocks()))
 			self.builder.CreateCall("", f.FunctionType(), f)
-			self.builder.CreateRet(stlbasic.Ptr[llvm.Value](self.builder.ConstInteger(self.builder.IntegerType(8), 0)))
+			self.builder.CreateRet(stlval.Ptr[llvm.Value](self.builder.ConstInteger(self.builder.IntegerType(8), 0)))
 			return false
 		}
 		return true

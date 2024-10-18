@@ -4,11 +4,11 @@ import (
 	"slices"
 
 	"github.com/kkkunny/go-llvm"
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 )
 
 func (self *CodeGenerator) codegenStmt(ir oldhir.Stmt) {
@@ -278,7 +278,7 @@ func (self *CodeGenerator) codegenMatch(ir *oldhir.Match) {
 	etIr := oldhir.AsType[*oldhir.EnumType](ir.Value.GetType())
 	t := self.codegenType(ir.Value.GetType())
 	value := self.codegenExpr(ir.Value, false)
-	index := stlbasic.TernaryAction(etIr.IsSimple(), func() llvm.Value {
+	index := stlval.TernaryAction(etIr.IsSimple(), func() llvm.Value {
 		if value.Type().Equal(t) {
 			return value
 		} else {
@@ -296,9 +296,9 @@ func (self *CodeGenerator) codegenMatch(ir *oldhir.Match) {
 		Block llvm.Block
 	}, 0, ir.Cases.Length())
 	for iter := ir.Cases.Iterator(); iter.Next(); {
-		caseIndex := slices.Index(etIr.Fields.Keys().ToSlice(), iter.Value().First)
-		caseBlock, caseCurBlock := self.codegenBlock(iter.Value().Second.Body, func(block llvm.Block) {
-			if stlslices.Empty(iter.Value().Second.Elems) {
+		caseIndex := slices.Index(etIr.Fields.Keys(), iter.Value().E1())
+		caseBlock, caseCurBlock := self.codegenBlock(iter.Value().E2().Body, func(block llvm.Block) {
+			if stlslices.Empty(iter.Value().E2().Elems) {
 				return
 			}
 
@@ -306,10 +306,10 @@ func (self *CodeGenerator) codegenMatch(ir *oldhir.Match) {
 			defer self.builder.MoveToAfter(caseCurBlock)
 			self.builder.MoveToAfter(block)
 
-			caseType := self.codegenTupleType(oldhir.NewTupleType(stlslices.Map(iter.Value().Second.Elems, func(_ int, e *oldhir.Param) oldhir.Type {
+			caseType := self.codegenTupleType(oldhir.NewTupleType(stlslices.Map(iter.Value().E2().Elems, func(_ int, e *oldhir.Param) oldhir.Type {
 				return e.GetType()
 			})...))
-			for i, elem := range iter.Value().Second.Elems {
+			for i, elem := range iter.Value().E2().Elems {
 				self.values.Set(elem, self.buildStructIndex(caseType, self.buildStructIndex(t.(llvm.StructType), value, 0, true), uint(i), true))
 			}
 		})

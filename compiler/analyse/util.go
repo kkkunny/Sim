@@ -4,18 +4,18 @@ import (
 	"strconv"
 	"strings"
 
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
-	"github.com/kkkunny/stl/container/hashset"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/optional"
-	"github.com/kkkunny/stl/container/pair"
+	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlerror "github.com/kkkunny/stl/error"
+	"github.com/kkkunny/stl/container/tuple"
 	stlos "github.com/kkkunny/stl/os"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 
 	"github.com/kkkunny/Sim/compiler/parse"
 
@@ -38,9 +38,9 @@ const (
 
 // importPackage 导入包
 func (self *Analyser) importPackage(pkg oldhir.Package, name string, importAll bool) (hirs linkedlist.LinkedList[oldhir.Global], err importPackageErrorKind) {
-	name = stlbasic.Ternary(name != "", name, pkg.GetPackageName())
+	name = stlval.Ternary(name != "", name, pkg.GetPackageName())
 
-	if !importAll && self.pkgScope.externs.ContainKey(name) {
+	if !importAll && self.pkgScope.externs.Contain(name) {
 		return linkedlist.LinkedList[oldhir.Global]{}, importPackageErrorDuplication
 	}
 
@@ -57,10 +57,10 @@ func (self *Analyser) importPackage(pkg oldhir.Package, name string, importAll b
 		}
 	}()
 
-	if scope = self.pkgs.Get(pkg); self.pkgs.ContainKey(pkg) && scope == nil {
+	if scope = self.pkgs.Get(pkg); self.pkgs.Contain(pkg) && scope == nil {
 		// 循环导入
 		return linkedlist.LinkedList[oldhir.Global]{}, importPackageErrorCircular
-	} else if self.pkgs.ContainKey(pkg) && scope != nil {
+	} else if self.pkgs.Contain(pkg) && scope != nil {
 		// 导入过该包，有缓存，不再追加该包的语句
 		return linkedlist.LinkedList[oldhir.Global]{}, importPackageErrorNone
 	}
@@ -68,7 +68,7 @@ func (self *Analyser) importPackage(pkg oldhir.Package, name string, importAll b
 	// 开始分析该包，放一个占位符，以便检测循环导入
 	self.pkgs.Set(pkg, nil)
 	// 分析并追加该包的语句
-	var analyseError stlerror.Error
+	var analyseError error
 	hirs, scope, analyseError = analyseSonPackage(self, pkg)
 	if analyseError != nil && hirs.Empty() {
 		return linkedlist.LinkedList[oldhir.Global]{}, importPackageErrorInvalid
@@ -94,7 +94,7 @@ func (self *Analyser) getTypeDefaultValue(pos reader.Position, t oldhir.Type) *o
 }
 
 // 检查类型定义是否循环
-func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[oldhir.Type], t oldhir.Type) bool {
+func (self *Analyser) checkTypeDefCircle(trace set.Set[oldhir.Type], t oldhir.Type) bool {
 	if trace.Contain(t) {
 		return true
 	}
@@ -115,7 +115,7 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[oldhir.Type], t 
 		}
 	case *oldhir.StructType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeDefCircle(trace, iter.Value().Second.Type) {
+			if self.checkTypeDefCircle(trace, iter.Value().E2().Type) {
 				return true
 			}
 		}
@@ -129,7 +129,7 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[oldhir.Type], t 
 		}
 	case *oldhir.EnumType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
-			elemOp := iter.Value().Second.Elem
+			elemOp := iter.Value().E2().Elem
 			if elem, ok := elemOp.Value(); ok {
 				if self.checkTypeDefCircle(trace, elem) {
 					return true
@@ -143,7 +143,7 @@ func (self *Analyser) checkTypeDefCircle(trace *hashset.HashSet[oldhir.Type], t 
 }
 
 // 检查类型别名是否循环
-func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[oldhir.Type], t oldhir.Type) bool {
+func (self *Analyser) checkTypeAliasCircle(trace set.Set[oldhir.Type], t oldhir.Type) bool {
 	if trace.Contain(t) {
 		return true
 	}
@@ -180,7 +180,7 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[oldhir.Type], 
 		}
 	case *oldhir.StructType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeAliasCircle(trace, iter.Value().Second.Type) {
+			if self.checkTypeAliasCircle(trace, iter.Value().E2().Type) {
 				return true
 			}
 		}
@@ -190,7 +190,7 @@ func (self *Analyser) checkTypeAliasCircle(trace *hashset.HashSet[oldhir.Type], 
 		}
 	case *oldhir.EnumType:
 		for iter := typ.Fields.Iterator(); iter.Next(); {
-			elemOp := iter.Value().Second.Elem
+			elemOp := iter.Value().E2().Elem
 			if elem, ok := elemOp.Value(); ok {
 				if self.checkTypeDefCircle(trace, elem) {
 					return true
@@ -207,12 +207,12 @@ func (self *Analyser) isInDstStructScope(st *oldhir.CustomType) bool {
 	if self.selfType == nil {
 		return false
 	}
-	selfName := stlbasic.TernaryAction(!strings.Contains(self.selfType.GetName(), "::"), func() string {
+	selfName := stlval.TernaryAction(!strings.Contains(self.selfType.GetName(), "::"), func() string {
 		return self.selfType.GetName()
 	}, func() string {
 		return strings.Split(self.selfType.GetName(), "::")[0]
 	})
-	stName := stlbasic.TernaryAction(!strings.Contains(st.GetName(), "::"), func() string {
+	stName := stlval.TernaryAction(!strings.Contains(st.GetName(), "::"), func() string {
 		return st.GetName()
 	}, func() string {
 		return strings.Split(st.GetName(), "::")[0]
@@ -225,7 +225,7 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) optional.Optio
 	var pkgName string
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.ContainKey(pkgName) {
+		if !self.pkgScope.externs.Contain(pkgName) {
 			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
 		}
 	}
@@ -233,13 +233,13 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) optional.Optio
 	if len(flag) == 0 || flag[0] {
 		// 表达式
 		// 标识符表达式
-		value := stlbasic.TernaryAction(self.localScope == nil, func() pair.Pair[oldhir.Ident, bool] {
-			return pair.NewPair[oldhir.Ident, bool](self.pkgScope.GetValue(pkgName, node.Name.Source()))
-		}, func() pair.Pair[oldhir.Ident, bool] {
-			return pair.NewPair[oldhir.Ident, bool](self.localScope.GetValue(pkgName, node.Name.Source()))
+		value := stlval.TernaryAction(self.localScope == nil, func() tuple.Tuple2[oldhir.Ident, bool] {
+			return tuple.Pack2[oldhir.Ident, bool](self.pkgScope.GetValue(pkgName, node.Name.Source()))
+		}, func() tuple.Tuple2[oldhir.Ident, bool] {
+			return tuple.Pack2[oldhir.Ident, bool](self.localScope.GetValue(pkgName, node.Name.Source()))
 		})
-		if value.Second {
-			return optional.Some(either.Left[oldhir.Ident, oldhir.Type](value.First))
+		if value.E2() {
+			return optional.Some(either.Left[oldhir.Ident, oldhir.Type](value.E1()))
 		}
 	}
 
@@ -285,7 +285,7 @@ func (self *Analyser) analyseFuncBody(node *ast.Block) *oldhir.Block {
 }
 
 func (self *Analyser) analyseFuncDecl(node ast.FuncDecl) oldhir.FuncDecl {
-	paramNameSet := hashset.NewHashSetWith[string]()
+	paramNameSet := set.StdHashSetWith[string]()
 	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *oldhir.Param {
 		param := self.analyseParam(e)
 		if param.Name.IsSome() && !paramNameSet.Add(param.Name.MustValue()) {
@@ -331,12 +331,12 @@ func (self *Analyser) hasTypeDefault(t oldhir.Type) bool {
 			return self.hasTypeDefault(e)
 		})
 	case *oldhir.StructType:
-		return stliter.All(tt.Fields, func(e pair.Pair[string, oldhir.Field]) bool {
-			return self.hasTypeDefault(e.Second.Type)
+		return stliter.All(tt.Fields, func(e tuple.Tuple2[string, oldhir.Field]) bool {
+			return self.hasTypeDefault(e.E2().Type)
 		})
 	case *oldhir.EnumType:
-		return stliter.Any(tt.Fields, func(p pair.Pair[string, oldhir.EnumField]) bool {
-			return p.Second.Elem.IsNone() || self.hasTypeDefault(p.Second.Elem.MustValue())
+		return stliter.Any(tt.Fields, func(p tuple.Tuple2[string, oldhir.EnumField]) bool {
+			return p.E2().Elem.IsNone() || self.hasTypeDefault(p.E2().Elem.MustValue())
 		})
 	default:
 		panic("unreachable")
@@ -344,7 +344,7 @@ func (self *Analyser) hasTypeDefault(t oldhir.Type) bool {
 }
 
 // Analyse 语义分析
-func Analyse(path stlos.FilePath) (*oldhir.Result, stlerror.Error) {
+func Analyse(path stlos.FilePath) (*oldhir.Result, error) {
 	asts, err := parse.Parse(path)
 	if err != nil {
 		return nil, err
@@ -353,7 +353,7 @@ func Analyse(path stlos.FilePath) (*oldhir.Result, stlerror.Error) {
 }
 
 // 语义分析子包
-func analyseSonPackage(parent *Analyser, pkg oldhir.Package) (linkedlist.LinkedList[oldhir.Global], *_PkgScope, stlerror.Error) {
+func analyseSonPackage(parent *Analyser, pkg oldhir.Package) (linkedlist.LinkedList[oldhir.Global], *_PkgScope, error) {
 	asts, err := parse.Parse(pkg.Path())
 	if err != nil {
 		return linkedlist.LinkedList[oldhir.Global]{}, nil, err

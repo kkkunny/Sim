@@ -3,14 +3,14 @@ package analyse
 import (
 	"math/big"
 
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 
 	errors "github.com/kkkunny/Sim/compiler/error"
 )
@@ -84,7 +84,7 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) oldhir.Type {
 	if typ.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlbasic.IgnoreWith(typ.MustValue().Right())
+	return stlval.IgnoreWith(typ.MustValue().Right())
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType) *oldhir.FuncType {
@@ -127,9 +127,9 @@ func (self *Analyser) analyseSelfType(node *ast.SelfType) oldhir.Type {
 }
 
 func (self *Analyser) analyseStructType(node *ast.StructType) *oldhir.StructType {
-	fields := linkedhashmap.NewLinkedHashMap[string, oldhir.Field]()
+	fields := linkedhashmap.StdWith[string, oldhir.Field]()
 	for _, f := range node.Fields {
-		if fields.ContainKey(f.Name.Source()) {
+		if fields.Contain(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
 		fields.Set(f.Name.Source(), oldhir.Field{
@@ -151,14 +151,14 @@ func (self *Analyser) analyseLambdaType(node *ast.LambdaType) *oldhir.LambdaType
 }
 
 func (self *Analyser) analyseEnumType(node *ast.EnumType) *oldhir.EnumType {
-	fields := linkedhashmap.NewLinkedHashMap[string, oldhir.EnumField]()
+	fields := linkedhashmap.StdWith[string, oldhir.EnumField]()
 	for _, f := range node.Fields {
-		if fields.ContainKey(f.Name.Source()) {
+		if fields.Contain(f.Name.Source()) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
 		fields.Set(f.Name.Source(), oldhir.EnumField{
 			Name: f.Name.Source(),
-			Elem: stlbasic.TernaryAction(f.Elem.IsNone(), func() optional.Optional[oldhir.Type] {
+			Elem: stlval.TernaryAction(f.Elem.IsNone(), func() optional.Optional[oldhir.Type] {
 				return optional.None[oldhir.Type]()
 			}, func() optional.Optional[oldhir.Type] {
 				return optional.Some(self.analyseType(f.Elem.MustValue()))

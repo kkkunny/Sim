@@ -13,7 +13,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/analyse"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 )
 
 func main() {

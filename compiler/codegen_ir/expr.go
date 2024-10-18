@@ -5,12 +5,12 @@ import (
 	"slices"
 
 	"github.com/kkkunny/go-llvm"
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 )
 
 func (self *CodeGenerator) codegenExpr(ir oldhir.Expr, load bool) llvm.Value {
@@ -417,7 +417,7 @@ func (self *CodeGenerator) codegenDefault(ir oldhir.Type) llvm.Value {
 
 		key := fmt.Sprintf("default:%s", tir.String())
 		var fn llvm.Function
-		if !self.funcCache.ContainKey(key) {
+		if !self.funcCache.Contain(key) {
 			curBlock := self.builder.CurrentBlock()
 			ft := self.builder.FunctionType(false, at)
 			fn = self.builder.NewFunction("", ft)
@@ -443,7 +443,7 @@ func (self *CodeGenerator) codegenDefault(ir oldhir.Type) llvm.Value {
 			self.builder.CreateBr(condBlock)
 
 			self.builder.MoveToAfter(endBlock)
-			self.builder.CreateRet(stlbasic.Ptr[llvm.Value](self.builder.CreateLoad("", at, arrayPtr)))
+			self.builder.CreateRet(stlval.Ptr[llvm.Value](self.builder.CreateLoad("", at, arrayPtr)))
 
 			self.builder.MoveToAfter(curBlock)
 		} else {
@@ -461,7 +461,7 @@ func (self *CodeGenerator) codegenDefault(ir oldhir.Type) llvm.Value {
 		}
 		return self.codegenDefault(tir.Target)
 	case *oldhir.StructType:
-		elems := stlslices.Map(oldhir.AsType[*oldhir.StructType](tir).Fields.Values().ToSlice(), func(_ int, e oldhir.Field) llvm.Value {
+		elems := stlslices.Map(oldhir.AsType[*oldhir.StructType](tir).Fields.Values(), func(_ int, e oldhir.Field) llvm.Value {
 			return self.codegenDefault(e.Type)
 		})
 		return self.buildPackStruct(self.codegenStructType(tir), elems...)
@@ -469,7 +469,7 @@ func (self *CodeGenerator) codegenDefault(ir oldhir.Type) llvm.Value {
 		ft := self.codegenFuncType(tir)
 		key := fmt.Sprintf("default:%s", tir.String())
 		var fn llvm.Function
-		if !self.funcCache.ContainKey(key) {
+		if !self.funcCache.Contain(key) {
 			curBlock := self.builder.CurrentBlock()
 			fn = self.builder.NewFunction("", ft)
 			self.funcCache.Set(key, fn)
@@ -477,7 +477,7 @@ func (self *CodeGenerator) codegenDefault(ir oldhir.Type) llvm.Value {
 			if ft.ReturnType().Equal(self.builder.VoidType()) {
 				self.builder.CreateRet(nil)
 			} else {
-				self.builder.CreateRet(stlbasic.Ptr(self.buildCopy(tir.Ret, self.codegenDefault(oldhir.AsType[*oldhir.FuncType](tir).Ret))))
+				self.builder.CreateRet(stlval.Ptr(self.buildCopy(tir.Ret, self.codegenDefault(oldhir.AsType[*oldhir.FuncType](tir).Ret))))
 			}
 			self.builder.MoveToAfter(curBlock)
 		} else {
@@ -507,7 +507,7 @@ func (self *CodeGenerator) codegenDefault(ir oldhir.Type) llvm.Value {
 		var index int
 		var data llvm.Value
 		var ok bool
-		for i, e := range tir.Fields.Values().ToSlice() {
+		for i, e := range tir.Fields.Values() {
 			data, ok = f(e.Elem)
 			if ok {
 				index = i
@@ -560,7 +560,7 @@ func (self *CodeGenerator) codegenTypeJudgment(ir *oldhir.TypeJudgment) llvm.Val
 func (self *CodeGenerator) codegenLambda(ir *oldhir.Lambda) llvm.Value {
 	ft1, st, ft2 := self.codegenCallableType(oldhir.AsType[oldhir.CallableType](ir.GetType()))
 	isSimpleFunc := len(ir.Context) == 0
-	ft := stlbasic.Ternary(isSimpleFunc, ft1, ft2)
+	ft := stlval.Ternary(isSimpleFunc, ft1, ft2)
 	f := self.builder.NewFunction("", ft)
 	if ir.Ret.EqualTo(oldhir.NoReturn) {
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
@@ -600,7 +600,7 @@ func (self *CodeGenerator) codegenLambda(ir *oldhir.Lambda) llvm.Value {
 			self.values.Set(pir, p)
 		}
 
-		captureMap := hashmap.NewHashMapWithCapacity[oldhir.Ident, llvm.Value](uint(len(ir.Context)))
+		captureMap := hashmap.StdWithCap[oldhir.Ident, llvm.Value](uint(len(ir.Context)))
 		for i, identIr := range ir.Context {
 			captureMap.Set(identIr, self.buildStructIndex(ctxType, f.GetParam(0), uint(i), false))
 		}
@@ -644,7 +644,7 @@ func (self *CodeGenerator) codegenMethod(ir *oldhir.Method) llvm.Value {
 	if ret.Type().Equal(self.builder.VoidType()) {
 		self.builder.CreateRet(nil)
 	} else {
-		self.builder.CreateRet(stlbasic.Ptr[llvm.Value](ret))
+		self.builder.CreateRet(stlval.Ptr[llvm.Value](ret))
 	}
 
 	self.builder.MoveToAfter(preBlock)
@@ -653,7 +653,7 @@ func (self *CodeGenerator) codegenMethod(ir *oldhir.Method) llvm.Value {
 
 func (self *CodeGenerator) codegenEnum(ir *oldhir.Enum) llvm.Value {
 	etIr := oldhir.AsType[*oldhir.EnumType](ir.GetType())
-	index := slices.Index(etIr.Fields.Keys().ToSlice(), ir.Field)
+	index := slices.Index(etIr.Fields.Keys(), ir.Field)
 	if etIr.IsSimple() {
 		return self.builder.ConstInteger(self.codegenType(etIr).(llvm.IntegerType), int64(index))
 	}

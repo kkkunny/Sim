@@ -2,11 +2,11 @@ package codegen_ir
 
 import (
 	"github.com/kkkunny/go-llvm"
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 )
 
 func (self *CodeGenerator) codegenGlobalDecl(ir oldhir.Global) {
@@ -40,7 +40,7 @@ func (self *CodeGenerator) declFuncDef(ir *oldhir.FuncDef) {
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}
 	if inline, ok := ir.InlineControl.Value(); ok {
-		f.AddAttribute(stlbasic.Ternary(inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
+		f.AddAttribute(stlval.Ternary(inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
 	}
 	self.values.Set(ir, f)
 }

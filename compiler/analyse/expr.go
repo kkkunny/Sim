@@ -4,16 +4,16 @@ import (
 	"math/big"
 	"slices"
 
-	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/hashset"
 	"github.com/kkkunny/stl/container/optional"
+	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
+	stlval "github.com/kkkunny/stl/value"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/oldhir"
 
 	errors "github.com/kkkunny/Sim/compiler/error"
 
@@ -254,8 +254,8 @@ func (self *Analyser) analyseBinary(expect oldhir.Type, node *ast.Binary) oldhir
 		if ok && self.pkgScope.Div().HasBeImpled(ct) {
 			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Div().FirstMethodName()).MustValue(), right)
 		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
-			if (stlbasic.Is[*oldhir.Integer](right) && right.(*oldhir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
-				(stlbasic.Is[*oldhir.Float](right) && right.(*oldhir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
+			if (stlval.Is[*oldhir.Integer](right) && right.(*oldhir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
+				(stlval.Is[*oldhir.Float](right) && right.(*oldhir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
 				errors.ThrowDivZero(node.Right.Position())
 			}
 			return &oldhir.NumDivNum{
@@ -268,8 +268,8 @@ func (self *Analyser) analyseBinary(expect oldhir.Type, node *ast.Binary) oldhir
 		if ok && self.pkgScope.Rem().HasBeImpled(ct) {
 			return oldhir.NewCall(oldhir.LoopFindMethodWithSelf(ct, optional.Some[oldhir.Expr](left), self.pkgScope.Rem().FirstMethodName()).MustValue(), right)
 		} else if lt.EqualTo(rt) && oldhir.IsNumberType(lt) {
-			if (stlbasic.Is[*oldhir.Integer](right) && right.(*oldhir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
-				(stlbasic.Is[*oldhir.Float](right) && right.(*oldhir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
+			if (stlval.Is[*oldhir.Integer](right) && right.(*oldhir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
+				(stlval.Is[*oldhir.Float](right) && right.(*oldhir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
 				errors.ThrowDivZero(node.Right.Position())
 			}
 			return &oldhir.NumRemNum{
@@ -446,7 +446,7 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) oldhir.Ident {
 	if expr.IsNone() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlbasic.IgnoreWith(expr.MustValue().Left())
+	return stlval.IgnoreWith(expr.MustValue().Left())
 }
 
 func (self *Analyser) analyseCall(node *ast.Call) oldhir.Expr {
@@ -458,7 +458,7 @@ func (self *Analyser) analyseCall(node *ast.Call) oldhir.Expr {
 					if et, ok := oldhir.TryType[*oldhir.EnumType](t); ok {
 						// 枚举值
 						fieldName := dotNode.Index.Source()
-						if et.Fields.ContainKey(fieldName) {
+						if et.Fields.Contain(fieldName) {
 							caseDef := et.Fields.Get(fieldName)
 							if caseDef.Elem.IsSome() {
 								elem := self.analyseExpr(caseDef.Elem.MustValue(), stlslices.First(node.Args))
@@ -480,7 +480,7 @@ func (self *Analyser) analyseCall(node *ast.Call) oldhir.Expr {
 	if !ok {
 		errors.ThrowExpectCallableError(node.Func.Position(), f.GetType())
 	}
-	vararg := stlbasic.Is[*oldhir.FuncDef](f) && f.(*oldhir.FuncDef).VarArg
+	vararg := stlval.Is[*oldhir.FuncDef](f) && f.(*oldhir.FuncDef).VarArg
 	if (!vararg && len(node.Args) != len(ct.GetParams())) || (vararg && len(node.Args) < len(ct.GetParams())) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ct.GetParams())), uint(len(node.Args)))
 	}
@@ -611,14 +611,14 @@ func (self *Analyser) analyseArray(expect oldhir.Type, node *ast.Array) *oldhir.
 	}
 	elems := make([]oldhir.Expr, len(node.Elems))
 	for i, elemNode := range node.Elems {
-		elems[i] = stlbasic.TernaryAction(i == 0, func() oldhir.Expr {
+		elems[i] = stlval.TernaryAction(i == 0, func() oldhir.Expr {
 			return self.analyseExpr(expectElem, elemNode)
 		}, func() oldhir.Expr {
 			return self.expectExpr(elems[0].GetType(), elemNode)
 		})
 	}
 	return &oldhir.Array{
-		Type: stlbasic.TernaryAction(len(elems) != 0, func() oldhir.Type {
+		Type: stlval.TernaryAction(len(elems) != 0, func() oldhir.Type {
 			return oldhir.NewArrayType(uint64(len(elems)), elems[0].GetType())
 		}, func() oldhir.Type { return expectArray }),
 		Elems: elems,
@@ -632,7 +632,7 @@ func (self *Analyser) analyseIndex(node *ast.Index) *oldhir.Index {
 	}
 	at := oldhir.AsType[*oldhir.ArrayType](from.GetType())
 	index := self.expectExpr(self.pkgScope.Usize(), node.Index)
-	if stlbasic.Is[*oldhir.Integer](index) && index.(*oldhir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0 {
+	if stlval.Is[*oldhir.Integer](index) && index.(*oldhir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0 {
 		errors.ThrowIndexOutOfRange(node.Index.Position())
 	}
 	return &oldhir.Index{
@@ -678,17 +678,17 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *oldhir.Struct {
 
 	existedFields := make(map[string]oldhir.Expr)
 	for _, nf := range node.Fields {
-		fn := nf.First.Source()
-		if !st.Fields.ContainKey(fn) || (!self.pkgScope.pkg.Equal(st.Def.Pkg) && !st.Fields.Get(fn).Public) {
-			errors.ThrowUnknownIdentifierError(nf.First.Position, nf.First)
+		fn := nf.E1().Source()
+		if !st.Fields.Contain(fn) || (!self.pkgScope.pkg.Equal(st.Def.Pkg) && !st.Fields.Get(fn).Public) {
+			errors.ThrowUnknownIdentifierError(nf.E1().Position, nf.E1())
 		}
-		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.Second)
+		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.E2())
 	}
 
 	fields := make([]oldhir.Expr, st.Fields.Length())
 	var i int
 	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		fn, ft := iter.Value().First, iter.Value().Second.Type
+		fn, ft := iter.Value().E1(), iter.Value().E2().Type
 		if fv, ok := existedFields[fn]; ok {
 			fields[i] = fv
 		} else {
@@ -718,7 +718,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) oldhir.Expr {
 				}
 				if et, ok := oldhir.TryType[*oldhir.EnumType](t); ok {
 					// 枚举值
-					if et.Fields.ContainKey(fieldName) {
+					if et.Fields.Contain(fieldName) {
 						if et.Fields.Get(fieldName).Elem.IsNone() {
 							return &oldhir.Enum{
 								From:  t,
@@ -748,13 +748,13 @@ func (self *Analyser) analyseDot(node *ast.Dot) oldhir.Expr {
 		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
 	st := oldhir.AsType[*oldhir.StructType](structVal.GetType())
-	if field := st.Fields.Get(fieldName); !st.Fields.ContainKey(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Def.Pkg)) {
+	if field := st.Fields.Get(fieldName); !st.Fields.Contain(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Def.Pkg)) {
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
 	return &oldhir.GetField{
 		Internal: self.pkgScope.pkg.Equal(st.Def.Pkg),
 		From:     structVal,
-		Index:    uint(slices.Index(st.Fields.Keys().ToSlice(), fieldName)),
+		Index:    uint(slices.Index(st.Fields.Keys(), fieldName)),
 	}
 }
 
@@ -846,7 +846,7 @@ func (self *Analyser) analyseLambda(expect oldhir.Type, node *ast.Lambda) *oldhi
 	}
 	f.Type = expect
 
-	captureIdents := hashset.NewHashSet[oldhir.Ident]()
+	captureIdents := set.StdHashSetWith[oldhir.Ident]()
 	self.localScope = _NewLambdaScope(self.localScope, f, func(ident oldhir.Ident) {
 		if v, ok := ident.(*oldhir.LocalVarDef); ok {
 			v.Escaped = true
@@ -864,7 +864,7 @@ func (self *Analyser) analyseLambda(expect oldhir.Type, node *ast.Lambda) *oldhi
 	}
 
 	f.Body = self.analyseFuncBody(node.Body)
-	f.Context = captureIdents.ToSlice().ToSlice()
+	f.Context = captureIdents.ToSlice()
 	return f
 }
 
@@ -872,7 +872,7 @@ func (self *Analyser) analyseParam(node ast.Param) *oldhir.Param {
 	return &oldhir.Param{
 		Mut:  !node.Mutable.IsNone(),
 		Type: self.analyseType(node.Type),
-		Name: stlbasic.TernaryAction(node.Name.IsNone(), func() optional.Optional[string] {
+		Name: stlval.TernaryAction(node.Name.IsNone(), func() optional.Optional[string] {
 			return optional.None[string]()
 		}, func() optional.Optional[string] {
 			return optional.Some(node.Name.MustValue().Source())

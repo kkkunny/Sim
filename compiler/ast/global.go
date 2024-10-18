@@ -1,8 +1,8 @@
 package ast
 
 import (
-	"github.com/kkkunny/stl/container/dynarray"
 	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/compiler/reader"
@@ -19,7 +19,7 @@ type Global interface {
 // Import 包导入
 type Import struct {
 	Begin reader.Position
-	Paths dynarray.DynArray[token.Token]
+	Paths []token.Token
 	Alias optional.Optional[token.Token]
 }
 
@@ -27,7 +27,7 @@ func (self *Import) Position() reader.Position {
 	if alias, ok := self.Alias.Value(); ok {
 		return reader.MixPosition(self.Begin, alias.Position)
 	}
-	return reader.MixPosition(self.Begin, self.Paths.Back().Position)
+	return reader.MixPosition(self.Begin, stlslices.Last(self.Paths).Position)
 }
 
 func (*Import) global() {}
