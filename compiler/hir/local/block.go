@@ -1,9 +1,9 @@
 package local
 
 import (
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/list"
+	stlval "github.com/kkkunny/stl/value"
 )
 
 type Block struct {
@@ -35,7 +35,7 @@ func (self *Block) CallableDef() CallableDef {
 	if ok {
 		return parentFunc
 	}
-	return stlbasic.IgnoreWith(self.parent.Right()).CallableDef()
+	return stlval.IgnoreWith(self.parent.Right()).CallableDef()
 }
 
 func (self *Block) Stmts() *list.List[Local] {

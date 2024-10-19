@@ -3,7 +3,7 @@ package global
 import (
 	"fmt"
 
-	stlbasic "github.com/kkkunny/stl/basic"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
@@ -16,7 +16,7 @@ type TypeAliasDef struct {
 }
 
 func (self *TypeAliasDef) String() string {
-	return stlbasic.Ternary(self.pkg.Equal(self.pkg.module.BuildinPkg), self.name, fmt.Sprintf("%s::%s", self.pkg.String(), self.name))
+	return stlval.Ternary(self.pkg.Equal(self.pkg.module.BuildinPkg), self.name, fmt.Sprintf("%s::%s", self.pkg.String(), self.name))
 }
 
 func (self *TypeAliasDef) Equal(dst types.Type) bool {

@@ -36,7 +36,7 @@ type EnumType interface {
 
 func NewEnumType(fs ...*EnumField) EnumType {
 	return &_EnumType_{
-		fields: linkedhashmap.NewLinkedHashMapWith[string, *EnumField](stlslices.FlatMap(fs, func(i int, f *EnumField) []any {
+		fields: linkedhashmap.StdWith[string, *EnumField](stlslices.FlatMap(fs, func(i int, f *EnumField) []any {
 			return []any{f.name, f}
 		})...),
 	}
@@ -47,7 +47,7 @@ type _EnumType_ struct {
 }
 
 func (self *_EnumType_) String() string {
-	fields := stlslices.Map(self.fields.Values().ToSlice(), func(i int, f *EnumField) string {
+	fields := stlslices.Map(self.fields.Values(), func(i int, f *EnumField) string {
 		e, ok := f.Elem()
 		if !ok {
 			return f.name
@@ -66,7 +66,7 @@ func (self *_EnumType_) Equal(dst Type) bool {
 	if self.fields.Length() != uint(len(dstFields)) {
 		return false
 	}
-	return stlslices.All(self.fields.Values().ToSlice(), func(i int, f1 *EnumField) bool {
+	return stlslices.All(self.fields.Values(), func(i int, f1 *EnumField) bool {
 		f2 := dstFields[i]
 		if f1.name != f2.name {
 			return false
@@ -78,5 +78,5 @@ func (self *_EnumType_) Equal(dst Type) bool {
 }
 
 func (self *_EnumType_) EnumFields() []*EnumField {
-	return self.fields.Values().ToSlice()
+	return self.fields.Values()
 }

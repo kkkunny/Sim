@@ -3,13 +3,13 @@ package types
 import (
 	"fmt"
 
-	stlbasic "github.com/kkkunny/stl/basic"
+	stlcmp "github.com/kkkunny/stl/cmp"
 )
 
 // Type 类型
 type Type interface {
 	fmt.Stringer
-	stlbasic.Comparable[Type]
+	stlcmp.Equalable[Type]
 }
 
 // NumType 数字型

@@ -1,6 +1,6 @@
 package types
 
-// CustomType 自定义类型，一定继承自global.CustomTypeWrap
+// CustomType 自定义类型
 type CustomType interface {
 	Type
 	Name() string

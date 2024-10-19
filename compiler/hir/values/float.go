@@ -8,11 +8,11 @@ import (
 
 // Float 浮点数
 type Float struct {
-	typ   *types._FloatType_
+	typ   types.FloatType
 	value *big.Float
 }
 
-func NewFloat(t *types._FloatType_, v *big.Float) *Float {
+func NewFloat(t types.FloatType, v *big.Float) *Float {
 	return &Float{
 		typ:   t,
 		value: v,
