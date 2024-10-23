@@ -30,31 +30,31 @@ find_test_files:
     done
 
 .PHONY: lex
-lex: $(WORK_PATH)/lex.go $(TEST_FILE)
+lex: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags lex $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: parse
-parse: $(WORK_PATH)/parse.go $(TEST_FILE)
+parse: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags parse $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: analyse
-analyse: $(WORK_PATH)/analyse.go $(TEST_FILE)
+analyse: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags analyse $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: codegenir
-codegenir: $(WORK_PATH)/codegen_ir.go $(TEST_FILE)
+codegenir: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags codegenir $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: codegenasm
-codegenasm: $(WORK_PATH)/codegen_asm.go $(TEST_FILE)
+codegenasm: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags codegenasm $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: run
-run: $(WORK_PATH)/main.go $(TEST_FILE)
+run: $(WORK_PATH)/ $(TEST_FILE)
 	@go run $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: build
-build: clean $(WORK_PATH)/main.go
+build: clean $(WORK_PATH)/
 	go build -o $(BIN_FILE) $(WORK_PATH)
 	ln -s $(WORK_PATH)/$(BIN_FILE) $(BIN_PATH)
 

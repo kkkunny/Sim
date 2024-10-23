@@ -281,6 +281,77 @@ func (i64) not(self: Self)Self{
     return (!(self as __buildin_i64)) as i64
 }
 
+pub type isize __buildin_isize
+
+@inline
+func (isize) default()Self{
+    return 0
+}
+@inline
+func (isize) copy(self: Self)Self{
+    return self
+}
+@inline
+func (isize) add(self: Self, dst: Self)Self{
+    return (self as __buildin_isize + dst as __buildin_isize) as isize
+}
+@inline
+func (isize) sub(self: Self, dst: Self)Self{
+    return (self as __buildin_isize - dst as __buildin_isize) as isize
+}
+@inline
+func (isize) mul(self: Self, dst: Self)Self{
+    return (self as __buildin_isize * dst as __buildin_isize) as isize
+}
+@inline
+func (isize) div(self: Self, dst: Self)Self{
+    return (self as __buildin_isize / dst as __buildin_isize) as isize
+}
+@inline
+func (isize) rem(self: Self, dst: Self)Self{
+    return (self as __buildin_isize % dst as __buildin_isize) as isize
+}
+@inline
+func (isize) and(self: Self, dst: Self)Self{
+    return (self as __buildin_isize & dst as __buildin_isize) as isize
+}
+@inline
+func (isize) or(self: Self, dst: Self)Self{
+    return (self as __buildin_isize | dst as __buildin_isize) as isize
+}
+@inline
+func (isize) xor(self: Self, dst: Self)Self{
+    return (self as __buildin_isize ^ dst as __buildin_isize) as isize
+}
+@inline
+func (isize) shl(self: Self, dst: Self)Self{
+    return (self as __buildin_isize << dst as __buildin_isize) as isize
+}
+@inline
+func (isize) shr(self: Self, dst: Self)Self{
+    return (self as __buildin_isize >> dst as __buildin_isize) as isize
+}
+@inline
+func (isize) eq(self: Self, dst: Self)bool{
+    return self as __buildin_isize == dst as __buildin_isize
+}
+@inline
+func (isize) lt(self: Self, dst: Self)bool{
+    return self as __buildin_isize < dst as __buildin_isize
+}
+@inline
+func (isize) gt(self: Self, dst: Self)bool{
+    return self as __buildin_isize > dst as __buildin_isize
+}
+@inline
+func (isize) neg(self: Self)Self{
+    return (-(self as __buildin_isize)) as isize
+}
+@inline
+func (isize) not(self: Self)Self{
+    return (!(self as __buildin_isize)) as isize
+}
+
 pub type u8 __buildin_u8
 
 @inline
@@ -549,6 +620,73 @@ func (u64) not(self: Self)Self{
     return (!(self as __buildin_u64)) as u64
 }
 
+pub type usize __buildin_usize
+
+@inline
+func (usize) default()Self{
+    return 0
+}
+@inline
+func (usize) copy(self: Self)Self{
+    return self
+}
+@inline
+func (usize) add(self: Self, dst: Self)Self{
+    return (self as __buildin_usize + dst as __buildin_usize) as usize
+}
+@inline
+func (usize) sub(self: Self, dst: Self)Self{
+    return (self as __buildin_usize - dst as __buildin_usize) as usize
+}
+@inline
+func (usize) mul(self: Self, dst: Self)Self{
+    return (self as __buildin_usize * dst as __buildin_usize) as usize
+}
+@inline
+func (usize) div(self: Self, dst: Self)Self{
+    return (self as __buildin_usize / dst as __buildin_usize) as usize
+}
+@inline
+func (usize) rem(self: Self, dst: Self)Self{
+    return (self as __buildin_usize % dst as __buildin_usize) as usize
+}
+@inline
+func (usize) and(self: Self, dst: Self)Self{
+    return (self as __buildin_usize & dst as __buildin_usize) as usize
+}
+@inline
+func (usize) or(self: Self, dst: Self)Self{
+    return (self as __buildin_usize | dst as __buildin_usize) as usize
+}
+@inline
+func (usize) xor(self: Self, dst: Self)Self{
+    return (self as __buildin_usize ^ dst as __buildin_usize) as usize
+}
+@inline
+func (usize) shl(self: Self, dst: Self)Self{
+    return (self as __buildin_usize << dst as __buildin_usize) as usize
+}
+@inline
+func (usize) shr(self: Self, dst: Self)Self{
+    return (self as __buildin_usize >> dst as __buildin_usize) as usize
+}
+@inline
+func (usize) eq(self: Self, dst: Self)bool{
+    return self as __buildin_usize == dst as __buildin_usize
+}
+@inline
+func (usize) lt(self: Self, dst: Self)bool{
+    return self as __buildin_usize < dst as __buildin_usize
+}
+@inline
+func (usize) gt(self: Self, dst: Self)bool{
+    return self as __buildin_usize > dst as __buildin_usize
+}
+@inline
+func (usize) not(self: Self)Self{
+    return (!(self as __buildin_usize)) as usize
+}
+
 pub type f32 __buildin_f32
 
 @inline
@@ -694,5 +832,3 @@ func (str) copy(self: Self)Self{
 }
 
 pub type byte = u8
-pub type isize = i64
-pub type usize = u64

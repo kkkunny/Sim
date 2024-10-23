@@ -1,20 +1,3 @@
-import std::os
-
-type A struct{
-	v: u8
-}
-
-func (A) copy(self: Self)Self{
-	self.v -= 1
-	return self
-}
-
-func get()A{
-	let a: A = A{v: 1}
-	return a
-}
-
 func main(){
-	let a = get()
-	os::exit(a.v)
+	debug("Hello World")
 }

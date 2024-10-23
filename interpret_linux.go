@@ -1,4 +1,4 @@
-//go:build !lex && !parse && !analyse && !codegenir && !codegenasm
+//go:build !lex && !parse && !analyse && !codegenir && !codegenasm && linux
 
 package main
 
@@ -15,8 +15,8 @@ import (
 )
 
 func main() {
-	stlerror.Must(llvm.InitializeNativeTarget())
-	module := stlerror.MustWith(codegen_ir.CodegenIr(stlerror.MustWith(llvm.NativeTarget()), stlos.NewFilePath(os.Args[1])))
+	target := stlerror.MustWith(llvm.NativeTarget())
+	module := stlerror.MustWith(codegen_ir.CodegenIr(target, stlos.NewFilePath(os.Args[1])))
 	ret := stlerror.MustWith(interpret.Interpret(module))
 	os.Exit(int(ret))
 }

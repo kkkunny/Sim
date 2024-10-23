@@ -129,18 +129,6 @@ func (self *Analyser) Analyse() *oldhir.Result {
 	return &oldhir.Result{
 		Globals: globalIrs,
 		BuildinTypes: struct {
-			Isize   oldhir.Type
-			I8      oldhir.Type
-			I16     oldhir.Type
-			I32     oldhir.Type
-			I64     oldhir.Type
-			Usize   oldhir.Type
-			U8      oldhir.Type
-			U16     oldhir.Type
-			U32     oldhir.Type
-			U64     oldhir.Type
-			F32     oldhir.Type
-			F64     oldhir.Type
 			Bool    oldhir.Type
 			Str     oldhir.Type
 			Default *oldhir.Trait
@@ -163,18 +151,6 @@ func (self *Analyser) Analyse() *oldhir.Result {
 			Neg     *oldhir.Trait
 			Not     *oldhir.Trait
 		}{
-			Isize:   self.pkgScope.Isize(),
-			I8:      self.pkgScope.I8(),
-			I16:     self.pkgScope.I16(),
-			I32:     self.pkgScope.I32(),
-			I64:     self.pkgScope.I64(),
-			Usize:   self.pkgScope.Usize(),
-			U8:      self.pkgScope.U8(),
-			U16:     self.pkgScope.U16(),
-			U32:     self.pkgScope.U32(),
-			U64:     self.pkgScope.U64(),
-			F32:     self.pkgScope.F32(),
-			F64:     self.pkgScope.F64(),
 			Bool:    self.pkgScope.Bool(),
 			Str:     self.pkgScope.Str(),
 			Default: self.pkgScope.Default(),

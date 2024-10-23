@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/either"
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/linkedlist"
@@ -248,12 +249,20 @@ func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) optional.Optio
 		name := node.Name.Source()
 		// 内置类型
 		if self.pkgScope.pkg.Equal(oldhir.BuildInPackage) && strings.HasPrefix(name, "__buildin_i") {
-			bits, err := strconv.ParseUint(name[len("__buildin_i"):], 10, 8)
+			sizeStr := name[len("__buildin_i"):]
+			if sizeStr == "size" {
+				return optional.Some(either.Right[oldhir.Ident, oldhir.Type](oldhir.NewSintType(uint8(llvm.PointerSize) * 8)))
+			}
+			bits, err := strconv.ParseUint(sizeStr, 10, 8)
 			if err == nil && bits > 0 && bits <= 128 {
 				return optional.Some(either.Right[oldhir.Ident, oldhir.Type](oldhir.NewSintType(uint8(bits))))
 			}
 		} else if self.pkgScope.pkg.Equal(oldhir.BuildInPackage) && strings.HasPrefix(name, "__buildin_u") {
-			bits, err := strconv.ParseUint(name[len("__buildin_u"):], 10, 8)
+			sizeStr := name[len("__buildin_u"):]
+			if sizeStr == "size" {
+				return optional.Some(either.Right[oldhir.Ident, oldhir.Type](oldhir.NewUintType(uint8(llvm.PointerSize) * 8)))
+			}
+			bits, err := strconv.ParseUint(sizeStr, 10, 8)
 			if err == nil && bits > 0 && bits <= 128 {
 				return optional.Some(either.Right[oldhir.Ident, oldhir.Type](oldhir.NewUintType(uint8(bits))))
 			}

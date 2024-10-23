@@ -8,16 +8,13 @@ import (
 // Result 语义分析结果
 type Result struct {
 	BuildinTypes struct {
-		Isize, I8, I16, I32, I64 Type
-		Usize, U8, U16, U32, U64 Type
-		F32, F64                 Type
-		Bool, Str                Type
-		Default                  *Trait
-		Copy                     *Trait
-		Add, Sub, Mul, Div, Rem  *Trait
-		And, Or, Xor, Shl, Shr   *Trait
-		Eq, Lt, Gt, Land, Lor    *Trait
-		Neg, Not                 *Trait
+		Bool, Str               Type
+		Default                 *Trait
+		Copy                    *Trait
+		Add, Sub, Mul, Div, Rem *Trait
+		And, Or, Xor, Shl, Shr  *Trait
+		Eq, Lt, Gt, Land, Lor   *Trait
+		Neg, Not                *Trait
 	}
 	Globals linkedlist.LinkedList[Global]
 }
