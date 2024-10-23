@@ -4,6 +4,8 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/stack"
+	"github.com/kkkunny/stl/container/tuple"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -97,6 +99,14 @@ func (self *CodeGenerator) defFuncDef(ir *hir.FuncDef) {
 		p := self.builder.CreateAlloca("", self.codegenType(pir.Type))
 		self.builder.CreateStore(f.Params()[i], p)
 		self.values.Set(pir, p)
+	}
+
+	dropQueues := stack.New[tuple.Tuple2[hir.Type, llvm.Value]]()
+	self.dropQueues.Set(ir.Body.MustValue(), dropQueues)
+	for _, p := range ir.GetParams() {
+		if self.hasTypeDrop(p.GetType()) {
+			dropQueues.Push(tuple.Pack2(p.GetType(), self.values.Get(p)))
+		}
 	}
 	block, _ := self.codegenBlock(ir.Body.MustValue(), nil)
 	self.builder.CreateBr(block)

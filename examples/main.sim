@@ -1,3 +1,17 @@
+type A struct{}
+
+func (A) copy(self: Self)Self{
+	debug("copy~")
+}
+
+func (A) drop(self: &Self){
+	debug("drop~")
+}
+
+func test(a: A){
+
+}
+
 func main(){
-	debug("Hello World")
+	test(A{})
 }

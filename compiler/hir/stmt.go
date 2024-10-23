@@ -33,8 +33,9 @@ func (*Block) stmt() {}
 
 // Return 函数返回
 type Return struct {
-	Func  CallableDef
-	Value optional.Optional[Expr]
+	Func   CallableDef
+	Belong *Block
+	Value  optional.Optional[Expr]
 }
 
 func NewReturn(f CallableDef, value ...Expr) *Return {

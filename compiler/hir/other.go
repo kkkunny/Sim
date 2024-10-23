@@ -9,8 +9,7 @@ import (
 type Result struct {
 	BuildinTypes struct {
 		Bool, Str               Type
-		Default                 *Trait
-		Copy                    *Trait
+		Default, Copy, Drop     *Trait
 		Add, Sub, Mul, Div, Rem *Trait
 		And, Or, Xor, Shl, Shr  *Trait
 		Eq, Lt, Gt, Land, Lor   *Trait
@@ -32,7 +31,12 @@ func (self FuncDecl) GetType() *FuncType {
 	})...)
 }
 
+func (self FuncDecl) GetParams() []*Param {
+	return self.Params
+}
+
 // CallableDef 可调用定义
 type CallableDef interface {
 	GetFuncType() *FuncType
+	GetParams() []*Param
 }

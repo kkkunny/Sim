@@ -1099,6 +1099,10 @@ func (self *Lambda) GetFuncType() *FuncType {
 	})...)
 }
 
+func (self *Lambda) GetParams() []*Param {
+	return self.Params
+}
+
 // Func2Lambda 函数转匿名函数
 type Func2Lambda struct {
 	From Expr

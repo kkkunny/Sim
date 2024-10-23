@@ -7,6 +7,8 @@ import (
 	stliter "github.com/kkkunny/stl/container/iter"
 	"github.com/kkkunny/stl/container/queue"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/stack"
+	"github.com/kkkunny/stl/container/tuple"
 	stlval "github.com/kkkunny/stl/value"
 
 	llvmUtil "github.com/kkkunny/Sim/compiler/codegen_ir/llvm"
@@ -25,6 +27,7 @@ type CodeGenerator struct {
 	strings          hashmap.HashMap[string, llvm.Constant]
 	funcCache        hashmap.HashMap[string, llvm.Function]
 	lambdaCaptureMap queue.Queue[hashmap.HashMap[hir.Ident, llvm.Value]]
+	dropQueues       hashmap.HashMap[*hir.Block, stack.Stack[tuple.Tuple2[hir.Type, llvm.Value]]]
 }
 
 func New(target llvm.Target, ir *hir.Result) *CodeGenerator {
@@ -37,6 +40,7 @@ func New(target llvm.Target, ir *hir.Result) *CodeGenerator {
 		strings:          hashmap.StdWith[string, llvm.Constant](),
 		funcCache:        hashmap.StdWith[string, llvm.Function](),
 		lambdaCaptureMap: queue.New[hashmap.HashMap[hir.Ident, llvm.Value]](),
+		dropQueues:       hashmap.StdWith[*hir.Block, stack.Stack[tuple.Tuple2[hir.Type, llvm.Value]]](),
 	}
 }
 

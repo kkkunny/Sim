@@ -6,6 +6,8 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/stack"
+	"github.com/kkkunny/stl/container/tuple"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -39,6 +41,10 @@ func (self *CodeGenerator) codegenStmt(ir hir.Stmt) {
 }
 
 func (self *CodeGenerator) codegenFlatBlock(ir *hir.Block) {
+	if !self.dropQueues.Contain(ir) {
+		self.dropQueues.Set(ir, stack.New[tuple.Tuple2[hir.Type, llvm.Value]]())
+	}
+
 	for iter := ir.Stmts.Iterator(); iter.Next(); {
 		self.codegenStmt(iter.Value())
 	}
@@ -60,16 +66,18 @@ func (self *CodeGenerator) codegenBlock(ir *hir.Block, afterBlockCreate func(blo
 }
 
 func (self *CodeGenerator) codegenReturn(ir *hir.Return) {
-	if vir, ok := ir.Value.Value(); ok {
-		v := self.codegenExpr(vir, true)
-		if vir.GetType().EqualTo(hir.NoThing) || vir.GetType().EqualTo(hir.NoReturn) {
-			self.builder.CreateRet(nil)
-		} else {
-			self.builder.CreateRet(&v)
-		}
-	} else {
-		self.builder.CreateRet(nil)
+	var ret *llvm.Value
+	if vir, ok := ir.Value.Value(); ok && !vir.GetType().EqualTo(hir.NoThing) && !vir.GetType().EqualTo(hir.NoReturn) {
+		ret = stlval.Ptr(self.codegenExpr(vir, true))
 	}
+
+	dropQueue := self.dropQueues.Get(ir.Belong)
+	for !dropQueue.Empty() {
+		dropData := dropQueue.Pop()
+		self.buildDrop(dropData.Unpack())
+	}
+
+	self.builder.CreateRet(ret)
 }
 
 func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) llvm.Value {
@@ -85,6 +93,7 @@ func (self *CodeGenerator) codegenLocalVariable(ir *hir.LocalVarDef) llvm.Value 
 		value := self.codegenExpr(valueIr, true)
 		self.builder.CreateStore(value, ptr)
 	}
+
 	return ptr
 }
 

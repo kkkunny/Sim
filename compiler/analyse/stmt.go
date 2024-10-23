@@ -58,19 +58,23 @@ func (self *Analyser) analyseBlock(node *ast.Block, afterBlockCreate func(scope 
 	}()
 
 	var jump hir.BlockEof
-	stmts := linkedlist.NewLinkedList[hir.Stmt]()
+	block := &hir.Block{Stmts: linkedlist.NewLinkedList[hir.Stmt]()}
 	for iter := node.Stmts.Iterator(); iter.Next(); {
-		stmt, stmtJump := self.analyseStmt(iter.Value())
-		if b, ok := stmt.(*hir.Block); ok {
-			for iter := b.Stmts.Iterator(); iter.Next(); {
-				stmts.PushBack(iter.Value())
+		stmtObj, stmtJump := self.analyseStmt(iter.Value())
+		switch stmt := stmtObj.(type) {
+		case *hir.Block:
+			for iter := stmt.Stmts.Iterator(); iter.Next(); {
+				block.Stmts.PushBack(iter.Value())
 			}
-		} else {
-			stmts.PushBack(stmt)
+		case *hir.Return:
+			stmt.Belong = block
+			block.Stmts.PushBack(stmt)
+		default:
+			block.Stmts.PushBack(stmt)
 		}
 		jump = max(jump, stmtJump)
 	}
-	return &hir.Block{Stmts: stmts}, jump
+	return block, jump
 }
 
 func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {

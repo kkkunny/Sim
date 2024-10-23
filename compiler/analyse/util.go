@@ -289,7 +289,9 @@ func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {
 		if !retType.EqualTo(hir.NoThing) {
 			errors.ThrowMissingReturnValueError(node.Position(), retType)
 		}
-		body.Stmts.PushBack(hir.NewReturn(fn))
+		ret := hir.NewReturn(fn)
+		ret.Belong = body
+		body.Stmts.PushBack(ret)
 	}
 	return body
 }

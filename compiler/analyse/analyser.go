@@ -133,6 +133,7 @@ func (self *Analyser) Analyse() *hir.Result {
 			Str     hir.Type
 			Default *hir.Trait
 			Copy    *hir.Trait
+			Drop    *hir.Trait
 			Add     *hir.Trait
 			Sub     *hir.Trait
 			Mul     *hir.Trait
@@ -155,6 +156,7 @@ func (self *Analyser) Analyse() *hir.Result {
 			Str:     self.pkgScope.Str(),
 			Default: self.pkgScope.Default(),
 			Copy:    self.pkgScope.Copy(),
+			Drop:    self.pkgScope.Drop(),
 			Add:     self.pkgScope.Add(),
 			Sub:     self.pkgScope.Sub(),
 			Mul:     self.pkgScope.Mul(),

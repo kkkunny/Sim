@@ -2,6 +2,7 @@ package codegen_ir
 
 import (
 	"github.com/kkkunny/go-llvm"
+	stliter "github.com/kkkunny/stl/container/iter"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/container/tuple"
 	stlerror "github.com/kkkunny/stl/error"
@@ -465,6 +466,53 @@ func (self *CodeGenerator) buildCopy(t hir.Type, v llvm.Value) llvm.Value {
 			self.builder.MoveToAfter(endBlock)
 		}
 		return phi
+	default:
+		panic("unreachable")
+	}
+}
+
+// 类型是否有drop函数
+func (self *CodeGenerator) hasTypeDrop(t hir.Type) bool {
+	switch tt := t.(type) {
+	case *hir.NoThingType, *hir.NoReturnType, *hir.RefType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.LambdaType:
+		return false
+	case *hir.CustomType:
+		if self.hir.BuildinTypes.Drop.HasBeImpled(t) {
+			return true
+		}
+		return self.hasTypeDrop(tt.Target)
+	case *hir.AliasType:
+		return self.hasTypeDrop(tt.Target)
+	case *hir.ArrayType:
+		return self.hasTypeDrop(tt.Elem)
+	case *hir.TupleType:
+		return stlslices.Any(tt.Elems, func(_ int, e hir.Type) bool {
+			return self.hasTypeDrop(e)
+		})
+	case *hir.StructType:
+		return stliter.Any(tt.Fields, func(e tuple.Tuple2[string, hir.Field]) bool {
+			return self.hasTypeDrop(e.E2().Type)
+		})
+	case *hir.EnumType:
+		return stliter.Any(tt.Fields, func(p tuple.Tuple2[string, hir.EnumField]) bool {
+			return p.E2().Elem.IsSome() && self.hasTypeDrop(p.E2().Elem.MustValue())
+		})
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *CodeGenerator) buildDrop(t hir.Type, v llvm.Value) {
+	switch tir := hir.ToRuntimeType(t).(type) {
+	case *hir.CustomType:
+		method := self.codegenExpr(hir.LoopFindMethod(tir, self.hir.BuildinTypes.Drop.FirstMethodName()).MustValue(), true).(llvm.Function)
+		self.builder.CreateCall("", method.FunctionType(), method, v)
+	case *hir.ArrayType:
+		panic("todo")
+	case *hir.TupleType, *hir.StructType:
+		panic("todo")
+	case *hir.EnumType:
+		panic("todo")
 	default:
 		panic("unreachable")
 	}
