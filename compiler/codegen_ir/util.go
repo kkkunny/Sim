@@ -326,10 +326,6 @@ func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
 	return self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.ConstIntPtr(int64(size)))
 }
 
-func (self *CodeGenerator) usizeType() llvm.IntegerType {
-	return self.codegenType(self.hir.BuildinTypes.Usize).(llvm.IntegerType)
-}
-
 func (self *CodeGenerator) boolType() llvm.IntegerType {
 	return self.codegenType(self.hir.BuildinTypes.Bool).(llvm.IntegerType)
 }
