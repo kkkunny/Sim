@@ -1,4 +1,4 @@
-//go:build codegenasm
+//go:build codegenasm && linux
 
 package main
 
@@ -14,10 +14,9 @@ import (
 )
 
 func main() {
-	stlerror.Must(llvm.InitializeNativeTarget())
+	target := stlerror.MustWith(llvm.NativeTarget())
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
-
-	reader := stlerror.MustWith(codegen_asm.CodegenAsm(stlerror.MustWith(llvm.NativeTarget()), stlos.NewFilePath(os.Args[1])))
+	reader := stlerror.MustWith(codegen_asm.CodegenAsm(target, stlos.NewFilePath(os.Args[1])))
 	defer reader.Close()
 	stlerror.MustWith(io.Copy(os.Stdout, reader))
 }
