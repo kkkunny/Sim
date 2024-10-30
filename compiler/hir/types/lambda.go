@@ -5,13 +5,14 @@ import (
 	"strings"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 )
 
 // LambdaType 匿名函数类型
 type LambdaType interface {
 	Type
-	Ret() Type
-	Params() []Type
+	CallableType
+	Lambda()
 }
 
 type _LambdaType_ struct {
@@ -28,7 +29,8 @@ func NewLambdaType(ret Type, ps ...Type) LambdaType {
 
 func (self *_LambdaType_) String() string {
 	params := stlslices.Map(self.params, func(i int, p Type) string { return p.String() })
-	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), self.ret.String())
+	ret := stlval.Ternary(self.ret.Equal(NoThing), "void", self.ret.String())
+	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), ret)
 }
 
 func (self *_LambdaType_) Equal(dst Type) bool {
@@ -48,3 +50,5 @@ func (self *_LambdaType_) Ret() Type {
 func (self *_LambdaType_) Params() []Type {
 	return self.params
 }
+
+func (self *_LambdaType_) Lambda() {}

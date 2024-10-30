@@ -89,7 +89,6 @@ const (
 	IS
 	PUBLIC
 	TYPE
-	SELF
 	OTHER
 	MATCH
 	TRAIT
@@ -171,7 +170,6 @@ var kindNames = [...]string{
 	IS:           "is",
 	PUBLIC:       "pub",
 	TYPE:         "type",
-	SELF:         "Self",
 	OTHER:        "other",
 	MATCH:        "match",
 	TRAIT:        "trait",

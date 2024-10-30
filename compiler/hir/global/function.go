@@ -2,6 +2,7 @@ package global
 
 import (
 	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -12,6 +13,33 @@ type Function interface {
 	values.Ident
 	SetBody(b *local.Block)
 	Attrs() []FuncAttr
+}
+
+// FuncDecl 函数声明
+type FuncDecl struct {
+	typ    types.FuncType
+	name   string
+	params []*local.Param
+}
+
+func NewFuncDecl(typ types.FuncType, name string, params ...*local.Param) *FuncDecl {
+	return &FuncDecl{typ: typ, name: name, params: params}
+}
+
+func (self *FuncDecl) CallableType() types.CallableType {
+	return self.typ
+}
+
+func (self *FuncDecl) Name() string {
+	return self.name
+}
+
+func (self *FuncDecl) Params() []*local.Param {
+	return self.params
+}
+
+func (self *FuncDecl) Type() types.Type {
+	return self.CallableType()
 }
 
 // FuncAttr 函数属性

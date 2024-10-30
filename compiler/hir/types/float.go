@@ -8,13 +8,17 @@ import (
 type FloatTypeKind uint8
 
 const (
-	FloatTypeKindFloat FloatTypeKind = 2 << (iota + 1)
+	FloatTypeKindHalf FloatTypeKind = 2 << iota
+	FloatTypeKindFloat
 	FloatTypeKindDouble
+	FloatTypeKindFP128
 )
 
 var (
-	F32 FloatType = &_FloatType_{kind: FloatTypeKindFloat}
-	F64 FloatType = &_FloatType_{kind: FloatTypeKindDouble}
+	F16  FloatType = &_FloatType_{kind: FloatTypeKindHalf}
+	F32  FloatType = &_FloatType_{kind: FloatTypeKindFloat}
+	F64  FloatType = &_FloatType_{kind: FloatTypeKindDouble}
+	F128 FloatType = &_FloatType_{kind: FloatTypeKindFP128}
 )
 
 // FloatType 浮点型

@@ -76,16 +76,6 @@ func (self *RefType) Position() reader.Position {
 
 func (self *RefType) typ() {}
 
-type SelfType struct {
-	Token token.Token
-}
-
-func (self *SelfType) Position() reader.Position {
-	return self.Token.Position
-}
-
-func (self *SelfType) typ() {}
-
 type StructType struct {
 	Begin  reader.Position
 	Fields []Field

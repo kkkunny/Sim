@@ -13,7 +13,7 @@ import (
 
 var (
 	// OfficialPackage 官方包地址
-	OfficialPackage = stlerror.MustWith(NewPackage(config.ROOT))
+	OfficialPackage = stlerror.MustWith(NewPackage(config.RootPath))
 	// StdPackage 标准库包
 	StdPackage = stlerror.MustWith(OfficialPackage.GetSon("std"))
 	// BuildInPackage buildin包

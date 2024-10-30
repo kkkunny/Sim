@@ -4,9 +4,9 @@ package global
 type MethodDef struct {
 	pkgGlobalAttr
 	FuncDef
-	from *TypeDef
+	from *CustomTypeDef
 }
 
-func (self *MethodDef) From() *TypeDef {
+func (self *MethodDef) From() *CustomTypeDef {
 	return self.from
 }

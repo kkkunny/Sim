@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 
@@ -196,4 +197,12 @@ func ThrowIndexOutOfRange(pos reader.Position) {
 // ThrowExpectMoreCase 期待更多case
 func ThrowExpectMoreCase(pos reader.Position, et oldhir.Type, now, expect uint) {
 	ThrowError(pos, "type `%s` has `%d` case but there is `%d`", et, expect, now)
+}
+
+// ThrowPackageCircularReference 包循环引用
+func ThrowPackageCircularReference(pos reader.Position, pkgChain []stlos.FilePath) {
+	pkgChain = append(pkgChain, pkgChain[0])
+	ThrowError(pos, "package circular reference: %s->", pkgChain[len(pkgChain)-1], strings.Join(stlslices.Map(pkgChain, func(_ int, pkg stlos.FilePath) string {
+		return string(pkg)
+	}), "->"))
 }

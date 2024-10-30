@@ -13,10 +13,10 @@ type EnumField struct {
 	elem Type
 }
 
-func NewEnumField(name string, typ ...Type) *Field {
-	return &Field{
+func NewEnumField(name string, typ ...Type) *EnumField {
+	return &EnumField{
 		name: name,
-		typ:  stlslices.Last(typ),
+		elem: stlslices.Last(typ),
 	}
 }
 
