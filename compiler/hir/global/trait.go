@@ -16,3 +16,7 @@ func NewTrait(name string, methods hashmap.HashMap[string, *FuncDecl]) *Trait {
 		Methods: methods,
 	}
 }
+
+func (self *Trait) Name() string {
+	return self.name
+}

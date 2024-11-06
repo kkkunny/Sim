@@ -2,21 +2,21 @@ package local
 
 import (
 	stlslices "github.com/kkkunny/stl/container/slices"
-	"github.com/kkkunny/stl/list"
 
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
 type MatchCase struct {
 	name string
-	elem *values.VarDecl
+	val  *values.VarDecl
 	body *Block
 }
 
-func NewMatchCase(name string, e *values.VarDecl) *MatchCase {
+func NewMatchCase(name string, val *values.VarDecl, body *Block) *MatchCase {
 	return &MatchCase{
 		name: name,
-		elem: e,
+		val:  val,
+		body: body,
 	}
 }
 
@@ -24,8 +24,8 @@ func (self *MatchCase) Body() *Block {
 	return self.body
 }
 
-func (self *MatchCase) Elem() *values.VarDecl {
-	return self.elem
+func (self *MatchCase) Var() (*values.VarDecl, bool) {
+	return self.val, self.val != nil
 }
 
 func (self *MatchCase) Name() string {
@@ -34,41 +34,32 @@ func (self *MatchCase) Name() string {
 
 // Match 枚举匹配
 type Match struct {
-	pos    *list.Element[Local]
-	target values.Value
-	cases  []*MatchCase
-	other  *Block
+	cond  values.Value
+	cases []*MatchCase
+	other *Block
 }
 
-func NewMatch(p *Block, t values.Value, cases ...*MatchCase) *Match {
-	for _, c := range cases {
-		c.body = NewBlock(p)
-	}
+func NewMatch(cond values.Value, cases ...*MatchCase) *Match {
 	return &Match{
-		target: t,
-		cases:  cases,
+		cond:  cond,
+		cases: cases,
 	}
 }
 
-func (self *Match) setPosition(pos *list.Element[Local]) {
-	self.pos = pos
-}
-
-func (self *Match) position() (*list.Element[Local], bool) {
-	return self.pos, self.pos != nil
+func (self *Match) local() {
+	return
 }
 
 func (self *Match) Target() values.Value {
-	return self.target
+	return self.cond
 }
 
 func (self *Match) Cases() []*MatchCase {
 	return self.cases
 }
 
-func (self *Match) NewOther(p *Block) *Block {
-	self.other = NewBlock(p)
-	return self.other
+func (self *Match) SetOther(block *Block) {
+	self.other = block
 }
 
 func (self *Match) Other() (*Block, bool) {

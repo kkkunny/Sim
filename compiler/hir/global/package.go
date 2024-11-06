@@ -8,6 +8,7 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlhash "github.com/kkkunny/stl/hash"
 	stlos "github.com/kkkunny/stl/os"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/config"
 )
@@ -21,7 +22,7 @@ func (self pkgGlobalAttr) Package() *Package {
 	return self.pkg
 }
 
-func (self pkgGlobalAttr) setPackage(pkg *Package) {
+func (self *pkgGlobalAttr) setPackage(pkg *Package) {
 	self.pkg = pkg
 }
 
@@ -29,7 +30,7 @@ func (self pkgGlobalAttr) Public() bool {
 	return self.pub
 }
 
-func (self pkgGlobalAttr) setPublic(pub bool) {
+func (self *pkgGlobalAttr) setPublic(pub bool) {
 	self.pub = pub
 }
 
@@ -46,6 +47,7 @@ func NewPackage(path stlos.FilePath) *Package {
 		path:    path,
 		globals: linkedlist.NewLinkedList[Global](),
 		externs: hashmap.StdWith[string, []*Package](),
+		idents:  hashmap.StdWith[string, any](),
 	}
 }
 
@@ -64,6 +66,10 @@ func (self *Package) Hash() uint64 {
 	return stlhash.Hash(self.path)
 }
 
+func (self *Package) SetExternPackage(name string, pkg *Package) {
+	self.externs.Set(name, []*Package{pkg})
+}
+
 func (self *Package) GetExternPackage(name string) (*Package, bool) {
 	if len(name) == 0 {
 		return nil, false
@@ -72,8 +78,20 @@ func (self *Package) GetExternPackage(name string) (*Package, bool) {
 	return pkg, pkg != nil
 }
 
+func (self *Package) AddLinkedPackage(pkg *Package) {
+	self.externs.Set("", append(self.GetLinkedPackages(), pkg))
+}
+
 func (self *Package) GetLinkedPackages() []*Package {
 	return self.externs.Get("")
+}
+
+func (self *Package) SetIdent(name string, ident any) bool {
+	if self.idents.Contain(name) {
+		return false
+	}
+	self.idents.Set(name, ident)
+	return true
 }
 
 func (self *Package) GetIdent(name string, allowLinkedPkgs ...bool) (any, bool) {
@@ -97,9 +115,12 @@ func (self *Package) AppendGlobal(pub bool, g Global) Global {
 	g.setPackage(self)
 	g.setPublic(pub)
 	self.globals.PushBack(g)
-	switch g.(type) {
-	case Function, *CustomTypeDef, *AliasTypeDef:
-
+	type Named interface {
+		Name() string
+	}
+	named, ok := g.(Named)
+	if ok && !stlval.Is[*MethodDef](g) {
+		self.idents.Set(named.Name(), g)
 	}
 	return g
 }

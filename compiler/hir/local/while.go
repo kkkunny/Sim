@@ -1,31 +1,24 @@
 package local
 
 import (
-	"github.com/kkkunny/stl/list"
-
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
 // While 循环
 type While struct {
-	pos  *list.Element[Local]
 	cond values.Value
 	body *Block
 }
 
-func NewWhile(p *Block, c values.Value) *While {
+func NewWhile(cond values.Value, body *Block) *While {
 	return &While{
-		cond: c,
-		body: NewBlock(p),
+		cond: cond,
+		body: body,
 	}
 }
 
-func (self *While) setPosition(pos *list.Element[Local]) {
-	self.pos = pos
-}
-
-func (self *While) position() (*list.Element[Local], bool) {
-	return self.pos, self.pos != nil
+func (self *While) local() {
+	return
 }
 
 func (self *While) Cond() values.Value {

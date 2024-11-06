@@ -26,7 +26,7 @@ func (self *VarDecl) Mutable() bool {
 }
 
 func (self *VarDecl) GetName() (string, bool) {
-	return self.name, self.name != "_"
+	return self.name, self.name != ""
 }
 
 func (self *VarDecl) Storable() bool {

@@ -2,20 +2,24 @@ package local
 
 import (
 	"github.com/kkkunny/stl/container/either"
+	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/list"
 	stlval "github.com/kkkunny/stl/value"
 )
 
 type Block struct {
-	pos    *list.Element[Local]
 	parent either.Either[CallableDef, *Block]
 	stmts  *list.List[Local]
+	idents hashmap.HashMap[string, any]
+
+	inLoop bool
 }
 
 func NewFuncBody(f CallableDef) *Block {
 	return &Block{
 		parent: either.Left[CallableDef, *Block](f),
 		stmts:  list.New[Local](),
+		idents: hashmap.StdWith[string, any](),
 	}
 }
 
@@ -51,33 +55,70 @@ func (self *Block) HasEnd() bool {
 }
 
 func (self *Block) BlockEndType() BlockEndType {
-	// TODO 完善
 	for cursor := self.stmts.Front(); cursor != nil; cursor = cursor.Next() {
-		if blockEnd, ok := cursor.Value.(blockEnd); ok {
-			return blockEnd.BlockEndType()
+		if end, ok := cursor.Value.(blockEnd); ok {
+			if endType := end.BlockEndType(); endType > BlockEndTypeNone {
+				return endType
+			}
 		}
 	}
 	return BlockEndTypeNone
 }
 
-func (self *Block) setPosition(pos *list.Element[Local]) {
-	self.pos = pos
+func (self *Block) local() {
+	return
 }
 
-func (self *Block) position() (*list.Element[Local], bool) {
-	return self.pos, self.pos != nil
-}
-
-func (self *Block) Append(l Local) *Block {
-	l.setPosition(self.stmts.PushBack(l))
-	return self
-}
-
-func (self *Block) Remove(l Local) *Block {
-	pos, ok := l.position()
-	if !ok {
-		return self
+func (self *Block) Append(block *Block) {
+	self.stmts.PushBackList(block.stmts)
+	for iter := self.idents.Iterator(); iter.Next(); {
+		pair := iter.Value()
+		self.idents.Set(pair.E1(), pair.E2())
 	}
-	self.stmts.Remove(pos)
+}
+
+func (self *Block) PushBack(l Local) *Block {
+	self.stmts.PushBack(l)
 	return self
+}
+
+func (self *Block) SetIdent(name string, ident any) bool {
+	self.idents.Set(name, ident)
+	return true
+}
+
+func (self *Block) GetIdent(name string, allowLinkedPkgs ...bool) (any, bool) {
+	v := self.idents.Get(name)
+	if v != nil {
+		return v, true
+	}
+	parent := stlval.TernaryAction(self.parent.IsLeft(), func() Scope {
+		return stlval.IgnoreWith(self.parent.Left()).Parent()
+	}, func() Scope {
+		return stlval.IgnoreWith(self.parent.Right())
+	})
+	return parent.GetIdent(name, allowLinkedPkgs...)
+}
+
+func (self *Block) Belong() CallableDef {
+	f, ok := self.parent.Left()
+	if ok {
+		return f
+	}
+	return stlval.IgnoreWith(self.parent.Right()).Belong()
+}
+
+func (self *Block) SetInLoop(v bool) {
+	self.inLoop = v
+}
+
+func (self *Block) InLoop() bool {
+	if self.inLoop {
+		return true
+	}
+	parent, ok := self.parent.Right()
+	if !ok {
+		return false
+	}
+	return parent.InLoop()
 }

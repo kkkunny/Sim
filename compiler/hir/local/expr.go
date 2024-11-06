@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
-	"github.com/kkkunny/stl/list"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
@@ -12,7 +12,6 @@ import (
 
 // Expr 表达式
 type Expr struct {
-	pos   *list.Element[Local]
 	value values.Value
 }
 
@@ -22,12 +21,8 @@ func NewExpr(v values.Value) *Expr {
 	}
 }
 
-func (self *Expr) setPosition(pos *list.Element[Local]) {
-	self.pos = pos
-}
-
-func (self *Expr) position() (*list.Element[Local], bool) {
-	return self.pos, self.pos != nil
+func (self *Expr) local() {
+	return
 }
 
 func (self *Expr) Value() values.Value {
@@ -38,18 +33,18 @@ func (self *Expr) Value() values.Value {
 
 // ArrayExpr 数组
 type ArrayExpr struct {
-	et    types.Type
+	typ   types.ArrayType
 	elems []values.Value
 }
 
-func NewArrayExpr(et types.Type, e ...values.Value) *ArrayExpr {
+func NewArrayExpr(t types.ArrayType, e ...values.Value) *ArrayExpr {
 	return &ArrayExpr{
-		et:    et,
+		typ:   t,
 		elems: e,
 	}
 }
 func (self *ArrayExpr) Type() types.Type {
-	return types.NewArrayType(self.et, uint(len(self.elems)))
+	return self.typ
 }
 func (self *ArrayExpr) Mutable() bool         { return false }
 func (self *ArrayExpr) Storable() bool        { return false }
@@ -95,40 +90,35 @@ func (self *StructExpr) Fields() []values.Value { return self.fields }
 
 // LambdaExpr 匿名函数
 type LambdaExpr struct {
-	ret     types.Type
+	parent  Scope
+	typ     types.LambdaType
 	params  []*Param
 	body    *Block
 	context []values.Ident
 }
 
-func NewLambdaExpr(p *Block, ret types.FuncType, params []*Param, ctx ...values.Ident) *LambdaExpr {
+func NewLambdaExpr(env Scope, typ types.LambdaType, params []*Param) *LambdaExpr {
 	return &LambdaExpr{
-		ret:     ret,
-		params:  params,
-		body:    NewBlock(p),
-		context: ctx,
+		parent: env,
+		typ:    typ,
+		params: params,
 	}
 }
-func NewLambdaExprWithNoParent(ret types.FuncType, params []*Param, ctx ...values.Ident) *LambdaExpr {
-	expr := &LambdaExpr{
-		ret:     ret,
-		params:  params,
-		context: ctx,
-	}
-	expr.body = NewFuncBody(expr)
-	return expr
-}
-func (self *LambdaExpr) Type() types.Type { return self.CallableType() }
+func (self *LambdaExpr) Type() types.Type { return self.typ }
 func (self *LambdaExpr) Mutable() bool    { return false }
 func (self *LambdaExpr) Storable() bool   { return false }
 func (self *LambdaExpr) CallableType() types.CallableType {
-	return types.NewLambdaType(self.ret, stlslices.Map(self.params, func(i int, p *Param) types.Type {
-		return p.Type()
-	})...)
+	return self.typ
 }
-func (self *LambdaExpr) Params() []*Param        { return self.params }
-func (self *LambdaExpr) Block() (*Block, bool)   { return self.body, true }
-func (self *LambdaExpr) Context() []values.Ident { return self.context }
+func (self *LambdaExpr) Params() []*Param      { return self.params }
+func (self *LambdaExpr) SetBody(b *Block)      { self.body = b }
+func (self *LambdaExpr) Block() (*Block, bool) { return self.body, true }
+func (self *LambdaExpr) Parent() Scope {
+	return self.parent
+}
+func (self *LambdaExpr) GetName() (string, bool)        { return "", false }
+func (self *LambdaExpr) SetContext(ctx ...values.Ident) { self.context = ctx }
+func (self *LambdaExpr) Context() []values.Ident        { return self.context }
 
 // EnumExpr 枚举值
 type EnumExpr struct {
@@ -417,7 +407,7 @@ type ExtractExpr struct {
 
 func NewExtractExpr(f values.Value, i uint) *ExtractExpr { return &ExtractExpr{from: f, index: i} }
 func (self *ExtractExpr) Type() types.Type {
-	return self.from.Type().(types.TupleType).Fields()[self.index]
+	return self.from.Type().(types.TupleType).Elems()[self.index]
 }
 func (self *ExtractExpr) Mutable() bool         { return false }
 func (self *ExtractExpr) Storable() bool        { return false }
@@ -435,7 +425,7 @@ type FieldExpr struct {
 
 func NewFieldExpr(f values.Value, i string) *FieldExpr { return &FieldExpr{from: f, field: i} }
 func (self *FieldExpr) Type() types.Type {
-	field, _ := stlslices.FindFirst(self.from.Type().(types.StructType).Fields(), func(i int, f *types.Field) bool {
+	field, _ := stlslices.FindFirst(self.from.Type().(types.StructType).Fields().Values(), func(i int, f *types.Field) bool {
 		return f.Name() == self.field
 	})
 	return field.Type()
@@ -443,29 +433,30 @@ func (self *FieldExpr) Type() types.Type {
 func (self *FieldExpr) Mutable() bool          { return false }
 func (self *FieldExpr) Storable() bool         { return false }
 func (self *FieldExpr) GetLeft() values.Value  { return self.from }
-func (self *FieldExpr) GetRight() values.Value { return values.NewString(self.field) }
+func (self *FieldExpr) GetRight() values.Value { return values.NewString(types.Str, self.field) }
 func (self *FieldExpr) Field() string          { return self.field }
 
 // MethodExpr 方法
 type MethodExpr struct {
-	self       values.Value
-	methodName string
-	methodDef  CallableDef
+	self   values.Value
+	method CallableDef
 }
 
-func NewMethodExpr(self values.Value, methodName string, methodDef CallableDef) *MethodExpr {
-	return &MethodExpr{self: self, methodName: methodName, methodDef: methodDef}
+func NewMethodExpr(self values.Value, method CallableDef) *MethodExpr {
+	return &MethodExpr{self: self, method: method}
 }
-func (self *MethodExpr) Type() types.Type {
-	ft := self.methodDef.CallableType()
+func (self *MethodExpr) Type() types.Type      { return self.CallableType() }
+func (self *MethodExpr) Mutable() bool         { return false }
+func (self *MethodExpr) Storable() bool        { return false }
+func (self *MethodExpr) GetLeft() values.Value { return self.self }
+func (self *MethodExpr) GetRight() values.Value {
+	return values.NewString(types.Str, stlval.IgnoreWith(self.method.GetName()))
+}
+func (self *MethodExpr) Method() CallableDef { return self.method }
+func (self *MethodExpr) CallableType() types.CallableType {
+	ft := self.method.CallableType()
 	return types.NewFuncType(ft.Ret(), ft.Params()[1:]...)
 }
-func (self *MethodExpr) Mutable() bool             { return false }
-func (self *MethodExpr) Storable() bool            { return false }
-func (self *MethodExpr) GetLeft() values.Value     { return self.self }
-func (self *MethodExpr) GetRight() values.Value    { return values.NewString(self.methodName) }
-func (self *MethodExpr) MethodName() string        { return self.methodName }
-func (self *MethodExpr) MethodDefine() CallableDef { return self.methodDef }
 
 // ---------------------------------UnaryExpr---------------------------------
 

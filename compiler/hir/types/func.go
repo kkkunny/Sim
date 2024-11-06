@@ -9,7 +9,7 @@ import (
 
 // FuncType 函数类型
 type FuncType interface {
-	Type
+	BuildInType
 	CallableType
 	Func()
 }
@@ -31,13 +31,17 @@ func (self *_FuncType_) String() string {
 	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.ret.String())
 }
 
-func (self *_FuncType_) Equal(dst Type) bool {
+func (self *_FuncType_) Equal(dst Type, selfs ...Type) bool {
+	if dst.Equal(Self) && len(selfs) > 0 {
+		dst = stlslices.Last(selfs)
+	}
+
 	t, ok := dst.(FuncType)
-	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret()) {
+	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret(), selfs...) {
 		return false
 	}
 	return stlslices.All(self.params, func(i int, p Type) bool {
-		return p.Equal(t.Params()[i])
+		return p.Equal(t.Params()[i], selfs...)
 	})
 }
 
@@ -50,3 +54,5 @@ func (self *_FuncType_) Params() []Type {
 }
 
 func (self *_FuncType_) Func() {}
+
+func (self *_FuncType_) BuildIn() {}

@@ -1,33 +1,26 @@
 package local
 
 import (
-	"github.com/kkkunny/stl/list"
-
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
 // For 高级循环
 type For struct {
-	pos      *list.Element[Local]
-	cursor   *values.VarDecl
-	iterator values.Value
-	body     *Block
+	cursor *values.VarDecl
+	iter   values.Value
+	body   *Block
 }
 
-func NewFor(p *Block, cursor *values.VarDecl, iter values.Value) *For {
+func NewFor(cursor *values.VarDecl, iter values.Value, body *Block) *For {
 	return &For{
-		cursor:   cursor,
-		iterator: iter,
-		body:     NewBlock(p),
+		cursor: cursor,
+		iter:   iter,
+		body:   body,
 	}
 }
 
-func (self *For) setPosition(pos *list.Element[Local]) {
-	self.pos = pos
-}
-
-func (self *For) position() (*list.Element[Local], bool) {
-	return self.pos, self.pos != nil
+func (self *For) local() {
+	return
 }
 
 func (self *For) Body() *Block {
@@ -39,7 +32,7 @@ func (self *For) Cursor() *values.VarDecl {
 }
 
 func (self *For) Iterator() values.Value {
-	return self.iterator
+	return self.iter
 }
 
 func (self *For) BlockEndType() BlockEndType {

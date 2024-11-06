@@ -9,8 +9,8 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/ast"
-
-	"github.com/kkkunny/Sim/compiler/oldhir"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
 
 	"github.com/kkkunny/Sim/compiler/reader"
 
@@ -26,8 +26,8 @@ func ThrowError(pos reader.Position, format string, args ...any) {
 	panic("compiler error")
 }
 
-// ThrowCanNotGetDefault 不能获得默认值
-func ThrowCanNotGetDefault(pos reader.Position, t oldhir.Type) {
+// ThrowCanNotGetDefaultV2 不能获得默认值
+func ThrowCanNotGetDefaultV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "can not get the default value for type `%s`", t)
 }
 
@@ -36,8 +36,8 @@ func ThrowExpectAttribute(pos reader.Position, attr ast.Attr) {
 	ThrowError(pos, "expect attribute `%s`", attr.AttrName())
 }
 
-// ThrowTypeMismatchError 类型不匹配
-func ThrowTypeMismatchError(pos reader.Position, t1, t2 oldhir.Type) {
+// ThrowTypeMismatchErrorV2 类型不匹配
+func ThrowTypeMismatchErrorV2(pos reader.Position, t1, t2 types.Type) {
 	ThrowError(pos, "type `%s` does not match type `%s`", t1, t2)
 }
 
@@ -61,13 +61,13 @@ func ThrowNotMutableError(pos reader.Position) {
 	ThrowError(pos, "the value must be mutable")
 }
 
-// ThrowIllegalBinaryError 非法的二元运算
-func ThrowIllegalBinaryError(pos reader.Position, op token.Token, left, right oldhir.Expr) {
-	ThrowError(pos, "illegal binary operation with type `%s` `%s` `%s`", left.GetType(), op.Source(), right.GetType())
+// ThrowIllegalBinaryErrorV2 非法的二元运算
+func ThrowIllegalBinaryErrorV2(pos reader.Position, op token.Token, left, right values.Value) {
+	ThrowError(pos, "illegal binary operation with type `%s` `%s` `%s`", left.Type(), op.Source(), right.Type())
 }
 
-// ThrowIllegalUnaryError 非法的一元运算
-func ThrowIllegalUnaryError(pos reader.Position, op token.Token, t oldhir.Type) {
+// ThrowIllegalUnaryErrorV2 非法的一元运算
+func ThrowIllegalUnaryErrorV2(pos reader.Position, op token.Token, t types.Type) {
 	ThrowError(pos, "illegal unary operation with `%s` type `%s`", op.Source(), t)
 }
 
@@ -76,48 +76,48 @@ func ThrowParameterNumberNotMatchError(pos reader.Position, expect, now uint) {
 	ThrowError(pos, "parameter number does not match, expect `%d`, but there has `%d`", expect, now)
 }
 
-// ThrowIllegalCovertError 非法的类型转换
-func ThrowIllegalCovertError(pos reader.Position, from, to oldhir.Type) {
+// ThrowIllegalCovertErrorV2 非法的类型转换
+func ThrowIllegalCovertErrorV2(pos reader.Position, from, to types.Type) {
 	ThrowError(pos, "type `%s` can not covert to `%s`", from, to)
 }
 
-// ThrowExpectStructTypeError 期待结构体类型
-func ThrowExpectStructTypeError(pos reader.Position, t oldhir.Type) {
+// ThrowExpectStructTypeErrorV2 期待结构体类型
+func ThrowExpectStructTypeErrorV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a struct type but there is type `%s`", t)
 }
 
-// ThrowExpectArrayTypeError 期待数组类型
-func ThrowExpectArrayTypeError(pos reader.Position, t oldhir.Type) {
+// ThrowExpectArrayTypeErrorV2 期待数组类型
+func ThrowExpectArrayTypeErrorV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a array type but there is type `%s`", t)
 }
 
-// ThrowExpectEnumTypeError 期待枚举类型
-func ThrowExpectEnumTypeError(pos reader.Position, t oldhir.Type) {
+// ThrowExpectEnumTypeErrorV2 期待枚举类型
+func ThrowExpectEnumTypeErrorV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a enum type but there is type `%s`", t)
 }
 
-// ThrowExpectCallableError 期待一个可调用的
-func ThrowExpectCallableError(pos reader.Position, t oldhir.Type) {
+// ThrowExpectCallableErrorV2 期待一个可调用的
+func ThrowExpectCallableErrorV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a callable but there is type `%s`", t)
 }
 
-// ThrowExpectReferenceError 期待一个引用
-func ThrowExpectReferenceError(pos reader.Position, t oldhir.Type) {
+// ThrowExpectReferenceErrorV2 期待一个引用
+func ThrowExpectReferenceErrorV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a reference but there is type `%s`", t)
 }
 
-// ThrowExpectArrayError 期待一个数组
-func ThrowExpectArrayError(pos reader.Position, t oldhir.Type) {
+// ThrowExpectArrayErrorV2 期待一个数组
+func ThrowExpectArrayErrorV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a array but there is type `%s`", t)
 }
 
-// ThrowExpectTupleError 期待一个元组
-func ThrowExpectTupleError(pos reader.Position, t oldhir.Type) {
+// ThrowExpectTupleErrorV2 期待一个元组
+func ThrowExpectTupleErrorV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a tuple but there is type `%s`", t)
 }
 
-// ThrowExpectStructError 期待一个结构体
-func ThrowExpectStructError(pos reader.Position, t oldhir.Type) {
+// ThrowExpectStructErrorV2 期待一个结构体
+func ThrowExpectStructErrorV2(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a struct but there is type `%s`", t)
 }
 
@@ -129,11 +129,6 @@ func ThrowInvalidIndexError(pos reader.Position, index uint) {
 // ThrowLoopControlError 非法的循环控制
 func ThrowLoopControlError(pos reader.Position) {
 	ThrowError(pos, "must in a loop")
-}
-
-// ThrowMissingReturnValueError 缺失返回值
-func ThrowMissingReturnValueError(pos reader.Position, t oldhir.Type) {
-	ThrowError(pos, "missing a return value type `%s`", t)
 }
 
 // ThrowNotExpectToken 不期待的token
@@ -184,18 +179,13 @@ func ThrowCircularReference(pos reader.Position, path token.Token) {
 	ThrowError(pos, "circular reference `%s`", path.Source())
 }
 
-// ThrowDivZero 除零
-func ThrowDivZero(pos reader.Position) {
-	ThrowError(pos, "can not divide by zero")
-}
-
 // ThrowIndexOutOfRange 超出下标
 func ThrowIndexOutOfRange(pos reader.Position) {
 	ThrowError(pos, "index out of range")
 }
 
-// ThrowExpectMoreCase 期待更多case
-func ThrowExpectMoreCase(pos reader.Position, et oldhir.Type, now, expect uint) {
+// ThrowExpectMoreCaseV2 期待更多case
+func ThrowExpectMoreCaseV2(pos reader.Position, et types.Type, now, expect uint) {
 	ThrowError(pos, "type `%s` has `%d` case but there is `%d`", et, expect, now)
 }
 

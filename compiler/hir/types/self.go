@@ -14,7 +14,7 @@ func (self *_SelfType_) String() string {
 	return "Self"
 }
 
-func (self *_SelfType_) Equal(dst Type) bool {
+func (self *_SelfType_) Equal(dst Type, _ ...Type) bool {
 	_, ok := dst.(SelfType)
 	return ok
 }

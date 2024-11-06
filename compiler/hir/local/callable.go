@@ -8,8 +8,11 @@ import (
 // CallableDef 可调用的定义
 type CallableDef interface {
 	values.Callable
+	SetBody(b *Block)
 	Block() (*Block, bool)
 	Params() []*Param
+	Parent() Scope
+	GetName() (string, bool)
 }
 
 // Param 函数形参

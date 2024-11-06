@@ -55,7 +55,7 @@ type FuncAttrLinkName struct {
 func WithLinkNameFuncAttr(name string) FuncAttr {
 	return &FuncAttrLinkName{name: name}
 }
-func (self FuncAttrLinkName) funcAttr() {}
+func (self *FuncAttrLinkName) funcAttr() {}
 
 // FuncAttrInline 内联
 type FuncAttrInline struct {
@@ -65,7 +65,7 @@ type FuncAttrInline struct {
 func WithInlineFuncAttr(inline bool) FuncAttr {
 	return &FuncAttrInline{inline: inline}
 }
-func (self FuncAttrInline) funcAttr() {}
+func (self *FuncAttrInline) funcAttr() {}
 
 // FuncAttrVararg 可变参数
 type FuncAttrVararg struct{}
@@ -73,4 +73,4 @@ type FuncAttrVararg struct{}
 func WithVarargFuncAttr() FuncAttr {
 	return &FuncAttrVararg{}
 }
-func (self FuncAttrVararg) funcAttr() {}
+func (self *FuncAttrVararg) funcAttr() {}

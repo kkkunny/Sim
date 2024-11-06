@@ -9,8 +9,8 @@ import (
 
 // TupleType 元组类型
 type TupleType interface {
-	Type
-	Fields() []Type
+	BuildInType
+	Elems() []Type
 }
 
 func NewTupleType(es ...Type) TupleType {
@@ -28,16 +28,22 @@ func (self *_TupleType_) String() string {
 	return fmt.Sprintf("(%s)", strings.Join(elems, ", "))
 }
 
-func (self *_TupleType_) Equal(dst Type) bool {
+func (self *_TupleType_) Equal(dst Type, selfs ...Type) bool {
+	if dst.Equal(Self) && len(selfs) > 0 {
+		dst = stlslices.Last(selfs)
+	}
+
 	t, ok := dst.(TupleType)
-	if !ok || len(self.elems) != len(t.Fields()) {
+	if !ok || len(self.elems) != len(t.Elems()) {
 		return false
 	}
 	return stlslices.All(self.elems, func(i int, e Type) bool {
-		return e.Equal(t.Fields()[i])
+		return e.Equal(t.Elems()[i], selfs...)
 	})
 }
 
-func (self *_TupleType_) Fields() []Type {
+func (self *_TupleType_) Elems() []Type {
 	return self.elems
 }
+
+func (self *_TupleType_) BuildIn() {}

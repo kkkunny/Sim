@@ -30,7 +30,7 @@ func (self *_SintType_) String() string {
 	}
 }
 
-func (self *_SintType_) Equal(dst Type) bool {
+func (self *_SintType_) Equal(dst Type, _ ...Type) bool {
 	t, ok := dst.(SintType)
 	return ok && self.kind == t.Kind()
 }
@@ -40,4 +40,7 @@ func (self *_SintType_) Kind() IntTypeKind {
 }
 
 func (self *_SintType_) Number() {}
+
 func (self *_SintType_) Signed() {}
+
+func (self *_SintType_) BuildIn() {}

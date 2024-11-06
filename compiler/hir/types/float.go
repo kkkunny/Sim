@@ -36,7 +36,7 @@ func (self *_FloatType_) String() string {
 	return fmt.Sprintf("f%d", self.kind*8)
 }
 
-func (self *_FloatType_) Equal(dst Type) bool {
+func (self *_FloatType_) Equal(dst Type, _ ...Type) bool {
 	t, ok := dst.(FloatType)
 	return ok && self.kind == t.Kind()
 }
@@ -46,4 +46,7 @@ func (self *_FloatType_) Kind() FloatTypeKind {
 }
 
 func (self *_FloatType_) Number() {}
+
 func (self *_FloatType_) Signed() {}
+
+func (self *_FloatType_) BuildIn() {}

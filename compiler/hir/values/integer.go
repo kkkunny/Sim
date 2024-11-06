@@ -30,3 +30,7 @@ func (self *Integer) Mutable() bool {
 func (self *Integer) Storable() bool {
 	return false
 }
+
+func (self *Integer) Value() *big.Int {
+	return self.value
+}

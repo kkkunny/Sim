@@ -4,7 +4,7 @@ var Str StrType = new(_StrType_)
 
 // StrType 字符串类型
 type StrType interface {
-	Type
+	BuildInType
 	Str()
 }
 
@@ -14,9 +14,11 @@ func (self *_StrType_) String() string {
 	return "str"
 }
 
-func (self *_StrType_) Equal(dst Type) bool {
+func (self *_StrType_) Equal(dst Type, _ ...Type) bool {
 	_, ok := dst.(StrType)
 	return ok
 }
 
 func (self *_StrType_) Str() {}
+
+func (self *_StrType_) BuildIn() {}

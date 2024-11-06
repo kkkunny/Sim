@@ -11,6 +11,7 @@ type Global interface {
 
 type TypeDef interface {
 	Global
+	types.Type
 	Target() types.Type
 	SetTarget(t types.Type)
 }

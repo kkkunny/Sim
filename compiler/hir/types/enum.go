@@ -30,8 +30,9 @@ func (self *EnumField) Elem() (Type, bool) {
 
 // EnumType 枚举类型
 type EnumType interface {
-	Type
-	EnumFields() []*EnumField
+	BuildInType
+	EnumFields() linkedhashmap.LinkedHashMap[string, *EnumField]
+	Simple() bool
 }
 
 func NewEnumType(fs ...*EnumField) EnumType {
@@ -57,26 +58,34 @@ func (self *_EnumType_) String() string {
 	return fmt.Sprintf("enum{%s}", strings.Join(fields, ";"))
 }
 
-func (self *_EnumType_) Equal(dst Type) bool {
+func (self *_EnumType_) Equal(dst Type, selfs ...Type) bool {
+	if dst.Equal(Self) && len(selfs) > 0 {
+		dst = stlslices.Last(selfs)
+	}
+
 	t, ok := dst.(EnumType)
 	if !ok {
 		return false
 	}
-	dstFields := t.EnumFields()
-	if self.fields.Length() != uint(len(dstFields)) {
+	if self.fields.Length() != t.EnumFields().Length() {
 		return false
 	}
 	return stlslices.All(self.fields.Values(), func(i int, f1 *EnumField) bool {
-		f2 := dstFields[i]
-		if f1.name != f2.name {
-			return false
-		}
+		f2 := t.EnumFields().Get(f1.Name())
 		e1, ok1 := f1.Elem()
 		e2, ok2 := f2.Elem()
-		return ok1 == ok2 && e1.Equal(e2)
+		return ok1 == ok2 && e1.Equal(e2, selfs...)
 	})
 }
 
-func (self *_EnumType_) EnumFields() []*EnumField {
-	return self.fields.Values()
+func (self *_EnumType_) EnumFields() linkedhashmap.LinkedHashMap[string, *EnumField] {
+	return self.fields
 }
+
+func (self *_EnumType_) Simple() bool {
+	return stlslices.All(self.fields.Values(), func(_ int, f *EnumField) bool {
+		return f.elem == nil
+	})
+}
+
+func (self *_EnumType_) BuildIn() {}

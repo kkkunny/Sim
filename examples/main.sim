@@ -1,3 +1,5 @@
+import std::os
+
 func main(){
 	debug("Hello World")
 }

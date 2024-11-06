@@ -30,7 +30,7 @@ func (self *_UintType_) String() string {
 	}
 }
 
-func (self *_UintType_) Equal(dst Type) bool {
+func (self *_UintType_) Equal(dst Type, _ ...Type) bool {
 	t, ok := dst.(UintType)
 	return ok && self.kind == t.Kind()
 }
@@ -39,5 +39,8 @@ func (self *_UintType_) Kind() IntTypeKind {
 	return self.kind
 }
 
-func (self *_UintType_) Number()   {}
+func (self *_UintType_) Number() {}
+
 func (self *_UintType_) Unsigned() {}
+
+func (self *_UintType_) BuildIn() {}

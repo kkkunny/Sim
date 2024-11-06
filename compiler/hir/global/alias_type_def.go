@@ -3,234 +3,214 @@ package global
 import (
 	"fmt"
 
+	stlslices "github.com/kkkunny/stl/container/slices"
+
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 // AliasTypeDef 类型别名定义
-type AliasTypeDef struct {
+type AliasTypeDef interface {
+	TypeDef
+	types.AliasType
+	Wrap(inner types.Type) types.BuildInType
+}
+
+type __AliasTypeDef__ struct {
 	pkgGlobalAttr
 	name   string
 	target types.Type
 }
 
-func NewAliasTypeDef(name string, target types.Type) *AliasTypeDef {
-	return &AliasTypeDef{
+func NewAliasTypeDef(name string, target types.Type) AliasTypeDef {
+	return &__AliasTypeDef__{
 		name:   name,
 		target: target,
 	}
 }
 
-func (self *AliasTypeDef) String() string {
+func (self *__AliasTypeDef__) String() string {
 	if self.pkg.IsBuildIn() {
 		return self.name
 	}
 	return fmt.Sprintf("%s::%s", self.pkg.String(), self.name)
 }
 
-func (self *AliasTypeDef) Equal(dst types.Type) bool {
-	t, ok := dst.(*AliasTypeDef)
+func (self *__AliasTypeDef__) Equal(dst types.Type, selfs ...types.Type) bool {
+	if dst.Equal(types.Self) && len(selfs) > 0 {
+		dst = stlslices.Last(selfs)
+	}
+
+	t, ok := dst.(*__AliasTypeDef__)
 	if ok {
 		return self.pkg.Equal(t.pkg) && self.name == t.name
 	} else {
-		return self.target.Equal(dst)
+		return self.target.Equal(dst, selfs...)
 	}
 }
 
-func (self *AliasTypeDef) Name() string {
+func (self *__AliasTypeDef__) Name() string {
 	return self.name
 }
 
-func (self *AliasTypeDef) Target() types.Type {
+func (self *__AliasTypeDef__) Target() types.Type {
 	return self.target
 }
 
-func (self *AliasTypeDef) SetTarget(t types.Type) {
+func (self *__AliasTypeDef__) SetTarget(t types.Type) {
 	self.target = t
 }
 
-type AliasTypeWrap interface {
-	types.AliasType
-	TypeDef
-	Define() *AliasTypeDef
+func (self *__AliasTypeDef__) Alias() {
+
 }
 
-func WrapAliasType(t types.AliasType) AliasTypeWrap {
-	return t.(AliasTypeWrap)
-}
-
-func (self *AliasTypeDef) Type() AliasTypeWrap {
-	switch self.target.(type) {
+func (self *__AliasTypeDef__) Wrap(inner types.Type) types.BuildInType {
+	switch v := inner.(type) {
 	case types.SintType:
-		return NewAliasSintType(self)
+		return &aliasSintType{AliasTypeDef: self, SintType: v}
 	case types.UintType:
-		return NewAliasUintType(self)
+		return &aliasUintType{AliasTypeDef: self, UintType: v}
 	case types.FloatType:
-		return NewAliasFloatType(self)
+		return &aliasFloatType{AliasTypeDef: self, FloatType: v}
 	case types.BoolType:
-		return NewAliasBoolType(self)
+		return &aliasBoolType{AliasTypeDef: self, BoolType: v}
 	case types.StrType:
-		return NewAliasStrType(self)
+		return &aliasStrType{AliasTypeDef: self, StrType: v}
 	case types.RefType:
-		return NewAliasRefType(self)
+		return &aliasRefType{AliasTypeDef: self, RefType: v}
 	case types.ArrayType:
-		return NewAliasArrayType(self)
+		return &aliasArrayType{AliasTypeDef: self, ArrayType: v}
 	case types.TupleType:
-		return NewAliasTupleType(self)
+		return &aliasTupleType{AliasTypeDef: self, TupleType: v}
 	case types.FuncType:
-		return NewAliasFuncType(self)
-	case types.StructType:
-		return NewAliasStructType(self)
-	case types.EnumType:
-		return NewAliasEnumType(self)
+		return &aliasFuncType{AliasTypeDef: self, FuncType: v}
 	case types.LambdaType:
-		return NewAliasLambdaType(self)
+		return &aliasLambdaType{AliasTypeDef: self, LambdaType: v}
+	case types.StructType:
+		return &aliasStructType{AliasTypeDef: self, StructType: v}
+	case types.EnumType:
+		return &aliasEnumType{AliasTypeDef: self, EnumType: v}
 	default:
 		panic("unreachable")
 	}
 }
 
 type aliasSintType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.SintType
 }
 
-func NewAliasSintType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasSintType{AliasTypeDef: typedef}
+func (self *aliasSintType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasSintType) Alias()                  {}
-func (self *aliasSintType) Define() *AliasTypeDef   { return self.AliasTypeDef }
-func (self *aliasSintType) Number()                 {}
-func (self *aliasSintType) Kind() types.IntTypeKind { return self.target.(types.SintType).Kind() }
-func (self *aliasSintType) Signed()                 {}
+func (self *aliasSintType) String() string { return self.AliasTypeDef.String() }
 
 type aliasUintType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.UintType
 }
 
-func NewAliasUintType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasUintType{AliasTypeDef: typedef}
+func (self *aliasUintType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasUintType) Alias()                  {}
-func (self *aliasUintType) Define() *AliasTypeDef   { return self.AliasTypeDef }
-func (self *aliasUintType) Number()                 {}
-func (self *aliasUintType) Kind() types.IntTypeKind { return self.target.(types.UintType).Kind() }
-func (self *aliasUintType) Unsigned()               {}
+func (self *aliasUintType) String() string { return self.AliasTypeDef.String() }
 
 type aliasFloatType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.FloatType
 }
 
-func NewAliasFloatType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasFloatType{AliasTypeDef: typedef}
+func (self *aliasFloatType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasFloatType) Alias()                    {}
-func (self *aliasFloatType) Define() *AliasTypeDef     { return self.AliasTypeDef }
-func (self *aliasFloatType) Number()                   {}
-func (self *aliasFloatType) Kind() types.FloatTypeKind { return self.target.(types.FloatType).Kind() }
-func (self *aliasFloatType) Signed()                   {}
+func (self *aliasFloatType) String() string { return self.AliasTypeDef.String() }
 
 type aliasBoolType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.BoolType
 }
 
-func NewAliasBoolType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasBoolType{AliasTypeDef: typedef}
+func (self *aliasBoolType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasBoolType) Alias()                {}
-func (self *aliasBoolType) Define() *AliasTypeDef { return self.AliasTypeDef }
-func (self *aliasBoolType) Bool()                 {}
+func (self *aliasBoolType) String() string { return self.AliasTypeDef.String() }
 
 type aliasStrType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.StrType
 }
 
-func NewAliasStrType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasStrType{AliasTypeDef: typedef}
+func (self *aliasStrType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasStrType) Alias()                {}
-func (self *aliasStrType) Define() *AliasTypeDef { return self.AliasTypeDef }
-func (self *aliasStrType) Str()                  {}
+func (self *aliasStrType) String() string { return self.AliasTypeDef.String() }
 
 type aliasRefType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.RefType
 }
 
-func NewAliasRefType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasRefType{AliasTypeDef: typedef}
+func (self *aliasRefType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasRefType) Alias()                {}
-func (self *aliasRefType) Define() *AliasTypeDef { return self.AliasTypeDef }
-func (self *aliasRefType) Mutable() bool         { return self.target.(types.RefType).Mutable() }
-func (self *aliasRefType) Pointer() types.Type   { return self.target.(types.RefType).Pointer() }
+func (self *aliasRefType) String() string { return self.AliasTypeDef.String() }
 
 type aliasArrayType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.ArrayType
 }
 
-func NewAliasArrayType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasArrayType{AliasTypeDef: typedef}
+func (self *aliasArrayType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasArrayType) Alias()                {}
-func (self *aliasArrayType) Define() *AliasTypeDef { return self.AliasTypeDef }
-func (self *aliasArrayType) Elem() types.Type      { return self.target.(types.ArrayType).Elem() }
-func (self *aliasArrayType) Size() uint            { return self.target.(types.ArrayType).Size() }
+func (self *aliasArrayType) String() string { return self.AliasTypeDef.String() }
 
 type aliasTupleType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.TupleType
 }
 
-func NewAliasTupleType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasTupleType{AliasTypeDef: typedef}
+func (self *aliasTupleType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasTupleType) Alias()                {}
-func (self *aliasTupleType) Define() *AliasTypeDef { return self.AliasTypeDef }
-func (self *aliasTupleType) Fields() []types.Type  { return self.target.(types.TupleType).Fields() }
+func (self *aliasTupleType) String() string { return self.AliasTypeDef.String() }
 
 type aliasFuncType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.FuncType
 }
 
-func NewAliasFuncType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasFuncType{AliasTypeDef: typedef}
+func (self *aliasFuncType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasFuncType) Alias()                {}
-func (self *aliasFuncType) Define() *AliasTypeDef { return self.AliasTypeDef }
-func (self *aliasFuncType) Ret() types.Type       { return self.target.(types.FuncType).Ret() }
-func (self *aliasFuncType) Params() []types.Type  { return self.target.(types.FuncType).Params() }
-func (self *aliasFuncType) Func()                 {}
-
-type aliasStructType struct {
-	*AliasTypeDef
-}
-
-func NewAliasStructType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasStructType{AliasTypeDef: typedef}
-}
-func (self *aliasStructType) Alias()                 {}
-func (self *aliasStructType) Define() *AliasTypeDef  { return self.AliasTypeDef }
-func (self *aliasStructType) Fields() []*types.Field { return self.target.(types.StructType).Fields() }
-
-type aliasEnumType struct {
-	*AliasTypeDef
-}
-
-func NewAliasEnumType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasEnumType{AliasTypeDef: typedef}
-}
-func (self *aliasEnumType) Alias()                {}
-func (self *aliasEnumType) Define() *AliasTypeDef { return self.AliasTypeDef }
-func (self *aliasEnumType) EnumFields() []*types.EnumField {
-	return self.target.(types.EnumType).EnumFields()
-}
+func (self *aliasFuncType) String() string { return self.AliasTypeDef.String() }
 
 type aliasLambdaType struct {
-	*AliasTypeDef
+	AliasTypeDef
+	types.LambdaType
 }
 
-func NewAliasLambdaType(typedef *AliasTypeDef) AliasTypeWrap {
-	return &aliasLambdaType{AliasTypeDef: typedef}
+func (self *aliasLambdaType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
 }
-func (self *aliasLambdaType) Alias()                {}
-func (self *aliasLambdaType) Define() *AliasTypeDef { return self.AliasTypeDef }
-func (self *aliasLambdaType) Ret() types.Type       { return self.target.(types.LambdaType).Ret() }
-func (self *aliasLambdaType) Params() []types.Type  { return self.target.(types.LambdaType).Params() }
-func (self *aliasLambdaType) Lambda()               {}
+func (self *aliasLambdaType) String() string { return self.AliasTypeDef.String() }
+
+type aliasStructType struct {
+	AliasTypeDef
+	types.StructType
+}
+
+func (self *aliasStructType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
+}
+func (self *aliasStructType) String() string { return self.AliasTypeDef.String() }
+
+type aliasEnumType struct {
+	AliasTypeDef
+	types.EnumType
+}
+
+func (self *aliasEnumType) Equal(dst types.Type, selfs ...types.Type) bool {
+	return self.AliasTypeDef.Equal(dst, selfs...)
+}
+func (self *aliasEnumType) String() string { return self.AliasTypeDef.String() }

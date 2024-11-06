@@ -10,8 +10,9 @@ import (
 
 // LambdaType 匿名函数类型
 type LambdaType interface {
-	Type
+	BuildInType
 	CallableType
+	FuncType() FuncType
 	Lambda()
 }
 
@@ -29,17 +30,21 @@ func NewLambdaType(ret Type, ps ...Type) LambdaType {
 
 func (self *_LambdaType_) String() string {
 	params := stlslices.Map(self.params, func(i int, p Type) string { return p.String() })
-	ret := stlval.Ternary(self.ret.Equal(NoThing), "void", self.ret.String())
+	ret := stlval.Ternary(Is[NoThingType](self.ret, true), "void", self.ret.String())
 	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), ret)
 }
 
-func (self *_LambdaType_) Equal(dst Type) bool {
+func (self *_LambdaType_) Equal(dst Type, selfs ...Type) bool {
+	if dst.Equal(Self) && len(selfs) > 0 {
+		dst = stlslices.Last(selfs)
+	}
+
 	t, ok := dst.(LambdaType)
-	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret()) {
+	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret(), selfs...) {
 		return false
 	}
 	return stlslices.All(self.params, func(i int, p Type) bool {
-		return p.Equal(t.Params()[i])
+		return p.Equal(t.Params()[i], selfs...)
 	})
 }
 
@@ -51,4 +56,10 @@ func (self *_LambdaType_) Params() []Type {
 	return self.params
 }
 
+func (self *_LambdaType_) FuncType() FuncType {
+	return NewFuncType(self.ret, self.params...)
+}
+
 func (self *_LambdaType_) Lambda() {}
+
+func (self *_LambdaType_) BuildIn() {}

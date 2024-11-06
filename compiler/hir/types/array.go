@@ -2,11 +2,13 @@ package types
 
 import (
 	"fmt"
+
+	stlslices "github.com/kkkunny/stl/container/slices"
 )
 
 // ArrayType 数组类型
 type ArrayType interface {
-	Type
+	BuildInType
 	Elem() Type
 	Size() uint
 }
@@ -27,9 +29,13 @@ func (self *_ArrayType_) String() string {
 	return fmt.Sprintf("[%d]%s", self.size, self.elem.String())
 }
 
-func (self *_ArrayType_) Equal(dst Type) bool {
+func (self *_ArrayType_) Equal(dst Type, selfs ...Type) bool {
+	if dst.Equal(Self) && len(selfs) > 0 {
+		dst = stlslices.Last(selfs)
+	}
+
 	t, ok := dst.(ArrayType)
-	return ok && self.size == t.Size() && self.elem.Equal(t.Elem())
+	return ok && self.size == t.Size() && self.elem.Equal(t.Elem(), selfs...)
 }
 
 func (self *_ArrayType_) Elem() Type {
@@ -39,3 +45,5 @@ func (self *_ArrayType_) Elem() Type {
 func (self *_ArrayType_) Size() uint {
 	return self.size
 }
+
+func (self *_ArrayType_) BuildIn() {}

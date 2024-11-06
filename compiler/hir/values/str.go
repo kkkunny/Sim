@@ -6,15 +6,19 @@ import (
 
 // String 字符串
 type String struct {
+	typ   types.StrType
 	value string
 }
 
-func NewString(v string) *String {
-	return &String{value: v}
+func NewString(t types.StrType, v string) *String {
+	return &String{
+		typ:   t,
+		value: v,
+	}
 }
 
 func (self *String) Type() types.Type {
-	return types.Str
+	return self.typ
 }
 
 func (self *String) Mutable() bool {

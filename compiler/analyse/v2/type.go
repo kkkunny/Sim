@@ -6,9 +6,9 @@ import (
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/container/tuple"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
-	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 
 	errors "github.com/kkkunny/Sim/compiler/error"
@@ -94,137 +94,69 @@ func (self *Analyser) analyseType(node ast.Type, analysers ...typeAnalyser) type
 	}
 }
 
-func (self *Analyser) analyseTypedefDecl(node ast.Type) global.TypeDef {
-	switch typeNode := node.(type) {
-	case *ast.IdentType:
-		name := node.Name.Source()
-
-		// 仅buildin包类型
-		if self.pkg.IsBuildIn() {
-			switch name {
-			case "__buildin_isize":
-				return types.Isize
-			case "__buildin_i8":
-				return types.I8
-			case "__buildin_i16":
-				return types.I16
-			case "__buildin_i32":
-				return types.I32
-			case "__buildin_i64":
-				return types.I64
-			case "__buildin_usize":
-				return types.Usize
-			case "__buildin_u8":
-				return types.U8
-			case "__buildin_u16":
-				return types.U16
-			case "__buildin_u32":
-				return types.U32
-			case "__buildin_u64":
-				return types.U64
-			case "__buildin_f16":
-				return types.F16
-			case "__buildin_f32":
-				return types.F32
-			case "__buildin_f64":
-				return types.F64
-			case "__buildin_f128":
-				return types.F128
-			}
-		}
-
-		pkg := self.pkg
-		if pkgToken, ok := node.Pkg.Value(); ok {
-			pkg, ok = self.pkg.GetExternPackage(pkgToken.Source())
-			if !ok {
-				errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
-			}
-		}
-
-		// 类型定义
-		obj, ok := pkg.GetIdent(name, true)
-		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
-		}
-		typedef, ok := obj.(global.TypeDef)
-		if !ok {
-			errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
-		}
-		return typedef.Target()
-	case *ast.FuncType:
-		return self.analyseFuncType(typeNode, deepAnalysers...)
-	case *ast.ArrayType:
-		return self.analyseArrayType(typeNode, deepAnalysers...)
-	case *ast.TupleType:
-		return self.analyseTupleType(typeNode, deepAnalysers...)
-	case *ast.RefType:
-		return self.analyseRefType(typeNode, deepAnalysers...)
-	case *ast.LambdaType:
-		return self.analyseLambdaType(typeNode, deepAnalysers...)
-	case *ast.StructType:
-		return self.analyseLambdaType(typeNode, deepAnalysers...)
-	case *ast.EnumType:
-		return self.analyseLambdaType(typeNode, deepAnalysers...)
-	default:
-		panic("unreachable")
-	}
-}
-
-func (self *Analyser) analyseIdentType(node *ast.IdentType) types.Type {
+func (self *Analyser) tryAnalyseIdentType(node *ast.IdentType) (types.Type, bool) {
 	name := node.Name.Source()
 
 	// 仅buildin包类型
 	if self.pkg.IsBuildIn() {
 		switch name {
 		case "__buildin_isize":
-			return types.Isize
+			return types.Isize, true
 		case "__buildin_i8":
-			return types.I8
+			return types.I8, true
 		case "__buildin_i16":
-			return types.I16
+			return types.I16, true
 		case "__buildin_i32":
-			return types.I32
+			return types.I32, true
 		case "__buildin_i64":
-			return types.I64
+			return types.I64, true
 		case "__buildin_usize":
-			return types.Usize
+			return types.Usize, true
 		case "__buildin_u8":
-			return types.U8
+			return types.U8, true
 		case "__buildin_u16":
-			return types.U16
+			return types.U16, true
 		case "__buildin_u32":
-			return types.U32
+			return types.U32, true
 		case "__buildin_u64":
-			return types.U64
+			return types.U64, true
 		case "__buildin_f16":
-			return types.F16
+			return types.F16, true
 		case "__buildin_f32":
-			return types.F32
+			return types.F32, true
 		case "__buildin_f64":
-			return types.F64
+			return types.F64, true
 		case "__buildin_f128":
-			return types.F128
+			return types.F128, true
+		case "__buildin_bool":
+			return types.Bool, true
+		case "__buildin_str":
+			return types.Str, true
 		}
 	}
 
-	pkg := self.pkg
+	scope := self.scope
 	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkg, ok = self.pkg.GetExternPackage(pkgToken.Source())
+		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
 		if !ok {
 			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
 		}
 	}
 
-	// 类型定义
-	obj, ok := pkg.GetIdent(name, true)
+	// 自定义类型
+	obj, ok := scope.GetIdent(name, true)
+	if ok && stlval.Is[types.Type](obj) {
+		return obj.(types.Type), true
+	}
+	return nil, false
+}
+
+func (self *Analyser) analyseIdentType(node *ast.IdentType) types.Type {
+	t, ok := self.tryAnalyseIdentType(node)
 	if !ok {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	typedef, ok := obj.(global.TypeDef)
-	if !ok {
-		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
-	}
-	return typedef.Target()
+	return t
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType, analysers ...typeAnalyser) types.FuncType {
