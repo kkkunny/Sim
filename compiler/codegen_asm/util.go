@@ -8,7 +8,7 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
-	"github.com/kkkunny/Sim/compiler/codegen_ir/v2"
+	"github.com/kkkunny/Sim/compiler/codegen_ir"
 )
 
 type tempFile struct {

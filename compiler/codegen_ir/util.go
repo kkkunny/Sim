@@ -10,7 +10,7 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/analyse/v2"
+	"github.com/kkkunny/Sim/compiler/analyse"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
