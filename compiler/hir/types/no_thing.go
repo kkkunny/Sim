@@ -15,8 +15,7 @@ func (self *_NoThingType_) String() string {
 }
 
 func (self *_NoThingType_) Equal(dst Type, _ ...Type) bool {
-	_, ok := dst.(NoThingType)
-	return ok
+	return Is[NoThingType](dst, true)
 }
 
 func (self *_NoThingType_) _NoThingType_() {}

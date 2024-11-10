@@ -21,8 +21,8 @@ func (self *Return) local() {
 	return
 }
 
-func (self *Return) Value() values.Value {
-	return self.value
+func (self *Return) Value() (values.Value, bool) {
+	return self.value, self.value != nil
 }
 
 func (self *Return) BlockEndType() BlockEndType {

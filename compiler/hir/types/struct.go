@@ -72,7 +72,7 @@ func (self *_StructType_) Equal(dst Type, selfs ...Type) bool {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(StructType)
+	t, ok := As[StructType](dst, true)
 	if !ok || self.fields.Length() != t.Fields().Length() {
 		return false
 	}

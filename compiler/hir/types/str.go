@@ -15,8 +15,7 @@ func (self *_StrType_) String() string {
 }
 
 func (self *_StrType_) Equal(dst Type, _ ...Type) bool {
-	_, ok := dst.(StrType)
-	return ok
+	return Is[StrType](dst, true)
 }
 
 func (self *_StrType_) Str() {}

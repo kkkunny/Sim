@@ -33,7 +33,7 @@ func (self *_TupleType_) Equal(dst Type, selfs ...Type) bool {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(TupleType)
+	t, ok := As[TupleType](dst, true)
 	if !ok || len(self.elems) != len(t.Elems()) {
 		return false
 	}

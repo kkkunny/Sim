@@ -10,7 +10,7 @@ import (
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
-	"github.com/kkkunny/Sim/compiler/codegen_ir"
+	"github.com/kkkunny/Sim/compiler/codegen_ir/v2"
 )
 
 func main() {

@@ -63,7 +63,7 @@ func (self *_EnumType_) Equal(dst Type, selfs ...Type) bool {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(EnumType)
+	t, ok := As[EnumType](dst, true)
 	if !ok {
 		return false
 	}

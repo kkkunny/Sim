@@ -3,6 +3,7 @@ package analyse
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
 	stlval "github.com/kkkunny/stl/value"
@@ -544,7 +545,7 @@ func (self *Analyser) autoTypeCovert(tt types.Type, v values.Value) (values.Valu
 		return local.NewNoReturn2AnyExpr(v, tt), true
 	} else if fromFt, fromOk := types.As[types.FuncType](ft, true); fromOk && false {
 		panic("unreachable")
-	} else if toLt, toOk := types.As[types.LambdaType](tt, true); fromOk && toOk && fromFt.Equal(toLt.FuncType()) {
+	} else if toLt, toOk := types.As[types.LambdaType](tt, true); fromOk && toOk && fromFt.Equal(toLt.ToFunc()) {
 		// func -> lambda
 		return local.NewFunc2LambdaExpr(v, toLt), true
 	} else if fromEt, fromOk := types.As[types.EnumType](fromFt, true); fromOk && false {
@@ -820,20 +821,21 @@ func (self *Analyser) analyseLambda(node *ast.Lambda) values.Value {
 	ret := self.analyseType(node.Ret, self.voidTypeAnalyser(), self.noReturnTypeAnalyser())
 	lt := types.NewLambdaType(ret, stlslices.Map(params, func(_ int, param *local.Param) types.Type { return param.Type() })...)
 
-	// TODO: lambda context捕获
-	// captureIdents := set.StdHashSetWith[values.Ident]()
-	// self.localScope = _NewLambdaScope(self.localScope, f, func(ident oldhir.Ident) {
-	// 	if v, ok := ident.(*oldhir.LocalVarDef); ok {
-	// 		v.Escaped = true
-	// 	}
-	// 	captureIdents.Add(ident)
-	// })
-	// defer func() {
-	// 	self.localScope = self.localScope.GetParent().(_LocalScope)
-	// }()
+	captureIdents := set.StdHashSetWith[values.Ident]()
+	onCapture := func(ident any) {
+		exprIdent, ok := ident.(values.Ident)
+		if !ok || stlval.Is[global.Global](exprIdent) {
+			return
+		}
+		// TODO: VarDecl也需要逃逸分析
+		if v, ok := exprIdent.(*local.SingleVarDef); ok {
+			v.SetEscaped(true)
+		}
+		captureIdents.Add(exprIdent)
+	}
 
-	l := local.NewLambdaExpr(self.scope, lt, params)
+	l := local.NewLambdaExpr(self.scope, lt, params, onCapture)
 	l.SetBody(self.analyseFuncBody(l, node.Params, node.Body))
-	// l.SetContext(captureIdents.ToSlice()...)
+	l.SetContext(captureIdents.ToSlice()...)
 	return l
 }

@@ -3,22 +3,22 @@ package local
 import (
 	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/hashmap"
-	"github.com/kkkunny/stl/list"
+	"github.com/kkkunny/stl/container/linkedlist"
 	stlval "github.com/kkkunny/stl/value"
 )
 
 type Block struct {
 	parent either.Either[CallableDef, *Block]
-	stmts  *list.List[Local]
+	stmts  linkedlist.LinkedList[Local]
 	idents hashmap.HashMap[string, any]
 
-	inLoop bool
+	loop Loop
 }
 
 func NewFuncBody(f CallableDef) *Block {
 	return &Block{
 		parent: either.Left[CallableDef, *Block](f),
-		stmts:  list.New[Local](),
+		stmts:  linkedlist.NewLinkedList[Local](),
 		idents: hashmap.StdWith[string, any](),
 	}
 }
@@ -26,7 +26,7 @@ func NewFuncBody(f CallableDef) *Block {
 func NewBlock(p *Block) *Block {
 	return &Block{
 		parent: either.Right[CallableDef, *Block](p),
-		stmts:  list.New[Local](),
+		stmts:  linkedlist.NewLinkedList[Local](),
 	}
 }
 
@@ -42,12 +42,12 @@ func (self *Block) CallableDef() CallableDef {
 	return stlval.IgnoreWith(self.parent.Right()).CallableDef()
 }
 
-func (self *Block) Stmts() *list.List[Local] {
+func (self *Block) Stmts() linkedlist.LinkedList[Local] {
 	return self.stmts
 }
 
 func (self *Block) Empty() bool {
-	return self.stmts.Len() == 0
+	return self.stmts.Length() == 0
 }
 
 func (self *Block) HasEnd() bool {
@@ -55,8 +55,8 @@ func (self *Block) HasEnd() bool {
 }
 
 func (self *Block) BlockEndType() BlockEndType {
-	for cursor := self.stmts.Front(); cursor != nil; cursor = cursor.Next() {
-		if end, ok := cursor.Value.(blockEnd); ok {
+	for iter := self.stmts.Iterator(); iter.Next(); {
+		if end, ok := iter.Value().(blockEnd); ok {
 			if endType := end.BlockEndType(); endType > BlockEndTypeNone {
 				return endType
 			}
@@ -70,7 +70,7 @@ func (self *Block) local() {
 }
 
 func (self *Block) Append(block *Block) {
-	self.stmts.PushBackList(block.stmts)
+	self.stmts.Append(block.stmts)
 	for iter := self.idents.Iterator(); iter.Next(); {
 		pair := iter.Value()
 		self.idents.Set(pair.E1(), pair.E2())
@@ -97,7 +97,18 @@ func (self *Block) GetIdent(name string, allowLinkedPkgs ...bool) (any, bool) {
 	}, func() Scope {
 		return stlval.IgnoreWith(self.parent.Right())
 	})
-	return parent.GetIdent(name, allowLinkedPkgs...)
+	v, ok := parent.GetIdent(name, allowLinkedPkgs...)
+	if !ok {
+		return nil, false
+	}
+
+	if f, ok := self.parent.Left(); ok {
+		lambda, ok := f.(*LambdaExpr)
+		if ok && lambda.onCapture != nil {
+			lambda.onCapture(v)
+		}
+	}
+	return v, true
 }
 
 func (self *Block) Belong() CallableDef {
@@ -108,17 +119,17 @@ func (self *Block) Belong() CallableDef {
 	return stlval.IgnoreWith(self.parent.Right()).Belong()
 }
 
-func (self *Block) SetInLoop(v bool) {
-	self.inLoop = v
+func (self *Block) SetLoop(loop Loop) {
+	self.loop = loop
 }
 
-func (self *Block) InLoop() bool {
-	if self.inLoop {
-		return true
+func (self *Block) Loop() (Loop, bool) {
+	if self.loop != nil {
+		return self.loop, true
 	}
 	parent, ok := self.parent.Right()
 	if !ok {
-		return false
+		return nil, false
 	}
-	return parent.InLoop()
+	return parent.Loop()
 }

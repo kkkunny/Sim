@@ -36,7 +36,7 @@ func (self *_FuncType_) Equal(dst Type, selfs ...Type) bool {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(FuncType)
+	t, ok := As[FuncType](dst, true)
 	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret(), selfs...) {
 		return false
 	}
@@ -56,3 +56,7 @@ func (self *_FuncType_) Params() []Type {
 func (self *_FuncType_) Func() {}
 
 func (self *_FuncType_) BuildIn() {}
+
+func (self *_FuncType_) ToFunc() FuncType {
+	return self
+}

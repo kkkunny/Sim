@@ -29,6 +29,10 @@ func (self *VarDef) SetValue(value values.Value) {
 	self.value = value
 }
 
+func (self *VarDef) Value() (values.Value, bool) {
+	return self.value, self.value != nil
+}
+
 func (self *VarDef) Name() string {
 	return stlval.IgnoreWith(self.VarDecl.GetName())
 }
@@ -47,3 +51,6 @@ func WithLinkNameVarAttr(name string) VarAttr {
 	return &VarAttrLinkName{name: name}
 }
 func (self *VarAttrLinkName) varAttr() {}
+func (self *VarAttrLinkName) Name() string {
+	return self.name
+}

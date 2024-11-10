@@ -36,6 +36,14 @@ func (self *Analyser) analyseFuncBody(f local.CallableDef, params []ast.Param, n
 	}
 
 	self.analyseFloatBlock(block, node)
+
+	if block.BlockEndType() < local.BlockEndTypeFuncRet {
+		retType := f.CallableType().Ret()
+		if !types.Is[types.NoThingType](retType, true) {
+			errors.ThrowMissingReturnValueError(node.Position(), retType)
+		}
+		block.PushBack(local.NewReturn())
+	}
 	return block
 }
 
@@ -211,10 +219,12 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) *local.IfElse {
 func (self *Analyser) analyseWhile(node *ast.While) *local.While {
 	bt := stlval.IgnoreWith(self.buildinPkg().GetIdent("bool")).(types.Type)
 	cond := self.expectExpr(bt, node.Cond)
-	body := self.analyseBlock(node.Body, func(block *local.Block) {
-		block.SetInLoop(true)
+	var loop *local.While
+	self.analyseBlock(node.Body, func(block *local.Block) {
+		loop = local.NewWhile(cond, block)
+		block.SetLoop(loop)
 	})
-	return local.NewWhile(cond, body)
+	return loop
 }
 
 func (self *Analyser) analyseFor(node *ast.For) *local.For {
@@ -227,13 +237,15 @@ func (self *Analyser) analyseFor(node *ast.For) *local.For {
 
 	cursorName := node.Cursor.Source()
 	cursor := values.NewVarDecl(node.CursorMut, cursorName, at.Elem())
-	body := self.analyseBlock(node.Body, func(block *local.Block) {
+	var loop *local.For
+	self.analyseBlock(node.Body, func(block *local.Block) {
 		if !block.SetIdent(cursorName, cursor) {
 			errors.ThrowIdentifierDuplicationError(node.Cursor.Position, node.Cursor)
 		}
-		block.SetInLoop(true)
+		loop = local.NewFor(cursor, iter, block)
+		block.SetLoop(loop)
 	})
-	return local.NewFor(cursor, iter, body)
+	return loop
 }
 
 func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
@@ -291,15 +303,17 @@ func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
 }
 
 func (self *Analyser) analyseContinue(node *ast.Continue) *local.Continue {
-	if !self.scope.(*local.Block).InLoop() {
+	loop, ok := self.scope.(*local.Block).Loop()
+	if !ok {
 		errors.ThrowLoopControlError(node.Position())
 	}
-	return local.NewContinue()
+	return local.NewContinue(loop)
 }
 
 func (self *Analyser) analyseBreak(node *ast.Break) *local.Break {
-	if !self.scope.(*local.Block).InLoop() {
+	loop, ok := self.scope.(*local.Block).Loop()
+	if !ok {
 		errors.ThrowLoopControlError(node.Position())
 	}
-	return local.NewBreak()
+	return local.NewBreak(loop)
 }

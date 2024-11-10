@@ -30,3 +30,6 @@ func (self *Float) Mutable() bool {
 func (self *Float) Storable() bool {
 	return false
 }
+func (self *Float) Value() *big.Float {
+	return self.value
+}

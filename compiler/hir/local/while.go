@@ -37,3 +37,7 @@ func (self *While) BlockEndType() BlockEndType {
 		return endType
 	}
 }
+
+func (self *While) loop() {
+	return
+}

@@ -9,7 +9,7 @@ import (
 type CallableDef interface {
 	values.Callable
 	SetBody(b *Block)
-	Block() (*Block, bool)
+	Body() (*Block, bool)
 	Params() []*Param
 	Parent() Scope
 	GetName() (string, bool)

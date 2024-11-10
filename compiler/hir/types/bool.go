@@ -15,8 +15,7 @@ func (self *_BoolType_) String() string {
 }
 
 func (self *_BoolType_) Equal(dst Type, _ ...Type) bool {
-	_, ok := dst.(BoolType)
-	return ok
+	return Is[BoolType](dst, true)
 }
 
 func (self *_BoolType_) Bool() {}

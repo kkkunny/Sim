@@ -1,50 +1,50 @@
 package codegen_ir
 
 import (
-	"slices"
-
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/oldhir"
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
-func (self *CodeGenerator) codegenStmt(ir oldhir.Stmt) {
-	switch stmt := ir.(type) {
-	case *oldhir.Return:
-		self.codegenReturn(stmt)
-	case *oldhir.LocalVarDef:
-		self.codegenLocalVariable(stmt)
-	case *oldhir.MultiLocalVarDef:
-		self.codegenMultiLocalVariable(stmt)
-	case *oldhir.IfElse:
-		self.codegenIfElse(stmt)
-	case oldhir.ExprStmt:
-		self.codegenExpr(stmt, false)
-	case *oldhir.While:
-		self.codegenWhile(stmt)
-	case *oldhir.Break:
-		self.codegenBreak(stmt)
-	case *oldhir.Continue:
-		self.codegenContinue(stmt)
-	case *oldhir.For:
-		self.codegenFor(stmt)
-	case *oldhir.Match:
-		self.codegenMatch(stmt)
+func (self *CodeGenerator) codegenLocal(ir local.Local) {
+	switch ir := ir.(type) {
+	case *local.Return:
+		self.codegenReturn(ir)
+	case *local.SingleVarDef:
+		self.codegenLocalVariable(ir)
+	case *local.MultiVarDef:
+		self.codegenMultiLocalVariable(ir)
+	case *local.IfElse:
+		self.codegenIfElse(ir)
+	case *local.While:
+		self.codegenWhile(ir)
+	case *local.Break:
+		self.codegenBreak(ir)
+	case *local.Continue:
+		self.codegenContinue(ir)
+	case *local.For:
+		self.codegenFor(ir)
+	case *local.Match:
+		self.codegenMatch(ir)
+	case *local.Expr:
+		self.codegenValue(ir.Value(), false)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenFlatBlock(ir *oldhir.Block) {
-	for iter := ir.Stmts.Iterator(); iter.Next(); {
-		self.codegenStmt(iter.Value())
+func (self *CodeGenerator) codegenFlatBlock(ir *local.Block) {
+	for iter := ir.Stmts().Iterator(); iter.Next(); {
+		self.codegenLocal(iter.Value())
 	}
 }
 
-func (self *CodeGenerator) codegenBlock(ir *oldhir.Block, afterBlockCreate func(block llvm.Block)) (llvm.Block, llvm.Block) {
+func (self *CodeGenerator) codegenBlock(ir *local.Block, afterBlockCreate func(block llvm.Block)) (llvm.Block, llvm.Block) {
 	from := self.builder.CurrentBlock()
 	block := from.Belong().NewBlock("")
 	if afterBlockCreate != nil {
@@ -59,10 +59,10 @@ func (self *CodeGenerator) codegenBlock(ir *oldhir.Block, afterBlockCreate func(
 	return block, self.builder.CurrentBlock()
 }
 
-func (self *CodeGenerator) codegenReturn(ir *oldhir.Return) {
-	if vir, ok := ir.Value.Value(); ok {
-		v := self.codegenExpr(vir, true)
-		if vir.GetType().EqualTo(oldhir.NoThing) || vir.GetType().EqualTo(oldhir.NoReturn) {
+func (self *CodeGenerator) codegenReturn(ir *local.Return) {
+	if vIr, ok := ir.Value(); ok {
+		v := self.codegenValue(vIr, true)
+		if types.Is[types.NoThingType](vIr.Type(), true) || types.Is[types.NoReturnType](vIr.Type(), true) {
 			self.builder.CreateRet(nil)
 		} else {
 			self.builder.CreateRet(&v)
@@ -72,36 +72,41 @@ func (self *CodeGenerator) codegenReturn(ir *oldhir.Return) {
 	}
 }
 
-func (self *CodeGenerator) codegenLocalVariable(ir *oldhir.LocalVarDef) llvm.Value {
-	t := self.codegenType(ir.Type)
+func (self *CodeGenerator) codegenVarDecl(ir *values.VarDecl) llvm.Value {
+	t := self.codegenType(ir.Type())
+	ptr := self.builder.CreateAlloca("", t)
+	self.values.Set(ir, ptr)
+	return ptr
+}
+
+func (self *CodeGenerator) codegenLocalVariable(ir *local.SingleVarDef) llvm.Value {
+	t := self.codegenType(ir.Type())
 	var ptr llvm.Value
-	if !ir.Escaped {
+	if !ir.Escaped() {
 		ptr = self.builder.CreateAlloca("", t)
 	} else {
 		ptr = self.buildMalloc(t)
 	}
 	self.values.Set(ir, ptr)
-	if valueIr, ok := ir.Value.Value(); ok {
-		value := self.codegenExpr(valueIr, true)
-		self.builder.CreateStore(value, ptr)
-	}
+	value := self.codegenValue(ir.Value(), true)
+	self.builder.CreateStore(value, ptr)
 	return ptr
 }
 
-func (self *CodeGenerator) codegenMultiLocalVariable(ir *oldhir.MultiLocalVarDef) llvm.Value {
-	for _, varNode := range ir.Vars {
-		self.codegenLocalVariable(varNode)
+func (self *CodeGenerator) codegenMultiLocalVariable(ir *local.MultiVarDef) llvm.Value {
+	for _, varIr := range ir.Vars() {
+		self.codegenVarDecl(varIr)
 	}
-	self.codegenUnTuple(ir.Value, stlslices.As[*oldhir.LocalVarDef, oldhir.Expr](ir.Vars))
+	self.codegenUnTuple(ir.Value(), stlslices.As[*values.VarDecl, values.Value](ir.Vars()))
 	return nil
 }
 
-func (self *CodeGenerator) codegenIfElse(ir *oldhir.IfElse) {
+func (self *CodeGenerator) codegenIfElse(ir *local.IfElse) {
 	blocks := self.codegenIfElseNode(ir)
 
 	var brenchEndBlocks []llvm.Block
 	var endBlock llvm.Block
-	if ir.HasElse() {
+	if _, ok := ir.Next(); ok {
 		brenchEndBlocks = blocks
 		end := stlslices.All(brenchEndBlocks, func(i int, v llvm.Block) bool {
 			return v.IsTerminating()
@@ -121,22 +126,22 @@ func (self *CodeGenerator) codegenIfElse(ir *oldhir.IfElse) {
 	self.builder.MoveToAfter(endBlock)
 }
 
-func (self *CodeGenerator) codegenIfElseNode(ir *oldhir.IfElse) []llvm.Block {
-	if condNode, ok := ir.Cond.Value(); ok {
-		cond := self.builder.CreateTrunc("", self.codegenExpr(condNode, true), self.builder.BooleanType())
-		trueStartBlock, trueEndBlock := self.codegenBlock(ir.Body, nil)
+func (self *CodeGenerator) codegenIfElseNode(ir *local.IfElse) []llvm.Block {
+	if condNode, ok := ir.Cond(); ok {
+		cond := self.builder.CreateTrunc("", self.codegenValue(condNode, true), self.builder.BooleanType())
+		trueStartBlock, trueEndBlock := self.codegenBlock(ir.Body(), nil)
 		falseBlock := trueStartBlock.Belong().NewBlock("")
 		self.builder.CreateCondBr(cond, trueStartBlock, falseBlock)
 		self.builder.MoveToAfter(falseBlock)
 
-		if nextNode, ok := ir.Next.Value(); ok {
+		if nextNode, ok := ir.Next(); ok {
 			blocks := self.codegenIfElseNode(nextNode)
 			return append([]llvm.Block{trueEndBlock}, blocks...)
 		} else {
 			return []llvm.Block{trueEndBlock, falseBlock}
 		}
 	} else {
-		self.codegenFlatBlock(ir.Body)
+		self.codegenFlatBlock(ir.Body())
 		return []llvm.Block{self.builder.CurrentBlock()}
 	}
 }
@@ -167,15 +172,15 @@ func (self *whileLoop) GetNextBlock() llvm.Block {
 	return self.Cond
 }
 
-func (self *CodeGenerator) codegenWhile(ir *oldhir.While) {
+func (self *CodeGenerator) codegenWhile(ir *local.While) {
 	f := self.builder.CurrentFunction()
 	condBlock, endBlock := f.NewBlock(""), f.NewBlock("")
 
 	self.builder.CreateBr(condBlock)
 	self.builder.MoveToAfter(condBlock)
-	cond := self.builder.CreateTrunc("", self.codegenExpr(ir.Cond, true), self.builder.BooleanType())
+	cond := self.builder.CreateTrunc("", self.codegenValue(ir.Cond(), true), self.builder.BooleanType())
 
-	bodyEntryBlock, bodyEndBlock := self.codegenBlock(ir.Body, func(block llvm.Block) {
+	bodyEntryBlock, bodyEndBlock := self.codegenBlock(ir.Body(), func(block llvm.Block) {
 		self.loops.Set(ir, &whileLoop{Cond: condBlock, Out: optional.Some(endBlock)})
 	})
 	self.builder.CreateCondBr(cond, bodyEntryBlock, endBlock)
@@ -186,8 +191,8 @@ func (self *CodeGenerator) codegenWhile(ir *oldhir.While) {
 	self.builder.MoveToAfter(endBlock)
 }
 
-func (self *CodeGenerator) codegenBreak(ir *oldhir.Break) {
-	loop := self.loops.Get(ir.Loop)
+func (self *CodeGenerator) codegenBreak(ir *local.Break) {
+	loop := self.loops.Get(ir.Loop())
 	if _, ok := loop.GetOutBlock(); !ok {
 		loop.SetOutBlock(self.builder.CurrentFunction().NewBlock(""))
 	}
@@ -195,8 +200,8 @@ func (self *CodeGenerator) codegenBreak(ir *oldhir.Break) {
 	self.builder.CreateBr(endBlock)
 }
 
-func (self *CodeGenerator) codegenContinue(ir *oldhir.Continue) {
-	loop := self.loops.Get(ir.Loop)
+func (self *CodeGenerator) codegenContinue(ir *local.Continue) {
+	loop := self.loops.Get(ir.Loop())
 	self.builder.CreateBr(loop.GetNextBlock())
 }
 
@@ -215,13 +220,13 @@ func (self *forRange) GetNextBlock() llvm.Block {
 	return self.Action
 }
 
-func (self *CodeGenerator) codegenFor(ir *oldhir.For) {
+func (self *CodeGenerator) codegenFor(ir *local.For) {
 	// pre
-	size := oldhir.AsType[*oldhir.ArrayType](ir.Iterator.GetType()).Size
-	iter := self.codegenExpr(ir.Iterator, false)
-	indexPtr := self.builder.CreateAlloca("", self.builder.IntPtrType())
-	self.builder.CreateStore(self.builder.ConstIntPtr(0), indexPtr)
-	cursorPtr := self.codegenLocalVariable(ir.Cursor)
+	size := stlval.IgnoreWith(types.As[types.ArrayType](ir.Iter().Type())).Size()
+	iter := self.codegenValue(ir.Iter(), false)
+	indexPtr := self.builder.CreateAlloca("", self.builder.Isize())
+	self.builder.CreateStore(self.builder.ConstIsize(0), indexPtr)
+	cursorPtr := self.codegenVarDecl(ir.Cursor())
 	condBlock := self.builder.CurrentFunction().NewBlock("")
 	self.builder.CreateBr(condBlock)
 	self.builder.MoveToAfter(condBlock)
@@ -238,21 +243,21 @@ func (self *CodeGenerator) codegenFor(ir *oldhir.For) {
 
 		// cond
 		self.builder.MoveToAfter(condBlock)
-		index := self.builder.CreateLoad("", self.builder.IntPtrType(), indexPtr)
+		index := self.builder.CreateLoad("", self.builder.Isize(), indexPtr)
 		self.builder.CreateCondBr(
-			self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIntPtr(int64(size))),
+			self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIsize(int64(size))),
 			entry,
 			outBlock,
 		)
 
 		// action
 		self.builder.MoveToAfter(actionBlock)
-		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIntPtr(1)), indexPtr)
+		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIsize(1)), indexPtr)
 		self.builder.CreateBr(condBlock)
 
 		// body
 		self.builder.MoveToAfter(entry)
-		self.builder.CreateStore(self.buildArrayIndex(iter.Type().(llvm.ArrayType), iter, index, false), cursorPtr)
+		self.builder.CreateStore(self.builder.CreateArrayIndex(iter.Type().(llvm.ArrayType), iter, index, false), cursorPtr)
 
 		self.loops.Set(ir, &forRange{
 			Action: actionBlock,
@@ -260,7 +265,7 @@ func (self *CodeGenerator) codegenFor(ir *oldhir.For) {
 		})
 	}
 
-	_, endBlock := self.codegenBlock(ir.Body, beforeBody)
+	_, endBlock := self.codegenBlock(ir.Body(), beforeBody)
 	if !endBlock.IsTerminating() {
 		self.builder.MoveToAfter(endBlock)
 		self.builder.CreateBr(actionBlock)
@@ -270,22 +275,22 @@ func (self *CodeGenerator) codegenFor(ir *oldhir.For) {
 	}
 }
 
-func (self *CodeGenerator) codegenMatch(ir *oldhir.Match) {
-	if ir.Other.IsNone() && ir.Cases.Empty() {
+func (self *CodeGenerator) codegenMatch(ir *local.Match) {
+	if _, ok := ir.Other(); !ok && len(ir.Cases()) == 0 {
 		return
 	}
 
-	etIr := oldhir.AsType[*oldhir.EnumType](ir.Value.GetType())
-	t := self.codegenType(ir.Value.GetType())
-	value := self.codegenExpr(ir.Value, false)
-	index := stlval.TernaryAction(etIr.IsSimple(), func() llvm.Value {
+	etIr := stlval.IgnoreWith(types.As[types.EnumType](ir.Cond().Type()))
+	t := self.codegenType(ir.Cond().Type())
+	value := self.codegenValue(ir.Cond(), false)
+	index := stlval.TernaryAction(etIr.Simple(), func() llvm.Value {
 		if value.Type().Equal(t) {
 			return value
 		} else {
 			return self.builder.CreateLoad("", t, value)
 		}
 	}, func() llvm.Value {
-		return self.buildStructIndex(t.(llvm.StructType), value, 1, false)
+		return self.builder.CreateStructIndex(t.(llvm.StructType), value, 1, false)
 	})
 
 	curBlock := self.builder.CurrentBlock()
@@ -294,11 +299,11 @@ func (self *CodeGenerator) codegenMatch(ir *oldhir.Match) {
 	cases := make([]struct {
 		Value llvm.Value
 		Block llvm.Block
-	}, 0, ir.Cases.Length())
-	for iter := ir.Cases.Iterator(); iter.Next(); {
-		caseIndex := slices.Index(etIr.Fields.Keys(), iter.Value().E1())
-		caseBlock, caseCurBlock := self.codegenBlock(iter.Value().E2().Body, func(block llvm.Block) {
-			if stlslices.Empty(iter.Value().E2().Elems) {
+	}, 0, len(ir.Cases()))
+	for i, caseIr := range ir.Cases() {
+		caseBlock, caseCurBlock := self.codegenBlock(caseIr.Body(), func(block llvm.Block) {
+			caseVar, ok := caseIr.Var()
+			if !ok {
 				return
 			}
 
@@ -306,12 +311,8 @@ func (self *CodeGenerator) codegenMatch(ir *oldhir.Match) {
 			defer self.builder.MoveToAfter(caseCurBlock)
 			self.builder.MoveToAfter(block)
 
-			caseType := self.codegenTupleType(oldhir.NewTupleType(stlslices.Map(iter.Value().E2().Elems, func(_ int, e *oldhir.Param) oldhir.Type {
-				return e.GetType()
-			})...))
-			for i, elem := range iter.Value().E2().Elems {
-				self.values.Set(elem, self.buildStructIndex(caseType, self.buildStructIndex(t.(llvm.StructType), value, 0, true), uint(i), true))
-			}
+			// TODO: 临时变量会有问题
+			self.values.Set(caseVar, value)
 		})
 		self.builder.MoveToAfter(caseCurBlock)
 		self.builder.CreateBr(endBlock)
@@ -319,11 +320,11 @@ func (self *CodeGenerator) codegenMatch(ir *oldhir.Match) {
 		cases = append(cases, struct {
 			Value llvm.Value
 			Block llvm.Block
-		}{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(caseIndex)), Block: caseBlock})
+		}{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: caseBlock})
 	}
 
 	var otherBlock llvm.Block
-	if otherIr, ok := ir.Other.Value(); ok {
+	if otherIr, ok := ir.Other(); ok {
 		var otherCurBlock llvm.Block
 		otherBlock, otherCurBlock = self.codegenBlock(otherIr, nil)
 		self.builder.MoveToAfter(otherCurBlock)

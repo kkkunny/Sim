@@ -31,7 +31,7 @@ func (self *_UintType_) String() string {
 }
 
 func (self *_UintType_) Equal(dst Type, _ ...Type) bool {
-	t, ok := dst.(UintType)
+	t, ok := As[UintType](dst, true)
 	return ok && self.kind == t.Kind()
 }
 

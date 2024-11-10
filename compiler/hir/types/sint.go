@@ -31,7 +31,7 @@ func (self *_SintType_) String() string {
 }
 
 func (self *_SintType_) Equal(dst Type, _ ...Type) bool {
-	t, ok := dst.(SintType)
+	t, ok := As[SintType](dst, true)
 	return ok && self.kind == t.Kind()
 }
 

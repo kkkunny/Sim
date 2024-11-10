@@ -11,7 +11,7 @@ func As[T Type](typ Type, strict ...bool) (T, bool) {
 	}
 	isStrict := stlslices.Last(strict)
 	switch t := typ.(type) {
-	case NoThingType, NoReturnType, NumType, BoolType, StrType, RefType, ArrayType, TupleType, CallableType, StructType, EnumType:
+	case NoThingType, NoReturnType, NumType, BoolType, StrType, RefType, ArrayType, TupleType, CallableType, StructType, EnumType, SelfType:
 		to, ok := t.(T)
 		return to, ok
 	case CustomType:
@@ -48,7 +48,7 @@ func Is[T Type](typ Type, strict ...bool) bool {
 	}
 	isStrict := stlslices.Last(strict)
 	switch t := typ.(type) {
-	case NoThingType, NoReturnType, NumType, BoolType, StrType, RefType, ArrayType, TupleType, CallableType, StructType, EnumType:
+	case NoThingType, NoReturnType, NumType, BoolType, StrType, RefType, ArrayType, TupleType, CallableType, StructType, EnumType, SelfType:
 		return stlval.Is[T](t)
 	case CustomType:
 		if stlval.Is[T](t) {

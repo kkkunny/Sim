@@ -86,6 +86,12 @@ func (self *Package) GetLinkedPackages() []*Package {
 	return self.externs.Get("")
 }
 
+func (self *Package) GetDependencyPackages() []*Package {
+	return stlslices.FlatMap(self.externs.Values(), func(_ int, pkgs []*Package) []*Package {
+		return pkgs
+	})
+}
+
 func (self *Package) SetIdent(name string, ident any) bool {
 	if self.idents.Contain(name) {
 		return false
@@ -141,4 +147,8 @@ func (self *Package) IsBuildIn() bool {
 
 func (self *Package) Path() stlos.FilePath {
 	return self.path
+}
+
+func (self *Package) Globals() linkedlist.LinkedList[Global] {
+	return self.globals
 }

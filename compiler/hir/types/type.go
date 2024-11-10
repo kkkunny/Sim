@@ -50,4 +50,5 @@ type CallableType interface {
 	BuildInType
 	Ret() Type
 	Params() []Type
+	ToFunc() FuncType
 }

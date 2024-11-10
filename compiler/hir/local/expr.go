@@ -95,13 +95,16 @@ type LambdaExpr struct {
 	params  []*Param
 	body    *Block
 	context []values.Ident
+
+	onCapture func(ident any)
 }
 
-func NewLambdaExpr(env Scope, typ types.LambdaType, params []*Param) *LambdaExpr {
+func NewLambdaExpr(env Scope, typ types.LambdaType, params []*Param, onCapture ...func(ident any)) *LambdaExpr {
 	return &LambdaExpr{
-		parent: env,
-		typ:    typ,
-		params: params,
+		parent:    env,
+		typ:       typ,
+		params:    params,
+		onCapture: stlslices.Last(onCapture),
 	}
 }
 func (self *LambdaExpr) Type() types.Type { return self.typ }
@@ -110,9 +113,9 @@ func (self *LambdaExpr) Storable() bool   { return false }
 func (self *LambdaExpr) CallableType() types.CallableType {
 	return self.typ
 }
-func (self *LambdaExpr) Params() []*Param      { return self.params }
-func (self *LambdaExpr) SetBody(b *Block)      { self.body = b }
-func (self *LambdaExpr) Block() (*Block, bool) { return self.body, true }
+func (self *LambdaExpr) Params() []*Param     { return self.params }
+func (self *LambdaExpr) SetBody(b *Block)     { self.body = b }
+func (self *LambdaExpr) Body() (*Block, bool) { return self.body, true }
 func (self *LambdaExpr) Parent() Scope {
 	return self.parent
 }
@@ -137,6 +140,12 @@ func NewEnumExpr(enum types.EnumType, field string, elem ...values.Value) *EnumE
 func (self *EnumExpr) Type() types.Type { return self.enum }
 func (self *EnumExpr) Mutable() bool    { return false }
 func (self *EnumExpr) Storable() bool   { return false }
+func (self *EnumExpr) Field() string {
+	return self.field
+}
+func (self *EnumExpr) Elem() (values.Value, bool) {
+	return self.elem, self.elem != nil
+}
 
 // DefaultExpr 默认值
 type DefaultExpr struct {

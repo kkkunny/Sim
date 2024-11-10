@@ -243,12 +243,19 @@ func (self *Analyser) defMethodDef(node *ast.FuncDef) *global.MethodDef {
 func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *global.VarDef {
 	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Var.Name.Source())).(*global.VarDef)
 
-	// TODO: expr
-	// if valueNode, ok := node.Value.Value(); ok {
-	// 	decl.SetValue(self.expectExpr(v.Type, valueNode))
-	// } else if v.ExternName == "" {
-	// 	decl.SetValue(self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), v.Type))
-	// }
+	var linkname = ""
+	for _, attr := range decl.Attrs() {
+		switch attr := attr.(type) {
+		case *global.VarAttrLinkName:
+			linkname = attr.Name()
+		}
+	}
+
+	if valueNode, ok := node.Value.Value(); ok {
+		decl.SetValue(self.expectExpr(decl.Type(), valueNode))
+	} else if linkname == "" {
+		decl.SetValue(self.getTypeDefaultValue(node.Var.Type.MustValue().Position(), decl.Type()))
+	}
 	return decl
 }
 

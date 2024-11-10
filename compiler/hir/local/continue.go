@@ -1,10 +1,12 @@
 package local
 
 // Continue 跳过当前循环
-type Continue struct{}
+type Continue struct {
+	loop Loop
+}
 
-func NewContinue() *Continue {
-	return &Continue{}
+func NewContinue(loop Loop) *Continue {
+	return &Continue{loop: loop}
 }
 
 func (self *Continue) local() {
@@ -13,4 +15,8 @@ func (self *Continue) local() {
 
 func (self *Continue) BlockEndType() BlockEndType {
 	return BlockEndTypeLoopNext
+}
+
+func (self *Continue) Loop() Loop {
+	return self.loop
 }

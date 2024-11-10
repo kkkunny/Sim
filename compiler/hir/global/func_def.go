@@ -23,7 +23,7 @@ func (self *FuncDef) Attrs() []FuncAttr {
 	return self.attrs
 }
 
-func (self *FuncDef) Block() (*local.Block, bool) {
+func (self *FuncDef) Body() (*local.Block, bool) {
 	return self.body, self.body != nil
 }
 

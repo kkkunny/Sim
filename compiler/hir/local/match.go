@@ -80,3 +80,7 @@ func (self *Match) BlockEndType() BlockEndType {
 	}
 	return min(minType, other.BlockEndType())
 }
+
+func (self *Match) Cond() values.Value {
+	return self.cond
+}

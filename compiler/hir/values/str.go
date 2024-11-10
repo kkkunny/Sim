@@ -28,3 +28,6 @@ func (self *String) Mutable() bool {
 func (self *String) Storable() bool {
 	return false
 }
+func (self *String) Value() string {
+	return self.value
+}

@@ -37,7 +37,7 @@ func (self *_FloatType_) String() string {
 }
 
 func (self *_FloatType_) Equal(dst Type, _ ...Type) bool {
-	t, ok := dst.(FloatType)
+	t, ok := As[FloatType](dst, true)
 	return ok && self.kind == t.Kind()
 }
 

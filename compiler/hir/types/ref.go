@@ -38,7 +38,7 @@ func (self *_RefType_) Equal(dst Type, selfs ...Type) bool {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(RefType)
+	t, ok := As[RefType](dst, true)
 	return ok && self.ptr.Equal(t.Pointer(), selfs...)
 }
 

@@ -1,10 +1,12 @@
 package local
 
 // Break 跳出当前循环
-type Break struct{}
+type Break struct {
+	loop Loop
+}
 
-func NewBreak() *Break {
-	return &Break{}
+func NewBreak(loop Loop) *Break {
+	return &Break{loop: loop}
 }
 
 func (self *Break) local() {
@@ -13,4 +15,8 @@ func (self *Break) local() {
 
 func (self *Break) BlockEndType() BlockEndType {
 	return BlockEndTypeLoopBreak
+}
+
+func (self *Break) Loop() Loop {
+	return self.loop
 }

@@ -15,8 +15,7 @@ func (self *_NoReturnType_) String() string {
 }
 
 func (self *_NoReturnType_) Equal(dst Type, _ ...Type) bool {
-	_, ok := dst.(NoReturnType)
-	return ok
+	return Is[NoReturnType](dst, true)
 }
 
 func (self *_NoReturnType_) _NoReturnType_() {}

@@ -11,7 +11,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
-
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/token"
@@ -129,6 +128,11 @@ func ThrowInvalidIndexError(pos reader.Position, index uint) {
 // ThrowLoopControlError 非法的循环控制
 func ThrowLoopControlError(pos reader.Position) {
 	ThrowError(pos, "must in a loop")
+}
+
+// ThrowMissingReturnValueError 缺失返回值
+func ThrowMissingReturnValueError(pos reader.Position, t types.Type) {
+	ThrowError(pos, "missing a return value type `%s`", t)
 }
 
 // ThrowNotExpectToken 不期待的token

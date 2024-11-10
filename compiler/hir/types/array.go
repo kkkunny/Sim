@@ -34,7 +34,7 @@ func (self *_ArrayType_) Equal(dst Type, selfs ...Type) bool {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(ArrayType)
+	t, ok := As[ArrayType](dst, true)
 	return ok && self.size == t.Size() && self.elem.Equal(t.Elem(), selfs...)
 }
 

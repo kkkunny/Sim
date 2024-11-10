@@ -12,7 +12,6 @@ import (
 type LambdaType interface {
 	BuildInType
 	CallableType
-	FuncType() FuncType
 	Lambda()
 }
 
@@ -39,7 +38,7 @@ func (self *_LambdaType_) Equal(dst Type, selfs ...Type) bool {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(LambdaType)
+	t, ok := As[LambdaType](dst, true)
 	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret(), selfs...) {
 		return false
 	}
@@ -56,7 +55,7 @@ func (self *_LambdaType_) Params() []Type {
 	return self.params
 }
 
-func (self *_LambdaType_) FuncType() FuncType {
+func (self *_LambdaType_) ToFunc() FuncType {
 	return NewFuncType(self.ret, self.params...)
 }
 

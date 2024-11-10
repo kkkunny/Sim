@@ -4,6 +4,12 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
+// Loop 循环
+type Loop interface {
+	Local
+	loop()
+}
+
 // For 高级循环
 type For struct {
 	cursor *values.VarDecl
@@ -31,7 +37,7 @@ func (self *For) Cursor() *values.VarDecl {
 	return self.cursor
 }
 
-func (self *For) Iterator() values.Value {
+func (self *For) Iter() values.Value {
 	return self.iter
 }
 
@@ -42,4 +48,8 @@ func (self *For) BlockEndType() BlockEndType {
 	default:
 		return endType
 	}
+}
+
+func (self *For) loop() {
+	return
 }

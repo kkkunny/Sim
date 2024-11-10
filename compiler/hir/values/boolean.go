@@ -26,3 +26,6 @@ func (self *Boolean) Mutable() bool {
 func (self *Boolean) Storable() bool {
 	return false
 }
+func (self *Boolean) Value() bool {
+	return self.value
+}
