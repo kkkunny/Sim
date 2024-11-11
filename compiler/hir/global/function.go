@@ -42,6 +42,8 @@ func (self *FuncDecl) Type() types.Type {
 	return self.CallableType()
 }
 
+func (self *FuncDecl) Ident() {}
+
 // FuncAttr 函数属性
 type FuncAttr interface {
 	funcAttr()

@@ -9,6 +9,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/config"
 	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 	"github.com/kkkunny/Sim/compiler/reader"
@@ -140,7 +141,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 	if f.Name() == "main" {
 		mainType := types.NewFuncType(types.NoThing)
 		if !f.Type().Equal(types.NewFuncType(types.NoThing)) {
-			errors.ThrowTypeMismatchErrorV2(node.Position(), f.Type(), mainType)
+			errors.ThrowTypeMismatchError(node.Position(), f.Type(), mainType)
 		}
 	}
 	return self.pkg.AppendGlobal(node.Public, f).(*global.FuncDef)
@@ -179,7 +180,7 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) *global.MethodDef {
 	if f.Name() == "main" {
 		mainType := types.NewFuncType(types.NoThing)
 		if !f.Type().Equal(types.NewFuncType(types.NoThing)) {
-			errors.ThrowTypeMismatchErrorV2(node.Position(), f.Type(), mainType)
+			errors.ThrowTypeMismatchError(node.Position(), f.Type(), mainType)
 		}
 	}
 
@@ -263,20 +264,32 @@ func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) []*g
 	decls := stlslices.Map(node.Vars, func(_ int, item ast.VarDef) *global.VarDef {
 		return stlval.IgnoreWith(self.pkg.GetIdent(item.Name.Source())).(*global.VarDef)
 	})
-	// varTypes := lo.Map(vars, func(item *oldhir.GlobalVarDef, _ int) oldhir.Type {
-	// 	return item.GetType()
-	// })
+	varTypes := stlslices.Map(decls, func(_ int, decl *global.VarDef) types.Type {
+		return decl.Type()
+	})
 
-	// TODO: expr
-	// var value oldhir.Expr
-	// if valueNode, ok := node.Value.Value(); ok {
-	// 	value = self.expectExpr(&oldhir.TupleType{Elems: varTypes}, valueNode)
-	// } else {
-	// 	tupleValue := &oldhir.Tuple{Elems: make([]oldhir.Expr, len(vars))}
-	// 	for i, varDef := range node.Vars {
-	// 		tupleValue.Elems[i] = self.getTypeDefaultValue(varDef.Type.MustValue().Position(), varTypes[i])
-	// 	}
-	// 	value = tupleValue
-	// }
+	var value values.Value
+	if valueNode, ok := node.Value.Value(); ok {
+		value = self.expectExpr(types.NewTupleType(varTypes...), valueNode)
+	} else {
+		elems := make([]values.Value, len(decls))
+		for i, varDef := range node.Vars {
+			elems[i] = self.getTypeDefaultValue(varDef.Type.MustValue().Position(), varTypes[i])
+		}
+		value = local.NewTupleExpr(elems...)
+	}
+
+	if tuple, ok := value.(*local.TupleExpr); ok {
+		for i, v := range tuple.Elems() {
+			decls[i].SetValue(v)
+		}
+		return decls
+	}
+
+	v := global.NewVarDef(values.NewVarDecl(false, "", value.Type()))
+	v.SetValue(value)
+	for i, decl := range decls {
+		decl.SetValue(local.NewExtractExpr(v, uint(i)))
+	}
 	return decls
 }

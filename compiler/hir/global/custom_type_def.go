@@ -93,6 +93,10 @@ func (self *__CustomTypeDef__) HasImpl(trait *Trait) bool {
 	})
 }
 
+func (self *__CustomTypeDef__) Define() TypeDef {
+	return self
+}
+
 func (self *__CustomTypeDef__) Wrap(inner types.Type) types.BuildInType {
 	switch v := inner.(type) {
 	case types.SintType:

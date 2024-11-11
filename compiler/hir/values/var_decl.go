@@ -32,3 +32,5 @@ func (self *VarDecl) GetName() (string, bool) {
 func (self *VarDecl) Storable() bool {
 	return true
 }
+
+func (self *VarDecl) Ident() {}

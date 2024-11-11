@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
+	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -12,7 +13,11 @@ func (self *CodeGenerator) codegenType(t types.Type) llvm.Type {
 	case types.NoThingType, types.NoReturnType:
 		return self.builder.VoidType()
 	case types.CustomType:
-		return self.types.Get(t)
+		tObj := self.types.Get(t)
+		if tObj != nil {
+			return self.types.Get(t.(global.TypeDef).Define().(types.CustomType))
+		}
+		return self.codegenType(t.Target())
 	case types.AliasType:
 		return self.codegenType(t.Target())
 	case types.IntType:

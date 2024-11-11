@@ -14,4 +14,5 @@ type TypeDef interface {
 	types.Type
 	Target() types.Type
 	SetTarget(t types.Type)
+	Define() TypeDef
 }

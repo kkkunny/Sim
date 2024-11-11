@@ -27,6 +27,7 @@ func NewBlock(p *Block) *Block {
 	return &Block{
 		parent: either.Right[CallableDef, *Block](p),
 		stmts:  linkedlist.NewLinkedList[Local](),
+		idents: hashmap.StdWith[string, any](),
 	}
 }
 

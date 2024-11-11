@@ -28,6 +28,9 @@ func (self *CodeGenerator) codegenTypeDefDecl(pkg *global.Package) {
 }
 
 func (self *CodeGenerator) declCustomType(ir global.CustomTypeDef) {
+	if !types.Is[types.StructType](ir.Target(), true) && !types.Is[types.EnumType](ir.Target(), true) {
+		return
+	}
 	t := self.builder.NamedStructType("", false)
 	self.types.Set(ir, t)
 }
@@ -42,7 +45,11 @@ func (self *CodeGenerator) codegenTypeDefDef(pkg *global.Package) {
 }
 
 func (self *CodeGenerator) defCustomType(ir global.CustomTypeDef) {
-	t := self.types.Get(ir).(llvm.StructType)
+	tObj := self.types.Get(ir)
+	if tObj == nil {
+		return
+	}
+	t := tObj.(llvm.StructType)
 
 	target := self.codegenType(ir.Target())
 	if tt, ok := target.(llvm.StructType); ok {

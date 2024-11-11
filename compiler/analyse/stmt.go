@@ -35,7 +35,7 @@ func (self *Analyser) analyseFuncBody(f local.CallableDef, params []ast.Param, n
 		}
 	}
 
-	self.analyseFloatBlock(block, node)
+	self.analyseFlatBlock(block, node)
 
 	if block.BlockEndType() < local.BlockEndTypeFuncRet {
 		retType := f.CallableType().Ret()
@@ -85,7 +85,7 @@ func (self *Analyser) analyseReturn(node *ast.Return) *local.Return {
 		return local.NewReturn(value)
 	} else {
 		if !types.Is[types.NoThingType](ct.Ret()) {
-			errors.ThrowTypeMismatchErrorV2(node.Position(), ct.Ret(), types.NoThing)
+			errors.ThrowTypeMismatchError(node.Position(), ct.Ret(), types.NoThing)
 		}
 		return local.NewReturn()
 	}
@@ -108,7 +108,7 @@ func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *l
 		t = v.Type()
 	}
 
-	ident := local.NewSingleVarDef(values.NewVarDecl(node.Var.Mutable, name, t), v)
+	ident := local.NewSingleVarDef(local.NewVarDecl(node.Var.Mutable, name, t), v)
 	if !self.scope.SetIdent(name, ident) {
 		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
@@ -149,7 +149,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 		value = self.analyseExpr(types.NewTupleType(varTypes...), valueNode)
 		vTt, ok := types.As[types.TupleType](value.Type())
 		if !ok {
-			errors.ThrowExpectTupleErrorV2(valueNode.Position(), value.Type())
+			errors.ThrowExpectTupleError(valueNode.Position(), value.Type())
 		} else if len(vTt.Elems()) != len(varTypes) {
 			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(varTypes)), uint(len(vTt.Elems())))
 		}
@@ -157,7 +157,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 			if vt == nil {
 				varTypes[i] = vTt.Elems()[i]
 			} else if !vt.Equal(vTt.Elems()[i]) {
-				errors.ThrowTypeMismatchErrorV2(node.Vars[i].Name.Position, vt, vTt.Elems()[i])
+				errors.ThrowTypeMismatchError(node.Vars[i].Name.Position, vt, vTt.Elems()[i])
 			}
 		}
 	} else {
@@ -178,7 +178,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 	return local.NewMultiVarDef(vars, value)
 }
 
-func (self *Analyser) analyseFloatBlock(block *local.Block, node *ast.Block) {
+func (self *Analyser) analyseFlatBlock(block *local.Block, node *ast.Block) {
 	for iter := node.Stmts.Iterator(); iter.Next(); {
 		stmt := self.analyseStmt(iter.Value())
 		if stmtBlock, ok := stmt.(*local.Block); ok {
@@ -194,14 +194,20 @@ func (self *Analyser) analyseBlock(node *ast.Block, onAfterCreate func(block *lo
 	if onAfterCreate != nil {
 		onAfterCreate(block)
 	}
-	self.analyseFloatBlock(block, node)
+
+	parent := self.scope
+	self.scope = block
+	defer func() {
+		self.scope = parent
+	}()
+
+	self.analyseFlatBlock(block, node)
 	return block
 }
 
 func (self *Analyser) analyseIfElse(node *ast.IfElse) *local.IfElse {
 	if condNode, ok := node.Cond.Value(); ok {
-		bt := stlval.IgnoreWith(self.buildinPkg().GetIdent("bool")).(types.Type)
-		cond := self.expectExpr(bt, condNode)
+		cond := self.expectExpr(types.Bool, condNode)
 		body := self.analyseBlock(node.Body, nil)
 
 		ifStmt := local.NewIfElse(body, cond)
@@ -217,8 +223,7 @@ func (self *Analyser) analyseIfElse(node *ast.IfElse) *local.IfElse {
 }
 
 func (self *Analyser) analyseWhile(node *ast.While) *local.While {
-	bt := stlval.IgnoreWith(self.buildinPkg().GetIdent("bool")).(types.Type)
-	cond := self.expectExpr(bt, node.Cond)
+	cond := self.expectExpr(types.Bool, node.Cond)
 	var loop *local.While
 	self.analyseBlock(node.Body, func(block *local.Block) {
 		loop = local.NewWhile(cond, block)
@@ -232,11 +237,11 @@ func (self *Analyser) analyseFor(node *ast.For) *local.For {
 	iterType := iter.Type()
 	at, ok := types.As[types.ArrayType](iterType)
 	if !ok {
-		errors.ThrowExpectArrayErrorV2(node.Iterator.Position(), iterType)
+		errors.ThrowExpectArrayError(node.Iterator.Position(), iterType)
 	}
 
 	cursorName := node.Cursor.Source()
-	cursor := values.NewVarDecl(node.CursorMut, cursorName, at.Elem())
+	cursor := local.NewVarDecl(node.CursorMut, cursorName, at.Elem())
 	var loop *local.For
 	self.analyseBlock(node.Body, func(block *local.Block) {
 		if !block.SetIdent(cursorName, cursor) {
@@ -253,7 +258,7 @@ func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
 	vt := value.Type()
 	vEt, ok := types.As[types.EnumType](vt)
 	if !ok {
-		errors.ThrowExpectEnumTypeErrorV2(node.Value.Position(), vt)
+		errors.ThrowExpectEnumTypeError(node.Value.Position(), vt)
 	}
 
 	cases := linkedhashmap.StdWithCap[string, *local.MatchCase](uint(len(node.Cases)))
@@ -274,12 +279,12 @@ func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
 		}
 
 		// TODO: 模式匹配每个case的var只能有一个
-		var caseVar *values.VarDecl
+		var caseVar *local.VarDecl
 		var caseBodyFn func(block *local.Block)
 		if len(caseNode.Elems) != 0 {
 			caseVarNode := stlslices.Last(caseNode.Elems)
 			caseVarName := caseVarNode.Name.Source()
-			caseVar = values.NewVarDecl(caseVarNode.Mutable, caseVarName, fieldElem)
+			caseVar = local.NewVarDecl(caseVarNode.Mutable, caseVarName, fieldElem)
 			caseBodyFn = func(block *local.Block) {
 				if !block.SetIdent(caseVarName, caseVar) {
 					errors.ThrowIdentifierDuplicationError(caseVarNode.Name.Position, caseVarNode.Name)
@@ -296,7 +301,7 @@ func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
 	if otherNode, ok := node.Other.Value(); ok {
 		stmt.SetOther(self.analyseBlock(otherNode, nil))
 	} else if cases.Length() != vEt.EnumFields().Length() {
-		errors.ThrowExpectMoreCaseV2(node.Value.Position(), vt, cases.Length(), vEt.EnumFields().Length())
+		errors.ThrowExpectMoreCase(node.Value.Position(), vt, cases.Length(), vEt.EnumFields().Length())
 	}
 
 	return stmt

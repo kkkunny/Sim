@@ -244,7 +244,7 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 		return self.values.Get(ir)
 	case *global.MethodDef:
 		return self.values.Get(&ir.FuncDef)
-	case *local.SingleVarDef, *values.VarDecl, *local.Param, *global.VarDef:
+	case *local.SingleVarDef, *values.VarDecl, *local.Param, *global.VarDef, *local.VarDecl:
 		p := self.values.Get(ir)
 		if !load {
 			return p
@@ -534,7 +534,7 @@ func (self *CodeGenerator) codegenMethod(ir *local.MethodExpr) llvm.Value {
 
 	preBlock := self.builder.CurrentBlock()
 	self.builder.MoveToAfter(f.NewBlock(""))
-	method := self.codegenIdent(ir.Method(), true)
+	method := self.codegenIdent(ir.Method().(values.Ident), true)
 	selfVal := self.builder.CreateStructIndex(ctxType, f.GetParam(0), 0, false)
 	args := []llvm.Value{selfVal}
 	args = append(args, stlslices.Map(f.Params()[1:], func(i int, e llvm.Param) llvm.Value {

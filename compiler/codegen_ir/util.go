@@ -189,7 +189,7 @@ func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
 
 func (self *CodeGenerator) buildEqual(tIr types.Type, l, r llvm.Value, not bool) llvm.Value {
 	switch tIr := tIr.(type) {
-	case types.IntType, types.RefType:
+	case types.IntType, types.RefType, types.BoolType:
 		return self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
 	case types.FloatType:
 		return self.builder.CreateFloatCmp("", stlval.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
@@ -289,8 +289,6 @@ func (self *CodeGenerator) buildEqual(tIr types.Type, l, r llvm.Value, not bool)
 			return self.builder.CreateNot("", phi)
 		}
 		return phi
-	case global.CustomTypeDef:
-		return self.buildEqual(tIr.Target(), l, r, not)
 	case types.LambdaType:
 		st := self.codegenType(tIr).(llvm.StructType)
 		f1p := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 0, false), self.builder.CreateStructIndex(st, r, 0, false))
@@ -318,7 +316,7 @@ func (self *CodeGenerator) buildEqual(tIr types.Type, l, r llvm.Value, not bool)
 			Value llvm.Value
 			Block llvm.Block
 		} {
-			if _, ok := field.Elem(); ok {
+			if _, ok := field.Elem(); !ok {
 				return struct {
 					Value llvm.Value
 					Block llvm.Block
@@ -378,6 +376,10 @@ func (self *CodeGenerator) buildEqual(tIr types.Type, l, r llvm.Value, not bool)
 			return self.builder.CreateNot("", phi)
 		}
 		return phi
+	case types.CustomType:
+		return self.buildEqual(tIr.Target(), l, r, not)
+	case types.AliasType:
+		return self.buildEqual(tIr.Target(), l, r, not)
 	default:
 		panic("unreachable")
 	}
@@ -392,6 +394,8 @@ func (self *CodeGenerator) codegenDefault(ir types.Type) llvm.Value {
 		panic("unreachable")
 	case types.NumType:
 		return self.builder.ConstZero(self.codegenType(ir))
+	case types.BoolType:
+		return self.builder.ConstBoolean(false)
 	case types.ArrayType:
 		at := self.codegenArrayType(ir)
 		if ir.Size() == 0 {
@@ -438,8 +442,6 @@ func (self *CodeGenerator) codegenDefault(ir types.Type) llvm.Value {
 			return self.codegenDefault(elem)
 		})
 		return self.builder.CreateStruct(self.codegenTupleType(ir), elems...)
-	case global.CustomTypeDef:
-		return self.codegenDefault(ir.Target())
 	case types.StructType:
 		fields := stlslices.Map(ir.Fields().Values(), func(_ int, field *types.Field) llvm.Value {
 			return self.codegenDefault(field.Type())
@@ -508,6 +510,8 @@ func (self *CodeGenerator) codegenDefault(ir types.Type) llvm.Value {
 			self.builder.CreateStructIndex(ut, ptr, 1, true),
 		)
 		return self.builder.CreateLoad("", ut, ptr)
+	case global.TypeDef:
+		return self.codegenDefault(ir.Target())
 	default:
 		panic("unreachable")
 	}
@@ -520,9 +524,8 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 		return llvm.Module{}, err
 	}
 	module := New(target).Codegen(pkg)
-	// TODO: opt
 	// passOption := llvm.NewPassOption()
 	// defer passOption.Free()
-	// err = stlerror.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
+	// err = stlerr.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
 	return module, err
 }

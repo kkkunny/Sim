@@ -1,5 +1,8 @@
 import std::os
 
 func main(){
-	debug("Hello World")
+	let a = (v: u8) -> u8{
+		return v
+	}
+	os::exit(a(0))
 }

@@ -226,7 +226,7 @@ func (self *CodeGenerator) codegenFor(ir *local.For) {
 	iter := self.codegenValue(ir.Iter(), false)
 	indexPtr := self.builder.CreateAlloca("", self.builder.Isize())
 	self.builder.CreateStore(self.builder.ConstIsize(0), indexPtr)
-	cursorPtr := self.codegenVarDecl(ir.Cursor())
+	cursorPtr := self.codegenVarDecl(&ir.Cursor().VarDecl)
 	condBlock := self.builder.CurrentFunction().NewBlock("")
 	self.builder.CreateBr(condBlock)
 	self.builder.MoveToAfter(condBlock)
@@ -311,8 +311,7 @@ func (self *CodeGenerator) codegenMatch(ir *local.Match) {
 			defer self.builder.MoveToAfter(caseCurBlock)
 			self.builder.MoveToAfter(block)
 
-			// TODO: 临时变量会有问题
-			self.values.Set(caseVar, value)
+			self.values.Set(caseVar, self.builder.CreateStructIndex(t.(llvm.StructType), value, 0, true))
 		})
 		self.builder.MoveToAfter(caseCurBlock)
 		self.builder.CreateBr(endBlock)

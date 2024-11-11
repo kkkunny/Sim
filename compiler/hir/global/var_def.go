@@ -9,14 +9,14 @@ import (
 // VarDef 变量定义
 type VarDef struct {
 	pkgGlobalAttr
-	*values.VarDecl
+	values.VarDecl
 	attrs []VarAttr
 	value values.Value
 }
 
 func NewVarDef(decl *values.VarDecl, attrs ...VarAttr) *VarDef {
 	return &VarDef{
-		VarDecl: decl,
+		VarDecl: *decl,
 		attrs:   attrs,
 	}
 }

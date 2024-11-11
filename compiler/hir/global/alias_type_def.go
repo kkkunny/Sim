@@ -64,6 +64,10 @@ func (self *__AliasTypeDef__) Alias() {
 
 }
 
+func (self *__AliasTypeDef__) Define() TypeDef {
+	return self
+}
+
 func (self *__AliasTypeDef__) Wrap(inner types.Type) types.BuildInType {
 	switch v := inner.(type) {
 	case types.SintType:

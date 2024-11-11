@@ -434,7 +434,7 @@ type FieldExpr struct {
 
 func NewFieldExpr(f values.Value, i string) *FieldExpr { return &FieldExpr{from: f, field: i} }
 func (self *FieldExpr) Type() types.Type {
-	field, _ := stlslices.FindFirst(self.from.Type().(types.StructType).Fields().Values(), func(i int, f *types.Field) bool {
+	field, _ := stlslices.FindFirst(stlval.IgnoreWith(types.As[types.StructType](self.from.Type())).Fields().Values(), func(i int, f *types.Field) bool {
 		return f.Name() == self.field
 	})
 	return field.Type()

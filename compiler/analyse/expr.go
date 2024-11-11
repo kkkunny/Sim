@@ -43,7 +43,7 @@ func (self *Analyser) analyseExpr(expect types.Type, node ast.Expr) values.Value
 	case *ast.Index:
 		return self.analyseIndex(exprNode)
 	case *ast.Extract:
-		return self.analyseExtract(exprNode)
+		return self.analyseExtract(expect, exprNode)
 	case *ast.Struct:
 		return self.analyseStruct(exprNode)
 	case *ast.Dot:
@@ -64,14 +64,14 @@ func (self *Analyser) expectExpr(expect types.Type, node ast.Expr) values.Value 
 	value := self.analyseExpr(expect, node)
 	newValue, ok := self.autoTypeCovert(expect, value)
 	if !ok {
-		errors.ThrowTypeMismatchErrorV2(node.Position(), value.Type(), expect)
+		errors.ThrowTypeMismatchError(node.Position(), value.Type(), expect)
 	}
 	return newValue
 }
 
 func (self *Analyser) analyseInteger(expect types.Type, node *ast.Integer) values.Value {
 	if !types.Is[types.NumType](expect) {
-		expect = stlval.IgnoreWith(self.buildinPkg().GetIdent("isize")).(types.Type)
+		expect = types.Isize
 	}
 	if expectIt, ok := types.As[types.IntType](expect); ok {
 		value, ok := big.NewInt(0).SetString(node.Value.Source(), 10)
@@ -89,7 +89,7 @@ func (self *Analyser) analyseInteger(expect types.Type, node *ast.Integer) value
 
 func (self *Analyser) analyseChar(expect types.Type, node *ast.Char) values.Value {
 	if !types.Is[types.NumType](expect) {
-		expect = stlval.IgnoreWith(self.buildinPkg().GetIdent("i32")).(types.Type)
+		expect = types.I32
 	}
 	s := node.Value.Source()
 	char := util.ParseEscapeCharacter(s[1:len(s)-1], `\'`, `'`)[0]
@@ -106,7 +106,7 @@ func (self *Analyser) analyseChar(expect types.Type, node *ast.Char) values.Valu
 
 func (self *Analyser) analyseFloat(expect types.Type, node *ast.Float) *values.Float {
 	if !types.Is[types.FloatType](expect) {
-		expect = stlval.IgnoreWith(self.buildinPkg().GetIdent("f64")).(types.Type)
+		expect = types.F64
 	}
 	expectFt, _ := types.As[types.FloatType](expect)
 	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
@@ -221,7 +221,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
-			return local.NewAddExpr(left, right)
+			return local.NewSubExpr(left, right)
 		}
 	case token.MUL:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Mul")).(*global.Trait)
@@ -248,7 +248,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
-			return local.NewDivExpr(left, right)
+			return local.NewRemExpr(left, right)
 		}
 	case token.EQ:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
@@ -344,7 +344,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		panic("unreachable")
 	}
 
-	errors.ThrowIllegalBinaryErrorV2(node.Position(), node.Opera, left, right)
+	errors.ThrowIllegalBinaryError(node.Position(), node.Opera, left, right)
 	return nil
 }
 
@@ -361,7 +361,7 @@ func (self *Analyser) analyseUnary(expect types.Type, node *ast.Unary) values.Va
 		} else if types.Is[types.SintType](vt) || types.Is[types.FloatType](vt) {
 			return local.NewOppositeExpr(value)
 		}
-		errors.ThrowIllegalUnaryErrorV2(node.Position(), node.Opera, vt)
+		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 		return nil
 	case token.NOT:
 		value := self.analyseExpr(expect, node.Value)
@@ -378,7 +378,7 @@ func (self *Analyser) analyseUnary(expect types.Type, node *ast.Unary) values.Va
 		case types.Is[types.BoolType](vt):
 			return local.NewNotExpr(value)
 		default:
-			errors.ThrowIllegalUnaryErrorV2(node.Position(), node.Opera, vt)
+			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 			return nil
 		}
 	case token.AND, token.AND_WITH_MUT:
@@ -403,7 +403,7 @@ func (self *Analyser) analyseUnary(expect types.Type, node *ast.Unary) values.Va
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.Type()
 		if !types.Is[types.RefType](vt) {
-			errors.ThrowExpectReferenceErrorV2(node.Value.Position(), vt)
+			errors.ThrowExpectReferenceError(node.Value.Position(), vt)
 		}
 		return local.NewDeRefExpr(value)
 	default:
@@ -482,7 +482,7 @@ func (self *Analyser) analyseCall(expect types.Type, node *ast.Call) values.Valu
 	f := self.analyseExpr(expect, node.Func)
 	ct, ok := types.As[types.CallableType](f.Type())
 	if !ok {
-		errors.ThrowExpectCallableErrorV2(node.Func.Position(), f.Type())
+		errors.ThrowExpectCallableError(node.Func.Position(), f.Type())
 	}
 	pts := ct.Params()
 	vararg := stlval.Is[*global.FuncDef](f) && stlslices.Exist(f.(*global.FuncDef).Attrs(), func(_ int, attr global.FuncAttr) bool {
@@ -491,11 +491,11 @@ func (self *Analyser) analyseCall(expect types.Type, node *ast.Call) values.Valu
 	if (!vararg && len(node.Args) != len(pts)) || (vararg && len(node.Args) < len(pts)) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(pts)), uint(len(node.Args)))
 	}
-	args := stlslices.Map(node.Args, func(index int, item ast.Expr) values.Value {
-		if vararg && index >= len(pts) {
+	args := stlslices.Map(node.Args, func(i int, item ast.Expr) values.Value {
+		if vararg && i >= len(pts) {
 			return self.analyseExpr(nil, item)
 		} else {
-			return self.expectExpr(pts[index], item)
+			return self.expectExpr(pts[i], item)
 		}
 	})
 	return local.NewCallExpr(f, args...)
@@ -532,8 +532,6 @@ func (self *Analyser) autoTypeCovert(tt types.Type, v values.Value) (values.Valu
 		return v, true
 	}
 
-	u8 := stlval.IgnoreWith(self.buildinPkg().GetIdent("u8")).(types.Type)
-
 	if fromRt, fromOk := types.As[types.RefType](ft, true); fromOk && fromRt.Pointer().Equal(tt) {
 		// &type -> type
 		return local.NewDeRefExpr(v), true
@@ -548,15 +546,15 @@ func (self *Analyser) autoTypeCovert(tt types.Type, v values.Value) (values.Valu
 	} else if toLt, toOk := types.As[types.LambdaType](tt, true); fromOk && toOk && fromFt.Equal(toLt.ToFunc()) {
 		// func -> lambda
 		return local.NewFunc2LambdaExpr(v, toLt), true
-	} else if fromEt, fromOk := types.As[types.EnumType](fromFt, true); fromOk && false {
+	} else if fromEt, fromOk := types.As[types.EnumType](ft); fromOk && false {
 		panic("unreachable")
-	} else if toUt, toOk := types.As[types.UintType](tt, true); fromOk && toOk && fromEt.Simple() && toUt.Equal(u8) {
+	} else if toUt, toOk := types.As[types.UintType](tt, true); fromOk && toOk && fromEt.Simple() && toUt.Equal(types.U8) {
 		// simple enum -> u8
 		// TODO: 移至强类型转换
 		return local.NewEnum2NumberExpr(v, toUt), true
-	} else if fromUt, fromOk := types.As[types.UintType](fromFt, true); fromOk && false {
+	} else if fromUt, fromOk := types.As[types.UintType](ft, true); fromOk && false {
 		panic("unreachable")
-	} else if toEt, toOk := types.As[types.EnumType](tt, true); fromOk && toOk && toEt.Simple() && fromUt.Equal(u8) {
+	} else if toEt, toOk := types.As[types.EnumType](tt); fromOk && toOk && toEt.Simple() && fromUt.Equal(types.U8) {
 		// u8 -> simple enum
 		// TODO: 移至强类型转换
 		return local.NewNumber2EnumExpr(v, toEt), true
@@ -591,7 +589,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) values.Value {
 		// float -> float
 		return local.NewFloat2FloatExpr(from, toFt)
 	} else {
-		errors.ThrowIllegalCovertErrorV2(node.Position(), ft, tt)
+		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
 		return nil
 	}
 }
@@ -599,7 +597,7 @@ func (self *Analyser) analyseCovert(node *ast.Covert) values.Value {
 func (self *Analyser) analyseArray(expect types.Type, node *ast.Array) *local.ArrayExpr {
 	expectAt, _ := types.As[types.ArrayType](expect)
 	if expectAt == nil && len(node.Elems) == 0 {
-		errors.ThrowExpectArrayTypeErrorV2(node.Position(), types.NoThing)
+		errors.ThrowExpectArrayTypeError(node.Position(), types.NoThing)
 	}
 
 	elems := make([]values.Value, len(node.Elems))
@@ -625,17 +623,16 @@ func (self *Analyser) analyseIndex(node *ast.Index) *local.IndexExpr {
 	from := self.analyseExpr(nil, node.From)
 	at, ok := types.As[types.ArrayType](from.Type())
 	if !ok {
-		errors.ThrowExpectArrayErrorV2(node.From.Position(), from.Type())
+		errors.ThrowExpectArrayError(node.From.Position(), from.Type())
 	}
-	usize := stlval.IgnoreWith(self.buildinPkg().GetIdent("usize")).(types.Type)
-	index := self.expectExpr(usize, node.Index)
+	index := self.expectExpr(types.Usize, node.Index)
 	if stlval.Is[*values.Integer](index) && index.(*values.Integer).Value().Cmp(big.NewInt(int64(at.Size()))) >= 0 {
 		errors.ThrowIndexOutOfRange(node.Index.Position())
 	}
 	return local.NewIndexExpr(from, index)
 }
 
-func (self *Analyser) analyseExtract(node *ast.Extract) *local.ExtractExpr {
+func (self *Analyser) analyseExtract(expect types.Type, node *ast.Extract) *local.ExtractExpr {
 	indexValue, ok := big.NewInt(0).SetString(node.Index.Source(), 10)
 	if !ok || !indexValue.IsUint64() {
 		panic("unreachable")
@@ -643,11 +640,15 @@ func (self *Analyser) analyseExtract(node *ast.Extract) *local.ExtractExpr {
 	// TODO: 溢出
 	index := uint(indexValue.Uint64())
 
-	// TODO: expect
-	from := self.analyseExpr(nil, node.From)
+	if expect != nil {
+		elems := make([]types.Type, index+1)
+		elems[index] = expect
+		expect = types.NewTupleType(elems...)
+	}
+	from := self.analyseExpr(expect, node.From)
 	ft, ok := types.As[types.TupleType](from.Type())
 	if !ok {
-		errors.ThrowExpectTupleErrorV2(node.From.Position(), from.Type())
+		errors.ThrowExpectTupleError(node.From.Position(), from.Type())
 	} else if index >= uint(len(ft.Elems())) {
 		errors.ThrowInvalidIndexError(node.Index.Position, index)
 	}
@@ -658,7 +659,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *local.StructExpr {
 	stObj := self.analyseType(node.Type)
 	st, ok := types.As[types.StructType](stObj)
 	if !ok {
-		errors.ThrowExpectStructTypeErrorV2(node.Type.Position(), stObj)
+		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
 	td, ok := types.As[global.TypeDef](stObj, true)
 	if !ok {
@@ -729,7 +730,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) values.Value {
 	} else if fromOk && types.Is[types.StructType](fromRt.Pointer()) {
 		fromStVal = local.NewDeRefExpr(from)
 	} else {
-		errors.ThrowExpectStructErrorV2(node.From.Position(), ft)
+		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
 	fromSt, ok := types.As[types.StructType](fromStVal.Type())
 	if !ok {
@@ -792,7 +793,7 @@ func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
 
 func (self *Analyser) analyseString(expect types.Type, node *ast.String) *values.String {
 	if !types.Is[types.StrType](expect) {
-		expect = stlval.IgnoreWith(self.buildinPkg().GetIdent("str")).(types.Type)
+		expect = types.Str
 	}
 	expectSt, ok := types.As[types.StrType](expect)
 	if !ok {
@@ -810,7 +811,7 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) values.Value {
 	ft := from.Type()
 
 	if ft.Equal(tt) {
-		return stlval.IgnoreWith(self.buildinPkg().GetIdent("true")).(values.Value)
+		return values.NewBoolean(true)
 	} else {
 		return local.NewTypeJudgmentExpr(from, tt)
 	}
@@ -827,8 +828,7 @@ func (self *Analyser) analyseLambda(node *ast.Lambda) values.Value {
 		if !ok || stlval.Is[global.Global](exprIdent) {
 			return
 		}
-		// TODO: VarDecl也需要逃逸分析
-		if v, ok := exprIdent.(*local.SingleVarDef); ok {
+		if v, ok := exprIdent.(local.VarDef); ok {
 			v.SetEscaped(true)
 		}
 		captureIdents.Add(exprIdent)

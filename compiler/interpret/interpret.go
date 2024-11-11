@@ -53,6 +53,10 @@ func (self *Engine) MapFunctionIgnoreNotFind(name string, to any) error {
 }
 
 func (self *Engine) RunMain() (uint8, error) {
+	initFn, ok := self.module.GetFunction("sim_runtime_init")
+	if ok {
+		_ = self.jiter.RunFunction(initFn)
+	}
 	mainFn, ok := self.module.GetFunction("main")
 	if !ok {
 		return 1, stlerror.Errorf("can not find the main function")

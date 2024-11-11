@@ -133,10 +133,6 @@ func (self *Analyser) hasTypeDefault(typ types.Type) bool {
 			return self.hasTypeDefault(e)
 		})
 	case types.CustomType:
-		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Default")).(*global.Trait)
-		if t.(global.CustomTypeDef).HasImpl(trait) {
-			return true
-		}
 		return self.hasTypeDefault(t.Target())
 	case types.AliasType:
 		return self.hasTypeDefault(t.Target())
@@ -160,7 +156,7 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (either.Either[types.Type
 // 获取类型默认值
 func (self *Analyser) getTypeDefaultValue(pos reader.Position, t types.Type) *local.DefaultExpr {
 	if !self.hasTypeDefault(t) {
-		errors.ThrowCanNotGetDefaultV2(pos, t)
+		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return local.NewDefaultExpr(t)
 }

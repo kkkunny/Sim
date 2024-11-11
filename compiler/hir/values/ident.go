@@ -4,4 +4,5 @@ package values
 type Ident interface {
 	Value
 	GetName() (string, bool)
+	Ident()
 }
