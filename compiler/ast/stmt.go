@@ -127,7 +127,7 @@ type MatchCaseElem struct {
 
 type MatchCase struct {
 	Name    token.Token
-	Elems   []MatchCaseElem
+	Elem    optional.Optional[MatchCaseElem]
 	ElemEnd reader.Position
 	Body    *Block
 }

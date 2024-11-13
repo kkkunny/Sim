@@ -272,17 +272,15 @@ func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
 
 		field := vEt.EnumFields().Get(caseName)
 		fieldElem, ok := field.Elem()
-		if !ok && len(caseNode.Elems) != 0 {
-			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 0, uint(len(caseNode.Elems)))
-		} else if ok && len(caseNode.Elems) != 1 {
-			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 1, uint(len(caseNode.Elems)))
+		if !ok && caseNode.Elem.IsSome() {
+			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 0, 1)
+		} else if ok && caseNode.Elem.IsNone() {
+			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 1, 0)
 		}
 
-		// TODO: 模式匹配每个case的var只能有一个
 		var caseVar *local.VarDecl
 		var caseBodyFn func(block *local.Block)
-		if len(caseNode.Elems) != 0 {
-			caseVarNode := stlslices.Last(caseNode.Elems)
+		if caseVarNode, ok := caseNode.Elem.Value(); ok {
 			caseVarName := caseVarNode.Name.Source()
 			caseVar = local.NewVarDecl(caseVarNode.Mutable, caseVarName, fieldElem)
 			caseBodyFn = func(block *local.Block) {

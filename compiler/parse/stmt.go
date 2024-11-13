@@ -139,15 +139,11 @@ func (self *Parser) parseMatch() *ast.Match {
 		caseBeginTok := self.curTok
 		if caseBeginTok.Is(token.CASE) {
 			name := self.expectNextIs(token.IDENT)
-			var elems []ast.MatchCaseElem
+			var elem optional.Optional[ast.MatchCaseElem]
 			if self.skipNextIs(token.LPA) {
-				elems = loopParseWithUtil(self, token.COM, token.RPA, func() ast.MatchCaseElem {
-					mut := self.skipNextIs(token.MUT)
-					pn := self.expectNextIs(token.IDENT)
-					return ast.MatchCaseElem{
-						Mutable: mut,
-						Name:    pn,
-					}
+				elem = optional.Some(ast.MatchCaseElem{
+					Mutable: self.skipNextIs(token.MUT),
+					Name:    self.expectNextIs(token.IDENT),
 				})
 				self.expectNextIs(token.RPA)
 			}
@@ -160,7 +156,7 @@ func (self *Parser) parseMatch() *ast.Match {
 			}
 			cases = append(cases, ast.MatchCase{
 				Name:    name,
-				Elems:   elems,
+				Elem:    elem,
 				ElemEnd: elemEnd,
 				Body:    body,
 			})
