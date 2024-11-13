@@ -1,373 +1,162 @@
 package analyse
 
 import (
-	"strconv"
-	"strings"
-
-	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/either"
-	stliter "github.com/kkkunny/stl/container/iter"
-	"github.com/kkkunny/stl/container/linkedlist"
-	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	"github.com/kkkunny/stl/container/tuple"
-	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
-
-	"github.com/kkkunny/Sim/compiler/hir"
-
-	"github.com/kkkunny/Sim/compiler/parse"
-
-	"github.com/kkkunny/Sim/compiler/reader"
-
 	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
+	"github.com/kkkunny/Sim/compiler/reader"
 )
 
-type importPackageErrorKind uint8
-
-const (
-	importPackageErrorNone importPackageErrorKind = iota
-	// 循环导入
-	importPackageErrorCircular
-	// 包名冲突
-	importPackageErrorDuplication
-	// 无效包
-	importPackageErrorInvalid
-)
-
-// importPackage 导入包
-func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool) (hirs linkedlist.LinkedList[hir.Global], err importPackageErrorKind) {
-	name = stlval.Ternary(name != "", name, pkg.GetPackageName())
-
-	if !importAll && self.pkgScope.externs.Contain(name) {
-		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorDuplication
-	}
-
-	var scope *_PkgScope
-	defer func() {
-		if err != importPackageErrorNone {
-			return
-		}
-		// 关联包
-		if importAll {
-			self.pkgScope.links.Add(scope)
-		} else {
-			self.pkgScope.externs.Set(name, scope)
-		}
-	}()
-
-	if scope = self.pkgs.Get(pkg); self.pkgs.Contain(pkg) && scope == nil {
-		// 循环导入
-		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorCircular
-	} else if self.pkgs.Contain(pkg) && scope != nil {
-		// 导入过该包，有缓存，不再追加该包的语句
-		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorNone
-	}
-
-	// 开始分析该包，放一个占位符，以便检测循环导入
-	self.pkgs.Set(pkg, nil)
-	// 分析并追加该包的语句
-	var analyseError error
-	hirs, scope, analyseError = analyseSonPackage(self, pkg)
-	if analyseError != nil && hirs.Empty() {
-		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorInvalid
-	}
-	self.pkgs.Set(pkg, scope)
-	return hirs, importPackageErrorNone
-}
-
-func (self *Analyser) setSelfType(td *hir.CustomType) (callback func()) {
-	bk := self.selfType
-	self.selfType = td
-	return func() {
-		self.selfType = bk
-	}
-}
-
-// 获取类型默认值
-func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *hir.Default {
-	if !self.hasTypeDefault(t) {
-		errors.ThrowCanNotGetDefault(pos, t)
-	}
-	return &hir.Default{Type: t}
-}
-
-// 检查类型定义是否循环
-func (self *Analyser) checkTypeDefCircle(trace set.Set[hir.Type], t hir.Type) bool {
-	if trace.Contain(t) {
-		return true
-	}
-	trace.Add(t)
-	defer func() {
-		trace.Remove(t)
-	}()
-
-	switch typ := t.(type) {
-	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.RefType, *hir.NoReturnType, *hir.LambdaType:
-	case *hir.ArrayType:
-		return self.checkTypeDefCircle(trace, typ.Elem)
-	case *hir.TupleType:
-		for _, e := range typ.Elems {
-			if self.checkTypeDefCircle(trace, e) {
-				return true
-			}
-		}
-	case *hir.StructType:
-		for iter := typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeDefCircle(trace, iter.Value().E2().Type) {
-				return true
-			}
-		}
-	case *hir.AliasType:
-		if self.checkTypeDefCircle(trace, typ.Target) {
-			return true
-		}
-	case *hir.CustomType:
-		if self.checkTypeDefCircle(trace, typ.Target) {
-			return true
-		}
-	case *hir.EnumType:
-		for iter := typ.Fields.Iterator(); iter.Next(); {
-			elemOp := iter.Value().E2().Elem
-			if elem, ok := elemOp.Value(); ok {
-				if self.checkTypeDefCircle(trace, elem) {
-					return true
-				}
-			}
-		}
-	default:
-		panic("unreachable")
-	}
-	return false
-}
-
-// 检查类型别名是否循环
-func (self *Analyser) checkTypeAliasCircle(trace set.Set[hir.Type], t hir.Type) bool {
-	if trace.Contain(t) {
-		return true
-	}
-	trace.Add(t)
-	defer func() {
-		trace.Remove(t)
-	}()
-
-	switch typ := t.(type) {
-	case *hir.NoThingType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.CustomType, *hir.NoReturnType:
-	case *hir.FuncType:
-		for _, p := range typ.Params {
-			if self.checkTypeAliasCircle(trace, p) {
-				return true
-			}
-		}
-		return self.checkTypeAliasCircle(trace, typ.Ret)
-	case *hir.LambdaType:
-		for _, p := range typ.Params {
-			if self.checkTypeAliasCircle(trace, p) {
-				return true
-			}
-		}
-		return self.checkTypeAliasCircle(trace, typ.Ret)
-	case *hir.RefType:
-		return self.checkTypeAliasCircle(trace, typ.Elem)
-	case *hir.ArrayType:
-		return self.checkTypeAliasCircle(trace, typ.Elem)
-	case *hir.TupleType:
-		for _, e := range typ.Elems {
-			if self.checkTypeAliasCircle(trace, e) {
-				return true
-			}
-		}
-	case *hir.StructType:
-		for iter := typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeAliasCircle(trace, iter.Value().E2().Type) {
-				return true
-			}
-		}
-	case *hir.AliasType:
-		if self.checkTypeAliasCircle(trace, typ.Target) {
-			return true
-		}
-	case *hir.EnumType:
-		for iter := typ.Fields.Iterator(); iter.Next(); {
-			elemOp := iter.Value().E2().Elem
-			if elem, ok := elemOp.Value(); ok {
-				if self.checkTypeDefCircle(trace, elem) {
-					return true
-				}
-			}
-		}
-	default:
-		panic("unreachable")
-	}
-	return false
-}
-
-func (self *Analyser) isInDstStructScope(st *hir.CustomType) bool {
-	if self.selfType == nil {
-		return false
-	}
-	selfName := stlval.TernaryAction(!strings.Contains(self.selfType.GetName(), "::"), func() string {
-		return self.selfType.GetName()
+func (self *Analyser) analyseParam(node ast.Param, analysers ...typeAnalyser) *local.Param {
+	mut := !node.Mutable.IsNone()
+	name := stlval.TernaryAction(node.Name.IsSome(), func() string {
+		return node.Name.MustValue().Source()
 	}, func() string {
-		return strings.Split(self.selfType.GetName(), "::")[0]
+		return ""
 	})
-	stName := stlval.TernaryAction(!strings.Contains(st.GetName(), "::"), func() string {
-		return st.GetName()
-	}, func() string {
-		return strings.Split(st.GetName(), "::")[0]
-	})
-	return self.selfType.GetPackage().Equal(st.GetPackage()) && selfName == stName
+	typ := self.analyseType(node.Type, analysers...)
+	return local.NewParam(mut, name, typ)
 }
 
-// 分析标识符，表达式优先
-func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) optional.Optional[either.Either[hir.Ident, hir.Type]] {
-	var pkgName string
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.Contain(pkgName) {
-			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
-		}
-	}
+func (self *Analyser) analyseFuncDecl(node ast.FuncDecl, analysers ...typeAnalyser) *global.FuncDecl {
+	name := node.Name.Source()
 
-	if len(flag) == 0 || flag[0] {
-		// 表达式
-		// 标识符表达式
-		value := stlval.TernaryAction(self.localScope == nil, func() tuple.Tuple2[hir.Ident, bool] {
-			return tuple.Pack2[hir.Ident, bool](self.pkgScope.GetValue(pkgName, node.Name.Source()))
-		}, func() tuple.Tuple2[hir.Ident, bool] {
-			return tuple.Pack2[hir.Ident, bool](self.localScope.GetValue(pkgName, node.Name.Source()))
-		})
-		if value.E2() {
-			return optional.Some(either.Left[hir.Ident, hir.Type](value.E1()))
-		}
-	}
-
-	if len(flag) == 0 || !flag[0] {
-		// 类型
-		name := node.Name.Source()
-		// 内置类型
-		if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_i") {
-			sizeStr := name[len("__buildin_i"):]
-			if sizeStr == "size" {
-				return optional.Some(either.Right[hir.Ident, hir.Type](hir.NewSintType(uint8(llvm.PointerSize) * 8)))
-			}
-			bits, err := strconv.ParseUint(sizeStr, 10, 8)
-			if err == nil && bits > 0 && bits <= 128 {
-				return optional.Some(either.Right[hir.Ident, hir.Type](hir.NewSintType(uint8(bits))))
-			}
-		} else if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_u") {
-			sizeStr := name[len("__buildin_u"):]
-			if sizeStr == "size" {
-				return optional.Some(either.Right[hir.Ident, hir.Type](hir.NewUintType(uint8(llvm.PointerSize) * 8)))
-			}
-			bits, err := strconv.ParseUint(sizeStr, 10, 8)
-			if err == nil && bits > 0 && bits <= 128 {
-				return optional.Some(either.Right[hir.Ident, hir.Type](hir.NewUintType(uint8(bits))))
-			}
-		} else if self.pkgScope.pkg.Equal(hir.BuildInPackage) && strings.HasPrefix(name, "__buildin_f") {
-			bits, err := strconv.ParseUint(name[len("__buildin_f"):], 10, 8)
-			if err == nil && (bits == 16 || bits == 32 || bits == 64 || bits == 128) {
-				return optional.Some(either.Right[hir.Ident, hir.Type](hir.NewFloatType(uint8(bits))))
-			}
-		}
-		// 类型定义
-		if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
-			return optional.Some(either.Right[hir.Ident, hir.Type](td))
-		}
-	}
-	return optional.None[either.Either[hir.Ident, hir.Type]]()
-}
-
-func (self *Analyser) analyseFuncBody(node *ast.Block) *hir.Block {
-	fn := self.localScope.GetFunc()
-	body, jump := self.analyseBlock(node, nil)
-	if jump != hir.BlockEofReturn {
-		retType := fn.GetFuncType().Ret
-		if !retType.EqualTo(hir.NoThing) {
-			errors.ThrowMissingReturnValueError(node.Position(), retType)
-		}
-		body.Stmts.PushBack(hir.NewReturn(fn))
-	}
-	return body
-}
-
-func (self *Analyser) analyseFuncDecl(node ast.FuncDecl) hir.FuncDecl {
 	paramNameSet := set.StdHashSetWith[string]()
-	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *hir.Param {
-		param := self.analyseParam(e)
-		if param.Name.IsSome() && !paramNameSet.Add(param.Name.MustValue()) {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *local.Param {
+		param := self.analyseParam(e, analysers...)
+		if paramName, ok := param.GetName(); ok && !paramNameSet.Add(paramName) {
 			errors.ThrowIdentifierDuplicationError(e.Name.MustValue().Position, e.Name.MustValue())
 		}
 		return param
 	})
-	return hir.FuncDecl{
-		Name:   node.Name.Source(),
-		Params: params,
-		Ret:    self.analyseOptionTypeWith(node.Ret, noReturnTypeAnalyser),
+	paramTypes := stlslices.Map(params, func(_ int, p *local.Param) types.Type {
+		return p.Type()
+	})
+
+	var ret types.Type = types.NoThing
+	if retNode, ok := node.Ret.Value(); ok {
+		ret = self.analyseType(retNode, append(analysers, self.noReturnTypeAnalyser())...)
 	}
+	return global.NewFuncDecl(types.NewFuncType(ret, paramTypes...), name, params...)
 }
 
-// 类型是否有默认值
-func (self *Analyser) hasTypeDefault(t hir.Type) bool {
-	switch tt := t.(type) {
-	case *hir.NoThingType, *hir.NoReturnType, *hir.RefType:
-		return false
-	case *hir.SintType, *hir.UintType, *hir.FloatType:
+// 检查类型是否循环（是否不能确定size）
+func (self *Analyser) checkTypeCircle(trace set.Set[types.Type], t types.Type) bool {
+	if trace.Contain(t) {
 		return true
-	case *hir.FuncType:
-		if tt.Ret.EqualTo(hir.NoThing) {
-			return true
+	}
+	trace.Add(t)
+	defer func() {
+		trace.Remove(t)
+	}()
+
+	switch typ := t.(type) {
+	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.StrType, types.RefType, types.CallableType:
+		return false
+	case types.ArrayType:
+		return self.checkTypeCircle(trace, typ.Elem())
+	case types.TupleType:
+		for _, e := range typ.Elems() {
+			if self.checkTypeCircle(trace, e) {
+				return true
+			}
 		}
-		return self.hasTypeDefault(tt.Ret)
-	case *hir.LambdaType:
-		if tt.Ret.EqualTo(hir.NoThing) {
-			return true
+		return false
+	case types.StructType:
+		for _, f := range typ.Fields().Values() {
+			if self.checkTypeCircle(trace, f.Type()) {
+				return true
+			}
 		}
-		return self.hasTypeDefault(tt.Ret)
-	case *hir.CustomType:
-		if self.pkgScope.Default().HasBeImpled(t) {
-			return true
+		return false
+	case types.EnumType:
+		for iter := typ.EnumFields().Iterator(); iter.Next(); {
+			if e, ok := iter.Value().E2().Elem(); ok {
+				if self.checkTypeCircle(trace, e) {
+					return true
+				}
+			}
 		}
-		return self.hasTypeDefault(tt.Target)
-	case *hir.AliasType:
-		return self.hasTypeDefault(tt.Target)
-	case *hir.ArrayType:
-		return self.hasTypeDefault(tt.Elem)
-	case *hir.TupleType:
-		return stlslices.All(tt.Elems, func(_ int, e hir.Type) bool {
-			return self.hasTypeDefault(e)
-		})
-	case *hir.StructType:
-		return stliter.All(tt.Fields, func(e tuple.Tuple2[string, hir.Field]) bool {
-			return self.hasTypeDefault(e.E2().Type)
-		})
-	case *hir.EnumType:
-		return stliter.Any(tt.Fields, func(p tuple.Tuple2[string, hir.EnumField]) bool {
-			return p.E2().Elem.IsNone() || self.hasTypeDefault(p.E2().Elem.MustValue())
-		})
+		return false
+	case global.TypeDef:
+		return self.checkTypeCircle(trace, typ.Target())
 	default:
 		panic("unreachable")
 	}
 }
 
-// Analyse 语义分析
-func Analyse(path stlos.FilePath) (*hir.Result, error) {
-	asts, err := parse.Parse(path)
-	if err != nil {
-		return nil, err
+func (self *Analyser) buildinPkg() *global.Package {
+	if self.pkg.IsBuildIn() {
+		return self.pkg
 	}
-	return New(asts).Analyse(), nil
+	return stlval.IgnoreWith(stlslices.FindFirst(self.pkg.GetLinkedPackages(), func(_ int, pkg *global.Package) bool {
+		return pkg.IsBuildIn()
+	}))
 }
 
-// 语义分析子包
-func analyseSonPackage(parent *Analyser, pkg hir.Package) (linkedlist.LinkedList[hir.Global], *_PkgScope, error) {
-	asts, err := parse.Parse(pkg.Path())
-	if err != nil {
-		return linkedlist.LinkedList[hir.Global]{}, nil, err
+// 类型是否有默认值
+func (self *Analyser) hasTypeDefault(typ types.Type) bool {
+	switch t := typ.(type) {
+	case types.NoThingType, types.NoReturnType, types.RefType:
+		return false
+	case types.NumType, types.BoolType, types.StrType:
+		return true
+	case types.CallableType:
+		if types.Is[types.NoThingType](t.Ret(), true) {
+			return true
+		}
+		return self.hasTypeDefault(t.Ret())
+	case types.ArrayType:
+		return self.hasTypeDefault(t.Elem())
+	case types.TupleType:
+		return stlslices.All(t.Elems(), func(_ int, e types.Type) bool {
+			return self.hasTypeDefault(e)
+		})
+	case types.StructType:
+		return stlslices.All(t.Fields().Values(), func(_ int, f *types.Field) bool {
+			return self.hasTypeDefault(f.Type())
+		})
+	case types.EnumType:
+		return stlslices.All(t.EnumFields().Values(), func(_ int, f *types.EnumField) bool {
+			e, ok := f.Elem()
+			if !ok {
+				return true
+			}
+			return self.hasTypeDefault(e)
+		})
+	case types.CustomType:
+		return self.hasTypeDefault(t.Target())
+	case types.AliasType:
+		return self.hasTypeDefault(t.Target())
+	default:
+		panic("unreachable")
 	}
-	analyser := newSon(parent, asts)
-	return analyser.Analyse().Globals, analyser.pkgScope, nil
+}
+
+func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (either.Either[types.Type, values.Value], bool) {
+	t, ok := self.tryAnalyseIdentType((*ast.IdentType)(node))
+	if ok {
+		return either.Left[types.Type, values.Value](t), true
+	}
+	v, ok := self.tryAnalyseIdentExpr((*ast.IdentExpr)(node))
+	if ok {
+		return either.Right[types.Type, values.Value](v), true
+	}
+	return stlval.Default[either.Either[types.Type, values.Value]](), false
+}
+
+// 获取类型默认值
+func (self *Analyser) getTypeDefaultValue(pos reader.Position, t types.Type) *local.DefaultExpr {
+	if !self.hasTypeDefault(t) {
+		errors.ThrowCanNotGetDefault(pos, t)
+	}
+	return local.NewDefaultExpr(t)
 }

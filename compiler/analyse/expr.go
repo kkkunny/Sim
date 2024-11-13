@@ -2,26 +2,23 @@ package analyse
 
 import (
 	"math/big"
-	"slices"
 
-	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
 	stlval "github.com/kkkunny/stl/value"
-	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/compiler/ast"
-
-	"github.com/kkkunny/Sim/compiler/hir"
-
 	errors "github.com/kkkunny/Sim/compiler/error"
-
+	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
 	"github.com/kkkunny/Sim/compiler/token"
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
-func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
+func (self *Analyser) analyseExpr(expect types.Type, node ast.Expr) values.Value {
 	switch exprNode := node.(type) {
 	case *ast.Integer:
 		return self.analyseInteger(expect, exprNode)
@@ -36,7 +33,7 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 	case *ast.IdentExpr:
 		return self.analyseIdentExpr(exprNode)
 	case *ast.Call:
-		return self.analyseCall(exprNode)
+		return self.analyseCall(expect, exprNode)
 	case *ast.Tuple:
 		return self.analyseTuple(expect, exprNode)
 	case *ast.Covert:
@@ -52,74 +49,68 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Expr {
 	case *ast.Dot:
 		return self.analyseDot(exprNode)
 	case *ast.String:
-		return self.analyseString(exprNode)
+		return self.analyseString(expect, exprNode)
 	case *ast.Judgment:
 		return self.analyseJudgment(exprNode)
 	case *ast.Lambda:
-		return self.analyseLambda(expect, exprNode)
+		return self.analyseLambda(exprNode)
 	default:
 		panic("unreachable")
 	}
+	return nil
 }
 
-func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.ExprStmt {
-	if expect == nil || !hir.IsNumberType(expect) {
-		expect = self.pkgScope.Isize()
+func (self *Analyser) expectExpr(expect types.Type, node ast.Expr) values.Value {
+	value := self.analyseExpr(expect, node)
+	newValue, ok := self.autoTypeCovert(expect, value)
+	if !ok {
+		errors.ThrowTypeMismatchError(node.Position(), value.Type(), expect)
 	}
-	switch {
-	case hir.IsIntType(expect):
+	return newValue
+}
+
+func (self *Analyser) analyseInteger(expect types.Type, node *ast.Integer) values.Value {
+	if !types.Is[types.NumType](expect) {
+		expect = types.Isize
+	}
+	if expectIt, ok := types.As[types.IntType](expect); ok {
 		value, ok := big.NewInt(0).SetString(node.Value.Source(), 10)
 		if !ok {
 			panic("unreachable")
 		}
-		return &hir.Integer{
-			Type:  expect,
-			Value: value,
-		}
-	case hir.IsType[*hir.FloatType](expect):
+		return values.NewInteger(expectIt, value)
+	} else if expectFt, ok := types.As[types.FloatType](expect); ok {
 		value, _ := stlerror.MustWith2(big.ParseFloat(node.Value.Source(), 10, big.MaxPrec, big.ToZero))
-		return &hir.Float{
-			Type:  expect,
-			Value: value,
-		}
-	default:
+		return values.NewFloat(expectFt, value)
+	} else {
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.ExprStmt {
-	if expect == nil || !hir.IsNumberType(expect) {
-		expect = self.pkgScope.I32()
+func (self *Analyser) analyseChar(expect types.Type, node *ast.Char) values.Value {
+	if !types.Is[types.NumType](expect) {
+		expect = types.I32
 	}
 	s := node.Value.Source()
 	char := util.ParseEscapeCharacter(s[1:len(s)-1], `\'`, `'`)[0]
-	switch {
-	case hir.IsIntType(expect):
+	if expectIt, ok := types.As[types.IntType](expect); ok {
 		value := big.NewInt(int64(char))
-		return &hir.Integer{
-			Type:  expect,
-			Value: value,
-		}
-	case hir.IsType[*hir.SintType](expect):
+		return values.NewInteger(expectIt, value)
+	} else if expectFt, ok := types.As[types.FloatType](expect); ok {
 		value := big.NewFloat(float64(char))
-		return &hir.Float{
-			Type:  expect,
-			Value: value,
-		}
-	default:
+		return values.NewFloat(expectFt, value)
+	} else {
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseFloat(expect hir.Type, node *ast.Float) *hir.Float {
-	if expect == nil || !hir.IsType[*hir.FloatType](expect) {
-		expect = self.pkgScope.F64()
+func (self *Analyser) analyseFloat(expect types.Type, node *ast.Float) *values.Float {
+	if !types.Is[types.FloatType](expect) {
+		expect = types.F64
 	}
+	expectFt, _ := types.As[types.FloatType](expect)
 	value, _ := stlerror.MustWith2(big.NewFloat(0).Parse(node.Value.Source(), 10))
-	return &hir.Float{
-		Type:  expect,
-		Value: value,
-	}
+	return values.NewFloat(expectFt, value)
 }
 
 var assMap = map[token.Kind]token.Kind{
@@ -137,21 +128,21 @@ var assMap = map[token.Kind]token.Kind{
 	token.LORASS:  token.LOR,
 }
 
-func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr {
+func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.Value {
 	left := self.analyseExpr(expect, node.Left)
-	lt := left.GetType()
+	lt := left.Type()
 	right := self.analyseExpr(lt, node.Right)
-	rt := right.GetType()
+	rt := right.Type()
 
 	switch node.Opera.Kind {
 	case token.ASS:
-		if lt.EqualTo(rt) {
-			if left.Temporary() {
+		if lt.Equal(rt) {
+			if !left.Storable() {
 				errors.ThrowExprTemporaryError(node.Left.Position())
 			} else if !left.Mutable() {
 				errors.ThrowNotMutableError(node.Left.Position())
 			}
-			return hir.NewAssign(left, right)
+			return local.NewAssignExpr(left, right)
 		}
 	case token.ANDASS, token.ORASS, token.XORASS, token.SHLASS, token.SHRASS, token.ADDASS, token.SUBASS, token.MULASS, token.DIVASS, token.REMASS, token.LANDASS, token.LORASS:
 		return self.analyseBinary(expect, &ast.Binary{
@@ -170,208 +161,184 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 			},
 		})
 	case token.AND:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.And().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.And().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntAndInt{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("And")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+			return local.NewAndExpr(left, right)
 		}
 	case token.OR:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Or().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Or().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntOrInt{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Or")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+			return local.NewOrExpr(left, right)
 		}
 	case token.XOR:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Xor().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Xor().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntXorInt{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Xor")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+			return local.NewXorExpr(left, right)
 		}
 	case token.SHL:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Shl().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Shl().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntShlInt{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shl")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+			return local.NewShlExpr(left, right)
 		}
 	case token.SHR:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Shr().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Shr().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsIntType(lt) {
-			return &hir.IntShrInt{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shr")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+			return local.NewShrExpr(left, right)
 		}
 	case token.ADD:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Add().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Add().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumAddNum{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Add")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewAddExpr(left, right)
 		}
 	case token.SUB:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Sub().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Sub().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumSubNum{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Sub")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewSubExpr(left, right)
 		}
 	case token.MUL:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Mul().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Mul().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumMulNum{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Mul")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewMulExpr(left, right)
 		}
 	case token.DIV:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Div().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Div().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			if (stlval.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
-				(stlval.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
-				errors.ThrowDivZero(node.Right.Position())
-			}
-			return &hir.NumDivNum{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Div")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewDivExpr(left, right)
 		}
 	case token.REM:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Rem().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Rem().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			if (stlval.Is[*hir.Integer](right) && right.(*hir.Integer).Value.Cmp(big.NewInt(0)) == 0) ||
-				(stlval.Is[*hir.Float](right) && right.(*hir.Float).Value.Cmp(big.NewFloat(0)) == 0) {
-				errors.ThrowDivZero(node.Right.Position())
-			}
-			return &hir.NumRemNum{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Rem")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewRemExpr(left, right)
 		}
 	case token.EQ:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Eq().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) {
-			if !lt.EqualTo(hir.NoThing) {
-				return &hir.Equal{
-					BoolType: self.pkgScope.Bool(),
-					Left:     left,
-					Right:    right,
-				}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) {
+			if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
+				return values.NewBoolean(true)
+			} else {
+				return local.NewEqExpr(left, right)
 			}
 		}
 	case token.NE:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Eq().HasBeImpled(ct) {
-			return &hir.BoolNegate{
-				Value: hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
-			}
-		} else if !lt.EqualTo(hir.NoThing) {
-			return &hir.NotEqual{
-				BoolType: self.pkgScope.Bool(),
-				Left:     left,
-				Right:    right,
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewNotExpr(local.NewCallExpr(local.NewMethodExpr(left, method), right))
+		} else if lt.Equal(rt) {
+			if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
+				return values.NewBoolean(false)
+			} else {
+				return local.NewNeExpr(left, right)
 			}
 		}
 	case token.LT:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Lt().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumLtNum{
-				BoolType: self.pkgScope.Bool(),
-				Left:     left,
-				Right:    right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewLtExpr(left, right)
 		}
 	case token.GT:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Gt().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumGtNum{
-				BoolType: self.pkgScope.Bool(),
-				Left:     left,
-				Right:    right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewGtExpr(left, right)
 		}
 	case token.LE:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Lt().HasBeImpled(ct) && self.pkgScope.Eq().HasBeImpled(ct) {
-			return &hir.BoolOrBool{
-				Left:  hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lt().FirstMethodName()).MustValue(), right),
-				Right: hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
-			}
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumLeNum{
-				BoolType: self.pkgScope.Bool(),
-				Left:     left,
-				Right:    right,
-			}
+		EQtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		LTtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(EQtrait) && ct.HasImpl(LTtrait) {
+			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlslices.First(EQtrait.Methods.Keys())))
+			LTmethod := stlval.IgnoreWith(ct.GetMethod(stlslices.First(LTtrait.Methods.Keys())))
+			return local.NewLogicAndExpr(
+				local.NewCallExpr(local.NewMethodExpr(left, EQmethod), right),
+				local.NewCallExpr(local.NewMethodExpr(left, LTmethod), right),
+			)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewLeExpr(left, right)
 		}
 	case token.GE:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Gt().HasBeImpled(ct) && self.pkgScope.Eq().HasBeImpled(ct) {
-			return &hir.BoolOrBool{
-				Left:  hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Gt().FirstMethodName()).MustValue(), right),
-				Right: hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Eq().FirstMethodName()).MustValue(), right),
-			}
-		} else if lt.EqualTo(rt) && hir.IsNumberType(lt) {
-			return &hir.NumGeNum{
-				BoolType: self.pkgScope.Bool(),
-				Left:     left,
-				Right:    right,
-			}
+		EQtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		GTtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(EQtrait) && ct.HasImpl(GTtrait) {
+			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlslices.First(EQtrait.Methods.Keys())))
+			GTmethod := stlval.IgnoreWith(ct.GetMethod(stlslices.First(GTtrait.Methods.Keys())))
+			return local.NewLogicAndExpr(
+				local.NewCallExpr(local.NewMethodExpr(left, EQmethod), right),
+				local.NewCallExpr(local.NewMethodExpr(left, GTmethod), right),
+			)
+		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+			return local.NewGeExpr(left, right)
 		}
 	case token.LAND:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Land().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Land().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
-			return &hir.BoolAndBool{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Land")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.BoolType](lt) {
+			return local.NewLogicAndExpr(left, right)
 		}
 	case token.LOR:
-		ct, ok := hir.TryCustomType(lt)
-		if ok && self.pkgScope.Lor().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](left), self.pkgScope.Lor().FirstMethodName()).MustValue(), right)
-		} else if lt.EqualTo(rt) && lt.EqualTo(self.pkgScope.Bool()) {
-			return &hir.BoolOrBool{
-				Left:  left,
-				Right: right,
-			}
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lor")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](lt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+		} else if lt.Equal(rt) && types.Is[types.BoolType](lt) {
+			return local.NewLogicOrExpr(left, right)
 		}
 	default:
 		panic("unreachable")
@@ -381,314 +348,337 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Expr 
 	return nil
 }
 
-func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Expr {
+func (self *Analyser) analyseUnary(expect types.Type, node *ast.Unary) values.Value {
 	switch node.Opera.Kind {
 	case token.SUB:
 		value := self.analyseExpr(expect, node.Value)
-		vt := value.GetType()
-		ct, ok := hir.TryCustomType(vt)
-		if ok && self.pkgScope.Neg().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](value), self.pkgScope.Neg().FirstMethodName()).MustValue())
-		} else if hir.IsType[*hir.SintType](vt) || hir.IsType[*hir.FloatType](vt) {
-			return &hir.NumNegate{Value: value}
+		vt := value.Type()
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Neg")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](vt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(value, method))
+		} else if types.Is[types.SintType](vt) || types.Is[types.FloatType](vt) {
+			return local.NewOppositeExpr(value)
 		}
 		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 		return nil
 	case token.NOT:
 		value := self.analyseExpr(expect, node.Value)
-		vt := value.GetType()
-		ct, ok := hir.TryCustomType(vt)
-		if ok && self.pkgScope.Not().HasBeImpled(ct) {
-			return hir.NewCall(hir.LoopFindMethodWithSelf(ct, optional.Some[hir.Expr](value), self.pkgScope.Not().FirstMethodName()).MustValue())
+		vt := value.Type()
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Not")).(*global.Trait)
+		ct, ok := types.As[global.CustomTypeDef](vt, true)
+		if ok && ct.HasImpl(trait) {
+			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			return local.NewCallExpr(local.NewMethodExpr(value, method))
 		}
 		switch {
-		case hir.IsIntType(vt):
-			return &hir.IntBitNegate{Value: value}
-		case vt.EqualTo(self.pkgScope.Bool()):
-			return &hir.BoolNegate{Value: value}
+		case types.Is[types.IntType](vt):
+			return local.NewNegExpr(value)
+		case types.Is[types.BoolType](vt):
+			return local.NewNotExpr(value)
 		default:
 			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 			return nil
 		}
 	case token.AND, token.AND_WITH_MUT:
-		if expect != nil && hir.IsType[*hir.RefType](expect) {
-			expect = hir.AsType[*hir.RefType](expect).Elem
+		if expect != nil && types.Is[types.RefType](expect) {
+			if t, ok := types.As[types.RefType](expect); ok {
+				expect = t.Pointer()
+			}
 		}
 		value := self.analyseExpr(expect, node.Value)
-		if value.Temporary() {
+		if !value.Storable() {
 			errors.ThrowExprTemporaryError(node.Value.Position())
 		} else if node.Opera.Is(token.AND_WITH_MUT) && !value.Mutable() {
 			errors.ThrowNotMutableError(node.Value.Position())
-		} else if localVarDef, ok := value.(*hir.LocalVarDef); ok {
-			localVarDef.Escaped = true
+		} else if localVarDef, ok := value.(*local.SingleVarDef); ok {
+			localVarDef.SetEscaped(true)
 		}
-		return &hir.GetRef{
-			Mut:   node.Opera.Is(token.AND_WITH_MUT),
-			Value: value,
-		}
+		return local.NewGetRefExpr(node.Opera.Is(token.AND_WITH_MUT), value)
 	case token.MUL:
 		if expect != nil {
-			expect = hir.NewRefType(false, expect)
+			expect = types.NewRefType(false, expect)
 		}
 		value := self.analyseExpr(expect, node.Value)
-		vt := value.GetType()
-		if !hir.IsType[*hir.RefType](vt) {
+		vt := value.Type()
+		if !types.Is[types.RefType](vt) {
 			errors.ThrowExpectReferenceError(node.Value.Position(), vt)
 		}
-		return &hir.DeRef{Value: value}
+		return local.NewDeRefExpr(value)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Ident {
-	expr := self.analyseIdent((*ast.Ident)(node), true)
-	if expr.IsNone() {
+func (self *Analyser) tryAnalyseIdentExpr(node *ast.IdentExpr) (values.Value, bool) {
+	scope := self.scope
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
+		if !ok {
+			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
+		}
+	}
+
+	v, ok := scope.GetIdent(node.Name.Source(), true)
+	if ok && stlval.Is[values.Value](v) {
+		return v.(values.Value), true
+	}
+	return nil, false
+}
+
+func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) values.Value {
+	v, ok := self.tryAnalyseIdentExpr(node)
+	if !ok {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlval.IgnoreWith(expr.MustValue().Left())
+	return v
 }
 
-func (self *Analyser) analyseCall(node *ast.Call) hir.Expr {
-	if dotNode, ok := node.Func.(*ast.Dot); ok && len(node.Args) == 1 {
-		if identNode, ok := dotNode.From.(*ast.IdentExpr); ok {
-			ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
-			if ok {
-				if t, ok := ident.Right(); ok {
-					if et, ok := hir.TryType[*hir.EnumType](t); ok {
-						// 枚举值
-						fieldName := dotNode.Index.Source()
-						if et.Fields.Contain(fieldName) {
-							caseDef := et.Fields.Get(fieldName)
-							if caseDef.Elem.IsSome() {
-								elem := self.analyseExpr(caseDef.Elem.MustValue(), stlslices.First(node.Args))
-								return &hir.Enum{
-									From:  t,
-									Field: fieldName,
-									Elem:  optional.Some(elem),
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+func (self *Analyser) tryAnalyseEnum(node *ast.Call) (*local.EnumExpr, bool) {
+	dotNode, ok := node.Func.(*ast.Dot)
+	if !ok || len(node.Args) != 1 {
+		return nil, false
+	}
+	identNode, ok := dotNode.From.(*ast.IdentExpr)
+	if !ok {
+		return nil, false
+	}
+	ident, ok := self.tryAnalyseIdent((*ast.Ident)(identNode))
+	if !ok {
+		return nil, false
+	}
+	t, ok := ident.Left()
+	if !ok {
+		return nil, false
+	}
+	et, ok := types.As[types.EnumType](t)
+	if !ok {
+		return nil, false
+	}
+	fieldName := dotNode.Index.Source()
+	if !et.EnumFields().Contain(fieldName) {
+		return nil, false
+	}
+	filed := et.EnumFields().Get(fieldName)
+	fieldElem, ok := filed.Elem()
+	if !ok {
+		return nil, false
+	}
+	elem := self.analyseExpr(fieldElem, stlslices.First(node.Args))
+	return local.NewEnumExpr(et, fieldName, elem), true
+}
+
+func (self *Analyser) analyseCall(expect types.Type, node *ast.Call) values.Value {
+	// 枚举值
+	if enum, ok := self.tryAnalyseEnum(node); ok {
+		return enum
 	}
 
-	f := self.analyseExpr(nil, node.Func)
-	ct, ok := hir.TryType[hir.CallableType](f.GetType())
+	// 函数调用
+	if expect != nil {
+		expect = types.NewFuncType(expect)
+	}
+	f := self.analyseExpr(expect, node.Func)
+	ct, ok := types.As[types.CallableType](f.Type())
 	if !ok {
-		errors.ThrowExpectCallableError(node.Func.Position(), f.GetType())
+		errors.ThrowExpectCallableError(node.Func.Position(), f.Type())
 	}
-	vararg := stlval.Is[*hir.FuncDef](f) && f.(*hir.FuncDef).VarArg
-	if (!vararg && len(node.Args) != len(ct.GetParams())) || (vararg && len(node.Args) < len(ct.GetParams())) {
-		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ct.GetParams())), uint(len(node.Args)))
+	pts := ct.Params()
+	vararg := stlval.Is[*global.FuncDef](f) && stlslices.Exist(f.(*global.FuncDef).Attrs(), func(_ int, attr global.FuncAttr) bool {
+		return stlval.Is[*global.FuncAttrVararg](attr)
+	})
+	if (!vararg && len(node.Args) != len(pts)) || (vararg && len(node.Args) < len(pts)) {
+		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(pts)), uint(len(node.Args)))
 	}
-	args := stlslices.Map(node.Args, func(index int, item ast.Expr) hir.Expr {
-		if vararg && index >= len(ct.GetParams()) {
+	args := stlslices.Map(node.Args, func(i int, item ast.Expr) values.Value {
+		if vararg && i >= len(pts) {
 			return self.analyseExpr(nil, item)
 		} else {
-			return self.expectExpr(ct.GetParams()[index], item)
+			return self.expectExpr(pts[i], item)
 		}
 	})
-	return hir.NewCall(f, args...)
+	return local.NewCallExpr(f, args...)
 }
 
-func (self *Analyser) analyseTuple(expect hir.Type, node *ast.Tuple) hir.Expr {
-	if len(node.Elems) == 1 && (expect == nil || !hir.IsType[*hir.TupleType](expect)) {
+func (self *Analyser) analyseTuple(expect types.Type, node *ast.Tuple) values.Value {
+	// 括号表达式
+	if len(node.Elems) == 1 && !types.Is[types.TupleType](expect) {
 		return self.analyseExpr(expect, node.Elems[0])
 	}
 
-	elemExpects := make([]hir.Type, len(node.Elems))
-	if expect != nil {
-		if hir.IsType[*hir.TupleType](expect) {
-			tt := hir.AsType[*hir.TupleType](expect)
-			if len(tt.Elems) < len(node.Elems) {
-				copy(elemExpects, tt.Elems)
-			} else if len(tt.Elems) > len(node.Elems) {
-				elemExpects = tt.Elems[:len(node.Elems)]
-			} else {
-				elemExpects = tt.Elems
-			}
+	// 元组
+	expectElems := make([]types.Type, len(node.Elems))
+	if expectTt, ok := types.As[types.TupleType](expect); ok {
+		elems := expectTt.Elems()
+		if len(elems) < len(node.Elems) {
+			copy(expectElems, elems)
+		} else if len(elems) > len(node.Elems) {
+			expectElems = elems[:len(node.Elems)]
+		} else {
+			expectElems = elems
 		}
 	}
-	elems := lo.Map(node.Elems, func(item ast.Expr, index int) hir.Expr {
-		return self.analyseExpr(elemExpects[index], item)
+	elems := stlslices.Map(node.Elems, func(i int, item ast.Expr) values.Value {
+		return self.analyseExpr(expectElems[i], item)
 	})
-	return &hir.Tuple{Elems: elems}
+	return local.NewTupleExpr(elems...)
 }
 
-func (self *Analyser) analyseCovert(node *ast.Covert) hir.Expr {
+// 自动类型转换
+func (self *Analyser) autoTypeCovert(tt types.Type, v values.Value) (values.Value, bool) {
+	ft := v.Type()
+	if ft.Equal(tt) {
+		return v, true
+	}
+
+	if fromRt, fromOk := types.As[types.RefType](ft, true); fromOk && fromRt.Pointer().Equal(tt) {
+		// &type -> type
+		return local.NewDeRefExpr(v), true
+	} else if toRt, toOk := types.As[types.RefType](tt, true); fromOk && toOk && fromRt.Mutable() && !toRt.Mutable() && fromRt.Pointer().Equal(toRt.Pointer()) {
+		// &mut i8 -> &i8
+		return local.NewWrapTypeExpr(v, toRt), true
+	} else if types.Is[types.NoReturnType](ft, true) && (types.Is[types.NoThingType](tt, true) || self.hasTypeDefault(tt)) {
+		// X -> default
+		return local.NewNoReturn2AnyExpr(v, tt), true
+	} else if fromFt, fromOk := types.As[types.FuncType](ft, true); fromOk && false {
+		panic("unreachable")
+	} else if toLt, toOk := types.As[types.LambdaType](tt, true); fromOk && toOk && fromFt.Equal(toLt.ToFunc()) {
+		// func -> lambda
+		return local.NewFunc2LambdaExpr(v, toLt), true
+	} else if fromEt, fromOk := types.As[types.EnumType](ft); fromOk && false {
+		panic("unreachable")
+	} else if toUt, toOk := types.As[types.UintType](tt, true); fromOk && toOk && fromEt.Simple() && toUt.Equal(types.U8) {
+		// simple enum -> u8
+		// TODO: 移至强类型转换
+		return local.NewEnum2NumberExpr(v, toUt), true
+	} else if fromUt, fromOk := types.As[types.UintType](ft, true); fromOk && false {
+		panic("unreachable")
+	} else if toEt, toOk := types.As[types.EnumType](tt); fromOk && toOk && toEt.Simple() && fromUt.Equal(types.U8) {
+		// u8 -> simple enum
+		// TODO: 移至强类型转换
+		return local.NewNumber2EnumExpr(v, toEt), true
+	} else {
+		return v, false
+	}
+}
+
+func (self *Analyser) analyseCovert(node *ast.Covert) values.Value {
 	tt := self.analyseType(node.Type)
 	from := self.analyseExpr(tt, node.Value)
-	ft := from.GetType()
+	ft := from.Type()
 	if v, ok := self.autoTypeCovert(tt, from); ok {
 		return v
 	}
 
-	switch {
-	case hir.ToBuildInType(ft).EqualTo(hir.ToBuildInType(tt)):
-		return &hir.DoNothingCovert{
-			From: from,
-			To:   tt,
-		}
-	case hir.IsNumberType(ft) && hir.IsNumberType(tt):
-		// i8 -> u8
-		return &hir.Num2Num{
-			From: from,
-			To:   tt,
-		}
-	default:
+	if fromBt, fromOk := types.As[types.BuildInType](ft); fromOk && false {
+		panic("unreachable")
+	} else if toBt, toOk := types.As[types.BuildInType](tt); fromOk && toOk && fromBt.Equal(toBt) {
+		// build-in -> build-in
+		return local.NewWrapTypeExpr(from, tt)
+	} else if toIt, toOk := types.As[types.IntType](tt); toOk && types.Is[types.IntType](ft) {
+		// int -> int
+		return local.NewInt2IntExpr(from, toIt)
+	} else if toOk && types.Is[types.FloatType](ft) {
+		// float -> int
+		return local.NewFloat2IntExpr(from, toIt)
+	} else if toFt, toOk := types.As[types.FloatType](tt); toOk && types.Is[types.IntType](ft) {
+		// int -> float
+		return local.NewInt2FloatExpr(from, toFt)
+	} else if toOk && types.Is[types.FloatType](ft) {
+		// float -> float
+		return local.NewFloat2FloatExpr(from, toFt)
+	} else {
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
 		return nil
 	}
 }
 
-func (self *Analyser) expectExpr(expect hir.Type, node ast.Expr) hir.Expr {
-	value := self.analyseExpr(expect, node)
-	newValue, ok := self.autoTypeCovert(expect, value)
-	if !ok {
-		errors.ThrowTypeMismatchError(node.Position(), value.GetType(), expect)
-	}
-	return newValue
-}
-
-// 自动类型转换
-func (self *Analyser) autoTypeCovert(expect hir.Type, v hir.Expr) (hir.Expr, bool) {
-	vt := v.GetType()
-	if vt.EqualTo(expect) {
-		return v, true
+func (self *Analyser) analyseArray(expect types.Type, node *ast.Array) *local.ArrayExpr {
+	expectAt, _ := types.As[types.ArrayType](expect)
+	if expectAt == nil && len(node.Elems) == 0 {
+		errors.ThrowExpectArrayTypeError(node.Position(), types.NoThing)
 	}
 
-	switch {
-	case hir.IsType[*hir.RefType](vt) && hir.AsType[*hir.RefType](vt).Elem.EqualTo(expect):
-		// &i8 -> i8
-		return &hir.DeRef{Value: v}, true
-	case hir.IsType[*hir.RefType](vt) && hir.IsType[*hir.RefType](expect) && hir.NewRefType(false, hir.AsType[*hir.RefType](vt).Elem).EqualTo(expect):
-		// &mut i8 -> &i8
-		return &hir.DoNothingCovert{
-			From: v,
-			To:   expect,
-		}, true
-	case vt.EqualTo(hir.NoReturn) && (self.hasTypeDefault(expect) || expect.EqualTo(hir.NoThing)):
-		// X -> any
-		return &hir.NoReturn2Any{
-			From: v,
-			To:   expect,
-		}, true
-	case hir.IsType[*hir.FuncType](vt) && hir.IsType[*hir.LambdaType](expect) && hir.AsType[*hir.FuncType](vt).EqualTo(hir.AsType[*hir.LambdaType](expect).ToFuncType()):
-		// func -> ()->void
-		return &hir.Func2Lambda{
-			From: v,
-			To:   expect,
-		}, true
-	case hir.IsType[*hir.EnumType](vt) && hir.IsType[*hir.UintType](expect) && hir.AsType[*hir.EnumType](vt).IsSimple() && hir.AsType[*hir.UintType](expect).EqualTo(hir.NewUintType(8)):
-		// simple enum -> u8
-		return &hir.Enum2Number{
-			From: v,
-			To:   expect,
-		}, true
-	case hir.IsType[*hir.UintType](vt) && hir.IsType[*hir.EnumType](expect) && hir.AsType[*hir.UintType](vt).EqualTo(hir.NewUintType(8)) && hir.AsType[*hir.EnumType](expect).IsSimple():
-		// u8 -> simple enum
-		return &hir.Number2Enum{
-			From: v,
-			To:   expect,
-		}, true
-	default:
-		return v, false
-	}
-}
-
-func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *hir.Array {
-	var expectArray *hir.ArrayType
-	var expectElem hir.Type
-	if expect != nil && hir.IsType[*hir.ArrayType](expect) {
-		expectArray = hir.AsType[*hir.ArrayType](expect)
-		expectElem = expectArray.Elem
-	}
-	if expectArray == nil && len(node.Elems) == 0 {
-		errors.ThrowExpectArrayTypeError(node.Position(), hir.NoThing)
-	}
-	elems := make([]hir.Expr, len(node.Elems))
+	elems := make([]values.Value, len(node.Elems))
 	for i, elemNode := range node.Elems {
-		elems[i] = stlval.TernaryAction(i == 0, func() hir.Expr {
+		elems[i] = stlval.TernaryAction(i == 0, func() values.Value {
+			var expectElem types.Type
+			if expectAt != nil {
+				expectElem = expectAt.Elem()
+			}
 			return self.analyseExpr(expectElem, elemNode)
-		}, func() hir.Expr {
-			return self.expectExpr(elems[0].GetType(), elemNode)
+		}, func() values.Value {
+			return self.expectExpr(stlslices.First(elems).Type(), elemNode)
 		})
 	}
-	return &hir.Array{
-		Type: stlval.TernaryAction(len(elems) != 0, func() hir.Type {
-			return hir.NewArrayType(uint64(len(elems)), elems[0].GetType())
-		}, func() hir.Type { return expectArray }),
-		Elems: elems,
+
+	if expectAt == nil || expectAt.Size() != uint(len(elems)) {
+		expectAt = types.NewArrayType(stlslices.First(elems).Type(), uint(len(elems)))
 	}
+	return local.NewArrayExpr(expectAt, elems...)
 }
 
-func (self *Analyser) analyseIndex(node *ast.Index) *hir.Index {
+func (self *Analyser) analyseIndex(node *ast.Index) *local.IndexExpr {
 	from := self.analyseExpr(nil, node.From)
-	if !hir.IsType[*hir.ArrayType](from.GetType()) {
-		errors.ThrowExpectArrayError(node.From.Position(), from.GetType())
+	at, ok := types.As[types.ArrayType](from.Type())
+	if !ok {
+		errors.ThrowExpectArrayError(node.From.Position(), from.Type())
 	}
-	at := hir.AsType[*hir.ArrayType](from.GetType())
-	index := self.expectExpr(self.pkgScope.Usize(), node.Index)
-	if stlval.Is[*hir.Integer](index) && index.(*hir.Integer).Value.Cmp(big.NewInt(int64(at.Size))) >= 0 {
+	index := self.expectExpr(types.Usize, node.Index)
+	if stlval.Is[*values.Integer](index) && index.(*values.Integer).Value().Cmp(big.NewInt(int64(at.Size()))) >= 0 {
 		errors.ThrowIndexOutOfRange(node.Index.Position())
 	}
-	return &hir.Index{
-		From:  from,
-		Index: index,
-	}
+	return local.NewIndexExpr(from, index)
 }
 
-func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *hir.Extract {
+func (self *Analyser) analyseExtract(expect types.Type, node *ast.Extract) *local.ExtractExpr {
 	indexValue, ok := big.NewInt(0).SetString(node.Index.Source(), 10)
-	if !ok {
+	if !ok || !indexValue.IsUint64() {
 		panic("unreachable")
 	}
-	if !indexValue.IsUint64() {
-		panic("unreachable")
-	}
+	// TODO: 溢出
 	index := uint(indexValue.Uint64())
 
-	expectFrom := &hir.TupleType{Elems: make([]hir.Type, index+1)}
-	expectFrom.Elems[index] = expect
-
-	from := self.analyseExpr(expectFrom, node.From)
-	if !hir.IsType[*hir.TupleType](from.GetType()) {
-		errors.ThrowExpectTupleError(node.From.Position(), from.GetType())
+	if expect != nil {
+		elems := make([]types.Type, index+1)
+		elems[index] = expect
+		expect = types.NewTupleType(elems...)
 	}
-
-	tt := hir.AsType[*hir.TupleType](from.GetType())
-	if index >= uint(len(tt.Elems)) {
+	from := self.analyseExpr(expect, node.From)
+	ft, ok := types.As[types.TupleType](from.Type())
+	if !ok {
+		errors.ThrowExpectTupleError(node.From.Position(), from.Type())
+	} else if index >= uint(len(ft.Elems())) {
 		errors.ThrowInvalidIndexError(node.Index.Position, index)
 	}
-	return &hir.Extract{
-		From:  from,
-		Index: index,
-	}
+	return local.NewExtractExpr(from, index)
 }
 
-func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
+func (self *Analyser) analyseStruct(node *ast.Struct) *local.StructExpr {
 	stObj := self.analyseType(node.Type)
-	st, ok := hir.TryType[*hir.StructType](stObj)
+	st, ok := types.As[types.StructType](stObj)
 	if !ok {
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
-
-	existedFields := make(map[string]hir.Expr)
-	for _, nf := range node.Fields {
-		fn := nf.E1().Source()
-		if !st.Fields.Contain(fn) || (!self.pkgScope.pkg.Equal(st.Def.Pkg) && !st.Fields.Get(fn).Public) {
-			errors.ThrowUnknownIdentifierError(nf.E1().Position, nf.E1())
-		}
-		existedFields[fn] = self.expectExpr(st.Fields.Get(fn).Type, nf.E2())
+	td, ok := types.As[global.TypeDef](stObj, true)
+	if !ok {
+		panic("unreachable")
 	}
 
-	fields := make([]hir.Expr, st.Fields.Length())
+	existedFields := make(map[string]values.Value)
+	for _, fieldNode := range node.Fields {
+		fn := fieldNode.E1().Source()
+		if !st.Fields().Contain(fn) || (!self.pkg.Equal(td.Package()) && !st.Fields().Get(fn).Public()) {
+			errors.ThrowUnknownIdentifierError(fieldNode.E1().Position, fieldNode.E1())
+		}
+		existedFields[fn] = self.expectExpr(st.Fields().Get(fn).Type(), fieldNode.E2())
+	}
+
+	fields := make([]values.Value, st.Fields().Length())
 	var i int
-	for iter := st.Fields.Iterator(); iter.Next(); i++ {
-		fn, ft := iter.Value().E1(), iter.Value().E2().Type
+	for iter := st.Fields().Iterator(); iter.Next(); i++ {
+		fn, ft := iter.Value().E1(), iter.Value().E2().Type()
 		if fv, ok := existedFields[fn]; ok {
 			fields[i] = fv
 		} else {
@@ -696,35 +686,28 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *hir.Struct {
 		}
 	}
 
-	return &hir.Struct{
-		Type:   stObj,
-		Fields: fields,
-	}
+	return local.NewStructExpr(st, fields...)
 }
 
-func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
+func (self *Analyser) analyseDot(node *ast.Dot) values.Value {
 	fieldName := node.Index.Source()
 
 	if identNode, ok := node.From.(*ast.IdentExpr); ok {
-		ident, ok := self.analyseIdent((*ast.Ident)(identNode)).Value()
+		identType, ok := self.tryAnalyseIdentType((*ast.IdentType)(identNode))
 		if ok {
-			if t, ok := ident.Right(); ok {
-				if ct, ok := hir.TryCustomType(t); ok {
-					// 静态方法
-					f := ct.Methods.Get(fieldName)
-					if f != nil && (f.GetPublic() || self.pkgScope.pkg.Equal(f.GetPackage())) {
-						return f
-					}
+			if ctd, ok := types.As[global.CustomTypeDef](identType, true); ok {
+				// 静态方法
+				method, ok := ctd.GetMethod(fieldName)
+				if ok && (method.Public() || self.pkg.Equal(method.Package())) {
+					return method
 				}
-				if et, ok := hir.TryType[*hir.EnumType](t); ok {
-					// 枚举值
-					if et.Fields.Contain(fieldName) {
-						if et.Fields.Get(fieldName).Elem.IsNone() {
-							return &hir.Enum{
-								From:  t,
-								Field: fieldName,
-							}
-						}
+			}
+			if et, ok := types.As[types.EnumType](identType); ok {
+				// 枚举值
+				if et.EnumFields().Contain(fieldName) {
+					_, ok = et.EnumFields().Get(fieldName).Elem()
+					if !ok {
+						return local.NewEnumExpr(et, fieldName)
 					}
 				}
 			}
@@ -735,147 +718,124 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Expr {
 		return method
 	}
 
-	fromValObj := self.analyseExpr(nil, node.From)
-	ft := fromValObj.GetType()
+	from := self.analyseExpr(nil, node.From)
+	ft := from.Type()
 
 	// 字段
-	var structVal hir.Expr
-	if hir.IsType[*hir.StructType](ft) {
-		structVal = fromValObj
-	} else if hir.IsType[*hir.RefType](ft) && hir.IsType[*hir.StructType](hir.AsType[*hir.RefType](ft).Elem) {
-		structVal = &hir.DeRef{Value: fromValObj}
+	var fromStVal values.Value
+	if types.Is[types.StructType](ft) {
+		fromStVal = from
+	} else if fromRt, fromOk := types.As[types.RefType](ft, true); fromOk && false {
+		panic("unreachable")
+	} else if fromOk && types.Is[types.StructType](fromRt.Pointer()) {
+		fromStVal = local.NewDeRefExpr(from)
 	} else {
 		errors.ThrowExpectStructError(node.From.Position(), ft)
 	}
-	st := hir.AsType[*hir.StructType](structVal.GetType())
-	if field := st.Fields.Get(fieldName); !st.Fields.Contain(fieldName) || (!field.Public && !self.pkgScope.pkg.Equal(st.Def.Pkg)) {
-		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+	fromSt, ok := types.As[types.StructType](fromStVal.Type())
+	if !ok {
+		panic("unreachable")
 	}
-	return &hir.GetField{
-		Internal: self.pkgScope.pkg.Equal(st.Def.Pkg),
-		From:     structVal,
-		Index:    uint(slices.Index(st.Fields.Keys(), fieldName)),
-	}
-}
-
-func (self *Analyser) analyseMethod(node *ast.Dot) (hir.Expr, bool) {
-	fieldName := node.Index.Source()
-	fromObj := self.analyseExpr(nil, node.From)
-	ft := fromObj.GetType()
-
-	var customType *hir.CustomType
-	if hir.IsCustomType(ft) {
-		customType = hir.AsCustomType(ft)
-	} else if hir.IsType[*hir.RefType](ft) && hir.IsCustomType(hir.AsType[*hir.RefType](ft).Elem) {
-		customType = hir.AsCustomType(hir.AsType[*hir.RefType](ft).Elem)
-	}
-	if customType == nil {
-		return nil, false
-	}
-
-	method := customType.Methods.Get(fieldName)
-	if method == nil || (!method.GetPublic() && !self.pkgScope.pkg.Equal(customType.Pkg)) {
-		return nil, false
-	}
-
-	var customFrom hir.Expr
-	if method.IsStatic() {
-		return method, true
-	} else if method.IsRef() && hir.IsCustomType(ft) {
-		if fromObj.Temporary() {
-			errors.ThrowExprTemporaryError(node.From.Position())
-		}
-		customFrom = &hir.GetRef{
-			Mut:   method.GetSelfParam().MustValue().Mutable(),
-			Value: fromObj,
-		}
-	} else if method.IsRef() && !hir.IsCustomType(ft) {
-		customFrom = fromObj
-	} else if !method.IsRef() && hir.IsCustomType(ft) {
-		customFrom = fromObj
-	} else if !method.IsRef() && !hir.IsCustomType(ft) {
-		customFrom = &hir.DeRef{Value: fromObj}
-	} else {
+	fromTd, ok := types.As[global.TypeDef](fromStVal.Type(), true)
+	if !ok {
 		panic("unreachable")
 	}
 
-	return &hir.Method{
-		Self:   customFrom,
-		Define: method,
-	}, true
+	if field := fromSt.Fields().Get(fieldName); !fromSt.Fields().Contain(fieldName) || (!field.Public() && !self.pkg.Equal(fromTd.Package())) {
+		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+	}
+	return local.NewFieldExpr(fromStVal, fieldName)
 }
 
-func (self *Analyser) analyseString(node *ast.String) *hir.String {
+func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
+	fieldName := node.Index.Source()
+	from := self.analyseExpr(nil, node.From)
+	ft := from.Type()
+
+	var fromCtd global.CustomTypeDef
+	if fromCtd2, fromOk := types.As[global.CustomTypeDef](ft, true); fromOk {
+		fromCtd = fromCtd2
+	} else if fromRt, fromOk := types.As[types.RefType](ft, true); fromOk && false {
+		panic("unreachable")
+	} else if fromOk && types.Is[global.CustomTypeDef](fromRt.Pointer(), true) {
+		fromCtd, _ = types.As[global.CustomTypeDef](fromRt.Pointer(), true)
+	} else {
+		return nil, false
+	}
+
+	method, ok := fromCtd.GetMethod(fieldName)
+	if !ok || (!method.Public() && !self.pkg.Equal(method.Package())) {
+		return nil, false
+	}
+
+	if method.Static() {
+		return method, true
+	}
+
+	selfParam, ok := method.SelfParam()
+	if !ok {
+		panic("unreachable")
+	}
+	var selfVal values.Value
+	if fromIsRef := types.Is[types.RefType](ft, true); method.SelfParamIsRef() && !fromIsRef {
+		if !from.Storable() {
+			errors.ThrowExprTemporaryError(node.From.Position())
+		}
+		selfVal = local.NewGetRefExpr(selfParam.Mutable(), from)
+	} else if !method.SelfParamIsRef() && fromIsRef {
+		selfVal = local.NewDeRefExpr(from)
+	} else {
+		selfVal = from
+	}
+
+	return local.NewMethodExpr(selfVal, method), true
+}
+
+func (self *Analyser) analyseString(expect types.Type, node *ast.String) *values.String {
+	if !types.Is[types.StrType](expect) {
+		expect = types.Str
+	}
+	expectSt, ok := types.As[types.StrType](expect)
+	if !ok {
+		panic("unreachable")
+	}
+
 	s := node.Value.Source()
 	s = util.ParseEscapeCharacter(s[1:len(s)-1], `\"`, `"`)
-	return &hir.String{
-		Type:  self.pkgScope.Str(),
-		Value: s,
+	return values.NewString(expectSt, s)
+}
+
+func (self *Analyser) analyseJudgment(node *ast.Judgment) values.Value {
+	tt := self.analyseType(node.Type)
+	from := self.analyseExpr(tt, node.Value)
+	ft := from.Type()
+
+	if ft.Equal(tt) {
+		return values.NewBoolean(true)
+	} else {
+		return local.NewTypeJudgmentExpr(from, tt)
 	}
 }
 
-func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Expr {
-	target := self.analyseType(node.Type)
-	value := self.analyseExpr(target, node.Value)
-	vt := value.GetType()
+func (self *Analyser) analyseLambda(node *ast.Lambda) values.Value {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *local.Param { return self.analyseParam(e) })
+	ret := self.analyseType(node.Ret, self.voidTypeAnalyser(), self.noReturnTypeAnalyser())
+	lt := types.NewLambdaType(ret, stlslices.Map(params, func(_ int, param *local.Param) types.Type { return param.Type() })...)
 
-	switch {
-	case vt.EqualTo(target):
-		return self.pkgScope.True()
-	default:
-		return &hir.TypeJudgment{
-			BoolType: self.pkgScope.Bool(),
-			Value:    value,
-			Type:     target,
+	captureIdents := set.StdHashSetWith[values.Ident]()
+	onCapture := func(ident any) {
+		exprIdent, ok := ident.(values.Ident)
+		if !ok || stlval.Is[global.Global](exprIdent) {
+			return
 		}
-	}
-}
-
-func (self *Analyser) analyseLambda(expect hir.Type, node *ast.Lambda) *hir.Lambda {
-	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *hir.Param { return self.analyseParam(e) })
-	ret := self.analyseOptionTypeWith(optional.Some(node.Ret), voidTypeAnalyser, noReturnTypeAnalyser)
-	f := &hir.Lambda{
-		Params: params,
-		Ret:    ret,
-	}
-
-	if expect == nil || !hir.IsType[*hir.LambdaType](expect) || !hir.AsType[*hir.LambdaType](expect).ToFuncType().EqualTo(f.GetFuncType()) {
-		expect = hir.NewLambdaType(f.Ret, stlslices.Map(f.Params, func(_ int, e *hir.Param) hir.Type {
-			return e.GetType()
-		})...)
-	}
-	f.Type = expect
-
-	captureIdents := set.StdHashSetWith[hir.Ident]()
-	self.localScope = _NewLambdaScope(self.localScope, f, func(ident hir.Ident) {
-		if v, ok := ident.(*hir.LocalVarDef); ok {
-			v.Escaped = true
+		if v, ok := exprIdent.(local.VarDef); ok {
+			v.SetEscaped(true)
 		}
-		captureIdents.Add(ident)
-	})
-	defer func() {
-		self.localScope = self.localScope.GetParent().(_LocalScope)
-	}()
-
-	for i, p := range f.Params {
-		if p.Name.IsSome() && !self.localScope.SetValue(p.Name.MustValue(), p) {
-			errors.ThrowIdentifierDuplicationError(node.Params[i].Name.MustValue().Position, node.Params[i].Name.MustValue())
-		}
+		captureIdents.Add(exprIdent)
 	}
 
-	f.Body = self.analyseFuncBody(node.Body)
-	f.Context = captureIdents.ToSlice()
-	return f
-}
-
-func (self *Analyser) analyseParam(node ast.Param) *hir.Param {
-	return &hir.Param{
-		Mut:  !node.Mutable.IsNone(),
-		Type: self.analyseType(node.Type),
-		Name: stlval.TernaryAction(node.Name.IsNone(), func() optional.Optional[string] {
-			return optional.None[string]()
-		}, func() optional.Optional[string] {
-			return optional.Some(node.Name.MustValue().Source())
-		}),
-	}
+	l := local.NewLambdaExpr(self.scope, lt, params, onCapture)
+	l.SetBody(self.analyseFuncBody(l, node.Params, node.Body))
+	l.SetContext(captureIdents.ToSlice()...)
+	return l
 }

@@ -45,9 +45,6 @@ func (self *Parser) parseOptionPrimary(canStruct bool) optional.Optional[ast.Exp
 		return optional.Some[ast.Expr](self.parseArray())
 	case token.STRING:
 		return optional.Some[ast.Expr](self.parseString())
-	case token.SELF:
-		st := &ast.SelfType{Token: self.expectNextIs(token.SELF)}
-		return optional.Some[ast.Expr](self.parseStruct(st))
 	default:
 		return optional.None[ast.Expr]()
 	}

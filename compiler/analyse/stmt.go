@@ -2,41 +2,72 @@ package analyse
 
 import (
 	"github.com/kkkunny/stl/container/linkedhashmap"
-	"github.com/kkkunny/stl/container/linkedlist"
-	"github.com/kkkunny/stl/container/optional"
+	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/hir"
-
-	"github.com/kkkunny/Sim/compiler/reader"
-
 	"github.com/kkkunny/Sim/compiler/ast"
-
 	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
+	"github.com/kkkunny/Sim/compiler/reader"
 )
 
-func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
+func (self *Analyser) analyseFuncBody(f local.CallableDef, params []ast.Param, node *ast.Block) *local.Block {
+	block := local.NewFuncBody(f)
+
+	parent := self.scope
+	self.scope = block
+	defer func() {
+		self.scope = parent
+	}()
+
+	if methodDef, ok := f.(*global.MethodDef); ok {
+		self.scope.SetIdent("Self", methodDef.From())
+	}
+
+	paramNameSet := set.StdHashSetWithCap[string](uint(len(params)))
+	for i, p := range f.Params() {
+		if name, ok := p.GetName(); ok && (!paramNameSet.Add(name) || !self.scope.SetIdent(name, p)) {
+			errors.ThrowIdentifierDuplicationError(params[i].Name.MustValue().Position, params[i].Name.MustValue())
+		}
+	}
+
+	self.analyseFlatBlock(block, node)
+
+	if block.BlockEndType() < local.BlockEndTypeFuncRet {
+		retType := f.CallableType().Ret()
+		if !types.Is[types.NoThingType](retType, true) {
+			errors.ThrowMissingReturnValueError(node.Position(), retType)
+		}
+		block.PushBack(local.NewReturn())
+	}
+	return block
+}
+
+func (self *Analyser) analyseStmt(node ast.Stmt) local.Local {
 	switch stmtNode := node.(type) {
 	case *ast.Return:
 		ret := self.analyseReturn(stmtNode)
-		return ret, hir.BlockEofReturn
+		return ret
 	case *ast.SingleVariableDef:
-		return self.analyseSingleLocalVariable(stmtNode), hir.BlockEofNone
+		return self.analyseSingleLocalVariable(stmtNode)
 	case *ast.MultipleVariableDef:
-		return self.analyseLocalMultiVariable(stmtNode), hir.BlockEofNone
+		return self.analyseLocalMultiVariable(stmtNode)
 	case *ast.Block:
 		return self.analyseBlock(stmtNode, nil)
 	case *ast.IfElse:
 		return self.analyseIfElse(stmtNode)
 	case ast.Expr:
-		return self.analyseExpr(nil, stmtNode).(hir.ExprStmt), hir.BlockEofNone
+		return local.NewExpr(self.analyseExpr(nil, stmtNode))
 	case *ast.While:
 		return self.analyseWhile(stmtNode)
 	case *ast.Break:
-		return self.analyseBreak(stmtNode), hir.BlockEofBreakLoop
+		return self.analyseBreak(stmtNode)
 	case *ast.Continue:
-		return self.analyseContinue(stmtNode), hir.BlockEofNextLoop
+		return self.analyseContinue(stmtNode)
 	case *ast.For:
 		return self.analyseFor(stmtNode)
 	case *ast.Match:
@@ -46,249 +77,248 @@ func (self *Analyser) analyseStmt(node ast.Stmt) (hir.Stmt, hir.BlockEof) {
 	}
 }
 
-func (self *Analyser) analyseBlock(node *ast.Block, afterBlockCreate func(scope _LocalScope)) (*hir.Block, hir.BlockEof) {
-	blockScope := _NewBlockScope(self.localScope)
-	if afterBlockCreate != nil {
-		afterBlockCreate(blockScope)
-	}
-
-	self.localScope = blockScope
-	defer func() {
-		self.localScope = self.localScope.GetParent().(_LocalScope)
-	}()
-
-	var jump hir.BlockEof
-	stmts := linkedlist.NewLinkedList[hir.Stmt]()
-	for iter := node.Stmts.Iterator(); iter.Next(); {
-		stmt, stmtJump := self.analyseStmt(iter.Value())
-		if b, ok := stmt.(*hir.Block); ok {
-			for iter := b.Stmts.Iterator(); iter.Next(); {
-				stmts.PushBack(iter.Value())
-			}
-		} else {
-			stmts.PushBack(stmt)
-		}
-		jump = max(jump, stmtJump)
-	}
-	return &hir.Block{Stmts: stmts}, jump
-}
-
-func (self *Analyser) analyseReturn(node *ast.Return) *hir.Return {
-	f := self.localScope.GetFunc()
-	ft := f.GetFuncType()
+func (self *Analyser) analyseReturn(node *ast.Return) *local.Return {
+	c := self.scope.(*local.Block).Belong()
+	ct := c.CallableType()
 	if v, ok := node.Value.Value(); ok {
-		value := self.expectExpr(ft.Ret, v)
-		return hir.NewReturn(f, value)
+		value := self.expectExpr(ct.Ret(), v)
+		return local.NewReturn(value)
 	} else {
-		if !ft.Ret.EqualTo(hir.NoThing) {
-			errors.ThrowTypeMismatchError(node.Position(), ft.Ret, hir.NoThing)
+		if !types.Is[types.NoThingType](ct.Ret()) {
+			errors.ThrowTypeMismatchError(node.Position(), ct.Ret(), types.NoThing)
 		}
-		return hir.NewReturn(f)
+		return local.NewReturn()
 	}
 }
 
-func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *hir.LocalVarDef {
-	v := hir.NewLocalVarDef(node.Var.Mutable, node.Var.Name.Source(), nil)
-	if !self.localScope.SetValue(v.Name, v) {
+func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *local.SingleVarDef {
+	name := node.Var.Name.Source()
+
+	var t types.Type
+	var v values.Value
+	if typeNode, ok := node.Var.Type.Value(); ok {
+		t = self.analyseType(typeNode)
+		if valueNode, ok := node.Value.Value(); ok {
+			v = self.expectExpr(t, valueNode)
+		} else {
+			v = self.getTypeDefaultValue(typeNode.Position(), t)
+		}
+	} else {
+		v = self.analyseExpr(nil, node.Value.MustValue())
+		t = v.Type()
+	}
+
+	ident := local.NewSingleVarDef(local.NewVarDecl(node.Var.Mutable, name, t), v)
+	if !self.scope.SetIdent(name, ident) {
 		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
-
-	if typeNode, ok := node.Var.Type.Value(); ok {
-		v.Type = self.analyseType(typeNode)
-		if valueNode, ok := node.Value.Value(); ok {
-			v.SetValue(self.expectExpr(v.Type, valueNode))
-		} else {
-			v.SetValue(self.getTypeDefaultValue(typeNode.Position(), v.Type))
-		}
-	} else {
-		v.SetValue(self.analyseExpr(nil, node.Value.MustValue()))
-		v.Type = v.Value.MustValue().GetType()
-	}
-	return v
+	return ident
 }
 
-func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *hir.MultiLocalVarDef {
+func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *local.MultiVarDef {
 	allHaveType := true
-	vars := stlslices.Map(node.Vars, func(_ int, e ast.VarDef) *hir.LocalVarDef {
-		v := hir.NewLocalVarDef(e.Mutable, e.Name.Source(), nil)
-		if typeNode, ok := e.Type.Value(); ok {
-			v.Type = self.analyseType(typeNode)
-		} else {
+	varTypes := stlslices.Map(node.Vars, func(_ int, vNode ast.VarDef) types.Type {
+		typeNode, ok := vNode.Type.Value()
+		if !ok {
 			allHaveType = false
+			return nil
 		}
-		if !self.localScope.SetValue(v.Name, v) {
-			errors.ThrowIdentifierDuplicationError(e.Name.Position, e.Name)
+		return self.analyseType(typeNode)
+	})
+
+	var value values.Value
+	if valueNode, ok := node.Value.Value(); ok && allHaveType {
+		value = self.expectExpr(types.NewTupleType(varTypes...), valueNode)
+	} else if ok && stlval.Is[*ast.Tuple](valueNode) {
+		valueNodes := valueNode.(*ast.Tuple).Elems
+		if len(valueNodes) != len(varTypes) {
+			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(varTypes)), uint(len(valueNodes)))
+		}
+		elems := stlslices.Map(valueNodes, func(i int, vNode ast.Expr) values.Value {
+			vt := varTypes[i]
+			if vt == nil {
+				v := self.analyseExpr(nil, vNode)
+				varTypes[i] = v.Type()
+				return v
+			} else {
+				return self.expectExpr(vt, vNode)
+			}
+		})
+		value = local.NewTupleExpr(elems...)
+	} else if ok {
+		value = self.analyseExpr(types.NewTupleType(varTypes...), valueNode)
+		vTt, ok := types.As[types.TupleType](value.Type())
+		if !ok {
+			errors.ThrowExpectTupleError(valueNode.Position(), value.Type())
+		} else if len(vTt.Elems()) != len(varTypes) {
+			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(varTypes)), uint(len(vTt.Elems())))
+		}
+		for i, vt := range varTypes {
+			if vt == nil {
+				varTypes[i] = vTt.Elems()[i]
+			} else if !vt.Equal(vTt.Elems()[i]) {
+				errors.ThrowTypeMismatchError(node.Vars[i].Name.Position, vt, vTt.Elems()[i])
+			}
+		}
+	} else {
+		elems := stlslices.Map(varTypes, func(i int, vt types.Type) values.Value {
+			return self.getTypeDefaultValue(node.Vars[i].Type.MustValue().Position(), vt)
+		})
+		value = local.NewTupleExpr(elems...)
+	}
+
+	vars := stlslices.Map(node.Vars, func(i int, vNode ast.VarDef) *values.VarDecl {
+		name := vNode.Name.Source()
+		v := values.NewVarDecl(vNode.Mutable, name, varTypes[i])
+		if !self.scope.SetIdent(name, v) {
+			errors.ThrowIdentifierDuplicationError(vNode.Name.Position, vNode.Name)
 		}
 		return v
 	})
-	varTypes := stlslices.Map(vars, func(_ int, e *hir.LocalVarDef) hir.Type {
-		return e.GetType()
-	})
-
-	var value hir.Expr
-	if valueNode, ok := node.Value.Value(); ok && allHaveType {
-		value = self.expectExpr(&hir.TupleType{Elems: varTypes}, valueNode)
-	} else if ok {
-		value = self.analyseExpr(&hir.TupleType{Elems: varTypes}, valueNode)
-		vt, ok := value.GetType().(*hir.TupleType)
-		if !ok {
-			errors.ThrowExpectTupleError(valueNode.Position(), value.GetType())
-		} else if len(vt.Elems) != len(vars) {
-			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(vars)), uint(len(vt.Elems)))
-		}
-		for i, v := range vars {
-			v.Type = vt.Elems[i]
-		}
-	} else {
-		elems := stlslices.Map(vars, func(i int, e *hir.LocalVarDef) hir.Expr {
-			return self.getTypeDefaultValue(node.Vars[i].Type.MustValue().Position(), e.GetType())
-		})
-		value = &hir.Tuple{Elems: elems}
-	}
-
-	return &hir.MultiLocalVarDef{
-		Vars:  vars,
-		Value: value,
-	}
+	return local.NewMultiVarDef(vars, value)
 }
 
-func (self *Analyser) analyseIfElse(node *ast.IfElse) (*hir.IfElse, hir.BlockEof) {
-	if condNode, ok := node.Cond.Value(); ok {
-		cond := self.expectExpr(self.pkgScope.Bool(), condNode)
-		body, jump := self.analyseBlock(node.Body, nil)
-
-		var next optional.Optional[*hir.IfElse]
-		if nextNode, ok := node.Next.Value(); ok {
-			nextIf, nextJump := self.analyseIfElse(nextNode)
-			next = optional.Some(nextIf)
-			jump = max(jump, nextJump)
+func (self *Analyser) analyseFlatBlock(block *local.Block, node *ast.Block) {
+	for iter := node.Stmts.Iterator(); iter.Next(); {
+		stmt := self.analyseStmt(iter.Value())
+		if stmtBlock, ok := stmt.(*local.Block); ok {
+			block.Append(stmtBlock)
 		} else {
-			jump = hir.BlockEofNone
+			block.PushBack(stmt)
 		}
+	}
+}
 
-		return &hir.IfElse{
-			Cond: optional.Some(cond),
-			Body: body,
-			Next: next,
-		}, jump
+func (self *Analyser) analyseBlock(node *ast.Block, onAfterCreate func(block *local.Block)) *local.Block {
+	block := local.NewBlock(self.scope.(*local.Block))
+	if onAfterCreate != nil {
+		onAfterCreate(block)
+	}
+
+	parent := self.scope
+	self.scope = block
+	defer func() {
+		self.scope = parent
+	}()
+
+	self.analyseFlatBlock(block, node)
+	return block
+}
+
+func (self *Analyser) analyseIfElse(node *ast.IfElse) *local.IfElse {
+	if condNode, ok := node.Cond.Value(); ok {
+		cond := self.expectExpr(types.Bool, condNode)
+		body := self.analyseBlock(node.Body, nil)
+
+		ifStmt := local.NewIfElse(body, cond)
+
+		if nextNode, ok := node.Next.Value(); ok {
+			ifStmt.SetNext(self.analyseIfElse(nextNode))
+		}
+		return ifStmt
 	} else {
-		body, jump := self.analyseBlock(node.Body, nil)
-		return &hir.IfElse{Body: body}, jump
+		body := self.analyseBlock(node.Body, nil)
+		return local.NewIfElse(body)
 	}
 }
 
-func (self *Analyser) analyseWhile(node *ast.While) (*hir.While, hir.BlockEof) {
-	cond := self.expectExpr(self.pkgScope.Bool(), node.Cond)
-	loop := &hir.While{Cond: cond}
-	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {
-		scope.SetLoop(loop)
+func (self *Analyser) analyseWhile(node *ast.While) *local.While {
+	cond := self.expectExpr(types.Bool, node.Cond)
+	var loop *local.While
+	self.analyseBlock(node.Body, func(block *local.Block) {
+		loop = local.NewWhile(cond, block)
+		block.SetLoop(loop)
 	})
-	loop.Body = body
-
-	if eof == hir.BlockEofNextLoop || eof == hir.BlockEofBreakLoop {
-		eof = hir.BlockEofNone
-	}
-	return loop, eof
+	return loop
 }
 
-func (self *Analyser) analyseBreak(node *ast.Break) *hir.Break {
-	loop := self.localScope.GetLoop()
-	if loop == nil {
-		errors.ThrowLoopControlError(node.Position())
-	}
-	return &hir.Break{Loop: loop}
-}
-
-func (self *Analyser) analyseContinue(node *ast.Continue) *hir.Continue {
-	loop := self.localScope.GetLoop()
-	if loop == nil {
-		errors.ThrowLoopControlError(node.Position())
-	}
-	return &hir.Continue{Loop: loop}
-}
-
-func (self *Analyser) analyseFor(node *ast.For) (*hir.For, hir.BlockEof) {
-	iterator := self.analyseExpr(nil, node.Iterator)
-	iterType := iterator.GetType()
-	if !hir.IsType[*hir.ArrayType](iterType) {
+func (self *Analyser) analyseFor(node *ast.For) *local.For {
+	iter := self.analyseExpr(nil, node.Iterator)
+	iterType := iter.Type()
+	at, ok := types.As[types.ArrayType](iterType)
+	if !ok {
 		errors.ThrowExpectArrayError(node.Iterator.Position(), iterType)
 	}
 
-	et := hir.AsType[*hir.ArrayType](iterType).Elem
-	loop := &hir.For{
-		Iterator: iterator,
-		Cursor:   hir.NewLocalVarDef(node.CursorMut, node.Cursor.Source(), et),
-	}
-	body, eof := self.analyseBlock(node.Body, func(scope _LocalScope) {
-		if !scope.SetValue(loop.Cursor.Name, loop.Cursor) {
+	cursorName := node.Cursor.Source()
+	cursor := local.NewVarDecl(node.CursorMut, cursorName, at.Elem())
+	var loop *local.For
+	self.analyseBlock(node.Body, func(block *local.Block) {
+		if !block.SetIdent(cursorName, cursor) {
 			errors.ThrowIdentifierDuplicationError(node.Cursor.Position, node.Cursor)
 		}
-		scope.SetLoop(loop)
+		loop = local.NewFor(cursor, iter, block)
+		block.SetLoop(loop)
 	})
-	loop.Body = body
-
-	if eof == hir.BlockEofNextLoop || eof == hir.BlockEofBreakLoop {
-		eof = hir.BlockEofNone
-	}
-	return loop, eof
+	return loop
 }
 
-func (self *Analyser) analyseMatch(node *ast.Match) (*hir.Match, hir.BlockEof) {
+func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
 	value := self.analyseExpr(nil, node.Value)
-	vtObj := value.GetType()
-	vt, ok := hir.TryType[*hir.EnumType](vtObj)
+	vt := value.Type()
+	vEt, ok := types.As[types.EnumType](vt)
 	if !ok {
-		errors.ThrowExpectEnumTypeError(node.Value.Position(), vtObj)
+		errors.ThrowExpectEnumTypeError(node.Value.Position(), vt)
 	}
 
-	cases := linkedhashmap.StdWithCap[string, *hir.MatchCase](uint(len(node.Cases)))
+	cases := linkedhashmap.StdWithCap[string, *local.MatchCase](uint(len(node.Cases)))
 	for _, caseNode := range node.Cases {
 		caseName := caseNode.Name.Source()
-		if !vt.Fields.Contain(caseName) {
+		if !vEt.EnumFields().Contain(caseName) {
 			errors.ThrowUnknownIdentifierError(caseNode.Name.Position, caseNode.Name)
 		} else if cases.Contain(caseName) {
 			errors.ThrowIdentifierDuplicationError(caseNode.Name.Position, caseNode.Name)
 		}
-		caseDef := vt.Fields.Get(caseName)
-		if caseDef.Elem.IsNone() && len(caseNode.Elems) != 0 {
+
+		field := vEt.EnumFields().Get(caseName)
+		fieldElem, ok := field.Elem()
+		if !ok && len(caseNode.Elems) != 0 {
 			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 0, uint(len(caseNode.Elems)))
-		} else if caseDef.Elem.IsSome() && len(caseNode.Elems) != 1 {
+		} else if ok && len(caseNode.Elems) != 1 {
 			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 1, uint(len(caseNode.Elems)))
 		}
-		elems := stlslices.Map(caseNode.Elems, func(i int, e ast.MatchCaseElem) *hir.Param {
-			return &hir.Param{
-				Mut:  e.Mutable,
-				Type: caseDef.Elem.MustValue(),
-				Name: optional.Some(e.Name.Source()),
-			}
-		})
-		fn := func(scope _LocalScope) {
-			for i, elemNode := range caseNode.Elems {
-				elemName := elemNode.Name.Source()
-				if !scope.SetValue(elemName, elems[i]) {
-					errors.ThrowIdentifierDuplicationError(elemNode.Name.Position, elemNode.Name)
+
+		// TODO: 模式匹配每个case的var只能有一个
+		var caseVar *local.VarDecl
+		var caseBodyFn func(block *local.Block)
+		if len(caseNode.Elems) != 0 {
+			caseVarNode := stlslices.Last(caseNode.Elems)
+			caseVarName := caseVarNode.Name.Source()
+			caseVar = local.NewVarDecl(caseVarNode.Mutable, caseVarName, fieldElem)
+			caseBodyFn = func(block *local.Block) {
+				if !block.SetIdent(caseVarName, caseVar) {
+					errors.ThrowIdentifierDuplicationError(caseVarNode.Name.Position, caseVarNode.Name)
 				}
 			}
 		}
-		cases.Set(caseName, &hir.MatchCase{
-			Name:  caseName,
-			Elems: elems,
-			Body:  stlval.IgnoreWith(self.analyseBlock(caseNode.Body, fn)),
-		})
+
+		body := self.analyseBlock(caseNode.Body, caseBodyFn)
+		cases.Set(caseName, local.NewMatchCase(caseName, caseVar, body))
 	}
 
-	var other optional.Optional[*hir.Block]
+	stmt := local.NewMatch(value, cases.Values()...)
+
 	if otherNode, ok := node.Other.Value(); ok {
-		other = optional.Some(stlval.IgnoreWith(self.analyseBlock(otherNode, nil)))
+		stmt.SetOther(self.analyseBlock(otherNode, nil))
+	} else if cases.Length() != vEt.EnumFields().Length() {
+		errors.ThrowExpectMoreCase(node.Value.Position(), vt, cases.Length(), vEt.EnumFields().Length())
 	}
 
-	if other.IsNone() && cases.Length() != vt.Fields.Length() {
-		errors.ThrowExpectMoreCase(node.Value.Position(), vtObj, cases.Length(), vt.Fields.Length())
-	}
+	return stmt
+}
 
-	return &hir.Match{
-		Value: value,
-		Cases: cases,
-		Other: other,
-	}, hir.BlockEofNone
+func (self *Analyser) analyseContinue(node *ast.Continue) *local.Continue {
+	loop, ok := self.scope.(*local.Block).Loop()
+	if !ok {
+		errors.ThrowLoopControlError(node.Position())
+	}
+	return local.NewContinue(loop)
+}
+
+func (self *Analyser) analyseBreak(node *ast.Break) *local.Break {
+	loop, ok := self.scope.(*local.Block).Loop()
+	if !ok {
+		errors.ThrowLoopControlError(node.Position())
+	}
+	return local.NewBreak(loop)
 }

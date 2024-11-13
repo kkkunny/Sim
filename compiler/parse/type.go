@@ -22,8 +22,6 @@ func (self *Parser) parseOptionType() optional.Optional[ast.Type] {
 		return optional.Some[ast.Type](self.parseTupleOrLambdaType())
 	case token.AND:
 		return optional.Some[ast.Type](self.parseRefType())
-	case token.SELF:
-		return optional.Some[ast.Type](self.parseSelfType())
 	default:
 		return optional.None[ast.Type]()
 	}
@@ -102,10 +100,6 @@ func (self *Parser) parseRefType() ast.Type {
 		Mut:   mut,
 		Elem:  self.parseType(),
 	}
-}
-
-func (self *Parser) parseSelfType() *ast.SelfType {
-	return &ast.SelfType{Token: self.expectNextIs(token.SELF)}
 }
 
 func (self *Parser) parseStructType() *ast.StructType {

@@ -11,7 +11,6 @@ import (
 	stltest "github.com/kkkunny/stl/test"
 
 	"github.com/kkkunny/Sim/compiler/codegen_ir"
-
 	"github.com/kkkunny/Sim/compiler/interpret"
 )
 

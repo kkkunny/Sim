@@ -10,7 +10,6 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/codegen_ir"
-
 	"github.com/kkkunny/Sim/compiler/interpret"
 )
 

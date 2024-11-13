@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/ast"
-
-	"github.com/kkkunny/Sim/compiler/hir"
-
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/token"
@@ -26,7 +26,7 @@ func ThrowError(pos reader.Position, format string, args ...any) {
 }
 
 // ThrowCanNotGetDefault 不能获得默认值
-func ThrowCanNotGetDefault(pos reader.Position, t hir.Type) {
+func ThrowCanNotGetDefault(pos reader.Position, t types.Type) {
 	ThrowError(pos, "can not get the default value for type `%s`", t)
 }
 
@@ -36,7 +36,7 @@ func ThrowExpectAttribute(pos reader.Position, attr ast.Attr) {
 }
 
 // ThrowTypeMismatchError 类型不匹配
-func ThrowTypeMismatchError(pos reader.Position, t1, t2 hir.Type) {
+func ThrowTypeMismatchError(pos reader.Position, t1, t2 types.Type) {
 	ThrowError(pos, "type `%s` does not match type `%s`", t1, t2)
 }
 
@@ -61,12 +61,12 @@ func ThrowNotMutableError(pos reader.Position) {
 }
 
 // ThrowIllegalBinaryError 非法的二元运算
-func ThrowIllegalBinaryError(pos reader.Position, op token.Token, left, right hir.Expr) {
-	ThrowError(pos, "illegal binary operation with type `%s` `%s` `%s`", left.GetType(), op.Source(), right.GetType())
+func ThrowIllegalBinaryError(pos reader.Position, op token.Token, left, right values.Value) {
+	ThrowError(pos, "illegal binary operation with type `%s` `%s` `%s`", left.Type(), op.Source(), right.Type())
 }
 
 // ThrowIllegalUnaryError 非法的一元运算
-func ThrowIllegalUnaryError(pos reader.Position, op token.Token, t hir.Type) {
+func ThrowIllegalUnaryError(pos reader.Position, op token.Token, t types.Type) {
 	ThrowError(pos, "illegal unary operation with `%s` type `%s`", op.Source(), t)
 }
 
@@ -76,78 +76,48 @@ func ThrowParameterNumberNotMatchError(pos reader.Position, expect, now uint) {
 }
 
 // ThrowIllegalCovertError 非法的类型转换
-func ThrowIllegalCovertError(pos reader.Position, from, to hir.Type) {
+func ThrowIllegalCovertError(pos reader.Position, from, to types.Type) {
 	ThrowError(pos, "type `%s` can not covert to `%s`", from, to)
 }
 
-// ThrowExpectPointerTypeError 期待指针类型
-func ThrowExpectPointerTypeError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a pointer type but there is type `%s`", t)
-}
-
 // ThrowExpectStructTypeError 期待结构体类型
-func ThrowExpectStructTypeError(pos reader.Position, t hir.Type) {
+func ThrowExpectStructTypeError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a struct type but there is type `%s`", t)
 }
 
 // ThrowExpectArrayTypeError 期待数组类型
-func ThrowExpectArrayTypeError(pos reader.Position, t hir.Type) {
+func ThrowExpectArrayTypeError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a array type but there is type `%s`", t)
 }
 
 // ThrowExpectEnumTypeError 期待枚举类型
-func ThrowExpectEnumTypeError(pos reader.Position, t hir.Type) {
+func ThrowExpectEnumTypeError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a enum type but there is type `%s`", t)
 }
 
-// ThrowExpectUnionTypeError 期待联合类型
-func ThrowExpectUnionTypeError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a union type but there is type `%s`", t)
-}
-
-// ThrowNotExpectUnionTypeError 不期待联合类型
-func ThrowNotExpectUnionTypeError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "not expect a union type but there is type `%s`", t)
-}
-
-// ThrowExpectFuncTypeError 期待函数类型
-func ThrowExpectFuncTypeError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a function type but there is type `%s`", t)
-}
-
 // ThrowExpectCallableError 期待一个可调用的
-func ThrowExpectCallableError(pos reader.Position, t hir.Type) {
+func ThrowExpectCallableError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a callable but there is type `%s`", t)
 }
 
-// ThrowExpectPointerError 期待一个指针
-func ThrowExpectPointerError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a pointer but there is type `%s`", t)
-}
-
 // ThrowExpectReferenceError 期待一个引用
-func ThrowExpectReferenceError(pos reader.Position, t hir.Type) {
+func ThrowExpectReferenceError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a reference but there is type `%s`", t)
 }
 
 // ThrowExpectArrayError 期待一个数组
-func ThrowExpectArrayError(pos reader.Position, t hir.Type) {
+func ThrowExpectArrayError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a array but there is type `%s`", t)
 }
 
 // ThrowExpectTupleError 期待一个元组
-func ThrowExpectTupleError(pos reader.Position, t hir.Type) {
+func ThrowExpectTupleError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a tuple but there is type `%s`", t)
 }
 
 // ThrowExpectStructError 期待一个结构体
-func ThrowExpectStructError(pos reader.Position, t hir.Type) {
+func ThrowExpectStructError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "expect a struct but there is type `%s`", t)
-}
-
-// ThrowExpectUnionError 期待一个联合体
-func ThrowExpectUnionError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a union but there is type `%s`", t)
 }
 
 // ThrowInvalidIndexError 超出下标
@@ -161,7 +131,7 @@ func ThrowLoopControlError(pos reader.Position) {
 }
 
 // ThrowMissingReturnValueError 缺失返回值
-func ThrowMissingReturnValueError(pos reader.Position, t hir.Type) {
+func ThrowMissingReturnValueError(pos reader.Position, t types.Type) {
 	ThrowError(pos, "missing a return value type `%s`", t)
 }
 
@@ -213,22 +183,20 @@ func ThrowCircularReference(pos reader.Position, path token.Token) {
 	ThrowError(pos, "circular reference `%s`", path.Source())
 }
 
-// ThrowDivZero 除零
-func ThrowDivZero(pos reader.Position) {
-	ThrowError(pos, "can not divide by zero")
-}
-
 // ThrowIndexOutOfRange 超出下标
 func ThrowIndexOutOfRange(pos reader.Position) {
 	ThrowError(pos, "index out of range")
 }
 
-// ThrowExpectAType 期待一个类型
-func ThrowExpectAType(pos reader.Position) {
-	ThrowError(pos, "expect a type")
+// ThrowExpectMoreCase 期待更多case
+func ThrowExpectMoreCase(pos reader.Position, et types.Type, now, expect uint) {
+	ThrowError(pos, "type `%s` has `%d` case but there is `%d`", et, expect, now)
 }
 
-// ThrowExpectMoreCase 期待更多case
-func ThrowExpectMoreCase(pos reader.Position, et hir.Type, now, expect uint) {
-	ThrowError(pos, "type `%s` has `%d` case but there is `%d`", et, expect, now)
+// ThrowPackageCircularReference 包循环引用
+func ThrowPackageCircularReference(pos reader.Position, pkgChain []stlos.FilePath) {
+	pkgChain = append(pkgChain, pkgChain[0])
+	ThrowError(pos, "package circular reference: %s->", pkgChain[len(pkgChain)-1], strings.Join(stlslices.Map(pkgChain, func(_ int, pkg stlos.FilePath) string {
+		return string(pkg)
+	}), "->"))
 }
