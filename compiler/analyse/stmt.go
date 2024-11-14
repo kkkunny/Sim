@@ -108,7 +108,7 @@ func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *l
 		t = v.Type()
 	}
 
-	ident := local.NewSingleVarDef(local.NewVarDecl(node.Var.Mutable, name, t), v)
+	ident := local.NewSingleVarDef(node.Var.Mutable, name, t, v)
 	if !self.scope.SetIdent(name, ident) {
 		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
@@ -167,7 +167,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 		value = local.NewTupleExpr(elems...)
 	}
 
-	vars := stlslices.Map(node.Vars, func(i int, vNode ast.VarDef) *values.VarDecl {
+	vars := stlslices.Map(node.Vars, func(i int, vNode ast.VarDef) values.VarDecl {
 		name := vNode.Name.Source()
 		v := values.NewVarDecl(vNode.Mutable, name, varTypes[i])
 		if !self.scope.SetIdent(name, v) {
@@ -241,7 +241,7 @@ func (self *Analyser) analyseFor(node *ast.For) *local.For {
 	}
 
 	cursorName := node.Cursor.Source()
-	cursor := local.NewVarDecl(node.CursorMut, cursorName, at.Elem())
+	cursor := values.NewVarDecl(node.CursorMut, cursorName, at.Elem())
 	var loop *local.For
 	self.analyseBlock(node.Body, func(block *local.Block) {
 		if !block.SetIdent(cursorName, cursor) {
@@ -278,11 +278,11 @@ func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
 			errors.ThrowParameterNumberNotMatchError(reader.MixPosition(caseNode.Name.Position, caseNode.ElemEnd), 1, 0)
 		}
 
-		var caseVar *local.VarDecl
+		var caseVar values.VarDecl
 		var caseBodyFn func(block *local.Block)
 		if caseVarNode, ok := caseNode.Elem.Value(); ok {
 			caseVarName := caseVarNode.Name.Source()
-			caseVar = local.NewVarDecl(caseVarNode.Mutable, caseVarName, fieldElem)
+			caseVar = values.NewVarDecl(caseVarNode.Mutable, caseVarName, fieldElem)
 			caseBodyFn = func(block *local.Block) {
 				if !block.SetIdent(caseVarName, caseVar) {
 					errors.ThrowIdentifierDuplicationError(caseVarNode.Name.Position, caseVarNode.Name)

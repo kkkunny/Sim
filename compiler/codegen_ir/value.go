@@ -244,7 +244,7 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 		return self.values.Get(ir)
 	case *global.MethodDef:
 		return self.values.Get(&ir.FuncDef)
-	case *local.SingleVarDef, *values.VarDecl, *local.Param, *global.VarDef, *local.VarDecl:
+	case *local.SingleVarDef, values.VarDecl, *local.Param, *global.VarDef:
 		p := self.values.Get(ir)
 		if !load {
 			return p

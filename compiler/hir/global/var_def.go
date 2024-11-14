@@ -3,6 +3,7 @@ package global
 import (
 	stlval "github.com/kkkunny/stl/value"
 
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -14,9 +15,9 @@ type VarDef struct {
 	value values.Value
 }
 
-func NewVarDef(decl *values.VarDecl, attrs ...VarAttr) *VarDef {
+func NewVarDef(mut bool, name string, t types.Type, attrs ...VarAttr) *VarDef {
 	return &VarDef{
-		VarDecl: *decl,
+		VarDecl: values.NewVarDecl(mut, name, t),
 		attrs:   attrs,
 	}
 }

@@ -6,11 +6,11 @@ import (
 
 // MultiVarDef 多变量定义
 type MultiVarDef struct {
-	vars  []*values.VarDecl
+	vars  []values.VarDecl
 	value values.Value
 }
 
-func NewMultiVarDef(decls []*values.VarDecl, v values.Value) *MultiVarDef {
+func NewMultiVarDef(decls []values.VarDecl, v values.Value) *MultiVarDef {
 	return &MultiVarDef{
 		vars:  decls,
 		value: v,
@@ -25,6 +25,6 @@ func (self *MultiVarDef) Value() values.Value {
 	return self.value
 }
 
-func (self *MultiVarDef) Vars() []*values.VarDecl {
+func (self *MultiVarDef) Vars() []values.VarDecl {
 	return self.vars
 }
