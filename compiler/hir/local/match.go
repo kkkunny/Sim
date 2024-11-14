@@ -8,11 +8,11 @@ import (
 
 type MatchCase struct {
 	name string
-	val  *VarDecl
+	val  values.VarDecl
 	body *Block
 }
 
-func NewMatchCase(name string, val *VarDecl, body *Block) *MatchCase {
+func NewMatchCase(name string, val values.VarDecl, body *Block) *MatchCase {
 	return &MatchCase{
 		name: name,
 		val:  val,
@@ -24,7 +24,7 @@ func (self *MatchCase) Body() *Block {
 	return self.body
 }
 
-func (self *MatchCase) Var() (*VarDecl, bool) {
+func (self *MatchCase) Var() (values.VarDecl, bool) {
 	return self.val, self.val != nil
 }
 

@@ -12,12 +12,12 @@ type Loop interface {
 
 // For 高级循环
 type For struct {
-	cursor *VarDecl
+	cursor values.VarDecl
 	iter   values.Value
 	body   *Block
 }
 
-func NewFor(cursor *VarDecl, iter values.Value, body *Block) *For {
+func NewFor(cursor values.VarDecl, iter values.Value, body *Block) *For {
 	return &For{
 		cursor: cursor,
 		iter:   iter,
@@ -33,7 +33,7 @@ func (self *For) Body() *Block {
 	return self.body
 }
 
-func (self *For) Cursor() *VarDecl {
+func (self *For) Cursor() values.VarDecl {
 	return self.cursor
 }
 

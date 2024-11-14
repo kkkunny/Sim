@@ -825,11 +825,11 @@ func (self *Analyser) analyseLambda(node *ast.Lambda) values.Value {
 	captureIdents := set.StdHashSetWith[values.Ident]()
 	onCapture := func(ident any) {
 		exprIdent, ok := ident.(values.Ident)
-		if !ok || stlval.Is[global.Global](exprIdent) {
+		if !ok {
 			return
 		}
-		if v, ok := exprIdent.(local.VarDef); ok {
-			v.SetEscaped(true)
+		if varDecl, ok := exprIdent.(values.VarDecl); ok {
+			varDecl.SetEscaped(true)
 		}
 		captureIdents.Add(exprIdent)
 	}

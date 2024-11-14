@@ -72,7 +72,7 @@ func (self *CodeGenerator) codegenReturn(ir *local.Return) {
 	}
 }
 
-func (self *CodeGenerator) codegenVarDecl(ir *values.VarDecl) llvm.Value {
+func (self *CodeGenerator) codegenVarDecl(ir values.VarDecl) llvm.Value {
 	t := self.codegenType(ir.Type())
 	ptr := self.builder.CreateAlloca("", t)
 	self.values.Set(ir, ptr)
@@ -97,7 +97,7 @@ func (self *CodeGenerator) codegenMultiLocalVariable(ir *local.MultiVarDef) llvm
 	for _, varIr := range ir.Vars() {
 		self.codegenVarDecl(varIr)
 	}
-	self.codegenUnTuple(ir.Value(), stlslices.As[*values.VarDecl, values.Value](ir.Vars()))
+	self.codegenUnTuple(ir.Value(), stlslices.As[values.VarDecl, values.Value](ir.Vars()))
 	return nil
 }
 
@@ -226,7 +226,7 @@ func (self *CodeGenerator) codegenFor(ir *local.For) {
 	iter := self.codegenValue(ir.Iter(), false)
 	indexPtr := self.builder.CreateAlloca("", self.builder.Isize())
 	self.builder.CreateStore(self.builder.ConstIsize(0), indexPtr)
-	cursorPtr := self.codegenVarDecl(&ir.Cursor().VarDecl)
+	cursorPtr := self.codegenVarDecl(ir.Cursor())
 	condBlock := self.builder.CurrentFunction().NewBlock("")
 	self.builder.CreateBr(condBlock)
 	self.builder.MoveToAfter(condBlock)

@@ -210,7 +210,7 @@ func (self *Analyser) declSingleGlobalVariable(node *ast.SingleVariableDef) *glo
 		}
 	}
 
-	v := global.NewVarDef(values.NewVarDecl(node.Var.Mutable, name, self.analyseType(node.Var.Type.MustValue())), attrs...)
+	v := global.NewVarDef(node.Var.Mutable, name, self.analyseType(node.Var.Type.MustValue()), attrs...)
 	return self.pkg.AppendGlobal(node.Public, v).(*global.VarDef)
 }
 
@@ -286,7 +286,7 @@ func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) []*g
 		return decls
 	}
 
-	v := global.NewVarDef(values.NewVarDecl(false, "", value.Type()))
+	v := global.NewVarDef(false, "", value.Type())
 	v.SetValue(value)
 	for i, decl := range decls {
 		decl.SetValue(local.NewExtractExpr(v, uint(i)))
