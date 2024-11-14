@@ -3,7 +3,7 @@ module github.com/kkkunny/Sim
 go 1.22
 
 require (
-	github.com/kkkunny/go-llvm v0.0.0-20240721063817-17e5f9200fa8
+	github.com/kkkunny/go-llvm v0.0.0-20241114151432-09fc04307b46
 	github.com/kkkunny/stl v0.0.0-20241109145814-efb7dc08886c
 	github.com/samber/lo v1.44.0
 )

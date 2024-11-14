@@ -1,4 +1,4 @@
-EXPECT_VERSION = 18
+EXPECT_VERSION = 19
 ifneq ($(shell find /bin/ -name "llvm-config*" | grep $(EXPECT_VERSION)), )
 	CONFIG=$(shell find /bin/ -maxdepth 1 -name "llvm-config*" | grep $(EXPECT_VERSION) | cut -d \/ -f 3)
 else
