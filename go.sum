@@ -12,8 +12,8 @@ github.com/kkkunny/go-llvm v0.0.0-20241114151432-09fc04307b46 h1:OHbYr8ZX9itM751
 github.com/kkkunny/go-llvm v0.0.0-20241114151432-09fc04307b46/go.mod h1:puB0yoojrYTG+E3ESl+RYF41FQgvg4E26x74Vdl1YoU=
 github.com/kkkunny/maphash v0.0.0-20241013073711-aff67359a91c h1:KQldlImkyfG4ptyXtzGgLZcMeQb1GVegJ4QzZ2fAewM=
 github.com/kkkunny/maphash v0.0.0-20241013073711-aff67359a91c/go.mod h1:NZ7xS0DNYhr201BpEW4HK+aLpoCV47OBCq47C25LLtk=
-github.com/kkkunny/stl v0.0.0-20241109145814-efb7dc08886c h1:YJjHqtETlsgR7GP8BtrhKr3aeGprWryA0QEHUlx/7tU=
-github.com/kkkunny/stl v0.0.0-20241109145814-efb7dc08886c/go.mod h1:K0PMQJ5hIq9qCNhfTR9UTXUh2njVCbM/elaBT7GS2i8=
+github.com/kkkunny/stl v0.0.0-20241115152131-8d6837f82c43 h1:NJKDSM7o+AYQ44BrJLL25Y9qU5WLhSD9ESSL4SGyhs4=
+github.com/kkkunny/stl v0.0.0-20241115152131-8d6837f82c43/go.mod h1:K0PMQJ5hIq9qCNhfTR9UTXUh2njVCbM/elaBT7GS2i8=
 github.com/kkkunny/swiss v0.0.0-20240930154237-41a03804fd4f h1:niQ7knPaxPP3nsCTPJVAErDJDxkeNTfaClJ8VzeCxuE=
 github.com/kkkunny/swiss v0.0.0-20240930154237-41a03804fd4f/go.mod h1:jZCApXJmUhSPYnlTEcAZOXVruRxgCA3GgqMtjA1/QqE=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=

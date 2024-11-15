@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"strings"
+	"unsafe"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
 )
@@ -31,17 +32,27 @@ func (self *_FuncType_) String() string {
 	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.ret.String())
 }
 
-func (self *_FuncType_) Equal(dst Type, selfs ...Type) bool {
+func (self *_FuncType_) Equal(dst Type) bool {
+	t, ok := As[FuncType](dst, true)
+	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret()) {
+		return false
+	}
+	return stlslices.All(self.params, func(i int, p Type) bool {
+		return p.Equal(t.Params()[i])
+	})
+}
+
+func (self *_FuncType_) EqualWithSelf(dst Type, selfs ...Type) bool {
 	if dst.Equal(Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
 
 	t, ok := As[FuncType](dst, true)
-	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret(), selfs...) {
+	if !ok || len(self.params) != len(t.Params()) || !self.ret.EqualWithSelf(t.Ret(), selfs...) {
 		return false
 	}
 	return stlslices.All(self.params, func(i int, p Type) bool {
-		return p.Equal(t.Params()[i], selfs...)
+		return p.EqualWithSelf(t.Params()[i], selfs...)
 	})
 }
 
@@ -59,4 +70,8 @@ func (self *_FuncType_) BuildIn() {}
 
 func (self *_FuncType_) ToFunc() FuncType {
 	return self
+}
+
+func (self *_FuncType_) Hash() uint64 {
+	return uint64(uintptr(unsafe.Pointer(self)))
 }

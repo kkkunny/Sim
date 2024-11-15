@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"unsafe"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
 )
@@ -33,13 +34,18 @@ func (self *_RefType_) String() string {
 	}
 }
 
-func (self *_RefType_) Equal(dst Type, selfs ...Type) bool {
+func (self *_RefType_) Equal(dst Type) bool {
+	t, ok := As[RefType](dst, true)
+	return ok && self.ptr.Equal(t.Pointer())
+}
+
+func (self *_RefType_) EqualWithSelf(dst Type, selfs ...Type) bool {
 	if dst.Equal(Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
 
 	t, ok := As[RefType](dst, true)
-	return ok && self.ptr.Equal(t.Pointer(), selfs...)
+	return ok && self.ptr.EqualWithSelf(t.Pointer(), selfs...)
 }
 
 func (self *_RefType_) Pointer() Type {
@@ -51,3 +57,7 @@ func (self *_RefType_) Mutable() bool {
 }
 
 func (self *_RefType_) BuildIn() {}
+
+func (self *_RefType_) Hash() uint64 {
+	return uint64(uintptr(unsafe.Pointer(self)))
+}

@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"strings"
+	"unsafe"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
@@ -33,17 +34,27 @@ func (self *_LambdaType_) String() string {
 	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), ret)
 }
 
-func (self *_LambdaType_) Equal(dst Type, selfs ...Type) bool {
+func (self *_LambdaType_) Equal(dst Type) bool {
+	t, ok := As[LambdaType](dst, true)
+	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret()) {
+		return false
+	}
+	return stlslices.All(self.params, func(i int, p Type) bool {
+		return p.Equal(t.Params()[i])
+	})
+}
+
+func (self *_LambdaType_) EqualWithSelf(dst Type, selfs ...Type) bool {
 	if dst.Equal(Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
 
 	t, ok := As[LambdaType](dst, true)
-	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret(), selfs...) {
+	if !ok || len(self.params) != len(t.Params()) || !self.ret.EqualWithSelf(t.Ret(), selfs...) {
 		return false
 	}
 	return stlslices.All(self.params, func(i int, p Type) bool {
-		return p.Equal(t.Params()[i], selfs...)
+		return p.EqualWithSelf(t.Params()[i], selfs...)
 	})
 }
 
@@ -62,3 +73,7 @@ func (self *_LambdaType_) ToFunc() FuncType {
 func (self *_LambdaType_) Lambda() {}
 
 func (self *_LambdaType_) BuildIn() {}
+
+func (self *_LambdaType_) Hash() uint64 {
+	return uint64(uintptr(unsafe.Pointer(self)))
+}

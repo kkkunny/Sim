@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"strings"
+	"unsafe"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
 )
@@ -28,7 +29,17 @@ func (self *_TupleType_) String() string {
 	return fmt.Sprintf("(%s)", strings.Join(elems, ", "))
 }
 
-func (self *_TupleType_) Equal(dst Type, selfs ...Type) bool {
+func (self *_TupleType_) Equal(dst Type) bool {
+	t, ok := As[TupleType](dst, true)
+	if !ok || len(self.elems) != len(t.Elems()) {
+		return false
+	}
+	return stlslices.All(self.elems, func(i int, e Type) bool {
+		return e.Equal(t.Elems()[i])
+	})
+}
+
+func (self *_TupleType_) EqualWithSelf(dst Type, selfs ...Type) bool {
 	if dst.Equal(Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
@@ -38,7 +49,7 @@ func (self *_TupleType_) Equal(dst Type, selfs ...Type) bool {
 		return false
 	}
 	return stlslices.All(self.elems, func(i int, e Type) bool {
-		return e.Equal(t.Elems()[i], selfs...)
+		return e.EqualWithSelf(t.Elems()[i], selfs...)
 	})
 }
 
@@ -47,3 +58,7 @@ func (self *_TupleType_) Elems() []Type {
 }
 
 func (self *_TupleType_) BuildIn() {}
+
+func (self *_TupleType_) Hash() uint64 {
+	return uint64(uintptr(unsafe.Pointer(self)))
+}

@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"unsafe"
 )
 
 var (
@@ -30,7 +31,12 @@ func (self *_UintType_) String() string {
 	}
 }
 
-func (self *_UintType_) Equal(dst Type, _ ...Type) bool {
+func (self *_UintType_) Equal(dst Type) bool {
+	t, ok := As[UintType](dst, true)
+	return ok && self.kind == t.Kind()
+}
+
+func (self *_UintType_) EqualWithSelf(dst Type, _ ...Type) bool {
 	t, ok := As[UintType](dst, true)
 	return ok && self.kind == t.Kind()
 }
@@ -44,3 +50,7 @@ func (self *_UintType_) Number() {}
 func (self *_UintType_) Unsigned() {}
 
 func (self *_UintType_) BuildIn() {}
+
+func (self *_UintType_) Hash() uint64 {
+	return uint64(uintptr(unsafe.Pointer(self)))
+}

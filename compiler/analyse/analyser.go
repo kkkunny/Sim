@@ -103,7 +103,7 @@ func (self *Analyser) analyseTypeDef(asts linkedlist.LinkedList[ast.Global]) {
 			typedefs.Set(self.defTypeAlias(node), node.Name)
 		}
 	}
-	trace := set.StdHashSetWith[types.Type]()
+	trace := set.AnyHashSetWith[types.Type]()
 	for iter := typedefs.Iterator(); iter.Next(); {
 		trace.Clear()
 		circle := self.checkTypeCircle(trace, iter.Value().E1())

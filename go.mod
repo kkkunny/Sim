@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/kkkunny/go-llvm v0.0.0-20241114151432-09fc04307b46
-	github.com/kkkunny/stl v0.0.0-20241109145814-efb7dc08886c
+	github.com/kkkunny/stl v0.0.0-20241115152131-8d6837f82c43
 	github.com/samber/lo v1.44.0
 )
 

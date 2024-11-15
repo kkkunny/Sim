@@ -4,26 +4,24 @@ import (
 	"github.com/kkkunny/go-llvm"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (self *CodeGenerator) codegenType(t types.Type) llvm.Type {
-	switch t := t.(type) {
+func (self *CodeGenerator) codegenType(ir types.Type) llvm.Type {
+	switch ir := ir.(type) {
 	case types.NoThingType, types.NoReturnType:
 		return self.builder.VoidType()
 	case types.CustomType:
-		tObj := self.types.Get(t)
-		if tObj != nil {
-			return self.types.Get(t.(global.TypeDef).Define().(types.CustomType))
+		if t := self.types.Get(ir); t != nil {
+			return t
 		}
-		return self.codegenType(t.Target())
+		return self.codegenType(ir.Target())
 	case types.AliasType:
-		return self.codegenType(t.Target())
+		return self.codegenType(ir.Target())
 	case types.IntType:
-		return self.codegenIntType(t)
+		return self.codegenIntType(ir)
 	case types.FloatType:
-		return self.codegenFloatType(t)
+		return self.codegenFloatType(ir)
 	case types.BoolType:
 		return self.builder.BooleanType()
 	case types.StrType:
@@ -31,15 +29,15 @@ func (self *CodeGenerator) codegenType(t types.Type) llvm.Type {
 	case types.RefType, types.FuncType:
 		return self.builder.OpaquePointerType()
 	case types.ArrayType:
-		return self.codegenArrayType(t)
+		return self.codegenArrayType(ir)
 	case types.TupleType:
-		return self.codegenTupleType(t)
+		return self.codegenTupleType(ir)
 	case types.LambdaType:
 		return self.codegenLambdaType()
 	case types.StructType:
-		return self.codegenStructType(t)
+		return self.codegenStructType(ir)
 	case types.EnumType:
-		return self.codegenEnumType(t)
+		return self.codegenEnumType(ir)
 	default:
 		panic("unreachable")
 	}

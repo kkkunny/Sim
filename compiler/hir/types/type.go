@@ -2,12 +2,17 @@ package types
 
 import (
 	"fmt"
+
+	stlcmp "github.com/kkkunny/stl/cmp"
+	stlhash "github.com/kkkunny/stl/hash"
 )
 
 // Type 类型
 type Type interface {
 	fmt.Stringer
-	Equal(dst Type, selfs ...Type) bool
+	stlhash.Hashable
+	stlcmp.Equalable[Type]
+	EqualWithSelf(dst Type, selfs ...Type) bool
 }
 
 // BuildInType 内置类型

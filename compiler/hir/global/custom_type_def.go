@@ -2,6 +2,7 @@ package global
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -42,13 +43,18 @@ func (self *__CustomTypeDef__) String() string {
 	return fmt.Sprintf("%s::%s", self.pkg.String(), self.name)
 }
 
-func (self *__CustomTypeDef__) Equal(dst types.Type, selfs ...types.Type) bool {
+func (self *__CustomTypeDef__) Equal(dst types.Type) bool {
+	t, ok := dst.(CustomTypeDef)
+	return ok && self.pkg.Equal(t.Package()) && self.name == t.Name()
+}
+
+func (self *__CustomTypeDef__) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
 	if dst.Equal(types.Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(types.CustomType)
-	return ok && self.pkg.Equal(t.(Global).Package()) && self.name == t.Name()
+	t, ok := dst.(CustomTypeDef)
+	return ok && self.pkg.Equal(t.Package()) && self.name == t.Name()
 }
 
 func (self *__CustomTypeDef__) Name() string {
@@ -89,12 +95,16 @@ func (self *__CustomTypeDef__) HasImpl(trait *Trait) bool {
 		if !ok {
 			return false
 		}
-		return method.Type().Equal(dstF.Type(), self)
+		return method.Type().EqualWithSelf(dstF.Type(), self)
 	})
 }
 
 func (self *__CustomTypeDef__) Define() TypeDef {
 	return self
+}
+
+func (self *__CustomTypeDef__) Hash() uint64 {
+	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
 func (self *__CustomTypeDef__) Wrap(inner types.Type) types.BuildInType {
@@ -133,117 +143,165 @@ type customSintType struct {
 	types.SintType
 }
 
-func (self *customSintType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.SintType.Equal(dst, selfs...)
+func (self *customSintType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customSintType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customSintType) String() string { return self.CustomTypeDef.String() }
+func (self *customSintType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customUintType struct {
 	CustomTypeDef
 	types.UintType
 }
 
-func (self *customUintType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.UintType.Equal(dst, selfs...)
+func (self *customUintType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customUintType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customUintType) String() string { return self.CustomTypeDef.String() }
+func (self *customUintType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customFloatType struct {
 	CustomTypeDef
 	types.FloatType
 }
 
-func (self *customFloatType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.FloatType.Equal(dst, selfs...)
+func (self *customFloatType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customFloatType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customFloatType) String() string { return self.CustomTypeDef.String() }
+func (self *customFloatType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customBoolType struct {
 	CustomTypeDef
 	types.BoolType
 }
 
-func (self *customBoolType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.BoolType.Equal(dst, selfs...)
+func (self *customBoolType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customBoolType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customBoolType) String() string { return self.CustomTypeDef.String() }
+func (self *customBoolType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customStrType struct {
 	CustomTypeDef
 	types.StrType
 }
 
-func (self *customStrType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.StrType.Equal(dst, selfs...)
+func (self *customStrType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customStrType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customStrType) String() string { return self.CustomTypeDef.String() }
+func (self *customStrType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customRefType struct {
 	CustomTypeDef
 	types.RefType
 }
 
-func (self *customRefType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.RefType.Equal(dst, selfs...)
+func (self *customRefType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customRefType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customRefType) String() string { return self.CustomTypeDef.String() }
+func (self *customRefType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customArrayType struct {
 	CustomTypeDef
 	types.ArrayType
 }
 
-func (self *customArrayType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.ArrayType.Equal(dst, selfs...)
+func (self *customArrayType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customArrayType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customArrayType) String() string { return self.CustomTypeDef.String() }
+func (self *customArrayType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customTupleType struct {
 	CustomTypeDef
 	types.TupleType
 }
 
-func (self *customTupleType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.TupleType.Equal(dst, selfs...)
+func (self *customTupleType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customTupleType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customTupleType) String() string { return self.CustomTypeDef.String() }
+func (self *customTupleType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customFuncType struct {
 	CustomTypeDef
 	types.FuncType
 }
 
-func (self *customFuncType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.FuncType.Equal(dst, selfs...)
+func (self *customFuncType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customFuncType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customFuncType) String() string { return self.CustomTypeDef.String() }
+func (self *customFuncType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customLambdaType struct {
 	CustomTypeDef
 	types.LambdaType
 }
 
-func (self *customLambdaType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.LambdaType.Equal(dst, selfs...)
+func (self *customLambdaType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customLambdaType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customLambdaType) String() string { return self.CustomTypeDef.String() }
+func (self *customLambdaType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customStructType struct {
 	CustomTypeDef
 	types.StructType
 }
 
-func (self *customStructType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.StructType.Equal(dst, selfs...)
+func (self *customStructType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customStructType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customStructType) String() string { return self.CustomTypeDef.String() }
+func (self *customStructType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
 type customEnumType struct {
 	CustomTypeDef
 	types.EnumType
 }
 
-func (self *customEnumType) Equal(dst types.Type, selfs ...types.Type) bool {
-	return self.CustomTypeDef.Equal(dst, selfs...) || self.EnumType.Equal(dst, selfs...)
+func (self *customEnumType) Equal(dst types.Type) bool {
+	return self.CustomTypeDef.Equal(dst)
+}
+func (self *customEnumType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customEnumType) String() string { return self.CustomTypeDef.String() }
+func (self *customEnumType) Hash() uint64   { return self.CustomTypeDef.Hash() }

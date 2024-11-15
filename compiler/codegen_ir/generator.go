@@ -32,7 +32,7 @@ func New(target llvm.Target) *CodeGenerator {
 	return &CodeGenerator{
 		donePkgs:         set.StdHashSetWith[*global.Package](),
 		builder:          llvmUtil.NewBuilder(target),
-		types:            hashmap.StdWith[types.CustomType, llvm.Type](),
+		types:            hashmap.AnyWith[types.CustomType, llvm.Type](),
 		values:           hashmap.StdWith[values.Value, llvm.Value](),
 		funcCache:        hashmap.StdWith[string, llvm.Function](),
 		loops:            hashmap.StdWith[local.Loop, loop](),

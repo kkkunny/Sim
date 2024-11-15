@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"unsafe"
 )
 
 // FloatTypeKind 浮点型类型
@@ -36,7 +37,12 @@ func (self *_FloatType_) String() string {
 	return fmt.Sprintf("f%d", self.kind*8)
 }
 
-func (self *_FloatType_) Equal(dst Type, _ ...Type) bool {
+func (self *_FloatType_) Equal(dst Type) bool {
+	t, ok := As[FloatType](dst, true)
+	return ok && self.kind == t.Kind()
+}
+
+func (self *_FloatType_) EqualWithSelf(dst Type, _ ...Type) bool {
 	t, ok := As[FloatType](dst, true)
 	return ok && self.kind == t.Kind()
 }
@@ -50,3 +56,7 @@ func (self *_FloatType_) Number() {}
 func (self *_FloatType_) Signed() {}
 
 func (self *_FloatType_) BuildIn() {}
+
+func (self *_FloatType_) Hash() uint64 {
+	return uint64(uintptr(unsafe.Pointer(self)))
+}
