@@ -41,20 +41,6 @@ func (self *_TupleType_) Equal(dst hir.Type) bool {
 	})
 }
 
-func (self *_TupleType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	if dst.Equal(Self) && len(selfs) > 0 {
-		dst = stlslices.Last(selfs)
-	}
-
-	t, ok := As[TupleType](dst, true)
-	if !ok || len(self.elems) != len(t.Elems()) {
-		return false
-	}
-	return stlslices.All(self.elems, func(i int, e hir.Type) bool {
-		return e.EqualWithSelf(t.Elems()[i], selfs...)
-	})
-}
-
 func (self *_TupleType_) Elems() []hir.Type {
 	return self.elems
 }

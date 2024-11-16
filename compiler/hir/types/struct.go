@@ -85,25 +85,6 @@ func (self *_StructType_) Equal(dst hir.Type) bool {
 	})
 }
 
-func (self *_StructType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	if dst.Equal(Self) && len(selfs) > 0 {
-		dst = stlslices.Last(selfs)
-	}
-
-	t, ok := As[StructType](dst, true)
-	if !ok || self.fields.Length() != t.Fields().Length() {
-		return false
-	}
-	fields2 := t.Fields().Values()
-	return stlslices.All(self.fields.Values(), func(i int, f1 *Field) bool {
-		f2 := fields2[i]
-		return f1.pub == f2.pub &&
-			f1.mut == f2.mut &&
-			f1.name == f2.name &&
-			f1.typ.EqualWithSelf(f2.typ, selfs...)
-	})
-}
-
 func (self *_StructType_) Fields() linkedhashmap.LinkedHashMap[string, *Field] {
 	return self.fields
 }

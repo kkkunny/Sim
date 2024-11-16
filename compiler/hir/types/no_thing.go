@@ -24,10 +24,6 @@ func (self *_NoThingType_) Equal(dst hir.Type) bool {
 	return Is[NoThingType](dst, true)
 }
 
-func (self *_NoThingType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
-	return Is[NoThingType](dst, true)
-}
-
 func (self *_NoThingType_) _NoThingType_() {}
 
 func (self *_NoThingType_) BuildIn() {}

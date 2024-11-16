@@ -24,10 +24,6 @@ func (self *_NoReturnType_) Equal(dst hir.Type) bool {
 	return Is[NoReturnType](dst, true)
 }
 
-func (self *_NoReturnType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
-	return Is[NoReturnType](dst, true)
-}
-
 func (self *_NoReturnType_) _NoReturnType_() {}
 
 func (self *_NoReturnType_) BuildIn() {}

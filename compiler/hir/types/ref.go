@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"unsafe"
 
-	stlslices "github.com/kkkunny/stl/container/slices"
-
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
@@ -39,15 +37,6 @@ func (self *_RefType_) String() string {
 func (self *_RefType_) Equal(dst hir.Type) bool {
 	t, ok := As[RefType](dst, true)
 	return ok && self.ptr.Equal(t.Pointer())
-}
-
-func (self *_RefType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	if dst.Equal(Self) && len(selfs) > 0 {
-		dst = stlslices.Last(selfs)
-	}
-
-	t, ok := As[RefType](dst, true)
-	return ok && self.ptr.EqualWithSelf(t.Pointer(), selfs...)
 }
 
 func (self *_RefType_) Pointer() hir.Type {

@@ -24,10 +24,6 @@ func (self *_SelfType_) Equal(dst hir.Type) bool {
 	return Is[SelfType](dst)
 }
 
-func (self *_SelfType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
-	return Is[SelfType](dst)
-}
-
 func (self *_SelfType_) Self() {}
 
 func (self *_SelfType_) Hash() uint64 {

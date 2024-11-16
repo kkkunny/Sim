@@ -662,7 +662,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *local.StructExpr {
 	if !ok {
 		errors.ThrowExpectStructTypeError(node.Type.Position(), stObj)
 	}
-	td, ok := types.As[global.TypeDef](stObj, true)
+	td, ok := types.As[types.TypeDef](stObj, true)
 	if !ok {
 		panic("unreachable")
 	}
@@ -737,7 +737,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	if !ok {
 		panic("unreachable")
 	}
-	fromTd, ok := types.As[global.TypeDef](fromStVal.Type(), true)
+	fromTd, ok := types.As[types.TypeDef](fromStVal.Type(), true)
 	if !ok {
 		panic("unreachable")
 	}

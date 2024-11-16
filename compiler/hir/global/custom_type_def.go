@@ -14,12 +14,10 @@ import (
 
 // CustomTypeDef 自定义类型定义
 type CustomTypeDef interface {
-	TypeDef
 	types.CustomType
 	AddMethod(m *MethodDef) bool
 	GetMethod(name string) (*MethodDef, bool)
 	HasImpl(trait *Trait) bool
-	Wrap(inner hir.Type) types.BuildInType
 }
 
 type __CustomTypeDef__ struct {
@@ -45,14 +43,6 @@ func (self *__CustomTypeDef__) String() string {
 }
 
 func (self *__CustomTypeDef__) Equal(dst hir.Type) bool {
-	return self.Hash() == dst.Hash()
-}
-
-func (self *__CustomTypeDef__) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	if dst.Equal(types.Self) && len(selfs) > 0 {
-		dst = stlslices.Last(selfs)
-	}
-
 	return self.Hash() == dst.Hash()
 }
 
@@ -98,12 +88,8 @@ func (self *__CustomTypeDef__) HasImpl(trait *Trait) bool {
 		if !ok {
 			return false
 		}
-		return method.Type().EqualWithSelf(dstF.Type(), self)
+		return method.Type().Equal(types.ReplaceSelfType(self, dstF.Type()))
 	})
-}
-
-func (self *__CustomTypeDef__) Define() TypeDef {
-	return self
 }
 
 func (self *__CustomTypeDef__) Hash() uint64 {
@@ -149,9 +135,6 @@ type customSintType struct {
 func (self *customSintType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customSintType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
-}
 func (self *customSintType) String() string { return self.CustomTypeDef.String() }
 func (self *customSintType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
@@ -162,9 +145,6 @@ type customUintType struct {
 
 func (self *customUintType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
-}
-func (self *customUintType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customUintType) String() string { return self.CustomTypeDef.String() }
 func (self *customUintType) Hash() uint64   { return self.CustomTypeDef.Hash() }
@@ -177,9 +157,6 @@ type customFloatType struct {
 func (self *customFloatType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customFloatType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
-}
 func (self *customFloatType) String() string { return self.CustomTypeDef.String() }
 func (self *customFloatType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
@@ -190,9 +167,6 @@ type customBoolType struct {
 
 func (self *customBoolType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
-}
-func (self *customBoolType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customBoolType) String() string { return self.CustomTypeDef.String() }
 func (self *customBoolType) Hash() uint64   { return self.CustomTypeDef.Hash() }
@@ -205,9 +179,6 @@ type customStrType struct {
 func (self *customStrType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customStrType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
-}
 func (self *customStrType) String() string { return self.CustomTypeDef.String() }
 func (self *customStrType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
@@ -218,9 +189,6 @@ type customRefType struct {
 
 func (self *customRefType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
-}
-func (self *customRefType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customRefType) String() string { return self.CustomTypeDef.String() }
 func (self *customRefType) Hash() uint64   { return self.CustomTypeDef.Hash() }
@@ -233,9 +201,6 @@ type customArrayType struct {
 func (self *customArrayType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customArrayType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
-}
 func (self *customArrayType) String() string { return self.CustomTypeDef.String() }
 func (self *customArrayType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
@@ -246,9 +211,6 @@ type customTupleType struct {
 
 func (self *customTupleType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
-}
-func (self *customTupleType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customTupleType) String() string { return self.CustomTypeDef.String() }
 func (self *customTupleType) Hash() uint64   { return self.CustomTypeDef.Hash() }
@@ -261,9 +223,6 @@ type customFuncType struct {
 func (self *customFuncType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customFuncType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
-}
 func (self *customFuncType) String() string { return self.CustomTypeDef.String() }
 func (self *customFuncType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
@@ -274,9 +233,6 @@ type customLambdaType struct {
 
 func (self *customLambdaType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
-}
-func (self *customLambdaType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customLambdaType) String() string { return self.CustomTypeDef.String() }
 func (self *customLambdaType) Hash() uint64   { return self.CustomTypeDef.Hash() }
@@ -289,9 +245,6 @@ type customStructType struct {
 func (self *customStructType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customStructType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
-}
 func (self *customStructType) String() string { return self.CustomTypeDef.String() }
 func (self *customStructType) Hash() uint64   { return self.CustomTypeDef.Hash() }
 
@@ -302,9 +255,6 @@ type customEnumType struct {
 
 func (self *customEnumType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
-}
-func (self *customEnumType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customEnumType) String() string { return self.CustomTypeDef.String() }
 func (self *customEnumType) Hash() uint64   { return self.CustomTypeDef.Hash() }

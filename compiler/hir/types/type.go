@@ -44,3 +44,12 @@ type CallableType interface {
 	Params() []hir.Type
 	ToFunc() FuncType
 }
+
+type TypeDef interface {
+	hir.Global
+	hir.Type
+	Target() hir.Type
+	SetTarget(t hir.Type)
+	GetName() (string, bool)
+	Wrap(inner hir.Type) BuildInType
+}

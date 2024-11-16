@@ -38,11 +38,6 @@ func (self *_UintType_) Equal(dst hir.Type) bool {
 	return ok && self.kind == t.Kind()
 }
 
-func (self *_UintType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
-	t, ok := As[UintType](dst, true)
-	return ok && self.kind == t.Kind()
-}
-
 func (self *_UintType_) Kind() IntTypeKind {
 	return self.kind
 }

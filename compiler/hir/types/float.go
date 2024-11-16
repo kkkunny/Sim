@@ -44,11 +44,6 @@ func (self *_FloatType_) Equal(dst hir.Type) bool {
 	return ok && self.kind == t.Kind()
 }
 
-func (self *_FloatType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
-	t, ok := As[FloatType](dst, true)
-	return ok && self.kind == t.Kind()
-}
-
 func (self *_FloatType_) Kind() FloatTypeKind {
 	return self.kind
 }

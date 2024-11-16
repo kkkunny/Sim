@@ -69,3 +69,42 @@ func Is[T hir.Type](typ hir.Type, strict ...bool) bool {
 		panic("unreachable")
 	}
 }
+
+func ReplaceSelfType(to, typ hir.Type) hir.Type {
+	switch t := typ.(type) {
+	case RefType:
+		return NewRefType(t.Mutable(), ReplaceSelfType(to, t.Pointer()))
+	case ArrayType:
+		return NewArrayType(ReplaceSelfType(to, t.Elem()), t.Size())
+	case TupleType:
+		return NewTupleType(stlslices.Map(t.Elems(), func(_ int, elem hir.Type) hir.Type {
+			return ReplaceSelfType(to, elem)
+		})...)
+	case FuncType:
+		return NewFuncType(ReplaceSelfType(to, t.Ret()), stlslices.Map(t.Params(), func(_ int, param hir.Type) hir.Type {
+			return ReplaceSelfType(to, param)
+		})...)
+	case LambdaType:
+		return NewLambdaType(ReplaceSelfType(to, t.Ret()), stlslices.Map(t.Params(), func(_ int, param hir.Type) hir.Type {
+			return ReplaceSelfType(to, param)
+		})...)
+	case StructType:
+		return NewStructType(stlslices.Map(t.Fields().Values(), func(_ int, field *Field) *Field {
+			return NewField(field.pub, field.mut, field.name, ReplaceSelfType(to, field.typ))
+		})...)
+	case EnumType:
+		return NewEnumType(stlslices.Map(t.EnumFields().Values(), func(_ int, field *EnumField) *EnumField {
+			var newElem []hir.Type
+			if elem, ok := field.Elem(); ok {
+				newElem = append(newElem, ReplaceSelfType(to, elem))
+			}
+			return NewEnumField(field.name, newElem...)
+		})...)
+	case SelfType:
+		return to
+	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef:
+		return t
+	default:
+		panic("unreachable")
+	}
+}

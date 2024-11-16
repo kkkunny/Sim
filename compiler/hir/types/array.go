@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"unsafe"
 
-	stlslices "github.com/kkkunny/stl/container/slices"
-
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
@@ -35,15 +33,6 @@ func (self *_ArrayType_) String() string {
 func (self *_ArrayType_) Equal(dst hir.Type) bool {
 	t, ok := As[ArrayType](dst, true)
 	return ok && self.size == t.Size() && self.elem.Equal(t.Elem())
-}
-
-func (self *_ArrayType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	if dst.Equal(Self) && len(selfs) > 0 {
-		dst = stlslices.Last(selfs)
-	}
-
-	t, ok := As[ArrayType](dst, true)
-	return ok && self.size == t.Size() && self.elem.EqualWithSelf(t.Elem(), selfs...)
 }
 
 func (self *_ArrayType_) Elem() hir.Type {

@@ -24,10 +24,6 @@ func (self *_StrType_) Equal(dst hir.Type) bool {
 	return Is[StrType](dst, true)
 }
 
-func (self *_StrType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
-	return Is[StrType](dst, true)
-}
-
 func (self *_StrType_) Str() {}
 
 func (self *_StrType_) BuildIn() {}

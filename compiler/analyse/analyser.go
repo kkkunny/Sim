@@ -12,8 +12,8 @@ import (
 	"github.com/kkkunny/Sim/compiler/config"
 	errors "github.com/kkkunny/Sim/compiler/error"
 	"github.com/kkkunny/Sim/compiler/hir"
-	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
@@ -92,7 +92,7 @@ func (self *Analyser) analyseTypeDecl(asts linkedlist.LinkedList[ast.Global]) {
 
 // 类型定义
 func (self *Analyser) analyseTypeDef(asts linkedlist.LinkedList[ast.Global]) {
-	typedefs := linkedhashmap.StdWith[global.TypeDef, token.Token]()
+	typedefs := linkedhashmap.StdWith[types.TypeDef, token.Token]()
 	for iter := asts.Iterator(); iter.Next(); {
 		switch node := iter.Value().(type) {
 		case *ast.Trait:

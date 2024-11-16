@@ -86,7 +86,7 @@ func (self *Analyser) checkTypeCircle(trace set.Set[hir.Type], t hir.Type) bool 
 			}
 		}
 		return false
-	case global.TypeDef:
+	case types.TypeDef:
 		return self.checkTypeCircle(trace, typ.Target())
 	default:
 		panic("unreachable")

@@ -12,5 +12,4 @@ type Type interface {
 	fmt.Stringer
 	stlhash.Hashable
 	stlcmp.Equalable[Type]
-	EqualWithSelf(dst Type, selfs ...Type) bool
 }

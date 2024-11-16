@@ -46,20 +46,6 @@ func (self *_LambdaType_) Equal(dst hir.Type) bool {
 	})
 }
 
-func (self *_LambdaType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
-	if dst.Equal(Self) && len(selfs) > 0 {
-		dst = stlslices.Last(selfs)
-	}
-
-	t, ok := As[LambdaType](dst, true)
-	if !ok || len(self.params) != len(t.Params()) || !self.ret.EqualWithSelf(t.Ret(), selfs...) {
-		return false
-	}
-	return stlslices.All(self.params, func(i int, p hir.Type) bool {
-		return p.EqualWithSelf(t.Params()[i], selfs...)
-	})
-}
-
 func (self *_LambdaType_) Ret() hir.Type {
 	return self.ret
 }

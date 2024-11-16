@@ -12,7 +12,6 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/analyse"
 	"github.com/kkkunny/Sim/compiler/hir"
-	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -140,7 +139,7 @@ func (self *CodeGenerator) buildCopy(tIr hir.Type, v llvm.Value) llvm.Value {
 			self.builder.MoveToAfter(endBlock)
 		}
 		return phi
-	case global.TypeDef:
+	case types.TypeDef:
 		return self.buildCopy(tIr.Target(), v)
 	default:
 		panic("unreachable")
@@ -511,7 +510,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			self.builder.CreateStructIndex(ut, ptr, 1, true),
 		)
 		return self.builder.CreateLoad("", ut, ptr)
-	case global.TypeDef:
+	case types.TypeDef:
 		return self.codegenDefault(ir.Target())
 	default:
 		panic("unreachable")
