@@ -104,7 +104,7 @@ func (self *CodeGenerator) codegenStructType(ir types.StructType) llvm.StructTyp
 }
 
 func (self *CodeGenerator) codegenLambdaType() llvm.StructType {
-	return self.builder.StructType(false, self.builder.OpaquePointerType(), self.builder.OpaquePointerType(), self.builder.OpaquePointerType())
+	return self.builder.StructType(false, self.builder.OpaquePointerType(), self.builder.OpaquePointerType())
 }
 
 func (self *CodeGenerator) codegenEnumType(ir types.EnumType) llvm.Type {

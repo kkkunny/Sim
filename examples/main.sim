@@ -1,25 +1,9 @@
 import std::os
 
-type Human struct{
-	age: u8,
-	name: str
-}
-
-type Animal struct{
-	age: u8,
-}
-
-type Object enum {
-	human: Human,
-	dog: Animal,
-}
-
 func main(){
-	let v = Object.human(Human{age: 2, name: "123"})
-	match v{
-	case human(human):
-		os::exit(human.age - 2)
-	other:
-		os::exit(1)
+	let v: u8 = 1
+	let a = () -> u8{
+		return v
 	}
+	os::exit(a() - 1)
 }

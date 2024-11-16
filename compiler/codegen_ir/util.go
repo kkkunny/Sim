@@ -469,7 +469,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	case types.LambdaType:
 		lts := self.codegenLambdaType()
 		fn := self.codegenDefault(ir.ToFunc())
-		return self.builder.CreateStruct(lts, fn, self.builder.ConstZero(lts.Elems()[1]), self.builder.ConstZero(lts.Elems()[2]))
+		return self.builder.CreateStruct(lts, fn, self.builder.ConstZero(lts.Elems()[1]))
 	case types.EnumType:
 		if ir.Simple() {
 			return self.builder.ConstInteger(self.codegenType(ir).(llvm.IntegerType), 0)

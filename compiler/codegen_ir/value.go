@@ -295,17 +295,18 @@ func (self *CodeGenerator) codegenLambdaCall(ir *local.CallExpr) llvm.Value {
 		return self.codegenValue(argIr, true)
 	})
 
-	ctxPtr := self.builder.CreateStructIndex(lts, f, 2, false)
+	fPtr := self.builder.CreateStructIndex(lts, f, 0, false)
+	ctxPtr := self.builder.CreateStructIndex(lts, f, 1, false)
 	cf := self.builder.CurrentFunction()
 	f1block, f2block, endblock := cf.NewBlock(""), cf.NewBlock(""), cf.NewBlock("")
 	self.builder.CreateCondBr(self.builder.CreateIntCmp("", llvm.IntEQ, ctxPtr, self.builder.ConstZero(ctxPtr.Type())), f1block, f2block)
 
 	self.builder.MoveToAfter(f1block)
-	f1ret := self.builder.CreateCall("", ft, self.builder.CreateStructIndex(lts, f, 0, false), args...)
+	f1ret := self.builder.CreateCall("", ft, fPtr, args...)
 	self.builder.CreateBr(endblock)
 
 	self.builder.MoveToAfter(f2block)
-	f2ret := self.builder.CreateCall("", lt, self.builder.CreateStructIndex(lts, f, 1, false), append([]llvm.Value{ctxPtr}, args...)...)
+	f2ret := self.builder.CreateCall("", lt, fPtr, append([]llvm.Value{ctxPtr}, args...)...)
 	self.builder.CreateBr(endblock)
 
 	self.builder.MoveToAfter(endblock)
@@ -478,7 +479,7 @@ func (self *CodeGenerator) codegenLambda(ir *local.LambdaExpr) llvm.Value {
 		self.builder.CreateBr(block)
 		self.builder.MoveToAfter(preBlock)
 
-		return self.builder.CreateStruct(lts, f, self.builder.ConstZero(lts.GetElem(1)), self.builder.ConstZero(lts.GetElem(2)))
+		return self.builder.CreateStruct(lts, f, self.builder.ConstZero(lts.GetElem(1)))
 	} else {
 		ctxType := self.builder.StructType(false, stlslices.Map(ir.Context(), func(_ int, e values.Ident) llvm.Type {
 			return self.builder.OpaquePointerType()
@@ -513,7 +514,7 @@ func (self *CodeGenerator) codegenLambda(ir *local.LambdaExpr) llvm.Value {
 		self.builder.CreateBr(block)
 		self.builder.MoveToAfter(preBlock)
 
-		return self.builder.CreateStruct(lts, self.builder.ConstZero(lts.GetElem(0)), f, externalCtxPtr)
+		return self.builder.CreateStruct(lts, f, externalCtxPtr)
 	}
 }
 
@@ -549,7 +550,7 @@ func (self *CodeGenerator) codegenMethod(ir *local.MethodExpr) llvm.Value {
 	}
 
 	self.builder.MoveToAfter(preBlock)
-	return self.builder.CreateStruct(lts, self.builder.ConstZero(lts.GetElem(0)), f, externalCtxPtr)
+	return self.builder.CreateStruct(lts, f, externalCtxPtr)
 }
 
 func (self *CodeGenerator) codegenEnum(ir *local.EnumExpr) llvm.Value {
