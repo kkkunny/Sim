@@ -29,7 +29,7 @@ func (self *CodeGenerator) codegenTypeDefDecl(pkg *hir.Package) {
 }
 
 func (self *CodeGenerator) declCustomType(ir global.CustomTypeDef) {
-	if et, ok := types.As[types.EnumType](ir.Target(), true); !types.Is[types.StructType](ir.Target(), true) && (!ok || et.Simple()) {
+	if !self.typeIsStruct(ir.Target()) {
 		return
 	}
 

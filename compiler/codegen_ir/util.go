@@ -15,6 +15,21 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
+func (self *CodeGenerator) typeIsStruct(t hir.Type) bool {
+	switch t := t.(type) {
+	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.RefType, types.ArrayType, types.FuncType:
+		return false
+	case types.StrType, types.TupleType, types.LambdaType, types.StructType:
+		return true
+	case types.EnumType:
+		return !t.Simple()
+	case types.TypeDef:
+		return self.typeIsStruct(t.Target())
+	default:
+		panic("unreachable")
+	}
+}
+
 func (self *CodeGenerator) buildCopy(tIr hir.Type, v llvm.Value) llvm.Value {
 	switch tIr := tIr.(type) {
 	case types.NoThingType, types.NoReturnType:
