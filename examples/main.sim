@@ -6,9 +6,6 @@ type A enum{
 }
 
 func main(){
-	let a = A.A1
-	let b = A.A2
-	if a == b{
-		os::exit(1)
-	}
+	let a: A
+	os::exit(a as u8)
 }

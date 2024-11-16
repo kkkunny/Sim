@@ -7,5 +7,5 @@ type A enum{
 
 func main(){
 	let a: A
-	os::exit(a)
+	os::exit(a as u8)
 }

@@ -547,18 +547,6 @@ func (self *Analyser) autoTypeCovert(tt hir.Type, v hir.Value) (hir.Value, bool)
 	} else if toLt, toOk := types.As[types.LambdaType](tt, true); fromOk && toOk && fromFt.Equal(toLt.ToFunc()) {
 		// func -> lambda
 		return local.NewFunc2LambdaExpr(v, toLt), true
-	} else if fromEt, fromOk := types.As[types.EnumType](ft); fromOk && false {
-		panic("unreachable")
-	} else if toUt, toOk := types.As[types.UintType](tt, true); fromOk && toOk && fromEt.Simple() && toUt.Equal(types.U8) {
-		// simple enum -> u8
-		// TODO: 移至强类型转换
-		return local.NewEnum2NumberExpr(v, toUt), true
-	} else if fromUt, fromOk := types.As[types.UintType](ft, true); fromOk && false {
-		panic("unreachable")
-	} else if toEt, toOk := types.As[types.EnumType](tt); fromOk && toOk && toEt.Simple() && fromUt.Equal(types.U8) {
-		// u8 -> simple enum
-		// TODO: 移至强类型转换
-		return local.NewNumber2EnumExpr(v, toEt), true
 	} else {
 		return v, false
 	}
@@ -589,6 +577,16 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Value {
 	} else if toOk && types.Is[types.FloatType](ft) {
 		// float -> float
 		return local.NewFloat2FloatExpr(from, toFt)
+	} else if fromEt, fromOk := types.As[types.EnumType](ft); fromOk && false {
+		panic("unreachable")
+	} else if toUt, toOk := types.As[types.UintType](tt, true); fromOk && toOk && fromEt.Simple() && toUt.Equal(types.U8) {
+		// simple enum -> u8
+		return local.NewEnum2NumberExpr(from, toUt)
+	} else if fromUt, fromOk := types.As[types.UintType](ft, true); fromOk && false {
+		panic("unreachable")
+	} else if toEt, toOk := types.As[types.EnumType](tt); fromOk && toOk && toEt.Simple() && fromUt.Equal(types.U8) {
+		// u8 -> simple enum
+		return local.NewNumber2EnumExpr(from, toEt)
 	} else {
 		errors.ThrowIllegalCovertError(node.Position(), ft, tt)
 		return nil
