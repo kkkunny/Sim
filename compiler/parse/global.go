@@ -40,13 +40,26 @@ func (self *Parser) parseGlobal() ast.Global {
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global {
 	expectAttrIn(attrs, new(ast.Extern), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
+
 	var selfType optional.Optional[token.Token]
-	decl := self.parseFuncDecl(func() {
+	beforeNameFn := func() {
 		if self.skipNextIs(token.LPA) {
 			selfType = optional.Some(self.expectNextIs(token.IDENT))
 			self.expectNextIs(token.RPA)
 		}
-	})
+	}
+
+	var genericParams optional.Optional[*ast.GenericParamList]
+	afterNameFn := func() {
+		if selfType.IsNone() {
+			genericParams = self.parseGenericParamList()
+		}
+		if genericParams.IsSome() {
+			expectAttrIn(attrs, new(ast.Inline), new(ast.NoInline))
+		}
+	}
+	decl := self.parseFuncDecl(beforeNameFn, afterNameFn)
+
 	begin := stlval.TernaryAction(pub == nil, func() reader.Position {
 		return decl.Begin
 	}, func() reader.Position {
@@ -58,12 +71,13 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 		return optional.None[*ast.Block]()
 	})
 	return &ast.FuncDef{
-		Attrs:    attrs,
-		Begin:    begin,
-		Public:   pub != nil,
-		SelfType: selfType,
-		FuncDecl: decl,
-		Body:     body,
+		Attrs:         attrs,
+		Begin:         begin,
+		Public:        pub != nil,
+		SelfType:      selfType,
+		FuncDecl:      decl,
+		GenericParams: genericParams,
+		Body:          body,
 	}
 }
 
@@ -201,7 +215,7 @@ func (self *Parser) parseTrait(attrs []ast.Attr, pub *token.Token) *ast.Trait {
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
 	methods := loopParseWithUtil(self, token.COM, token.RBR, func() *ast.FuncDecl {
-		return stlval.Ptr(self.parseFuncDecl(nil))
+		return stlval.Ptr(self.parseFuncDecl(nil, nil))
 	})
 	end := self.expectNextIs(token.RBR).Position
 

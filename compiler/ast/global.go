@@ -218,7 +218,8 @@ type FuncDef struct {
 	Public   bool
 	SelfType optional.Optional[token.Token]
 	FuncDecl
-	Body optional.Optional[*Block]
+	GenericParams optional.Optional[*GenericParamList]
+	Body          optional.Optional[*Block]
 }
 
 func (self *FuncDef) Position() reader.Position {
@@ -256,7 +257,28 @@ func (self *FuncDef) Output(w io.Writer, depth uint) (err error) {
 			return err
 		}
 	}
-	if err = outputf(w, "func %s(", self.Name.Source()); err != nil {
+	if err = outputf(w, "func %s", self.Name.Source()); err != nil {
+		return err
+	}
+	if genericParams, ok := self.GenericParams.Value(); ok {
+		if err = outputf(w, "<"); err != nil {
+			return err
+		}
+		for i, param := range genericParams.Params {
+			if err = outputf(w, param.Source()); err != nil {
+				return err
+			}
+			if i < len(genericParams.Params)-1 {
+				if err = outputf(w, ", "); err != nil {
+					return err
+				}
+			}
+		}
+		if err = outputf(w, ">"); err != nil {
+			return err
+		}
+	}
+	if err = outputf(w, "("); err != nil {
 		return err
 	}
 	for i, param := range self.Params {

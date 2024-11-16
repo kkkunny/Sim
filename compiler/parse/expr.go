@@ -80,7 +80,7 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 			}
 			firstParam := self.mustExpr(self.parseOptionExpr(true))
 			firstIdent, ok := firstParam.(*ast.IdentExpr)
-			if ok && firstIdent.Pkg.IsNone() && self.skipNextIs(token.COL) {
+			if ok && firstIdent.Pkg.IsNone() && firstIdent.GenericArgs.IsNone() && self.skipNextIs(token.COL) {
 				isLambda = true
 			}
 
