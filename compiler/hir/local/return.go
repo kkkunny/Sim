@@ -3,25 +3,25 @@ package local
 import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/compiler/hir/values"
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 // Return 函数返回
 type Return struct {
-	value values.Value
+	value hir.Value
 }
 
-func NewReturn(v ...values.Value) *Return {
+func NewReturn(v ...hir.Value) *Return {
 	return &Return{
 		value: stlslices.Last(v),
 	}
 }
 
-func (self *Return) local() {
+func (self *Return) Local() {
 	return
 }
 
-func (self *Return) Value() (values.Value, bool) {
+func (self *Return) Value() (hir.Value, bool) {
 	return self.value, self.value != nil
 }
 

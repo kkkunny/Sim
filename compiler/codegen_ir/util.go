@@ -11,11 +11,12 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/analyse"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (self *CodeGenerator) buildCopy(tIr types.Type, v llvm.Value) llvm.Value {
+func (self *CodeGenerator) buildCopy(tIr hir.Type, v llvm.Value) llvm.Value {
 	switch tIr := tIr.(type) {
 	case types.NoThingType, types.NoReturnType:
 		panic("unreachable")
@@ -60,11 +61,11 @@ func (self *CodeGenerator) buildCopy(tIr types.Type, v llvm.Value) llvm.Value {
 			return v
 		}
 
-		var fields []types.Type
+		var fields []hir.Type
 		if ttIr, ok := types.As[types.TupleType](tIr); ok {
 			fields = ttIr.Elems()
 		} else {
-			fields = stlslices.Map(stlval.IgnoreWith(types.As[types.StructType](tIr)).Fields().Values(), func(_ int, field *types.Field) types.Type {
+			fields = stlslices.Map(stlval.IgnoreWith(types.As[types.StructType](tIr)).Fields().Values(), func(_ int, field *types.Field) hir.Type {
 				return field.Type()
 			})
 		}
@@ -187,7 +188,7 @@ func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
 	return self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.ConstIsize(int64(size)))
 }
 
-func (self *CodeGenerator) buildEqual(tIr types.Type, l, r llvm.Value, not bool) llvm.Value {
+func (self *CodeGenerator) buildEqual(tIr hir.Type, l, r llvm.Value, not bool) llvm.Value {
 	switch tIr := tIr.(type) {
 	case types.IntType, types.RefType, types.BoolType:
 		return self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
@@ -247,11 +248,11 @@ func (self *CodeGenerator) buildEqual(tIr types.Type, l, r llvm.Value, not bool)
 			return self.builder.ConstBoolean(true)
 		}
 
-		var fields []types.Type
+		var fields []hir.Type
 		if ttIr, ok := types.As[types.TupleType](tIr); ok {
 			fields = ttIr.Elems()
 		} else {
-			fields = stlslices.Map(stlval.IgnoreWith(types.As[types.StructType](tIr)).Fields().Values(), func(_ int, field *types.Field) types.Type {
+			fields = stlslices.Map(stlval.IgnoreWith(types.As[types.StructType](tIr)).Fields().Values(), func(_ int, field *types.Field) hir.Type {
 				return field.Type()
 			})
 		}
@@ -385,7 +386,7 @@ func (self *CodeGenerator) buildEqual(tIr types.Type, l, r llvm.Value, not bool)
 	}
 }
 
-func (self *CodeGenerator) codegenDefault(ir types.Type) llvm.Value {
+func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	switch ir := ir.(type) {
 	case types.RefType:
 		if ir.Pointer().Equal(types.Str) {
@@ -438,7 +439,7 @@ func (self *CodeGenerator) codegenDefault(ir types.Type) llvm.Value {
 		}
 		return self.builder.CreateCall("", fn.FunctionType(), fn)
 	case types.TupleType:
-		elems := stlslices.Map(ir.Elems(), func(_ int, elem types.Type) llvm.Value {
+		elems := stlslices.Map(ir.Elems(), func(_ int, elem hir.Type) llvm.Value {
 			return self.codegenDefault(elem)
 		})
 		return self.builder.CreateStruct(self.codegenTupleType(ir), elems...)
@@ -475,7 +476,7 @@ func (self *CodeGenerator) codegenDefault(ir types.Type) llvm.Value {
 			return self.builder.ConstInteger(self.codegenType(ir).(llvm.IntegerType), 0)
 		}
 
-		f := func(elem types.Type, hasElem bool) (v llvm.Value, ok bool) {
+		f := func(elem hir.Type, hasElem bool) (v llvm.Value, ok bool) {
 			defer func() {
 				if err := recover(); err != nil {
 					ok = false

@@ -6,6 +6,8 @@ import (
 	"unsafe"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 // FuncType 函数类型
@@ -16,11 +18,11 @@ type FuncType interface {
 }
 
 type _FuncType_ struct {
-	ret    Type
-	params []Type
+	ret    hir.Type
+	params []hir.Type
 }
 
-func NewFuncType(ret Type, ps ...Type) FuncType {
+func NewFuncType(ret hir.Type, ps ...hir.Type) FuncType {
 	return &_FuncType_{
 		ret:    ret,
 		params: ps,
@@ -28,21 +30,21 @@ func NewFuncType(ret Type, ps ...Type) FuncType {
 }
 
 func (self *_FuncType_) String() string {
-	params := stlslices.Map(self.params, func(i int, p Type) string { return p.String() })
+	params := stlslices.Map(self.params, func(i int, p hir.Type) string { return p.String() })
 	return fmt.Sprintf("func(%s)%s", strings.Join(params, ", "), self.ret.String())
 }
 
-func (self *_FuncType_) Equal(dst Type) bool {
+func (self *_FuncType_) Equal(dst hir.Type) bool {
 	t, ok := As[FuncType](dst, true)
 	if !ok || len(self.params) != len(t.Params()) || !self.ret.Equal(t.Ret()) {
 		return false
 	}
-	return stlslices.All(self.params, func(i int, p Type) bool {
+	return stlslices.All(self.params, func(i int, p hir.Type) bool {
 		return p.Equal(t.Params()[i])
 	})
 }
 
-func (self *_FuncType_) EqualWithSelf(dst Type, selfs ...Type) bool {
+func (self *_FuncType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	if dst.Equal(Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
@@ -51,16 +53,16 @@ func (self *_FuncType_) EqualWithSelf(dst Type, selfs ...Type) bool {
 	if !ok || len(self.params) != len(t.Params()) || !self.ret.EqualWithSelf(t.Ret(), selfs...) {
 		return false
 	}
-	return stlslices.All(self.params, func(i int, p Type) bool {
+	return stlslices.All(self.params, func(i int, p hir.Type) bool {
 		return p.EqualWithSelf(t.Params()[i], selfs...)
 	})
 }
 
-func (self *_FuncType_) Ret() Type {
+func (self *_FuncType_) Ret() hir.Type {
 	return self.ret
 }
 
-func (self *_FuncType_) Params() []Type {
+func (self *_FuncType_) Params() []hir.Type {
 	return self.params
 }
 

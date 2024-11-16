@@ -1,6 +1,10 @@
 package types
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/kkkunny/Sim/compiler/hir"
+)
 
 // NoThingType 无返回值类型
 type NoThingType interface {
@@ -16,11 +20,11 @@ func (self *_NoThingType_) String() string {
 	return ""
 }
 
-func (self *_NoThingType_) Equal(dst Type) bool {
+func (self *_NoThingType_) Equal(dst hir.Type) bool {
 	return Is[NoThingType](dst, true)
 }
 
-func (self *_NoThingType_) EqualWithSelf(dst Type, _ ...Type) bool {
+func (self *_NoThingType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
 	return Is[NoThingType](dst, true)
 }
 

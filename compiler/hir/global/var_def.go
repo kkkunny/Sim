@@ -1,9 +1,7 @@
 package global
 
 import (
-	stlval "github.com/kkkunny/stl/value"
-
-	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -12,10 +10,10 @@ type VarDef struct {
 	pkgGlobalAttr
 	values.VarDecl
 	attrs []VarAttr
-	value values.Value
+	value hir.Value
 }
 
-func NewVarDef(mut bool, name string, t types.Type, attrs ...VarAttr) *VarDef {
+func NewVarDef(mut bool, name string, t hir.Type, attrs ...VarAttr) *VarDef {
 	return &VarDef{
 		VarDecl: values.NewVarDecl(mut, name, t),
 		attrs:   attrs,
@@ -26,16 +24,12 @@ func (self *VarDef) Attrs() []VarAttr {
 	return self.attrs
 }
 
-func (self *VarDef) SetValue(value values.Value) {
+func (self *VarDef) SetValue(value hir.Value) {
 	self.value = value
 }
 
-func (self *VarDef) Value() (values.Value, bool) {
+func (self *VarDef) Value() (hir.Value, bool) {
 	return self.value, self.value != nil
-}
-
-func (self *VarDef) Name() string {
-	return stlval.IgnoreWith(self.VarDecl.GetName())
 }
 
 // VarAttr 变量属性

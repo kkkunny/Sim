@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 	"unsafe"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 var (
@@ -31,12 +33,12 @@ func (self *_SintType_) String() string {
 	}
 }
 
-func (self *_SintType_) Equal(dst Type) bool {
+func (self *_SintType_) Equal(dst hir.Type) bool {
 	t, ok := As[SintType](dst, true)
 	return ok && self.kind == t.Kind()
 }
 
-func (self *_SintType_) EqualWithSelf(dst Type, _ ...Type) bool {
+func (self *_SintType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
 	t, ok := As[SintType](dst, true)
 	return ok && self.kind == t.Kind()
 }

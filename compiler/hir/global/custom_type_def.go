@@ -8,6 +8,7 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -18,17 +19,17 @@ type CustomTypeDef interface {
 	AddMethod(m *MethodDef) bool
 	GetMethod(name string) (*MethodDef, bool)
 	HasImpl(trait *Trait) bool
-	Wrap(inner types.Type) types.BuildInType
+	Wrap(inner hir.Type) types.BuildInType
 }
 
 type __CustomTypeDef__ struct {
 	pkgGlobalAttr
 	name    string
-	target  types.Type
+	target  hir.Type
 	methods hashmap.HashMap[string, *MethodDef]
 }
 
-func NewCustomTypeDef(name string, target types.Type) CustomTypeDef {
+func NewCustomTypeDef(name string, target hir.Type) CustomTypeDef {
 	return &__CustomTypeDef__{
 		name:    name,
 		target:  target,
@@ -43,29 +44,27 @@ func (self *__CustomTypeDef__) String() string {
 	return fmt.Sprintf("%s::%s", self.pkg.String(), self.name)
 }
 
-func (self *__CustomTypeDef__) Equal(dst types.Type) bool {
-	t, ok := dst.(CustomTypeDef)
-	return ok && self.pkg.Equal(t.Package()) && self.name == t.Name()
+func (self *__CustomTypeDef__) Equal(dst hir.Type) bool {
+	return self.Hash() == dst.Hash()
 }
 
-func (self *__CustomTypeDef__) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *__CustomTypeDef__) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	if dst.Equal(types.Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
 
-	t, ok := dst.(CustomTypeDef)
-	return ok && self.pkg.Equal(t.Package()) && self.name == t.Name()
+	return self.Hash() == dst.Hash()
 }
 
-func (self *__CustomTypeDef__) Name() string {
-	return self.name
+func (self *__CustomTypeDef__) GetName() (string, bool) {
+	return self.name, self.name != "_"
 }
 
-func (self *__CustomTypeDef__) Target() types.Type {
+func (self *__CustomTypeDef__) Target() hir.Type {
 	return self.target
 }
 
-func (self *__CustomTypeDef__) SetTarget(t types.Type) {
+func (self *__CustomTypeDef__) SetTarget(t hir.Type) {
 	self.target = t
 }
 
@@ -74,13 +73,17 @@ func (self *__CustomTypeDef__) Custom() {
 }
 
 func (self *__CustomTypeDef__) AddMethod(m *MethodDef) bool {
-	if types.Is[types.StructType](self.target) && stlval.IgnoreWith(types.As[types.StructType](self.target)).Fields().Contain(m.Name()) {
+	mn, ok := m.GetName()
+	if !ok {
+		return true
+	}
+	if types.Is[types.StructType](self.target) && stlval.IgnoreWith(types.As[types.StructType](self.target)).Fields().Contain(mn) {
 		return false
 	}
-	if self.methods.Contain(m.Name()) {
+	if self.methods.Contain(mn) {
 		return false
 	}
-	self.methods.Set(m.Name(), m)
+	self.methods.Set(mn, m)
 	return true
 }
 
@@ -90,8 +93,8 @@ func (self *__CustomTypeDef__) GetMethod(name string) (*MethodDef, bool) {
 }
 
 func (self *__CustomTypeDef__) HasImpl(trait *Trait) bool {
-	return stlslices.All(trait.Methods.Values(), func(_ int, dstF *FuncDecl) bool {
-		method, ok := self.GetMethod(dstF.Name())
+	return stlslices.All(trait.Methods(), func(_ int, dstF *FuncDecl) bool {
+		method, ok := self.GetMethod(stlval.IgnoreWith(dstF.GetName()))
 		if !ok {
 			return false
 		}
@@ -107,7 +110,7 @@ func (self *__CustomTypeDef__) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
-func (self *__CustomTypeDef__) Wrap(inner types.Type) types.BuildInType {
+func (self *__CustomTypeDef__) Wrap(inner hir.Type) types.BuildInType {
 	switch v := inner.(type) {
 	case types.SintType:
 		return &customSintType{CustomTypeDef: self, SintType: v}
@@ -143,10 +146,10 @@ type customSintType struct {
 	types.SintType
 }
 
-func (self *customSintType) Equal(dst types.Type) bool {
+func (self *customSintType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customSintType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customSintType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customSintType) String() string { return self.CustomTypeDef.String() }
@@ -157,10 +160,10 @@ type customUintType struct {
 	types.UintType
 }
 
-func (self *customUintType) Equal(dst types.Type) bool {
+func (self *customUintType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customUintType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customUintType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customUintType) String() string { return self.CustomTypeDef.String() }
@@ -171,10 +174,10 @@ type customFloatType struct {
 	types.FloatType
 }
 
-func (self *customFloatType) Equal(dst types.Type) bool {
+func (self *customFloatType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customFloatType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customFloatType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customFloatType) String() string { return self.CustomTypeDef.String() }
@@ -185,10 +188,10 @@ type customBoolType struct {
 	types.BoolType
 }
 
-func (self *customBoolType) Equal(dst types.Type) bool {
+func (self *customBoolType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customBoolType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customBoolType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customBoolType) String() string { return self.CustomTypeDef.String() }
@@ -199,10 +202,10 @@ type customStrType struct {
 	types.StrType
 }
 
-func (self *customStrType) Equal(dst types.Type) bool {
+func (self *customStrType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customStrType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customStrType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customStrType) String() string { return self.CustomTypeDef.String() }
@@ -213,10 +216,10 @@ type customRefType struct {
 	types.RefType
 }
 
-func (self *customRefType) Equal(dst types.Type) bool {
+func (self *customRefType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customRefType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customRefType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customRefType) String() string { return self.CustomTypeDef.String() }
@@ -227,10 +230,10 @@ type customArrayType struct {
 	types.ArrayType
 }
 
-func (self *customArrayType) Equal(dst types.Type) bool {
+func (self *customArrayType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customArrayType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customArrayType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customArrayType) String() string { return self.CustomTypeDef.String() }
@@ -241,10 +244,10 @@ type customTupleType struct {
 	types.TupleType
 }
 
-func (self *customTupleType) Equal(dst types.Type) bool {
+func (self *customTupleType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customTupleType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customTupleType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customTupleType) String() string { return self.CustomTypeDef.String() }
@@ -255,10 +258,10 @@ type customFuncType struct {
 	types.FuncType
 }
 
-func (self *customFuncType) Equal(dst types.Type) bool {
+func (self *customFuncType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customFuncType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customFuncType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customFuncType) String() string { return self.CustomTypeDef.String() }
@@ -269,10 +272,10 @@ type customLambdaType struct {
 	types.LambdaType
 }
 
-func (self *customLambdaType) Equal(dst types.Type) bool {
+func (self *customLambdaType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customLambdaType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customLambdaType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customLambdaType) String() string { return self.CustomTypeDef.String() }
@@ -283,10 +286,10 @@ type customStructType struct {
 	types.StructType
 }
 
-func (self *customStructType) Equal(dst types.Type) bool {
+func (self *customStructType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customStructType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customStructType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customStructType) String() string { return self.CustomTypeDef.String() }
@@ -297,10 +300,10 @@ type customEnumType struct {
 	types.EnumType
 }
 
-func (self *customEnumType) Equal(dst types.Type) bool {
+func (self *customEnumType) Equal(dst hir.Type) bool {
 	return self.CustomTypeDef.Equal(dst)
 }
-func (self *customEnumType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *customEnumType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.CustomTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *customEnumType) String() string { return self.CustomTypeDef.String() }

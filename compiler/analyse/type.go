@@ -9,16 +9,17 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 
 	errors "github.com/kkkunny/Sim/compiler/error"
 )
 
-type typeAnalyserFunc func(node ast.Type, analysers ...typeAnalyser) (types.Type, bool)
+type typeAnalyserFunc func(node ast.Type, analysers ...typeAnalyser) (hir.Type, bool)
 type typeAnalyser = tuple.Tuple2[typeAnalyserFunc, bool]
 
 func (self *Analyser) voidTypeAnalyser(deep ...bool) typeAnalyser {
-	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (types.Type, bool) {
+	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (hir.Type, bool) {
 		if ident, ok := node.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == types.NoThing.String() {
 			return types.NoThing, true
 		}
@@ -27,7 +28,7 @@ func (self *Analyser) voidTypeAnalyser(deep ...bool) typeAnalyser {
 }
 
 func (self *Analyser) noReturnTypeAnalyser(deep ...bool) typeAnalyser {
-	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (types.Type, bool) {
+	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (hir.Type, bool) {
 		if ident, ok := node.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == types.NoReturn.String() {
 			return types.NoReturn, true
 		}
@@ -39,8 +40,8 @@ func (self *Analyser) selfTypeAnalyser(deep ...bool) typeAnalyser {
 	return self.selfTypeAnalyserWith(types.Self, deep...)
 }
 
-func (self *Analyser) selfTypeAnalyserWith(selfType types.Type, deep ...bool) typeAnalyser {
-	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (types.Type, bool) {
+func (self *Analyser) selfTypeAnalyserWith(selfType hir.Type, deep ...bool) typeAnalyser {
+	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (hir.Type, bool) {
 		if ident, ok := node.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == types.Self.String() {
 			return selfType, true
 		}
@@ -49,7 +50,7 @@ func (self *Analyser) selfTypeAnalyserWith(selfType types.Type, deep ...bool) ty
 }
 
 func (self *Analyser) structTypeAnalyser(deep ...bool) typeAnalyser {
-	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (types.Type, bool) {
+	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (hir.Type, bool) {
 		if st, ok := node.(*ast.StructType); ok {
 			return self.analyseStructType(st, analysers...), true
 		}
@@ -58,7 +59,7 @@ func (self *Analyser) structTypeAnalyser(deep ...bool) typeAnalyser {
 }
 
 func (self *Analyser) enumTypeAnalyser(deep ...bool) typeAnalyser {
-	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (types.Type, bool) {
+	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (hir.Type, bool) {
 		if et, ok := node.(*ast.EnumType); ok {
 			return self.analyseEnumType(et, analysers...), true
 		}
@@ -66,7 +67,7 @@ func (self *Analyser) enumTypeAnalyser(deep ...bool) typeAnalyser {
 	}, stlslices.Last(deep))
 }
 
-func (self *Analyser) analyseType(node ast.Type, analysers ...typeAnalyser) types.Type {
+func (self *Analyser) analyseType(node ast.Type, analysers ...typeAnalyser) hir.Type {
 	deepAnalysers := stlslices.Filter(analysers, func(_ int, analyser typeAnalyser) bool {
 		return analyser.E2()
 	})
@@ -94,7 +95,7 @@ func (self *Analyser) analyseType(node ast.Type, analysers ...typeAnalyser) type
 	}
 }
 
-func (self *Analyser) tryAnalyseIdentType(node *ast.IdentType) (types.Type, bool) {
+func (self *Analyser) tryAnalyseIdentType(node *ast.IdentType) (hir.Type, bool) {
 	name := node.Name.Source()
 
 	// 仅buildin包类型
@@ -145,13 +146,13 @@ func (self *Analyser) tryAnalyseIdentType(node *ast.IdentType) (types.Type, bool
 
 	// 自定义类型
 	obj, ok := scope.GetIdent(name, true)
-	if ok && stlval.Is[types.Type](obj) {
-		return obj.(types.Type), true
+	if ok && stlval.Is[hir.Type](obj) {
+		return obj.(hir.Type), true
 	}
 	return nil, false
 }
 
-func (self *Analyser) analyseIdentType(node *ast.IdentType) types.Type {
+func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
 	t, ok := self.tryAnalyseIdentType(node)
 	if !ok {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
@@ -160,10 +161,10 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType) types.Type {
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType, analysers ...typeAnalyser) types.FuncType {
-	params := stlslices.Map(node.Params, func(_ int, e ast.Type) types.Type {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
 		return self.analyseType(e, analysers...)
 	})
-	var ret types.Type = types.NoThing
+	var ret hir.Type = types.NoThing
 	if retNode, ok := node.Ret.Value(); ok {
 		ret = self.analyseType(retNode, append(analysers, self.noReturnTypeAnalyser())...)
 	}
@@ -180,7 +181,7 @@ func (self *Analyser) analyseArrayType(node *ast.ArrayType, analysers ...typeAna
 }
 
 func (self *Analyser) analyseTupleType(node *ast.TupleType, analysers ...typeAnalyser) types.TupleType {
-	elems := stlslices.Map(node.Elems, func(_ int, e ast.Type) types.Type {
+	elems := stlslices.Map(node.Elems, func(_ int, e ast.Type) hir.Type {
 		return self.analyseType(e, analysers...)
 	})
 	return types.NewTupleType(elems...)
@@ -191,7 +192,7 @@ func (self *Analyser) analyseRefType(node *ast.RefType, analysers ...typeAnalyse
 }
 
 func (self *Analyser) analyseLambdaType(node *ast.LambdaType, analysers ...typeAnalyser) types.LambdaType {
-	params := stlslices.Map(node.Params, func(_ int, e ast.Type) types.Type {
+	params := stlslices.Map(node.Params, func(_ int, e ast.Type) hir.Type {
 		return self.analyseType(e, analysers...)
 	})
 	ret := self.analyseType(node.Ret, append(analysers, self.voidTypeAnalyser(), self.noReturnTypeAnalyser())...)
@@ -216,7 +217,7 @@ func (self *Analyser) analyseEnumType(node *ast.EnumType, analysers ...typeAnaly
 		if !names.Add(name) {
 			errors.ThrowIdentifierDuplicationError(f.Name.Position, f.Name)
 		}
-		var elem []types.Type
+		var elem []hir.Type
 		if elemNode, ok := f.Elem.Value(); ok {
 			elem = append(elem, self.analyseType(elemNode, analysers...))
 		}

@@ -7,16 +7,18 @@ import (
 
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 type Field struct {
 	pub  bool
 	mut  bool
 	name string
-	typ  Type
+	typ  hir.Type
 }
 
-func NewField(pub bool, mut bool, name string, typ Type) *Field {
+func NewField(pub bool, mut bool, name string, typ hir.Type) *Field {
 	return &Field{
 		pub:  pub,
 		mut:  mut,
@@ -29,7 +31,7 @@ func (self *Field) Name() string {
 	return self.name
 }
 
-func (self *Field) Type() Type {
+func (self *Field) Type() hir.Type {
 	return self.typ
 }
 
@@ -68,7 +70,7 @@ func (self *_StructType_) String() string {
 	return fmt.Sprintf("struct{%s}", strings.Join(fields, ";"))
 }
 
-func (self *_StructType_) Equal(dst Type) bool {
+func (self *_StructType_) Equal(dst hir.Type) bool {
 	t, ok := As[StructType](dst, true)
 	if !ok || self.fields.Length() != t.Fields().Length() {
 		return false
@@ -83,7 +85,7 @@ func (self *_StructType_) Equal(dst Type) bool {
 	})
 }
 
-func (self *_StructType_) EqualWithSelf(dst Type, selfs ...Type) bool {
+func (self *_StructType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	if dst.Equal(Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}

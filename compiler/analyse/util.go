@@ -8,10 +8,10 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
-	"github.com/kkkunny/Sim/compiler/hir/values"
 	"github.com/kkkunny/Sim/compiler/reader"
 )
 
@@ -37,11 +37,11 @@ func (self *Analyser) analyseFuncDecl(node ast.FuncDecl, analysers ...typeAnalys
 		}
 		return param
 	})
-	paramTypes := stlslices.Map(params, func(_ int, p *local.Param) types.Type {
+	paramTypes := stlslices.Map(params, func(_ int, p *local.Param) hir.Type {
 		return p.Type()
 	})
 
-	var ret types.Type = types.NoThing
+	var ret hir.Type = types.NoThing
 	if retNode, ok := node.Ret.Value(); ok {
 		ret = self.analyseType(retNode, append(analysers, self.noReturnTypeAnalyser())...)
 	}
@@ -49,7 +49,7 @@ func (self *Analyser) analyseFuncDecl(node ast.FuncDecl, analysers ...typeAnalys
 }
 
 // 检查类型是否循环（是否不能确定size）
-func (self *Analyser) checkTypeCircle(trace set.Set[types.Type], t types.Type) bool {
+func (self *Analyser) checkTypeCircle(trace set.Set[hir.Type], t hir.Type) bool {
 	if trace.Contain(t) {
 		return true
 	}
@@ -93,17 +93,17 @@ func (self *Analyser) checkTypeCircle(trace set.Set[types.Type], t types.Type) b
 	}
 }
 
-func (self *Analyser) buildinPkg() *global.Package {
+func (self *Analyser) buildinPkg() *hir.Package {
 	if self.pkg.IsBuildIn() {
 		return self.pkg
 	}
-	return stlval.IgnoreWith(stlslices.FindFirst(self.pkg.GetLinkedPackages(), func(_ int, pkg *global.Package) bool {
+	return stlval.IgnoreWith(stlslices.FindFirst(self.pkg.GetLinkedPackages(), func(_ int, pkg *hir.Package) bool {
 		return pkg.IsBuildIn()
 	}))
 }
 
 // 类型是否有默认值
-func (self *Analyser) hasTypeDefault(typ types.Type) bool {
+func (self *Analyser) hasTypeDefault(typ hir.Type) bool {
 	switch t := typ.(type) {
 	case types.NoThingType, types.NoReturnType, types.RefType:
 		return false
@@ -117,7 +117,7 @@ func (self *Analyser) hasTypeDefault(typ types.Type) bool {
 	case types.ArrayType:
 		return self.hasTypeDefault(t.Elem())
 	case types.TupleType:
-		return stlslices.All(t.Elems(), func(_ int, e types.Type) bool {
+		return stlslices.All(t.Elems(), func(_ int, e hir.Type) bool {
 			return self.hasTypeDefault(e)
 		})
 	case types.StructType:
@@ -141,20 +141,20 @@ func (self *Analyser) hasTypeDefault(typ types.Type) bool {
 	}
 }
 
-func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (either.Either[types.Type, values.Value], bool) {
+func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (either.Either[hir.Type, hir.Value], bool) {
 	t, ok := self.tryAnalyseIdentType((*ast.IdentType)(node))
 	if ok {
-		return either.Left[types.Type, values.Value](t), true
+		return either.Left[hir.Type, hir.Value](t), true
 	}
 	v, ok := self.tryAnalyseIdentExpr((*ast.IdentExpr)(node))
 	if ok {
-		return either.Right[types.Type, values.Value](v), true
+		return either.Right[hir.Type, hir.Value](v), true
 	}
-	return stlval.Default[either.Either[types.Type, values.Value]](), false
+	return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 }
 
 // 获取类型默认值
-func (self *Analyser) getTypeDefaultValue(pos reader.Position, t types.Type) *local.DefaultExpr {
+func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *local.DefaultExpr {
 	if !self.hasTypeDefault(t) {
 		errors.ThrowCanNotGetDefault(pos, t)
 	}

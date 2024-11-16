@@ -1,6 +1,8 @@
 package values
 
-import "github.com/kkkunny/Sim/compiler/hir/types"
+import (
+	"github.com/kkkunny/Sim/compiler/hir"
+)
 
 // VarDecl 变量声明
 type VarDecl interface {
@@ -12,11 +14,11 @@ type VarDecl interface {
 type __VarDecl__ struct {
 	mut     bool
 	name    string
-	typ     types.Type
+	typ     hir.Type
 	escaped bool
 }
 
-func NewVarDecl(mut bool, name string, t types.Type) VarDecl {
+func NewVarDecl(mut bool, name string, t hir.Type) VarDecl {
 	return &__VarDecl__{
 		mut:  mut,
 		name: name,
@@ -24,7 +26,7 @@ func NewVarDecl(mut bool, name string, t types.Type) VarDecl {
 	}
 }
 
-func (self *__VarDecl__) Type() types.Type {
+func (self *__VarDecl__) Type() hir.Type {
 	return self.typ
 }
 
@@ -33,7 +35,7 @@ func (self *__VarDecl__) Mutable() bool {
 }
 
 func (self *__VarDecl__) GetName() (string, bool) {
-	return self.name, self.name != ""
+	return self.name, self.name != "_"
 }
 
 func (self *__VarDecl__) Storable() bool {

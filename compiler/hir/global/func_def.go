@@ -39,10 +39,6 @@ func (self *FuncDef) Storable() bool {
 	return false
 }
 
-func (self *FuncDef) GetName() (string, bool) {
-	return self.name, true
-}
-
 func (self *FuncDef) Parent() local.Scope {
 	return self.pkg
 }

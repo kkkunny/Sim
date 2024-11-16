@@ -1,6 +1,7 @@
 package values
 
 import (
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -15,7 +16,7 @@ func NewBoolean(v bool) *Boolean {
 	}
 }
 
-func (self *Boolean) Type() types.Type {
+func (self *Boolean) Type() hir.Type {
 	return types.Bool
 }
 

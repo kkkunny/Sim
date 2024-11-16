@@ -1,6 +1,7 @@
 package values
 
 import (
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -17,7 +18,7 @@ func NewString(t types.StrType, v string) *String {
 	}
 }
 
-func (self *String) Type() types.Type {
+func (self *String) Type() hir.Type {
 	return self.typ
 }
 

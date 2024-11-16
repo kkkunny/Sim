@@ -3,6 +3,7 @@ package values
 import (
 	"math/big"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -19,7 +20,7 @@ func NewInteger(t types.IntType, v *big.Int) *Integer {
 	}
 }
 
-func (self *Integer) Type() types.Type {
+func (self *Integer) Type() hir.Type {
 	return self.typ
 }
 

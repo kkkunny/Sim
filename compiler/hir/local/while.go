@@ -1,27 +1,27 @@
 package local
 
 import (
-	"github.com/kkkunny/Sim/compiler/hir/values"
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 // While 循环
 type While struct {
-	cond values.Value
+	cond hir.Value
 	body *Block
 }
 
-func NewWhile(cond values.Value, body *Block) *While {
+func NewWhile(cond hir.Value, body *Block) *While {
 	return &While{
 		cond: cond,
 		body: body,
 	}
 }
 
-func (self *While) local() {
+func (self *While) Local() {
 	return
 }
 
-func (self *While) Cond() values.Value {
+func (self *While) Cond() hir.Value {
 	return self.cond
 }
 

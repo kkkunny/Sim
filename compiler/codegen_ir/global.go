@@ -5,11 +5,12 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (self *CodeGenerator) codegenImportPkgs(pkg *global.Package) {
+func (self *CodeGenerator) codegenImportPkgs(pkg *hir.Package) {
 	for _, dstPkg := range pkg.GetDependencyPackages() {
 		if !self.donePkgs.Add(dstPkg) {
 			continue
@@ -18,7 +19,7 @@ func (self *CodeGenerator) codegenImportPkgs(pkg *global.Package) {
 	}
 }
 
-func (self *CodeGenerator) codegenTypeDefDecl(pkg *global.Package) {
+func (self *CodeGenerator) codegenTypeDefDecl(pkg *hir.Package) {
 	for iter := pkg.Globals().Iterator(); iter.Next(); {
 		switch ir := iter.Value().(type) {
 		case global.CustomTypeDef:
@@ -36,7 +37,7 @@ func (self *CodeGenerator) declCustomType(ir global.CustomTypeDef) {
 	self.types.Set(ir, t)
 }
 
-func (self *CodeGenerator) codegenTypeDefDef(pkg *global.Package) {
+func (self *CodeGenerator) codegenTypeDefDef(pkg *hir.Package) {
 	for iter := pkg.Globals().Iterator(); iter.Next(); {
 		switch ir := iter.Value().(type) {
 		case global.CustomTypeDef:
@@ -60,7 +61,7 @@ func (self *CodeGenerator) defCustomType(ir global.CustomTypeDef) {
 	}
 }
 
-func (self *CodeGenerator) codegenGlobalVarDecl(pkg *global.Package) {
+func (self *CodeGenerator) codegenGlobalVarDecl(pkg *hir.Package) {
 	for iter := pkg.Globals().Iterator(); iter.Next(); {
 		switch ir := iter.Value().(type) {
 		case *global.FuncDef:
@@ -133,7 +134,7 @@ func (self *CodeGenerator) declGlobalVarDef(ir *global.VarDef) {
 	self.values.Set(ir, v)
 }
 
-func (self *CodeGenerator) codegenGlobalVarDef(pkg *global.Package) {
+func (self *CodeGenerator) codegenGlobalVarDef(pkg *hir.Package) {
 	for iter := pkg.Globals().Iterator(); iter.Next(); {
 		switch ir := iter.Value().(type) {
 		case *global.FuncDef:

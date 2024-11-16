@@ -1,6 +1,10 @@
 package types
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/kkkunny/Sim/compiler/hir"
+)
 
 var Bool BoolType = new(_BoolType_)
 
@@ -16,11 +20,11 @@ func (self *_BoolType_) String() string {
 	return "bool"
 }
 
-func (self *_BoolType_) Equal(dst Type) bool {
+func (self *_BoolType_) Equal(dst hir.Type) bool {
 	return Is[BoolType](dst, true)
 }
 
-func (self *_BoolType_) EqualWithSelf(dst Type, _ ...Type) bool {
+func (self *_BoolType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
 	return Is[BoolType](dst, true)
 }
 

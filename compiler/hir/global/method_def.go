@@ -4,6 +4,7 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
@@ -33,13 +34,13 @@ func (self *MethodDef) SelfParam() (*local.Param, bool) {
 		return nil, false
 	}
 	firstParam := stlslices.First(self.params)
-	firstParamType := stlval.TernaryAction(types.Is[types.RefType](firstParam.Type(), true), func() types.Type {
+	firstParamType := stlval.TernaryAction(types.Is[types.RefType](firstParam.Type(), true), func() hir.Type {
 		rt, ok := types.As[types.RefType](firstParam.Type(), true)
 		if !ok {
 			panic("unreachable")
 		}
 		return rt.Pointer()
-	}, func() types.Type {
+	}, func() hir.Type {
 		return firstParam.Type()
 	})
 	if !firstParamType.Equal(self.from) {
@@ -60,3 +61,5 @@ func (self *MethodDef) SelfParamIsRef() bool {
 	}
 	return types.Is[types.RefType](selfParam.Type(), true)
 }
+
+func (self *MethodDef) NotGlobalNamed() {}

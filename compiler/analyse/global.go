@@ -1,17 +1,16 @@
 package analyse
 
 import (
-	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/config"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
-	"github.com/kkkunny/Sim/compiler/hir/values"
 	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/util"
 
@@ -20,7 +19,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
-func (self *Analyser) analyseImport(node *ast.Import) *global.Package {
+func (self *Analyser) analyseImport(node *ast.Import) *hir.Package {
 	// 包名
 	var pkgName string
 	var importAll bool
@@ -42,7 +41,7 @@ func (self *Analyser) analyseImport(node *ast.Import) *global.Package {
 	if err != nil {
 		switch e := err.(type) {
 		case *importPackageCircularError:
-			errors.ThrowPackageCircularReference(stlslices.Last(node.Paths).Position, stlslices.Map(e.chain, func(i int, pkg *global.Package) stlos.FilePath {
+			errors.ThrowPackageCircularReference(stlslices.Last(node.Paths).Position, stlslices.Map(e.chain, func(i int, pkg *hir.Package) stlos.FilePath {
 				return pkg.Path()
 			}))
 		case *importPackageDuplicationError:
@@ -62,7 +61,7 @@ func (self *Analyser) declTrait(node *ast.Trait) *global.Trait {
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
-	return self.pkg.AppendGlobal(node.Public, global.NewTrait(name, hashmap.StdWithCap[string, *global.FuncDecl](uint(len(node.Methods))))).(*global.Trait)
+	return self.pkg.AppendGlobal(node.Public, global.NewTrait(name)).(*global.Trait)
 }
 
 func (self *Analyser) declTypeDef(node *ast.TypeDef) global.CustomTypeDef {
@@ -88,10 +87,9 @@ func (self *Analyser) defTrait(node *ast.Trait) *global.Trait {
 
 	for _, methodNode := range node.Methods {
 		method := self.analyseFuncDecl(*methodNode, self.selfTypeAnalyser(true))
-		if decl.Methods.Contain(method.Name()) {
+		if !decl.AddMethod(method) {
 			errors.ThrowIdentifierDuplicationError(methodNode.Name.Position, methodNode.Name)
 		}
-		decl.Methods.Set(method.Name(), method)
 	}
 	return decl
 }
@@ -138,7 +136,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 	}
 
 	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl), attrs...)
-	if f.Name() == "main" {
+	if stlval.IgnoreWith(f.GetName()) == "main" {
 		mainType := types.NewFuncType(types.NoThing)
 		if !f.Type().Equal(types.NewFuncType(types.NoThing)) {
 			errors.ThrowTypeMismatchError(node.Position(), f.Type(), mainType)
@@ -177,13 +175,6 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) *global.MethodDef {
 	}
 
 	f := global.NewMethodDef(customType, self.analyseFuncDecl(node.FuncDecl, self.selfTypeAnalyserWith(customType, true)), attrs...)
-	if f.Name() == "main" {
-		mainType := types.NewFuncType(types.NoThing)
-		if !f.Type().Equal(types.NewFuncType(types.NoThing)) {
-			errors.ThrowTypeMismatchError(node.Position(), f.Type(), mainType)
-		}
-	}
-
 	if !customType.AddMethod(f) {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
@@ -264,15 +255,15 @@ func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) []*g
 	decls := stlslices.Map(node.Vars, func(_ int, item ast.VarDef) *global.VarDef {
 		return stlval.IgnoreWith(self.pkg.GetIdent(item.Name.Source())).(*global.VarDef)
 	})
-	varTypes := stlslices.Map(decls, func(_ int, decl *global.VarDef) types.Type {
+	varTypes := stlslices.Map(decls, func(_ int, decl *global.VarDef) hir.Type {
 		return decl.Type()
 	})
 
-	var value values.Value
+	var value hir.Value
 	if valueNode, ok := node.Value.Value(); ok {
 		value = self.expectExpr(types.NewTupleType(varTypes...), valueNode)
 	} else {
-		elems := make([]values.Value, len(decls))
+		elems := make([]hir.Value, len(decls))
 		for i, varDef := range node.Vars {
 			elems[i] = self.getTypeDefaultValue(varDef.Type.MustValue().Position(), varTypes[i])
 		}

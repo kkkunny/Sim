@@ -9,7 +9,7 @@ func NewContinue(loop Loop) *Continue {
 	return &Continue{loop: loop}
 }
 
-func (self *Continue) local() {
+func (self *Continue) Local() {
 	return
 }
 

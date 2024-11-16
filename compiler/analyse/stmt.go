@@ -8,6 +8,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
@@ -47,7 +48,7 @@ func (self *Analyser) analyseFuncBody(f local.CallableDef, params []ast.Param, n
 	return block
 }
 
-func (self *Analyser) analyseStmt(node ast.Stmt) local.Local {
+func (self *Analyser) analyseStmt(node ast.Stmt) hir.Local {
 	switch stmtNode := node.(type) {
 	case *ast.Return:
 		ret := self.analyseReturn(stmtNode)
@@ -94,8 +95,8 @@ func (self *Analyser) analyseReturn(node *ast.Return) *local.Return {
 func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *local.SingleVarDef {
 	name := node.Var.Name.Source()
 
-	var t types.Type
-	var v values.Value
+	var t hir.Type
+	var v hir.Value
 	if typeNode, ok := node.Var.Type.Value(); ok {
 		t = self.analyseType(typeNode)
 		if valueNode, ok := node.Value.Value(); ok {
@@ -117,7 +118,7 @@ func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *l
 
 func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *local.MultiVarDef {
 	allHaveType := true
-	varTypes := stlslices.Map(node.Vars, func(_ int, vNode ast.VarDef) types.Type {
+	varTypes := stlslices.Map(node.Vars, func(_ int, vNode ast.VarDef) hir.Type {
 		typeNode, ok := vNode.Type.Value()
 		if !ok {
 			allHaveType = false
@@ -126,7 +127,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 		return self.analyseType(typeNode)
 	})
 
-	var value values.Value
+	var value hir.Value
 	if valueNode, ok := node.Value.Value(); ok && allHaveType {
 		value = self.expectExpr(types.NewTupleType(varTypes...), valueNode)
 	} else if ok && stlval.Is[*ast.Tuple](valueNode) {
@@ -134,7 +135,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 		if len(valueNodes) != len(varTypes) {
 			errors.ThrowParameterNumberNotMatchError(valueNode.Position(), uint(len(varTypes)), uint(len(valueNodes)))
 		}
-		elems := stlslices.Map(valueNodes, func(i int, vNode ast.Expr) values.Value {
+		elems := stlslices.Map(valueNodes, func(i int, vNode ast.Expr) hir.Value {
 			vt := varTypes[i]
 			if vt == nil {
 				v := self.analyseExpr(nil, vNode)
@@ -161,7 +162,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 			}
 		}
 	} else {
-		elems := stlslices.Map(varTypes, func(i int, vt types.Type) values.Value {
+		elems := stlslices.Map(varTypes, func(i int, vt hir.Type) hir.Value {
 			return self.getTypeDefaultValue(node.Vars[i].Type.MustValue().Position(), vt)
 		})
 		value = local.NewTupleExpr(elems...)

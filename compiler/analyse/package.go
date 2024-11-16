@@ -8,7 +8,7 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/parse"
 )
 
@@ -28,7 +28,7 @@ func (err *importPackageDuplicationError) Error() string {
 func (err *importPackageDuplicationError) importPackage() {}
 
 type importPackageCircularError struct {
-	chain []*global.Package
+	chain []*hir.Package
 }
 
 func (err *importPackageCircularError) Error() string {
@@ -48,7 +48,7 @@ func (err *importPackageInvalidError) Error() string {
 func (err *importPackageInvalidError) importPackage() {}
 
 // importPackage 导入包
-func (self *Analyser) importPackage(pkgPath stlos.FilePath, name string, importAll bool) (dstPkg *global.Package, err importPackageError) {
+func (self *Analyser) importPackage(pkgPath stlos.FilePath, name string, importAll bool) (dstPkg *hir.Package, err importPackageError) {
 	name = stlval.Ternary(name != "", name, pkgPath.Base())
 
 	defer func() {
@@ -73,10 +73,10 @@ func (self *Analyser) importPackage(pkgPath stlos.FilePath, name string, importA
 		return nil, &importPackageInvalidError{path: pkgPath}
 	}
 
-	dstPkg = global.NewPackage(pkgPath)
+	dstPkg = hir.NewPackage(pkgPath)
 
 	// 检查循环依赖
-	pkgChan := make([]*global.Package, 0, self.importStack.Length())
+	pkgChan := make([]*hir.Package, 0, self.importStack.Length())
 	for iter := self.importStack.Iterator(); iter.Next(); {
 		pkg := iter.Value()
 		pkgChan = append(pkgChan, pkg)
@@ -104,7 +104,7 @@ func (self *Analyser) importPackage(pkgPath stlos.FilePath, name string, importA
 }
 
 // Analyse 语义分析
-func Analyse(path stlos.FilePath) (*global.Package, error) {
+func Analyse(path stlos.FilePath) (*hir.Package, error) {
 	asts, err := parse.Parse(path)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func Analyse(path stlos.FilePath) (*global.Package, error) {
 }
 
 // 语义分析子包
-func analyseSonPackage(parent *Analyser, pkg *global.Package) (bool, error) {
+func analyseSonPackage(parent *Analyser, pkg *hir.Package) (bool, error) {
 	asts, err := parse.Parse(pkg.Path())
 	if err != nil {
 		return false, err

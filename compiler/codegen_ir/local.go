@@ -6,12 +6,13 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
-func (self *CodeGenerator) codegenLocal(ir local.Local) {
+func (self *CodeGenerator) codegenLocal(ir hir.Local) {
 	switch ir := ir.(type) {
 	case *local.Return:
 		self.codegenReturn(ir)
@@ -97,7 +98,7 @@ func (self *CodeGenerator) codegenMultiLocalVariable(ir *local.MultiVarDef) llvm
 	for _, varIr := range ir.Vars() {
 		self.codegenVarDecl(varIr)
 	}
-	self.codegenUnTuple(ir.Value(), stlslices.As[values.VarDecl, values.Value](ir.Vars()))
+	self.codegenUnTuple(ir.Value(), stlslices.As[values.VarDecl, hir.Value](ir.Vars()))
 	return nil
 }
 

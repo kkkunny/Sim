@@ -5,11 +5,13 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	stlval "github.com/kkkunny/stl/value"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 type Block struct {
 	parent either.Either[CallableDef, *Block]
-	stmts  linkedlist.LinkedList[Local]
+	stmts  linkedlist.LinkedList[hir.Local]
 	idents hashmap.HashMap[string, any]
 
 	loop Loop
@@ -18,7 +20,7 @@ type Block struct {
 func NewFuncBody(f CallableDef) *Block {
 	return &Block{
 		parent: either.Left[CallableDef, *Block](f),
-		stmts:  linkedlist.NewLinkedList[Local](),
+		stmts:  linkedlist.NewLinkedList[hir.Local](),
 		idents: hashmap.StdWith[string, any](),
 	}
 }
@@ -26,7 +28,7 @@ func NewFuncBody(f CallableDef) *Block {
 func NewBlock(p *Block) *Block {
 	return &Block{
 		parent: either.Right[CallableDef, *Block](p),
-		stmts:  linkedlist.NewLinkedList[Local](),
+		stmts:  linkedlist.NewLinkedList[hir.Local](),
 		idents: hashmap.StdWith[string, any](),
 	}
 }
@@ -43,7 +45,7 @@ func (self *Block) CallableDef() CallableDef {
 	return stlval.IgnoreWith(self.parent.Right()).CallableDef()
 }
 
-func (self *Block) Stmts() linkedlist.LinkedList[Local] {
+func (self *Block) Stmts() linkedlist.LinkedList[hir.Local] {
 	return self.stmts
 }
 
@@ -66,7 +68,7 @@ func (self *Block) BlockEndType() BlockEndType {
 	return BlockEndTypeNone
 }
 
-func (self *Block) local() {
+func (self *Block) Local() {
 	return
 }
 
@@ -78,7 +80,7 @@ func (self *Block) Append(block *Block) {
 	}
 }
 
-func (self *Block) PushBack(l Local) *Block {
+func (self *Block) PushBack(l hir.Local) *Block {
 	self.stmts.PushBack(l)
 	return self
 }

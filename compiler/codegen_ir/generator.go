@@ -9,6 +9,7 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	llvmUtil "github.com/kkkunny/Sim/compiler/codegen_ir/llvm"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
@@ -17,11 +18,11 @@ import (
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	donePkgs set.Set[*global.Package]
+	donePkgs set.Set[*hir.Package]
 	builder  *llvmUtil.Builder
 
 	types  hashmap.HashMap[types.CustomType, llvm.Type]
-	values hashmap.HashMap[values.Value, llvm.Value]
+	values hashmap.HashMap[hir.Value, llvm.Value]
 
 	funcCache        hashmap.HashMap[string, llvm.Function]
 	loops            hashmap.HashMap[local.Loop, loop]
@@ -30,10 +31,10 @@ type CodeGenerator struct {
 
 func New(target llvm.Target) *CodeGenerator {
 	return &CodeGenerator{
-		donePkgs:         set.StdHashSetWith[*global.Package](),
+		donePkgs:         set.StdHashSetWith[*hir.Package](),
 		builder:          llvmUtil.NewBuilder(target),
 		types:            hashmap.AnyWith[types.CustomType, llvm.Type](),
-		values:           hashmap.StdWith[values.Value, llvm.Value](),
+		values:           hashmap.StdWith[hir.Value, llvm.Value](),
 		funcCache:        hashmap.StdWith[string, llvm.Function](),
 		loops:            hashmap.StdWith[local.Loop, loop](),
 		lambdaCaptureMap: queue.New[hashmap.HashMap[values.Ident, llvm.Value]](),
@@ -41,7 +42,7 @@ func New(target llvm.Target) *CodeGenerator {
 }
 
 // Codegen 代码生成
-func (self *CodeGenerator) Codegen(pkg *global.Package) llvm.Module {
+func (self *CodeGenerator) Codegen(pkg *hir.Package) llvm.Module {
 	self.codegenPkg(pkg)
 	// 初始化函数
 	for _, b := range self.builder.GetInitFunction().Blocks() {
@@ -53,7 +54,7 @@ func (self *CodeGenerator) Codegen(pkg *global.Package) llvm.Module {
 	// 主函数
 	for iter := pkg.Globals().Iterator(); iter.Next(); {
 		fIr, ok := iter.Value().(*global.FuncDef)
-		if !ok || fIr.Name() != "main" {
+		if !ok || stlval.IgnoreWith(fIr.GetName()) != "main" {
 			continue
 		}
 		f := self.values.Get(fIr).(llvm.Function)
@@ -65,7 +66,7 @@ func (self *CodeGenerator) Codegen(pkg *global.Package) llvm.Module {
 	return self.builder.Module
 }
 
-func (self *CodeGenerator) codegenPkg(pkg *global.Package) {
+func (self *CodeGenerator) codegenPkg(pkg *hir.Package) {
 	// 导入包
 	self.codegenImportPkgs(pkg)
 	// 类型声明

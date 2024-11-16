@@ -11,29 +11,29 @@ import (
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/config"
 	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
-	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
 // Analyser 语义分析器
 type Analyser struct {
-	importStack stack.Stack[*global.Package]                     // 包的依赖链，从main包开始，不包括当前包
-	allPkgs     hashmap.HashMap[stlos.FilePath, *global.Package] // main包的所有依赖包
-	pkg         *global.Package
+	importStack stack.Stack[*hir.Package]                     // 包的依赖链，从main包开始，不包括当前包
+	allPkgs     hashmap.HashMap[stlos.FilePath, *hir.Package] // main包的所有依赖包
+	pkg         *hir.Package
 	scope       local.Scope // 当前所处作用域
 }
 
 func New(path stlos.FilePath) *Analyser {
 	return &Analyser{
-		importStack: stack.New[*global.Package](),
-		allPkgs:     hashmap.StdWith[stlos.FilePath, *global.Package](),
-		pkg:         global.NewPackage(path),
+		importStack: stack.New[*hir.Package](),
+		allPkgs:     hashmap.StdWith[stlos.FilePath, *hir.Package](),
+		pkg:         hir.NewPackage(path),
 	}
 }
 
-func newSon(parent *Analyser, pkg *global.Package) *Analyser {
+func newSon(parent *Analyser, pkg *hir.Package) *Analyser {
 	return &Analyser{
 		importStack: parent.importStack,
 		allPkgs:     parent.allPkgs,
@@ -41,7 +41,7 @@ func newSon(parent *Analyser, pkg *global.Package) *Analyser {
 	}
 }
 
-func (self *Analyser) Analyse(asts linkedlist.LinkedList[ast.Global]) *global.Package {
+func (self *Analyser) Analyse(asts linkedlist.LinkedList[ast.Global]) *hir.Package {
 	// 包导入
 	self.analyseSonPackage(asts)
 
@@ -103,7 +103,7 @@ func (self *Analyser) analyseTypeDef(asts linkedlist.LinkedList[ast.Global]) {
 			typedefs.Set(self.defTypeAlias(node), node.Name)
 		}
 	}
-	trace := set.AnyHashSetWith[types.Type]()
+	trace := set.AnyHashSetWith[hir.Type]()
 	for iter := typedefs.Iterator(); iter.Next(); {
 		trace.Clear()
 		circle := self.checkTypeCircle(trace, iter.Value().E1())

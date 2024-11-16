@@ -1,7 +1,7 @@
 package local
 
 import (
-	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -20,7 +20,7 @@ type Param struct {
 	values.VarDecl
 }
 
-func NewParam(mut bool, name string, t types.Type) *Param {
+func NewParam(mut bool, name string, t hir.Type) *Param {
 	return &Param{
 		VarDecl: values.NewVarDecl(mut, name, t),
 	}

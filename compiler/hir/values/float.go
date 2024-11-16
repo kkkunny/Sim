@@ -3,6 +3,7 @@ package values
 import (
 	"math/big"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -19,7 +20,7 @@ func NewFloat(t types.FloatType, v *big.Float) *Float {
 	}
 }
 
-func (self *Float) Type() types.Type {
+func (self *Float) Type() hir.Type {
 	return self.typ
 }
 

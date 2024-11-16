@@ -1,5 +1,7 @@
 package local
 
+import "github.com/kkkunny/Sim/compiler/hir"
+
 type BlockEndType uint8
 
 const (
@@ -10,6 +12,6 @@ const (
 )
 
 type blockEnd interface {
-	Local
+	hir.Local
 	BlockEndType() BlockEndType
 }

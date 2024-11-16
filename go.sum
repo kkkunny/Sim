@@ -14,6 +14,8 @@ github.com/kkkunny/maphash v0.0.0-20241013073711-aff67359a91c h1:KQldlImkyfG4pty
 github.com/kkkunny/maphash v0.0.0-20241013073711-aff67359a91c/go.mod h1:NZ7xS0DNYhr201BpEW4HK+aLpoCV47OBCq47C25LLtk=
 github.com/kkkunny/stl v0.0.0-20241115152131-8d6837f82c43 h1:NJKDSM7o+AYQ44BrJLL25Y9qU5WLhSD9ESSL4SGyhs4=
 github.com/kkkunny/stl v0.0.0-20241115152131-8d6837f82c43/go.mod h1:K0PMQJ5hIq9qCNhfTR9UTXUh2njVCbM/elaBT7GS2i8=
+github.com/kkkunny/stl v0.0.0-20241116043033-308ffc3d1d79 h1:gWOspbg5H5N20hJ5k61XllkFJRFFKQYu7UO/ApsDAOY=
+github.com/kkkunny/stl v0.0.0-20241116043033-308ffc3d1d79/go.mod h1:K0PMQJ5hIq9qCNhfTR9UTXUh2njVCbM/elaBT7GS2i8=
 github.com/kkkunny/swiss v0.0.0-20240930154237-41a03804fd4f h1:niQ7knPaxPP3nsCTPJVAErDJDxkeNTfaClJ8VzeCxuE=
 github.com/kkkunny/swiss v0.0.0-20240930154237-41a03804fd4f/go.mod h1:jZCApXJmUhSPYnlTEcAZOXVruRxgCA3GgqMtjA1/QqE=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=

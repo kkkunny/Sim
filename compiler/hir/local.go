@@ -1,5 +1,5 @@
-package local
+package hir
 
 type Local interface {
-	local()
+	Local()
 }

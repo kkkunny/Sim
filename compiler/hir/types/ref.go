@@ -5,16 +5,18 @@ import (
 	"unsafe"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 // RefType 引用类型
 type RefType interface {
 	BuildInType
 	Mutable() bool
-	Pointer() Type
+	Pointer() hir.Type
 }
 
-func NewRefType(mut bool, p Type) RefType {
+func NewRefType(mut bool, p hir.Type) RefType {
 	return &_RefType_{
 		mut: mut,
 		ptr: p,
@@ -23,7 +25,7 @@ func NewRefType(mut bool, p Type) RefType {
 
 type _RefType_ struct {
 	mut bool
-	ptr Type
+	ptr hir.Type
 }
 
 func (self *_RefType_) String() string {
@@ -34,12 +36,12 @@ func (self *_RefType_) String() string {
 	}
 }
 
-func (self *_RefType_) Equal(dst Type) bool {
+func (self *_RefType_) Equal(dst hir.Type) bool {
 	t, ok := As[RefType](dst, true)
 	return ok && self.ptr.Equal(t.Pointer())
 }
 
-func (self *_RefType_) EqualWithSelf(dst Type, selfs ...Type) bool {
+func (self *_RefType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	if dst.Equal(Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
@@ -48,7 +50,7 @@ func (self *_RefType_) EqualWithSelf(dst Type, selfs ...Type) bool {
 	return ok && self.ptr.EqualWithSelf(t.Pointer(), selfs...)
 }
 
-func (self *_RefType_) Pointer() Type {
+func (self *_RefType_) Pointer() hir.Type {
 	return self.ptr
 }
 

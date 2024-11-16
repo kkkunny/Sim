@@ -9,7 +9,7 @@ func NewBreak(loop Loop) *Break {
 	return &Break{loop: loop}
 }
 
-func (self *Break) local() {
+func (self *Break) Local() {
 	return
 }
 

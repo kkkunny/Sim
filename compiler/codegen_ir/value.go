@@ -8,13 +8,14 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
-func (self *CodeGenerator) codegenValue(ir values.Value, load bool) llvm.Value {
+func (self *CodeGenerator) codegenValue(ir hir.Value, load bool) llvm.Value {
 	switch ir := ir.(type) {
 	case *values.Integer:
 		return self.codegenInteger(ir)
@@ -72,14 +73,14 @@ func (self *CodeGenerator) codegenAssign(ir *local.AssignExpr) {
 	}
 }
 
-func (self *CodeGenerator) codegenUnTuple(fromIr values.Value, toIrs []values.Value) {
+func (self *CodeGenerator) codegenUnTuple(fromIr hir.Value, toIrs []hir.Value) {
 	if fromTIr, ok := fromIr.(*local.TupleExpr); ok {
 		for i, toIr := range toIrs {
 			self.codegenAssign(local.NewAssignExpr(toIr, fromTIr.Elems()[i]))
 		}
 	} else {
-		var unTuple func(tIr types.Type, from llvm.Value, toIrs []values.Value)
-		unTuple = func(ftIr types.Type, from llvm.Value, toIrs []values.Value) {
+		var unTuple func(tIr hir.Type, from llvm.Value, toIrs []hir.Value)
+		unTuple = func(ftIr hir.Type, from llvm.Value, toIrs []hir.Value) {
 			fttIr := stlval.IgnoreWith(types.As[types.TupleType](ftIr))
 			ftt := self.codegenTupleType(fttIr)
 			for i, toIr := range toIrs {
@@ -268,7 +269,7 @@ func (self *CodeGenerator) codegenCall(ir *local.CallExpr) llvm.Value {
 func (self *CodeGenerator) codegenFuncCall(ir *local.CallExpr) llvm.Value {
 	fIr := ir.GetFunc()
 	f := self.codegenValue(fIr, true)
-	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr values.Value) llvm.Value {
+	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr hir.Value) llvm.Value {
 		return self.codegenValue(argIr, true)
 	})
 	return self.builder.CreateCall("", self.codegenFuncType(fIr.Type().(types.FuncType)), f, args...)
@@ -278,7 +279,7 @@ func (self *CodeGenerator) codegenMethodCall(ir *local.CallExpr) llvm.Value {
 	methodIr, _ := ir.GetFunc().(*local.MethodExpr)
 	method := self.codegenValue(methodIr.Method(), true)
 	selfVal := self.codegenValue(methodIr.GetLeft(), true)
-	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr values.Value) llvm.Value {
+	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr hir.Value) llvm.Value {
 		return self.codegenValue(argIr, true)
 	})
 	return self.builder.CreateCall("", self.codegenFuncType(methodIr.Method().CallableType().(types.FuncType)), method, append([]llvm.Value{selfVal}, args...)...)
@@ -290,7 +291,7 @@ func (self *CodeGenerator) codegenLambdaCall(ir *local.CallExpr) llvm.Value {
 	ft := self.codegenFuncType(ltIr.ToFunc())
 	lt := self.builder.FunctionType(ft.IsVarArg(), ft.ReturnType(), append([]llvm.Type{self.builder.OpaquePointerType()}, ft.Params()...)...)
 	f := self.codegenValue(ir.GetFunc(), true)
-	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr values.Value) llvm.Value {
+	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr hir.Value) llvm.Value {
 		return self.codegenValue(argIr, true)
 	})
 
@@ -392,7 +393,7 @@ func (self *CodeGenerator) codegenCovert(ir local.CovertExpr, load bool) llvm.Va
 }
 
 func (self *CodeGenerator) codegenArray(ir *local.ArrayExpr) llvm.Value {
-	elems := stlslices.Map(ir.Elems(), func(_ int, elem values.Value) llvm.Value {
+	elems := stlslices.Map(ir.Elems(), func(_ int, elem hir.Value) llvm.Value {
 		return self.codegenValue(elem, true)
 	})
 	return self.builder.CreatePackArray(self.codegenType(ir.Type()).(llvm.ArrayType), elems...)
@@ -411,7 +412,7 @@ func (self *CodeGenerator) codegenIndex(ir *local.IndexExpr, load bool) llvm.Val
 }
 
 func (self *CodeGenerator) codegenTuple(ir *local.TupleExpr) llvm.Value {
-	elems := stlslices.Map(ir.Elems(), func(_ int, elem values.Value) llvm.Value {
+	elems := stlslices.Map(ir.Elems(), func(_ int, elem hir.Value) llvm.Value {
 		return self.codegenValue(elem, true)
 	})
 	return self.builder.CreateStruct(self.codegenType(ir.Type()).(llvm.StructType), elems...)
@@ -427,7 +428,7 @@ func (self *CodeGenerator) codegenExtract(ir *local.ExtractExpr, load bool) llvm
 }
 
 func (self *CodeGenerator) codegenStruct(ir *local.StructExpr) llvm.Value {
-	fields := stlslices.Map(ir.Fields(), func(_ int, field values.Value) llvm.Value {
+	fields := stlslices.Map(ir.Fields(), func(_ int, field hir.Value) llvm.Value {
 		return self.codegenValue(field, true)
 	})
 	return self.builder.CreateStruct(self.codegenType(ir.Type()).(llvm.StructType), fields...)

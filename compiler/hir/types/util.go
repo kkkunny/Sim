@@ -3,9 +3,11 @@ package types
 import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func As[T Type](typ Type, strict ...bool) (T, bool) {
+func As[T hir.Type](typ hir.Type, strict ...bool) (T, bool) {
 	if typ == nil {
 		return stlval.Default[T](), false
 	}
@@ -42,7 +44,7 @@ func As[T Type](typ Type, strict ...bool) (T, bool) {
 	}
 }
 
-func Is[T Type](typ Type, strict ...bool) bool {
+func Is[T hir.Type](typ hir.Type, strict ...bool) bool {
 	if typ == nil {
 		return false
 	}

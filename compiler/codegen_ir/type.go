@@ -4,10 +4,11 @@ import (
 	"github.com/kkkunny/go-llvm"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (self *CodeGenerator) codegenType(ir types.Type) llvm.Type {
+func (self *CodeGenerator) codegenType(ir hir.Type) llvm.Type {
 	switch ir := ir.(type) {
 	case types.NoThingType, types.NoReturnType:
 		return self.builder.VoidType()
@@ -77,7 +78,7 @@ func (self *CodeGenerator) codegenFloatType(ir types.FloatType) llvm.FloatType {
 
 func (self *CodeGenerator) codegenFuncType(ir types.FuncType) llvm.FunctionType {
 	ret := self.codegenType(ir.Ret())
-	params := stlslices.Map(ir.Params(), func(_ int, p types.Type) llvm.Type {
+	params := stlslices.Map(ir.Params(), func(_ int, p hir.Type) llvm.Type {
 		return self.codegenType(p)
 	})
 	return self.builder.FunctionType(false, ret, params...)
@@ -89,7 +90,7 @@ func (self *CodeGenerator) codegenArrayType(ir types.ArrayType) llvm.ArrayType {
 }
 
 func (self *CodeGenerator) codegenTupleType(ir types.TupleType) llvm.StructType {
-	elems := stlslices.Map(ir.Elems(), func(_ int, e types.Type) llvm.Type {
+	elems := stlslices.Map(ir.Elems(), func(_ int, e hir.Type) llvm.Type {
 		return self.codegenType(e)
 	})
 	return self.builder.StructType(false, elems...)

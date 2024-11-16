@@ -3,6 +3,7 @@ package local
 import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -34,23 +35,23 @@ func (self *MatchCase) Name() string {
 
 // Match 枚举匹配
 type Match struct {
-	cond  values.Value
+	cond  hir.Value
 	cases []*MatchCase
 	other *Block
 }
 
-func NewMatch(cond values.Value, cases ...*MatchCase) *Match {
+func NewMatch(cond hir.Value, cases ...*MatchCase) *Match {
 	return &Match{
 		cond:  cond,
 		cases: cases,
 	}
 }
 
-func (self *Match) local() {
+func (self *Match) Local() {
 	return
 }
 
-func (self *Match) Target() values.Value {
+func (self *Match) Target() hir.Value {
 	return self.cond
 }
 
@@ -81,6 +82,6 @@ func (self *Match) BlockEndType() BlockEndType {
 	return min(minType, other.BlockEndType())
 }
 
-func (self *Match) Cond() values.Value {
+func (self *Match) Cond() hir.Value {
 	return self.cond
 }

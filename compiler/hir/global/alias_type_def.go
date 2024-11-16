@@ -6,6 +6,7 @@ import (
 
 	stlslices "github.com/kkkunny/stl/container/slices"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -13,16 +14,16 @@ import (
 type AliasTypeDef interface {
 	TypeDef
 	types.AliasType
-	Wrap(inner types.Type) types.BuildInType
+	Wrap(inner hir.Type) types.BuildInType
 }
 
 type __AliasTypeDef__ struct {
 	pkgGlobalAttr
 	name   string
-	target types.Type
+	target hir.Type
 }
 
-func NewAliasTypeDef(name string, target types.Type) AliasTypeDef {
+func NewAliasTypeDef(name string, target hir.Type) AliasTypeDef {
 	return &__AliasTypeDef__{
 		name:   name,
 		target: target,
@@ -36,37 +37,45 @@ func (self *__AliasTypeDef__) String() string {
 	return fmt.Sprintf("%s::%s", self.pkg.String(), self.name)
 }
 
-func (self *__AliasTypeDef__) Equal(dst types.Type) bool {
+func (self *__AliasTypeDef__) Equal(dst hir.Type) bool {
+	if self.Hash() == dst.Hash() {
+		return true
+	}
+
 	t, ok := dst.(AliasTypeDef)
 	if ok {
-		return self.pkg.Equal(t.Package()) && self.name == t.Name()
+		return self.target.Equal(t.Target())
 	} else {
 		return self.target.Equal(dst)
 	}
 }
 
-func (self *__AliasTypeDef__) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *__AliasTypeDef__) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	if dst.Equal(types.Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}
 
+	if self.Hash() == dst.Hash() {
+		return true
+	}
+
 	t, ok := dst.(AliasTypeDef)
 	if ok {
-		return self.pkg.Equal(t.Package()) && self.name == t.Name()
+		return self.target.EqualWithSelf(t.Target(), selfs...)
 	} else {
 		return self.target.EqualWithSelf(dst, selfs...)
 	}
 }
 
-func (self *__AliasTypeDef__) Name() string {
-	return self.name
+func (self *__AliasTypeDef__) GetName() (string, bool) {
+	return self.name, self.name != "_"
 }
 
-func (self *__AliasTypeDef__) Target() types.Type {
+func (self *__AliasTypeDef__) Target() hir.Type {
 	return self.target
 }
 
-func (self *__AliasTypeDef__) SetTarget(t types.Type) {
+func (self *__AliasTypeDef__) SetTarget(t hir.Type) {
 	self.target = t
 }
 
@@ -82,7 +91,7 @@ func (self *__AliasTypeDef__) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
-func (self *__AliasTypeDef__) Wrap(inner types.Type) types.BuildInType {
+func (self *__AliasTypeDef__) Wrap(inner hir.Type) types.BuildInType {
 	switch v := inner.(type) {
 	case types.SintType:
 		return &aliasSintType{AliasTypeDef: self, SintType: v}
@@ -118,10 +127,10 @@ type aliasSintType struct {
 	types.SintType
 }
 
-func (self *aliasSintType) Equal(dst types.Type) bool {
+func (self *aliasSintType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasSintType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasSintType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasSintType) String() string { return self.AliasTypeDef.String() }
@@ -132,10 +141,10 @@ type aliasUintType struct {
 	types.UintType
 }
 
-func (self *aliasUintType) Equal(dst types.Type) bool {
+func (self *aliasUintType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasUintType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasUintType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasUintType) String() string { return self.AliasTypeDef.String() }
@@ -146,10 +155,10 @@ type aliasFloatType struct {
 	types.FloatType
 }
 
-func (self *aliasFloatType) Equal(dst types.Type) bool {
+func (self *aliasFloatType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasFloatType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasFloatType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasFloatType) String() string { return self.AliasTypeDef.String() }
@@ -160,10 +169,10 @@ type aliasBoolType struct {
 	types.BoolType
 }
 
-func (self *aliasBoolType) Equal(dst types.Type) bool {
+func (self *aliasBoolType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasBoolType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasBoolType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasBoolType) String() string { return self.AliasTypeDef.String() }
@@ -174,10 +183,10 @@ type aliasStrType struct {
 	types.StrType
 }
 
-func (self *aliasStrType) Equal(dst types.Type) bool {
+func (self *aliasStrType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasStrType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasStrType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasStrType) String() string { return self.AliasTypeDef.String() }
@@ -188,10 +197,10 @@ type aliasRefType struct {
 	types.RefType
 }
 
-func (self *aliasRefType) Equal(dst types.Type) bool {
+func (self *aliasRefType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasRefType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasRefType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasRefType) String() string { return self.AliasTypeDef.String() }
@@ -202,10 +211,10 @@ type aliasArrayType struct {
 	types.ArrayType
 }
 
-func (self *aliasArrayType) Equal(dst types.Type) bool {
+func (self *aliasArrayType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasArrayType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasArrayType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasArrayType) String() string { return self.AliasTypeDef.String() }
@@ -216,10 +225,10 @@ type aliasTupleType struct {
 	types.TupleType
 }
 
-func (self *aliasTupleType) Equal(dst types.Type) bool {
+func (self *aliasTupleType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasTupleType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasTupleType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasTupleType) String() string { return self.AliasTypeDef.String() }
@@ -230,10 +239,10 @@ type aliasFuncType struct {
 	types.FuncType
 }
 
-func (self *aliasFuncType) Equal(dst types.Type) bool {
+func (self *aliasFuncType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasFuncType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasFuncType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasFuncType) String() string { return self.AliasTypeDef.String() }
@@ -244,10 +253,10 @@ type aliasLambdaType struct {
 	types.LambdaType
 }
 
-func (self *aliasLambdaType) Equal(dst types.Type) bool {
+func (self *aliasLambdaType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasLambdaType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasLambdaType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasLambdaType) String() string { return self.AliasTypeDef.String() }
@@ -258,10 +267,10 @@ type aliasStructType struct {
 	types.StructType
 }
 
-func (self *aliasStructType) Equal(dst types.Type) bool {
+func (self *aliasStructType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasStructType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasStructType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasStructType) String() string { return self.AliasTypeDef.String() }
@@ -272,10 +281,10 @@ type aliasEnumType struct {
 	types.EnumType
 }
 
-func (self *aliasEnumType) Equal(dst types.Type) bool {
+func (self *aliasEnumType) Equal(dst hir.Type) bool {
 	return self.AliasTypeDef.Equal(dst)
 }
-func (self *aliasEnumType) EqualWithSelf(dst types.Type, selfs ...types.Type) bool {
+func (self *aliasEnumType) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	return self.AliasTypeDef.EqualWithSelf(dst, selfs...)
 }
 func (self *aliasEnumType) String() string { return self.AliasTypeDef.String() }

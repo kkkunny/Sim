@@ -10,6 +10,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
@@ -18,7 +19,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
-func (self *Analyser) analyseExpr(expect types.Type, node ast.Expr) values.Value {
+func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Value {
 	switch exprNode := node.(type) {
 	case *ast.Integer:
 		return self.analyseInteger(expect, exprNode)
@@ -60,7 +61,7 @@ func (self *Analyser) analyseExpr(expect types.Type, node ast.Expr) values.Value
 	return nil
 }
 
-func (self *Analyser) expectExpr(expect types.Type, node ast.Expr) values.Value {
+func (self *Analyser) expectExpr(expect hir.Type, node ast.Expr) hir.Value {
 	value := self.analyseExpr(expect, node)
 	newValue, ok := self.autoTypeCovert(expect, value)
 	if !ok {
@@ -69,7 +70,7 @@ func (self *Analyser) expectExpr(expect types.Type, node ast.Expr) values.Value 
 	return newValue
 }
 
-func (self *Analyser) analyseInteger(expect types.Type, node *ast.Integer) values.Value {
+func (self *Analyser) analyseInteger(expect hir.Type, node *ast.Integer) hir.Value {
 	if !types.Is[types.NumType](expect) {
 		expect = types.Isize
 	}
@@ -87,7 +88,7 @@ func (self *Analyser) analyseInteger(expect types.Type, node *ast.Integer) value
 	}
 }
 
-func (self *Analyser) analyseChar(expect types.Type, node *ast.Char) values.Value {
+func (self *Analyser) analyseChar(expect hir.Type, node *ast.Char) hir.Value {
 	if !types.Is[types.NumType](expect) {
 		expect = types.I32
 	}
@@ -104,7 +105,7 @@ func (self *Analyser) analyseChar(expect types.Type, node *ast.Char) values.Valu
 	}
 }
 
-func (self *Analyser) analyseFloat(expect types.Type, node *ast.Float) *values.Float {
+func (self *Analyser) analyseFloat(expect hir.Type, node *ast.Float) *values.Float {
 	if !types.Is[types.FloatType](expect) {
 		expect = types.F64
 	}
@@ -128,7 +129,7 @@ var assMap = map[token.Kind]token.Kind{
 	token.LORASS:  token.LOR,
 }
 
-func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.Value {
+func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value {
 	left := self.analyseExpr(expect, node.Left)
 	lt := left.Type()
 	right := self.analyseExpr(lt, node.Right)
@@ -164,7 +165,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("And")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewAndExpr(left, right)
@@ -173,7 +174,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Or")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewOrExpr(left, right)
@@ -182,7 +183,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Xor")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewXorExpr(left, right)
@@ -191,7 +192,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shl")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewShlExpr(left, right)
@@ -200,7 +201,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shr")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewShrExpr(left, right)
@@ -209,7 +210,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Add")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewAddExpr(left, right)
@@ -218,7 +219,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Sub")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewSubExpr(left, right)
@@ -227,7 +228,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Mul")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewMulExpr(left, right)
@@ -236,7 +237,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Div")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewDivExpr(left, right)
@@ -245,7 +246,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Rem")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewRemExpr(left, right)
@@ -254,7 +255,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) {
 			if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
@@ -267,7 +268,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewNotExpr(local.NewCallExpr(local.NewMethodExpr(left, method), right))
 		} else if lt.Equal(rt) {
 			if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
@@ -280,7 +281,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewLtExpr(left, right)
@@ -289,7 +290,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewGtExpr(left, right)
@@ -299,8 +300,8 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		LTtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(EQtrait) && ct.HasImpl(LTtrait) {
-			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlslices.First(EQtrait.Methods.Keys())))
-			LTmethod := stlval.IgnoreWith(ct.GetMethod(stlslices.First(LTtrait.Methods.Keys())))
+			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(EQtrait.FirstMethod()).GetName())))
+			LTmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(LTtrait.FirstMethod()).GetName())))
 			return local.NewLogicAndExpr(
 				local.NewCallExpr(local.NewMethodExpr(left, EQmethod), right),
 				local.NewCallExpr(local.NewMethodExpr(left, LTmethod), right),
@@ -313,8 +314,8 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		GTtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(EQtrait) && ct.HasImpl(GTtrait) {
-			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlslices.First(EQtrait.Methods.Keys())))
-			GTmethod := stlval.IgnoreWith(ct.GetMethod(stlslices.First(GTtrait.Methods.Keys())))
+			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(EQtrait.FirstMethod()).GetName())))
+			GTmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(GTtrait.FirstMethod()).GetName())))
 			return local.NewLogicAndExpr(
 				local.NewCallExpr(local.NewMethodExpr(left, EQmethod), right),
 				local.NewCallExpr(local.NewMethodExpr(left, GTmethod), right),
@@ -326,7 +327,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Land")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.BoolType](lt) {
 			return local.NewLogicAndExpr(left, right)
@@ -335,7 +336,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lor")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
 		} else if lt.Equal(rt) && types.Is[types.BoolType](lt) {
 			return local.NewLogicOrExpr(left, right)
@@ -348,7 +349,7 @@ func (self *Analyser) analyseBinary(expect types.Type, node *ast.Binary) values.
 	return nil
 }
 
-func (self *Analyser) analyseUnary(expect types.Type, node *ast.Unary) values.Value {
+func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Value {
 	switch node.Opera.Kind {
 	case token.SUB:
 		value := self.analyseExpr(expect, node.Value)
@@ -356,7 +357,7 @@ func (self *Analyser) analyseUnary(expect types.Type, node *ast.Unary) values.Va
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Neg")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](vt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(value, method))
 		} else if types.Is[types.SintType](vt) || types.Is[types.FloatType](vt) {
 			return local.NewOppositeExpr(value)
@@ -369,7 +370,7 @@ func (self *Analyser) analyseUnary(expect types.Type, node *ast.Unary) values.Va
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Not")).(*global.Trait)
 		ct, ok := types.As[global.CustomTypeDef](vt, true)
 		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlslices.First(trait.Methods.Keys())))
+			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return local.NewCallExpr(local.NewMethodExpr(value, method))
 		}
 		switch {
@@ -411,7 +412,7 @@ func (self *Analyser) analyseUnary(expect types.Type, node *ast.Unary) values.Va
 	}
 }
 
-func (self *Analyser) tryAnalyseIdentExpr(node *ast.IdentExpr) (values.Value, bool) {
+func (self *Analyser) tryAnalyseIdentExpr(node *ast.IdentExpr) (hir.Value, bool) {
 	scope := self.scope
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
@@ -421,13 +422,13 @@ func (self *Analyser) tryAnalyseIdentExpr(node *ast.IdentExpr) (values.Value, bo
 	}
 
 	v, ok := scope.GetIdent(node.Name.Source(), true)
-	if ok && stlval.Is[values.Value](v) {
-		return v.(values.Value), true
+	if ok && stlval.Is[hir.Value](v) {
+		return v.(hir.Value), true
 	}
 	return nil, false
 }
 
-func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) values.Value {
+func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Value {
 	v, ok := self.tryAnalyseIdentExpr(node)
 	if !ok {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
@@ -469,7 +470,7 @@ func (self *Analyser) tryAnalyseEnum(node *ast.Call) (*local.EnumExpr, bool) {
 	return local.NewEnumExpr(et, fieldName, elem), true
 }
 
-func (self *Analyser) analyseCall(expect types.Type, node *ast.Call) values.Value {
+func (self *Analyser) analyseCall(expect hir.Type, node *ast.Call) hir.Value {
 	// 枚举值
 	if enum, ok := self.tryAnalyseEnum(node); ok {
 		return enum
@@ -491,7 +492,7 @@ func (self *Analyser) analyseCall(expect types.Type, node *ast.Call) values.Valu
 	if (!vararg && len(node.Args) != len(pts)) || (vararg && len(node.Args) < len(pts)) {
 		errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(pts)), uint(len(node.Args)))
 	}
-	args := stlslices.Map(node.Args, func(i int, item ast.Expr) values.Value {
+	args := stlslices.Map(node.Args, func(i int, item ast.Expr) hir.Value {
 		if vararg && i >= len(pts) {
 			return self.analyseExpr(nil, item)
 		} else {
@@ -501,14 +502,14 @@ func (self *Analyser) analyseCall(expect types.Type, node *ast.Call) values.Valu
 	return local.NewCallExpr(f, args...)
 }
 
-func (self *Analyser) analyseTuple(expect types.Type, node *ast.Tuple) values.Value {
+func (self *Analyser) analyseTuple(expect hir.Type, node *ast.Tuple) hir.Value {
 	// 括号表达式
 	if len(node.Elems) == 1 && !types.Is[types.TupleType](expect) {
 		return self.analyseExpr(expect, node.Elems[0])
 	}
 
 	// 元组
-	expectElems := make([]types.Type, len(node.Elems))
+	expectElems := make([]hir.Type, len(node.Elems))
 	if expectTt, ok := types.As[types.TupleType](expect); ok {
 		elems := expectTt.Elems()
 		if len(elems) < len(node.Elems) {
@@ -519,14 +520,14 @@ func (self *Analyser) analyseTuple(expect types.Type, node *ast.Tuple) values.Va
 			expectElems = elems
 		}
 	}
-	elems := stlslices.Map(node.Elems, func(i int, item ast.Expr) values.Value {
+	elems := stlslices.Map(node.Elems, func(i int, item ast.Expr) hir.Value {
 		return self.analyseExpr(expectElems[i], item)
 	})
 	return local.NewTupleExpr(elems...)
 }
 
 // 自动类型转换
-func (self *Analyser) autoTypeCovert(tt types.Type, v values.Value) (values.Value, bool) {
+func (self *Analyser) autoTypeCovert(tt hir.Type, v hir.Value) (hir.Value, bool) {
 	ft := v.Type()
 	if ft.Equal(tt) {
 		return v, true
@@ -563,7 +564,7 @@ func (self *Analyser) autoTypeCovert(tt types.Type, v values.Value) (values.Valu
 	}
 }
 
-func (self *Analyser) analyseCovert(node *ast.Covert) values.Value {
+func (self *Analyser) analyseCovert(node *ast.Covert) hir.Value {
 	tt := self.analyseType(node.Type)
 	from := self.analyseExpr(tt, node.Value)
 	ft := from.Type()
@@ -594,21 +595,21 @@ func (self *Analyser) analyseCovert(node *ast.Covert) values.Value {
 	}
 }
 
-func (self *Analyser) analyseArray(expect types.Type, node *ast.Array) *local.ArrayExpr {
+func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *local.ArrayExpr {
 	expectAt, _ := types.As[types.ArrayType](expect)
 	if expectAt == nil && len(node.Elems) == 0 {
 		errors.ThrowExpectArrayTypeError(node.Position(), types.NoThing)
 	}
 
-	elems := make([]values.Value, len(node.Elems))
+	elems := make([]hir.Value, len(node.Elems))
 	for i, elemNode := range node.Elems {
-		elems[i] = stlval.TernaryAction(i == 0, func() values.Value {
-			var expectElem types.Type
+		elems[i] = stlval.TernaryAction(i == 0, func() hir.Value {
+			var expectElem hir.Type
 			if expectAt != nil {
 				expectElem = expectAt.Elem()
 			}
 			return self.analyseExpr(expectElem, elemNode)
-		}, func() values.Value {
+		}, func() hir.Value {
 			return self.expectExpr(stlslices.First(elems).Type(), elemNode)
 		})
 	}
@@ -632,7 +633,7 @@ func (self *Analyser) analyseIndex(node *ast.Index) *local.IndexExpr {
 	return local.NewIndexExpr(from, index)
 }
 
-func (self *Analyser) analyseExtract(expect types.Type, node *ast.Extract) *local.ExtractExpr {
+func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *local.ExtractExpr {
 	indexValue, ok := big.NewInt(0).SetString(node.Index.Source(), 10)
 	if !ok || !indexValue.IsUint64() {
 		panic("unreachable")
@@ -641,7 +642,7 @@ func (self *Analyser) analyseExtract(expect types.Type, node *ast.Extract) *loca
 	index := uint(indexValue.Uint64())
 
 	if expect != nil {
-		elems := make([]types.Type, index+1)
+		elems := make([]hir.Type, index+1)
 		elems[index] = expect
 		expect = types.NewTupleType(elems...)
 	}
@@ -666,7 +667,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *local.StructExpr {
 		panic("unreachable")
 	}
 
-	existedFields := make(map[string]values.Value)
+	existedFields := make(map[string]hir.Value)
 	for _, fieldNode := range node.Fields {
 		fn := fieldNode.E1().Source()
 		if !st.Fields().Contain(fn) || (!self.pkg.Equal(td.Package()) && !st.Fields().Get(fn).Public()) {
@@ -675,7 +676,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *local.StructExpr {
 		existedFields[fn] = self.expectExpr(st.Fields().Get(fn).Type(), fieldNode.E2())
 	}
 
-	fields := make([]values.Value, st.Fields().Length())
+	fields := make([]hir.Value, st.Fields().Length())
 	var i int
 	for iter := st.Fields().Iterator(); iter.Next(); i++ {
 		fn, ft := iter.Value().E1(), iter.Value().E2().Type()
@@ -689,7 +690,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *local.StructExpr {
 	return local.NewStructExpr(st, fields...)
 }
 
-func (self *Analyser) analyseDot(node *ast.Dot) values.Value {
+func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	fieldName := node.Index.Source()
 
 	if identNode, ok := node.From.(*ast.IdentExpr); ok {
@@ -722,7 +723,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) values.Value {
 	ft := from.Type()
 
 	// 字段
-	var fromStVal values.Value
+	var fromStVal hir.Value
 	if types.Is[types.StructType](ft) {
 		fromStVal = from
 	} else if fromRt, fromOk := types.As[types.RefType](ft, true); fromOk && false {
@@ -776,7 +777,7 @@ func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
 	if !ok {
 		panic("unreachable")
 	}
-	var selfVal values.Value
+	var selfVal hir.Value
 	if fromIsRef := types.Is[types.RefType](ft, true); method.SelfParamIsRef() && !fromIsRef {
 		if !from.Storable() {
 			errors.ThrowExprTemporaryError(node.From.Position())
@@ -791,7 +792,7 @@ func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
 	return local.NewMethodExpr(selfVal, method), true
 }
 
-func (self *Analyser) analyseString(expect types.Type, node *ast.String) *values.String {
+func (self *Analyser) analyseString(expect hir.Type, node *ast.String) *values.String {
 	if !types.Is[types.StrType](expect) {
 		expect = types.Str
 	}
@@ -805,7 +806,7 @@ func (self *Analyser) analyseString(expect types.Type, node *ast.String) *values
 	return values.NewString(expectSt, s)
 }
 
-func (self *Analyser) analyseJudgment(node *ast.Judgment) values.Value {
+func (self *Analyser) analyseJudgment(node *ast.Judgment) hir.Value {
 	tt := self.analyseType(node.Type)
 	from := self.analyseExpr(tt, node.Value)
 	ft := from.Type()
@@ -817,10 +818,10 @@ func (self *Analyser) analyseJudgment(node *ast.Judgment) values.Value {
 	}
 }
 
-func (self *Analyser) analyseLambda(node *ast.Lambda) values.Value {
+func (self *Analyser) analyseLambda(node *ast.Lambda) hir.Value {
 	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *local.Param { return self.analyseParam(e) })
 	ret := self.analyseType(node.Ret, self.voidTypeAnalyser(), self.noReturnTypeAnalyser())
-	lt := types.NewLambdaType(ret, stlslices.Map(params, func(_ int, param *local.Param) types.Type { return param.Type() })...)
+	lt := types.NewLambdaType(ret, stlslices.Map(params, func(_ int, param *local.Param) hir.Type { return param.Type() })...)
 
 	captureIdents := set.StdHashSetWith[values.Ident]()
 	onCapture := func(ident any) {

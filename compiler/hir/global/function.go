@@ -1,6 +1,7 @@
 package global
 
 import (
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
@@ -8,7 +9,7 @@ import (
 
 // Function 函数定义
 type Function interface {
-	Global
+	hir.Global
 	local.CallableDef
 	values.Ident
 	SetBody(b *local.Block)
@@ -30,15 +31,15 @@ func (self *FuncDecl) CallableType() types.CallableType {
 	return self.typ
 }
 
-func (self *FuncDecl) Name() string {
-	return self.name
+func (self *FuncDecl) GetName() (string, bool) {
+	return self.name, self.name != "_"
 }
 
 func (self *FuncDecl) Params() []*local.Param {
 	return self.params
 }
 
-func (self *FuncDecl) Type() types.Type {
+func (self *FuncDecl) Type() hir.Type {
 	return self.CallableType()
 }
 

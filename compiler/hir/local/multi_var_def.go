@@ -1,27 +1,28 @@
 package local
 
 import (
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
 // MultiVarDef 多变量定义
 type MultiVarDef struct {
 	vars  []values.VarDecl
-	value values.Value
+	value hir.Value
 }
 
-func NewMultiVarDef(decls []values.VarDecl, v values.Value) *MultiVarDef {
+func NewMultiVarDef(decls []values.VarDecl, v hir.Value) *MultiVarDef {
 	return &MultiVarDef{
 		vars:  decls,
 		value: v,
 	}
 }
 
-func (self *MultiVarDef) local() {
+func (self *MultiVarDef) Local() {
 	return
 }
 
-func (self *MultiVarDef) Value() values.Value {
+func (self *MultiVarDef) Value() hir.Value {
 	return self.value
 }
 

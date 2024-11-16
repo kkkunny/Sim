@@ -7,14 +7,16 @@ import (
 
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 type EnumField struct {
 	name string
-	elem Type
+	elem hir.Type
 }
 
-func NewEnumField(name string, typ ...Type) *EnumField {
+func NewEnumField(name string, typ ...hir.Type) *EnumField {
 	return &EnumField{
 		name: name,
 		elem: stlslices.Last(typ),
@@ -25,7 +27,7 @@ func (self *EnumField) Name() string {
 	return self.name
 }
 
-func (self *EnumField) Elem() (Type, bool) {
+func (self *EnumField) Elem() (hir.Type, bool) {
 	return self.elem, self.elem != nil
 }
 
@@ -59,7 +61,7 @@ func (self *_EnumType_) String() string {
 	return fmt.Sprintf("enum{%s}", strings.Join(fields, ";"))
 }
 
-func (self *_EnumType_) Equal(dst Type) bool {
+func (self *_EnumType_) Equal(dst hir.Type) bool {
 	t, ok := As[EnumType](dst, true)
 	if !ok {
 		return false
@@ -78,7 +80,7 @@ func (self *_EnumType_) Equal(dst Type) bool {
 	})
 }
 
-func (self *_EnumType_) EqualWithSelf(dst Type, selfs ...Type) bool {
+func (self *_EnumType_) EqualWithSelf(dst hir.Type, selfs ...hir.Type) bool {
 	if dst.Equal(Self) && len(selfs) > 0 {
 		dst = stlslices.Last(selfs)
 	}

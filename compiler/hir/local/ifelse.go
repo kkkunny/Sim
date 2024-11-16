@@ -3,28 +3,28 @@ package local
 import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/Sim/compiler/hir/values"
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 // IfElse 条件语句
 type IfElse struct {
-	cond values.Value
+	cond hir.Value
 	body *Block
 	next *IfElse
 }
 
-func NewIfElse(body *Block, cond ...values.Value) *IfElse {
+func NewIfElse(body *Block, cond ...hir.Value) *IfElse {
 	return &IfElse{
 		cond: stlslices.Last(cond),
 		body: body,
 	}
 }
 
-func (self *IfElse) local() {
+func (self *IfElse) Local() {
 	return
 }
 
-func (self *IfElse) Cond() (values.Value, bool) {
+func (self *IfElse) Cond() (hir.Value, bool) {
 	return self.cond, self.cond != nil
 }
 

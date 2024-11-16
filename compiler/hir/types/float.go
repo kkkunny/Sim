@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 	"unsafe"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 // FloatTypeKind 浮点型类型
@@ -37,12 +39,12 @@ func (self *_FloatType_) String() string {
 	return fmt.Sprintf("f%d", self.kind*8)
 }
 
-func (self *_FloatType_) Equal(dst Type) bool {
+func (self *_FloatType_) Equal(dst hir.Type) bool {
 	t, ok := As[FloatType](dst, true)
 	return ok && self.kind == t.Kind()
 }
 
-func (self *_FloatType_) EqualWithSelf(dst Type, _ ...Type) bool {
+func (self *_FloatType_) EqualWithSelf(dst hir.Type, _ ...hir.Type) bool {
 	t, ok := As[FloatType](dst, true)
 	return ok && self.kind == t.Kind()
 }

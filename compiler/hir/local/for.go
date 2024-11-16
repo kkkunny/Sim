@@ -1,23 +1,24 @@
 package local
 
 import (
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
 // Loop 循环
 type Loop interface {
-	Local
+	hir.Local
 	loop()
 }
 
 // For 高级循环
 type For struct {
 	cursor values.VarDecl
-	iter   values.Value
+	iter   hir.Value
 	body   *Block
 }
 
-func NewFor(cursor values.VarDecl, iter values.Value, body *Block) *For {
+func NewFor(cursor values.VarDecl, iter hir.Value, body *Block) *For {
 	return &For{
 		cursor: cursor,
 		iter:   iter,
@@ -25,7 +26,7 @@ func NewFor(cursor values.VarDecl, iter values.Value, body *Block) *For {
 	}
 }
 
-func (self *For) local() {
+func (self *For) Local() {
 	return
 }
 
@@ -37,7 +38,7 @@ func (self *For) Cursor() values.VarDecl {
 	return self.cursor
 }
 
-func (self *For) Iter() values.Value {
+func (self *For) Iter() hir.Value {
 	return self.iter
 }
 
