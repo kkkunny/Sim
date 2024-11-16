@@ -634,9 +634,8 @@ func (self *Analyser) analyseIndex(node *ast.Index) *local.IndexExpr {
 func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *local.ExtractExpr {
 	indexValue, ok := big.NewInt(0).SetString(node.Index.Source(), 10)
 	if !ok || !indexValue.IsUint64() {
-		panic("unreachable")
+		errors.ThrowIllegalInteger(node.Index.Position, node.Index)
 	}
-	// TODO: 溢出
 	index := uint(indexValue.Uint64())
 
 	if expect != nil {
