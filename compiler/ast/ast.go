@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"io"
+
 	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/reader"
@@ -11,6 +13,7 @@ import (
 // Ast 抽象语法树
 type Ast interface {
 	Position() reader.Position
+	Output(io.Writer, uint) error
 }
 
 type Param struct {
@@ -29,6 +32,20 @@ func (self Param) Position() reader.Position {
 	}
 }
 
+func (self Param) Output(w io.Writer, depth uint) (err error) {
+	if mut, ok := self.Mutable.Value(); ok {
+		if err = outputf(w, "%s ", mut.Source()); err != nil {
+			return err
+		}
+	}
+	if name, ok := self.Name.Value(); ok {
+		if err = outputf(w, "%s: ", name); err != nil {
+			return err
+		}
+	}
+	return self.Type.Output(w, depth)
+}
+
 type Field struct {
 	Public  bool
 	Mutable bool
@@ -36,14 +53,21 @@ type Field struct {
 	Type    Type
 }
 
-type List[T any] struct {
-	Begin reader.Position
-	Data  []T
-	End   reader.Position
-}
-
-func (self List[T]) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
+func (self Field) Output(w io.Writer, depth uint) (err error) {
+	if self.Public {
+		if err = outputf(w, "pub "); err != nil {
+			return err
+		}
+	}
+	if self.Mutable {
+		if err = outputf(w, "mut "); err != nil {
+			return err
+		}
+	}
+	if err = outputf(w, "%s: ", self.Name.Source()); err != nil {
+		return err
+	}
+	return self.Type.Output(w, depth)
 }
 
 // Ident 标识符
@@ -59,6 +83,15 @@ func (self *Ident) Position() reader.Position {
 	return self.Name.Position
 }
 
+func (self *Ident) Output(w io.Writer, depth uint) (err error) {
+	if pkg, ok := self.Pkg.Value(); ok {
+		if err = outputf(w, "%s::", pkg.Source()); err != nil {
+			return err
+		}
+	}
+	return outputf(w, self.Name.Source())
+}
+
 // FuncDecl 函数声明
 type FuncDecl struct {
 	Begin  reader.Position
@@ -70,4 +103,35 @@ type FuncDecl struct {
 
 func (self *FuncDecl) Position() reader.Position {
 	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *FuncDecl) Output(w io.Writer, depth uint) (err error) {
+	if err = outputf(w, "func %s(", self.Name.Source()); err != nil {
+		return err
+	}
+	for i, param := range self.Params {
+		if err = param.Output(w, depth); err != nil {
+			return err
+		}
+		if i < len(self.Params)-1 {
+			if err = outputf(w, ", "); err != nil {
+				return err
+			}
+		}
+	}
+	if err = outputf(w, ")"); err != nil {
+		return err
+	}
+	if ret, ok := self.Ret.Value(); ok {
+		if err = outputf(w, " "); err != nil {
+			return err
+		}
+		if err = ret.Output(w, depth); err != nil {
+			return err
+		}
+		if err = outputf(w, " "); err != nil {
+			return err
+		}
+	}
+	return nil
 }

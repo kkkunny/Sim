@@ -5,21 +5,19 @@ package main
 import (
 	"fmt"
 	"os"
-	"reflect"
 
-	stliter "github.com/kkkunny/stl/container/iter"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
-
-	"github.com/kkkunny/Sim/compiler/ast"
 
 	"github.com/kkkunny/Sim/compiler/parse"
 )
 
 func main() {
 	asts := stlerror.MustWith(parse.Parse(stlos.NewFilePath(os.Args[1])))
-	stliter.Foreach(asts, func(v ast.Global) bool {
-		fmt.Println(reflect.TypeOf(v).String())
-		return true
-	})
+	for i, iter := 0, asts.Iterator(); iter.Next(); i++ {
+		stlerror.Must(iter.Value().Output(os.Stdout, 0))
+		if i < int(asts.Length())-1 {
+			stlerror.MustWith(fmt.Fprintf(os.Stdout, "\n\n"))
+		}
+	}
 }
