@@ -412,28 +412,12 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Value {
 	}
 }
 
-func (self *Analyser) tryAnalyseIdentExpr(node *ast.IdentExpr) (hir.Value, bool) {
-	scope := self.scope
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
-		if !ok {
-			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
-		}
-	}
-
-	v, ok := scope.GetIdent(node.Name.Source(), true)
-	if ok && stlval.Is[hir.Value](v) {
-		return v.(hir.Value), true
-	}
-	return nil, false
-}
-
 func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Value {
-	v, ok := self.tryAnalyseIdentExpr(node)
-	if !ok {
+	v, ok := self.tryAnalyseIdent((*ast.Ident)(node))
+	if !ok || v.IsLeft() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return v
+	return stlval.IgnoreWith(v.Right())
 }
 
 func (self *Analyser) tryAnalyseEnum(node *ast.Call) (*local.EnumExpr, bool) {
@@ -692,25 +676,27 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	fieldName := node.Index.Source()
 
 	if identNode, ok := node.From.(*ast.IdentExpr); ok {
-		identType, ok := self.tryAnalyseIdentType((*ast.IdentType)(identNode))
-		if ok {
-			if ctd, ok := types.As[global.CustomTypeDef](identType, true); ok {
-				// 静态方法
-				method, ok := ctd.GetMethod(fieldName)
-				if ok && (method.Public() || self.pkg.Equal(method.Package())) {
-					return method
+		if identRes, ok := self.tryAnalyseIdent((*ast.Ident)(identNode)); ok {
+			if identType, ok := identRes.Left(); ok {
+				if ctd, ok := types.As[global.CustomTypeDef](identType, true); ok {
+					// 静态方法
+					method, ok := ctd.GetMethod(fieldName)
+					if ok && (method.Public() || self.pkg.Equal(method.Package())) {
+						return method
+					}
 				}
-			}
-			if et, ok := types.As[types.EnumType](identType); ok {
-				// 枚举值
-				if et.EnumFields().Contain(fieldName) {
-					_, ok = et.EnumFields().Get(fieldName).Elem()
-					if !ok {
-						return local.NewEnumExpr(et, fieldName)
+				if et, ok := types.As[types.EnumType](identType); ok {
+					// 枚举值
+					if et.EnumFields().Contain(fieldName) {
+						_, ok = et.EnumFields().Get(fieldName).Elem()
+						if !ok {
+							return local.NewEnumExpr(et, fieldName)
+						}
 					}
 				}
 			}
 		}
+
 	}
 
 	if method, ok := self.analyseMethod(node); ok {

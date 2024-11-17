@@ -141,14 +141,86 @@ func (self *Analyser) hasTypeDefault(typ hir.Type) bool {
 	}
 }
 
-func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (either.Either[hir.Type, hir.Value], bool) {
-	t, ok := self.tryAnalyseIdentType((*ast.IdentType)(node))
-	if ok {
-		return either.Left[hir.Type, hir.Value](t), true
+func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (res either.Either[hir.Type, hir.Value], ok bool) {
+	scope := self.scope
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
+		if !ok {
+			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
+		}
 	}
-	v, ok := self.tryAnalyseIdentExpr((*ast.IdentExpr)(node))
-	if ok {
-		return either.Right[hir.Type, hir.Value](v), true
+
+	name := node.Name.Source()
+	defer func() {
+		if !ok {
+			if self.pkg.IsBuildIn() {
+				var buildinType hir.Type
+				switch name {
+				case "__buildin_isize":
+					buildinType = types.Isize
+				case "__buildin_i8":
+					buildinType = types.I8
+				case "__buildin_i16":
+					buildinType = types.I16
+				case "__buildin_i32":
+					buildinType = types.I32
+				case "__buildin_i64":
+					buildinType = types.I64
+				case "__buildin_usize":
+					buildinType = types.Usize
+				case "__buildin_u8":
+					buildinType = types.U8
+				case "__buildin_u16":
+					buildinType = types.U16
+				case "__buildin_u32":
+					buildinType = types.U32
+				case "__buildin_u64":
+					buildinType = types.U64
+				case "__buildin_f16":
+					buildinType = types.F16
+				case "__buildin_f32":
+					buildinType = types.F32
+				case "__buildin_f64":
+					buildinType = types.F64
+				case "__buildin_f128":
+					buildinType = types.F128
+				case "__buildin_bool":
+					buildinType = types.Bool
+				case "__buildin_str":
+					buildinType = types.Str
+				}
+				if buildinType != nil {
+					res = either.Left[hir.Type, hir.Value](buildinType)
+					ok = true
+				}
+			}
+		}
+	}()
+
+	identObj, ok := scope.GetIdent(node.Name.Source(), true)
+	if !ok {
+		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
+	}
+
+	switch ident := identObj.(type) {
+	case *global.FuncDef:
+		var compilerArgs []hir.Type
+		if genericArgsNode, ok := node.GenericArgs.Value(); ok {
+			compilerArgs = stlslices.Map(genericArgsNode.Args, func(_ int, genericArgNode ast.Type) hir.Type {
+				return self.analyseType(genericArgNode)
+			})
+		}
+		if len(ident.CompilerParams()) != len(compilerArgs) {
+			errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ident.CompilerParams())), uint(len(compilerArgs)))
+		}
+		if len(ident.CompilerParams()) == 0 {
+			return either.Right[hir.Type, hir.Value](ident), true
+		}
+		return either.Right[hir.Type, hir.Value](local.NewCompileCallExpr(ident, compilerArgs...)), true
+	case hir.Value:
+		return either.Right[hir.Type, hir.Value](ident), true
+	case hir.Type:
+		return either.Left[hir.Type, hir.Value](ident), true
 	}
 	return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 }

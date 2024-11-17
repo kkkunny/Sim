@@ -39,6 +39,9 @@ func As[T hir.Type](typ hir.Type, strict ...bool) (T, bool) {
 			return tt, ok
 		}
 		return wrap[T](t, tt), true
+	case CompileParamType:
+		to, ok := t.(T)
+		return to, ok
 	default:
 		panic("unreachable")
 	}
@@ -65,6 +68,8 @@ func Is[T hir.Type](typ hir.Type, strict ...bool) bool {
 			return true
 		}
 		return Is[T](t.Target())
+	case CompileParamType:
+		return Is[T](t)
 	default:
 		panic("unreachable")
 	}
@@ -102,7 +107,50 @@ func ReplaceSelfType(to, typ hir.Type) hir.Type {
 		})...)
 	case SelfType:
 		return to
-	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef:
+	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef, CompileParamType:
+		return t
+	default:
+		panic("unreachable")
+	}
+}
+
+func ReplaceCompileParam(table map[CompileParamType]hir.Type, typ hir.Type) hir.Type {
+	switch t := typ.(type) {
+	case RefType:
+		return NewRefType(t.Mutable(), ReplaceCompileParam(table, t.Pointer()))
+	case ArrayType:
+		return NewArrayType(ReplaceCompileParam(table, t.Elem()), t.Size())
+	case TupleType:
+		return NewTupleType(stlslices.Map(t.Elems(), func(_ int, elem hir.Type) hir.Type {
+			return ReplaceCompileParam(table, elem)
+		})...)
+	case FuncType:
+		return NewFuncType(ReplaceCompileParam(table, t.Ret()), stlslices.Map(t.Params(), func(_ int, param hir.Type) hir.Type {
+			return ReplaceCompileParam(table, param)
+		})...)
+	case LambdaType:
+		return NewLambdaType(ReplaceCompileParam(table, t.Ret()), stlslices.Map(t.Params(), func(_ int, param hir.Type) hir.Type {
+			return ReplaceCompileParam(table, param)
+		})...)
+	case StructType:
+		return NewStructType(stlslices.Map(t.Fields().Values(), func(_ int, field *Field) *Field {
+			return NewField(field.pub, field.mut, field.name, ReplaceCompileParam(table, field.typ))
+		})...)
+	case EnumType:
+		return NewEnumType(stlslices.Map(t.EnumFields().Values(), func(_ int, field *EnumField) *EnumField {
+			var newElem []hir.Type
+			if elem, ok := field.Elem(); ok {
+				newElem = append(newElem, ReplaceCompileParam(table, elem))
+			}
+			return NewEnumField(field.name, newElem...)
+		})...)
+	case CompileParamType:
+		to, ok := table[t]
+		if !ok {
+			return t
+		}
+		return to
+	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef, SelfType:
 		return t
 	default:
 		panic("unreachable")

@@ -3,7 +3,6 @@
 package main
 
 import (
-	"os"
 	"testing"
 
 	"github.com/kkkunny/go-llvm"

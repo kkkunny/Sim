@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
@@ -135,7 +136,22 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 		errors.ThrowExpectAttribute(node.Position(), new(ast.Extern))
 	}
 
-	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl), attrs...)
+	// 编译参数
+	compileParams := linkedhashmap.StdWith[string, types.CompileParamType]()
+	if genericParamsNode, ok := node.GenericParams.Value(); ok {
+		for _, genericParamNode := range genericParamsNode.Params {
+			genericParamName := genericParamNode.Source()
+			if compileParams.Contain(genericParamName) {
+				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
+			}
+			compileParams.Set(genericParamName, types.NewGenericParam(genericParamName))
+		}
+	}
+	fnDeclCompileParamAnalyser := stlslices.Map(compileParams.Values(), func(_ int, compileParam types.CompileParamType) typeAnalyser {
+		return self.compileParamAnalyserWith(compileParam, true)
+	})
+
+	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl, fnDeclCompileParamAnalyser...), compileParams.Values(), attrs...)
 	if stlval.IgnoreWith(f.GetName()) == "main" {
 		mainType := types.NewFuncType(types.NoThing)
 		if !f.Type().Equal(types.NewFuncType(types.NoThing)) {

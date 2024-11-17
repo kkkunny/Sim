@@ -708,6 +708,39 @@ func (self *CallExpr) Storable() bool       { return false }
 func (self *CallExpr) GetFunc() hir.Value   { return self.fn }
 func (self *CallExpr) GetArgs() []hir.Value { return self.args }
 
+// CompileCallExpr 编译时调用函数
+type CompileCallExpr struct {
+	fn   values.Callable
+	args []hir.Type
+}
+
+func NewCompileCallExpr(fn values.Callable, args ...hir.Type) *CompileCallExpr {
+	return &CompileCallExpr{
+		fn:   fn,
+		args: args,
+	}
+}
+func (self *CompileCallExpr) getCompileParamMap() map[types.CompileParamType]hir.Type {
+	type getCompiler interface {
+		CompilerParams() []types.CompileParamType
+	}
+	var i int
+	return stlslices.ToMap(self.fn.(getCompiler).CompilerParams(), func(compileParam types.CompileParamType) (types.CompileParamType, hir.Type) {
+		i++
+		return compileParam, self.args[i-1]
+	})
+}
+func (self *CompileCallExpr) Type() hir.Type {
+	return self.CallableType()
+}
+func (self *CompileCallExpr) Mutable() bool            { return false }
+func (self *CompileCallExpr) Storable() bool           { return false }
+func (self *CompileCallExpr) GetFunc() values.Callable { return self.fn }
+func (self *CompileCallExpr) GetArgs() []hir.Type      { return self.args }
+func (self *CompileCallExpr) CallableType() types.CallableType {
+	return types.ReplaceCompileParam(self.getCompileParamMap(), self.fn.CallableType()).(types.CallableType)
+}
+
 // TypeJudgmentExpr 类型判断
 type TypeJudgmentExpr struct {
 	value  hir.Value

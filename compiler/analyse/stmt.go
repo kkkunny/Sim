@@ -28,6 +28,11 @@ func (self *Analyser) analyseFuncBody(f local.CallableDef, params []ast.Param, n
 	if methodDef, ok := f.(*global.MethodDef); ok {
 		self.scope.SetIdent("Self", methodDef.From())
 	}
+	if funcDef, ok := f.(*global.FuncDef); ok {
+		for _, compileParam := range funcDef.CompilerParams() {
+			self.scope.SetIdent(compileParam.String(), compileParam)
+		}
+	}
 
 	paramNameSet := set.StdHashSetWithCap[string](uint(len(params)))
 	for i, p := range f.Params() {

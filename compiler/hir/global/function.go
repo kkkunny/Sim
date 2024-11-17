@@ -4,17 +4,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
-	"github.com/kkkunny/Sim/compiler/hir/values"
 )
-
-// Function 函数定义
-type Function interface {
-	hir.Global
-	local.CallableDef
-	values.Ident
-	SetBody(b *local.Block)
-	Attrs() []FuncAttr
-}
 
 // FuncDecl 函数声明
 type FuncDecl struct {
