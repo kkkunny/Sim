@@ -14,9 +14,8 @@ type Builder struct {
 	stringMap hashmap.HashMap[string, llvm.Constant]
 }
 
-func NewBuilder(target llvm.Target) *Builder {
-	ctx := llvm.GlobalContext
-	module := ctx.NewModule("main")
+func NewBuilder(ctx llvm.Context, target llvm.Target) *Builder {
+	module := ctx.NewModule("")
 	module.SetTarget(target)
 	return &Builder{
 		Context:   ctx,

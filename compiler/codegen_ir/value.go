@@ -240,17 +240,54 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 		}
 	}
 
-	switch ir := ir.(type) {
+	switch identIr := ir.(type) {
 	case *global.FuncDef:
-		return self.values.Get(ir)
+		if !self.pkg.Equal(identIr.Package()) {
+			name := self.getIdentName(identIr)
+			f, ok := self.builder.GetFunction(name)
+			if ok {
+				return f
+			}
+			f = self.builder.NewFunction(name, self.codegenFuncType(identIr.CallableType().(types.FuncType)))
+			f.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
+			return f
+		}
+		return self.values.Get(identIr)
 	case *global.MethodDef:
-		return self.values.Get(&ir.FuncDef)
-	case *local.SingleVarDef, values.VarDecl, *local.Param, *global.VarDef:
-		p := self.values.Get(ir)
+		if !self.pkg.Equal(identIr.Package()) {
+			name := self.getIdentName(identIr)
+			f, ok := self.builder.GetFunction(name)
+			if ok {
+				return f
+			}
+			f = self.builder.NewFunction(name, self.codegenFuncType(identIr.CallableType().(types.FuncType)))
+			f.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
+			return f
+		}
+		return self.values.Get(identIr)
+	case *global.VarDef:
+		p := stlval.TernaryAction(!self.pkg.Equal(identIr.Package()), func() llvm.Value {
+			name := self.getIdentName(identIr)
+			v, ok := self.builder.GetGlobal(name)
+			if ok {
+				return v
+			}
+			v = self.builder.NewGlobal(name, self.codegenType(identIr.Type()), nil)
+			v.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
+			return v
+		}, func() llvm.Value {
+			return self.values.Get(identIr)
+		})
 		if !load {
 			return p
 		}
-		return self.builder.CreateLoad("", self.codegenType(ir.Type()), p)
+		return self.builder.CreateLoad("", self.codegenType(identIr.Type()), p)
+	case *local.SingleVarDef, values.VarDecl, *local.Param:
+		p := self.values.Get(identIr)
+		if !load {
+			return p
+		}
+		return self.builder.CreateLoad("", self.codegenType(identIr.Type()), p)
 	default:
 		panic("unreachable")
 	}

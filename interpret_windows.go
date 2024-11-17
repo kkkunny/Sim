@@ -14,11 +14,13 @@ import (
 )
 
 func main() {
+	llvm.EnablePrettyStackTrace()
 	stlerror.Must(llvm.InitializeTargetInfo(llvm.X86))
 	stlerror.Must(llvm.InitializeTarget(llvm.X86))
 	stlerror.Must(llvm.InitializeTargetMC(llvm.X86))
 	target := stlerror.MustWith(llvm.NewTargetFromTriple("x86_64-pc-windows-msvc"))
-	module := stlerror.MustWith(codegen_ir.CodegenIr(target, stlos.NewFilePath(os.Args[1])))
+	path := stlerror.MustWith(stlos.NewFilePath(os.Args[1]).Abs())
+	module := stlerror.MustWith(codegen_ir.CodegenIr(target, path))
 	ret := stlerror.MustWith(interpret.Interpret(module))
 	os.Exit(int(ret))
 }

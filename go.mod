@@ -3,7 +3,8 @@ module github.com/kkkunny/Sim
 go 1.22
 
 require (
-	github.com/kkkunny/go-llvm v0.0.0-20241114151432-09fc04307b46
+	github.com/heimdalr/dag v1.5.0
+	github.com/kkkunny/go-llvm v0.0.0-20241117064515-d879ac338339
 	github.com/kkkunny/stl v0.0.0-20241116043033-308ffc3d1d79
 	github.com/samber/lo v1.44.0
 )
@@ -14,6 +15,8 @@ require (
 	github.com/HuKeping/rbtree v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/elastic/go-freelru v0.13.0 // indirect
+	github.com/emirpasic/gods v1.18.1 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/kkkunny/maphash v0.0.0-20241013073711-aff67359a91c // indirect
 	github.com/kkkunny/swiss v0.0.0-20240930154237-41a03804fd4f // indirect

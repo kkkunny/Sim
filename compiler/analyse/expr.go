@@ -639,6 +639,7 @@ func (self *Analyser) analyseExtract(expect hir.Type, node *ast.Extract) *local.
 	index := uint(indexValue.Uint64())
 
 	if expect != nil {
+
 		elems := make([]hir.Type, index+1)
 		elems[index] = expect
 		expect = types.NewTupleType(elems...)

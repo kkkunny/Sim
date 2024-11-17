@@ -1,6 +1,7 @@
 package hir
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/kkkunny/stl/container/hashmap"
@@ -31,7 +32,11 @@ func NewPackage(path stlos.FilePath) *Package {
 }
 
 func (self *Package) String() string {
-	return string(self.path)
+	relpath, _ := filepath.Rel(string(config.OfficialPkgPath), string(self.path))
+	if !strings.HasPrefix(relpath, "std") {
+		return "main"
+	}
+	return strings.Join(strings.Split(relpath, string(filepath.Separator)), "::")
 }
 
 func (self *Package) Equal(dst *Package) bool {

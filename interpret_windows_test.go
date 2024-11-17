@@ -3,6 +3,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
@@ -15,11 +16,13 @@ import (
 )
 
 func TestDebug(t *testing.T) {
+	llvm.EnablePrettyStackTrace()
 	stlerror.Must(llvm.InitializeTargetInfo(llvm.X86))
 	stlerror.Must(llvm.InitializeTarget(llvm.X86))
 	stlerror.Must(llvm.InitializeTargetMC(llvm.X86))
 	target := stlerror.MustWith(llvm.NewTargetFromTriple("x86_64-pc-windows-msvc"))
-	module := stlerror.MustWith(codegen_ir.CodegenIr(target, stlos.NewFilePath("examples/main.sim")))
+	path := stlerror.MustWith(stlos.NewFilePath("examples/main.sim").Abs())
+	module := stlerror.MustWith(codegen_ir.CodegenIr(target, path))
 	ret := stlerror.MustWith(interpret.Interpret(module))
 	stltest.AssertEq(t, ret, 0)
 }

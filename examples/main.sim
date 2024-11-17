@@ -1,9 +1,12 @@
 import std::os
 
+type A struct{}
+
+func (A) get(self: Self, v: u8)u8{
+    return v
+}
+
 func main(){
-	let v: u8 = 1
-	let a = () -> u8{
-		return v
-	}
-	os::exit(a() - 1)
+    let a = A{}
+    os::exit(a.get(0))
 }

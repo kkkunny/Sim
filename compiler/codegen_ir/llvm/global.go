@@ -26,6 +26,7 @@ func (self *Builder) GetInitFunction() llvm.Function {
 	fn, ok := self.GetFunction("sim_runtime_init")
 	if !ok {
 		fn = self.NewFunction("sim_runtime_init", self.FunctionType(false, self.VoidType()))
+		fn.SetLinkage(llvm.PrivateLinkage)
 		self.AddConstructor(65535, fn)
 		fn.NewBlock("")
 	}

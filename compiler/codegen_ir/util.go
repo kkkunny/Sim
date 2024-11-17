@@ -4,16 +4,69 @@ import (
 	"fmt"
 
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/queue"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/container/tuple"
+	stlerr "github.com/kkkunny/stl/error"
 	stlmath "github.com/kkkunny/stl/math"
 	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
+	"github.com/heimdalr/dag"
+
 	"github.com/kkkunny/Sim/compiler/analyse"
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
 )
+
+func (self *CodeGenerator) getIdentName(ir values.Ident) string {
+	switch ident := ir.(type) {
+	case *global.FuncDef:
+		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
+			nameAttr, ok := attr.(*global.FuncAttrLinkName)
+			if !ok {
+				return nil
+			}
+			return []string{nameAttr.Name()}
+		}))
+		if name != "" {
+			return name
+		}
+		return fmt.Sprintf("%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.GetName()))
+	case *global.MethodDef:
+		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
+			nameAttr, ok := attr.(*global.FuncAttrLinkName)
+			if !ok {
+				return nil
+			}
+			return []string{nameAttr.Name()}
+		}))
+		if name != "" {
+			return name
+		}
+		return fmt.Sprintf("%s::%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.From().GetName()), stlval.IgnoreWith(ident.GetName()))
+	case *global.VarDef:
+		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.VarAttr) []string {
+			nameAttr, ok := attr.(*global.VarAttrLinkName)
+			if !ok {
+				return nil
+			}
+			return []string{nameAttr.Name()}
+		}))
+		if name != "" {
+			return name
+		}
+		return fmt.Sprintf("%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.GetName()))
+	case *local.SingleVarDef, values.VarDecl, *local.Param:
+		return ""
+	default:
+		panic("unreachable")
+	}
+}
 
 func (self *CodeGenerator) typeIsStruct(t hir.Type) bool {
 	switch t := t.(type) {
@@ -534,13 +587,105 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 
 // CodegenIr 中间代码生成
 func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
-	pkg, err := analyse.Analyse(path)
+	entryPkg, err := analyse.Analyse(path)
 	if err != nil {
 		return llvm.Module{}, err
 	}
-	module := New(target).Codegen(pkg)
-	// passOption := llvm.NewPassOption()
-	// defer passOption.Free()
-	// err = stlerr.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
-	return module, err
+
+	var buildinPkgTaskID string
+	existPkgs := hashmap.StdWith[*hir.Package, string]()
+	pkgs := queue.New[*hir.Package](entryPkg)
+	dager := dag.NewDAG()
+	for !pkgs.Empty() {
+		pkg := pkgs.Pop()
+
+		var pkgTaskID string
+		if existPkgs.Contain(pkg) {
+			pkgTaskID = existPkgs.Get(pkg)
+		} else {
+			pkgTaskID, err = stlerr.ErrorWith(dager.AddVertex(pkg))
+			if err != nil {
+				return llvm.Module{}, err
+			}
+			existPkgs.Set(pkg, pkgTaskID)
+		}
+
+		if pkg.IsBuildIn() {
+			buildinPkgTaskID = pkgTaskID
+		}
+
+		for _, depPkg := range pkg.GetDependencyPackages() {
+			var depTaskID string
+			if existPkgs.Contain(depPkg) {
+				depTaskID = existPkgs.Get(depPkg)
+			} else {
+				pkgs.Push(depPkg)
+				depTaskID, err = stlerr.ErrorWith(dager.AddVertex(depPkg))
+				if err != nil {
+					return llvm.Module{}, err
+				}
+				existPkgs.Set(depPkg, depTaskID)
+			}
+			if err = stlerr.ErrorWrap(dager.AddEdge(depTaskID, pkgTaskID)); err != nil {
+				return llvm.Module{}, err
+			}
+		}
+	}
+
+	moduleCh := make(chan llvm.Module, 1)
+	go func() {
+		defer close(moduleCh)
+		var resList []dag.FlowResult
+		resList, err = stlerr.ErrorWith(dager.DescendantsFlow(buildinPkgTaskID, nil, func(d *dag.DAG, id string, depResults []dag.FlowResult) (interface{}, error) {
+			_, err := stlslices.MapError(depResults, func(_ int, res dag.FlowResult) (any, error) {
+				if res.Error != nil {
+					return nil, res.Error
+				}
+				return nil, nil
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			pkgObj, err := stlerr.ErrorWith(d.GetVertex(id))
+			if err != nil {
+				return nil, err
+			}
+			pkg := pkgObj.(*hir.Package)
+			module := New(target, pkg).Codegen()
+			moduleCh <- module
+
+			return nil, nil
+		}))
+		if err == nil {
+			_, err = stlslices.MapError(resList, func(_ int, res dag.FlowResult) (any, error) {
+				if res.Error != nil {
+					return nil, res.Error
+				}
+				return nil, nil
+			})
+		}
+	}()
+	if err != nil {
+		return llvm.Module{}, err
+	}
+
+	var module llvm.Module
+	var existBaseModule bool
+	for backModule := range moduleCh {
+		if !existBaseModule {
+			module, existBaseModule = backModule, true
+		} else {
+			err = stlerr.ErrorWrap(backModule.Link(module))
+			if err != nil {
+				return llvm.Module{}, err
+			}
+			module = backModule
+		}
+	}
+
+	passOption := llvm.NewPassOption()
+	defer passOption.Free()
+	err = stlerr.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
+	return module, nil
 }

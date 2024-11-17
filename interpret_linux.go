@@ -15,7 +15,8 @@ import (
 
 func main() {
 	target := stlerror.MustWith(llvm.NativeTarget())
-	module := stlerror.MustWith(codegen_ir.CodegenIr(target, stlos.NewFilePath(os.Args[1])))
+	path := stlerror.MustWith(stlos.NewFilePath(os.Args[1]).Abs())
+	module := stlerror.MustWith(codegen_ir.CodegenIr(target, path))
 	ret := stlerror.MustWith(interpret.Interpret(module))
 	os.Exit(int(ret))
 }

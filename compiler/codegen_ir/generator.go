@@ -4,7 +4,6 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/queue"
-	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
@@ -18,8 +17,8 @@ import (
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	donePkgs set.Set[*hir.Package]
-	builder  *llvmUtil.Builder
+	builder *llvmUtil.Builder
+	pkg     *hir.Package
 
 	types  hashmap.HashMap[types.CustomType, llvm.Type]
 	values hashmap.HashMap[hir.Value, llvm.Value]
@@ -29,10 +28,10 @@ type CodeGenerator struct {
 	lambdaCaptureMap queue.Queue[hashmap.HashMap[values.Ident, llvm.Value]]
 }
 
-func New(target llvm.Target) *CodeGenerator {
+func New(target llvm.Target, pkg *hir.Package) *CodeGenerator {
 	return &CodeGenerator{
-		donePkgs:         set.StdHashSetWith[*hir.Package](),
-		builder:          llvmUtil.NewBuilder(target),
+		builder:          llvmUtil.NewBuilder(llvm.GlobalContext, target),
+		pkg:              pkg,
 		types:            hashmap.AnyWith[types.CustomType, llvm.Type](),
 		values:           hashmap.StdWith[hir.Value, llvm.Value](),
 		funcCache:        hashmap.StdWith[string, llvm.Function](),
@@ -42,17 +41,22 @@ func New(target llvm.Target) *CodeGenerator {
 }
 
 // Codegen 代码生成
-func (self *CodeGenerator) Codegen(pkg *hir.Package) llvm.Module {
-	self.codegenPkg(pkg)
+func (self *CodeGenerator) Codegen() llvm.Module {
+	defer self.builder.Builder.Free()
+
+	self.codegenPkg(self.pkg)
+
 	// 初始化函数
-	for _, b := range self.builder.GetInitFunction().Blocks() {
-		if !b.IsTerminating() {
-			self.builder.MoveToAfter(b)
-			self.builder.CreateRet(nil)
+	if _, ok := self.builder.GetFunction("sim_runtime_init"); ok {
+		for _, b := range self.builder.GetInitFunction().Blocks() {
+			if !b.IsTerminating() {
+				self.builder.MoveToAfter(b)
+				self.builder.CreateRet(nil)
+			}
 		}
 	}
 	// 主函数
-	for iter := pkg.Globals().Iterator(); iter.Next(); {
+	for iter := self.pkg.Globals().Iterator(); iter.Next(); {
 		fIr, ok := iter.Value().(*global.FuncDef)
 		if !ok || stlval.IgnoreWith(fIr.GetName()) != "main" {
 			continue
@@ -67,8 +71,6 @@ func (self *CodeGenerator) Codegen(pkg *hir.Package) llvm.Module {
 }
 
 func (self *CodeGenerator) codegenPkg(pkg *hir.Package) {
-	// 导入包
-	self.codegenImportPkgs(pkg)
 	// 类型声明
 	self.codegenTypeDefDecl(pkg)
 	// 类型定义
