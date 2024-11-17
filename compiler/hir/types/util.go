@@ -69,7 +69,7 @@ func Is[T hir.Type](typ hir.Type, strict ...bool) bool {
 		}
 		return Is[T](t.Target())
 	case CompileParamType:
-		return Is[T](t)
+		return stlval.Is[T](t)
 	default:
 		panic("unreachable")
 	}
@@ -150,6 +150,10 @@ func ReplaceCompileParam(table map[CompileParamType]hir.Type, typ hir.Type) hir.
 			return t
 		}
 		return to
+	case CompileCallType:
+		return t.WithArgs(stlslices.Map(t.Args(), func(_ int, arg hir.Type) hir.Type {
+			return ReplaceCompileParam(table, arg)
+		}))
 	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef, SelfType:
 		return t
 	default:

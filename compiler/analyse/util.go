@@ -59,7 +59,7 @@ func (self *Analyser) checkTypeCircle(trace set.Set[hir.Type], t hir.Type) bool 
 	}()
 
 	switch typ := t.(type) {
-	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.StrType, types.RefType, types.CallableType:
+	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.StrType, types.RefType, types.CallableType, types.CompileParamType:
 		return false
 	case types.ArrayType:
 		return self.checkTypeCircle(trace, typ.Elem())
@@ -141,7 +141,7 @@ func (self *Analyser) hasTypeDefault(typ hir.Type) bool {
 	}
 }
 
-func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (res either.Either[hir.Type, hir.Value], ok bool) {
+func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnalyser) (res either.Either[hir.Type, hir.Value], ok bool) {
 	scope := self.scope
 	if pkgToken, ok := node.Pkg.Value(); ok {
 		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
@@ -219,6 +219,20 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (res either.Either[hir.Ty
 		return either.Right[hir.Type, hir.Value](local.NewCompileCallExpr(ident, compilerArgs...)), true
 	case hir.Value:
 		return either.Right[hir.Type, hir.Value](ident), true
+	case global.CustomTypeDef:
+		var compilerArgs []hir.Type
+		if genericArgsNode, ok := node.GenericArgs.Value(); ok {
+			compilerArgs = stlslices.Map(genericArgsNode.Args, func(_ int, genericArgNode ast.Type) hir.Type {
+				return self.analyseType(genericArgNode, typeAnalysers...)
+			})
+		}
+		if len(ident.CompilerParams()) != len(compilerArgs) {
+			errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ident.CompilerParams())), uint(len(compilerArgs)))
+		}
+		if len(ident.CompilerParams()) == 0 {
+			return either.Left[hir.Type, hir.Value](ident), true
+		}
+		return either.Left[hir.Type, hir.Value](global.NewCompileCallTypeDef(ident, compilerArgs...)), true
 	case hir.Type:
 		return either.Left[hir.Type, hir.Value](ident), true
 	}

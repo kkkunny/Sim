@@ -71,7 +71,20 @@ func (self *Analyser) declTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
-	return self.pkg.AppendGlobal(node.Public, global.NewCustomTypeDef(name, types.NoThing)).(global.CustomTypeDef)
+
+	// 编译参数
+	compileParams := linkedhashmap.StdWith[string, types.CompileParamType]()
+	if genericParamsNode, ok := node.GenericParams.Value(); ok {
+		for _, genericParamNode := range genericParamsNode.Params {
+			genericParamName := genericParamNode.Source()
+			if compileParams.Contain(genericParamName) {
+				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
+			}
+			compileParams.Set(genericParamName, types.NewGenericParam(genericParamName))
+		}
+	}
+
+	return self.pkg.AppendGlobal(node.Public, global.NewCustomTypeDef(name, compileParams.Values(), types.NoThing)).(global.CustomTypeDef)
 }
 
 func (self *Analyser) declTypeAlias(node *ast.TypeAlias) global.AliasTypeDef {
@@ -97,7 +110,10 @@ func (self *Analyser) defTrait(node *ast.Trait) *global.Trait {
 
 func (self *Analyser) defTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Name.Source())).(global.CustomTypeDef)
-	decl.SetTarget(self.analyseType(node.Target, self.structTypeAnalyser(), self.enumTypeAnalyser(), self.selfTypeAnalyserWith(decl, true)))
+	fnDeclCompileParamAnalyser := stlslices.Map(decl.CompilerParams(), func(_ int, compileParam types.CompileParamType) typeAnalyser {
+		return self.compileParamAnalyserWith(compileParam, true)
+	})
+	decl.SetTarget(self.analyseType(node.Target, append([]typeAnalyser{self.structTypeAnalyser(), self.enumTypeAnalyser(), self.selfTypeAnalyserWith(decl, true)}, fnDeclCompileParamAnalyser...)...))
 	return decl
 }
 

@@ -1,10 +1,14 @@
 import std::os
 
-func get<T>(v: T)T{
+func get1<T>(v: T)T{
+	return get2::<T>(v)
+}
+
+func get2<T>(v: T)T{
 	let v2: T = v
 	return v2
 }
 
 func main(){
-	os::exit(get::<u8>(1)-1)
+	os::exit(get1::<u8>(1)-1)
 }

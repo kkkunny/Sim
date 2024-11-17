@@ -88,7 +88,7 @@ func (self *Analyser) analyseType(node ast.Type, analysers ...typeAnalyser) hir.
 
 	switch typeNode := node.(type) {
 	case *ast.IdentType:
-		return self.analyseIdentType(typeNode)
+		return self.analyseIdentType(typeNode, deepAnalysers...)
 	case *ast.FuncType:
 		return self.analyseFuncType(typeNode, deepAnalysers...)
 	case *ast.ArrayType:
@@ -104,8 +104,8 @@ func (self *Analyser) analyseType(node ast.Type, analysers ...typeAnalyser) hir.
 	}
 }
 
-func (self *Analyser) analyseIdentType(node *ast.IdentType) hir.Type {
-	t, ok := self.tryAnalyseIdent((*ast.Ident)(node))
+func (self *Analyser) analyseIdentType(node *ast.IdentType, analysers ...typeAnalyser) hir.Type {
+	t, ok := self.tryAnalyseIdent((*ast.Ident)(node), analysers...)
 	if !ok || t.IsRight() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}

@@ -186,7 +186,12 @@ func (self *Parser) parseTypeDefOrAlias(attrs []ast.Attr, pub *token.Token) ast.
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
-	isAlias := self.skipNextIs(token.ASS)
+	genericParams := self.parseGenericParamList()
+
+	var isAlias bool
+	if genericParams.IsNone() {
+		isAlias = self.skipNextIs(token.ASS)
+	}
 	if isAlias {
 		return &ast.TypeAlias{
 			Begin:  begin,
@@ -196,10 +201,11 @@ func (self *Parser) parseTypeDefOrAlias(attrs []ast.Attr, pub *token.Token) ast.
 		}
 	} else {
 		return &ast.TypeDef{
-			Begin:  begin,
-			Public: pub != nil,
-			Name:   name,
-			Target: self.parseTypeInTypedef(),
+			Begin:         begin,
+			Public:        pub != nil,
+			Name:          name,
+			GenericParams: genericParams,
+			Target:        self.parseTypeInTypedef(),
 		}
 	}
 }

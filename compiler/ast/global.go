@@ -312,10 +312,11 @@ func (self *FuncDef) Output(w io.Writer, depth uint) (err error) {
 
 // TypeDef 类型定义
 type TypeDef struct {
-	Begin  reader.Position
-	Public bool
-	Name   token.Token
-	Target Type
+	Begin         reader.Position
+	Public        bool
+	Name          token.Token
+	GenericParams optional.Optional[*GenericParamList]
+	Target        Type
 }
 
 func (self *TypeDef) Position() reader.Position {
@@ -330,7 +331,28 @@ func (self *TypeDef) Output(w io.Writer, depth uint) (err error) {
 			return err
 		}
 	}
-	if err = outputf(w, "type %s ", self.Name.Source()); err != nil {
+	if err = outputf(w, "type %s", self.Name.Source()); err != nil {
+		return err
+	}
+	if genericParams, ok := self.GenericParams.Value(); ok {
+		if err = outputf(w, "<"); err != nil {
+			return err
+		}
+		for i, param := range genericParams.Params {
+			if err = outputf(w, param.Source()); err != nil {
+				return err
+			}
+			if i < len(genericParams.Params)-1 {
+				if err = outputf(w, ", "); err != nil {
+					return err
+				}
+			}
+		}
+		if err = outputf(w, ">"); err != nil {
+			return err
+		}
+	}
+	if err = outputf(w, " "); err != nil {
 		return err
 	}
 	return self.Target.Output(w, depth)
