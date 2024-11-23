@@ -205,19 +205,19 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 
 	switch ident := identObj.(type) {
 	case *global.FuncDef:
-		compilerArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs)
-		if len(compilerArgs) == 0 {
+		genericArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs)
+		if len(genericArgs) == 0 {
 			return either.Right[hir.Type, hir.Value](ident), true
 		}
-		return either.Right[hir.Type, hir.Value](local.NewGenericFuncInstExpr(ident, compilerArgs...)), true
+		return either.Right[hir.Type, hir.Value](local.NewGenericFuncInstExpr(ident, genericArgs...)), true
 	case hir.Value:
 		return either.Right[hir.Type, hir.Value](ident), true
 	case global.CustomTypeDef:
-		compilerArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs)
-		if len(compilerArgs) == 0 {
+		genericArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs, typeAnalysers...)
+		if len(genericArgs) == 0 {
 			return either.Left[hir.Type, hir.Value](ident), true
 		}
-		return either.Left[hir.Type, hir.Value](global.NewGenericCustomTypeDef(ident, compilerArgs...)), true
+		return either.Left[hir.Type, hir.Value](global.NewGenericCustomTypeDef(ident, genericArgs...)), true
 	case hir.Type:
 		return either.Left[hir.Type, hir.Value](ident), true
 	}
@@ -232,7 +232,7 @@ func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *loca
 	return local.NewDefaultExpr(t)
 }
 
-func (self *Analyser) analyseOptionalGenericArgList(expectNumber int, pos reader.Position, node optional.Optional[*ast.GenericArgList]) []hir.Type {
+func (self *Analyser) analyseOptionalGenericArgList(expectNumber int, pos reader.Position, node optional.Optional[*ast.GenericArgList], typeAnalysers ...typeAnalyser) []hir.Type {
 	genericArgsNode, ok := node.Value()
 	if !ok {
 		return nil
@@ -244,6 +244,6 @@ func (self *Analyser) analyseOptionalGenericArgList(expectNumber int, pos reader
 		return nil
 	}
 	return stlslices.Map(genericArgsNode.Args, func(_ int, genericArgNode ast.Type) hir.Type {
-		return self.analyseType(genericArgNode)
+		return self.analyseType(genericArgNode, typeAnalysers...)
 	})
 }

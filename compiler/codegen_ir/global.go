@@ -20,12 +20,13 @@ func (self *CodeGenerator) codegenTypeDefDecl(pkg *hir.Package) {
 }
 
 func (self *CodeGenerator) declCustomType(ir global.CustomTypeDef) {
-	if !self.typeIsStruct(ir.Target()) {
+	if len(ir.GenericParams()) > 0 {
+		return
+	} else if !self.typeIsStruct(ir.Target()) {
 		return
 	}
 
-	t := self.builder.NamedStructType("", false)
-	self.types.Set(ir, t)
+	self.builder.NamedStructType(ir.String(), false)
 }
 
 func (self *CodeGenerator) codegenTypeDefDef(pkg *hir.Package) {
@@ -38,17 +39,21 @@ func (self *CodeGenerator) codegenTypeDefDef(pkg *hir.Package) {
 }
 
 func (self *CodeGenerator) defCustomType(ir global.CustomTypeDef) {
-	tObj := self.types.Get(ir)
-	if tObj == nil {
+	if len(ir.GenericParams()) > 0 {
 		return
 	}
-	t := tObj.(llvm.StructType)
+
+	stPtr := self.builder.GetTypeByName(ir.String())
+	if stPtr == nil {
+		return
+	}
+	st := *stPtr
 
 	target := self.codegenType(ir.Target())
 	if tt, ok := target.(llvm.StructType); ok {
-		t.SetElems(false, tt.Elems()...)
+		st.SetElems(false, tt.Elems()...)
 	} else {
-		t.SetElems(true, target)
+		st.SetElems(true, target)
 	}
 }
 
@@ -66,72 +71,18 @@ func (self *CodeGenerator) codegenGlobalVarDecl(pkg *hir.Package) {
 }
 
 func (self *CodeGenerator) declFuncDef(ir *global.FuncDef) {
-	var inline *bool
-	var vararg, link bool
-	for _, attr := range ir.Attrs() {
-		switch attr := attr.(type) {
-		case *global.FuncAttrLinkName:
-			link = true
-		case *global.FuncAttrInline:
-			inline = stlval.Ptr(attr.Inline())
-		case *global.FuncAttrVararg:
-			vararg = true
-		}
+	if len(ir.GenericParams()) > 0 {
+		return
 	}
-
-	name := self.getIdentName(ir)
-	ftIr := ir.CallableType().(types.FuncType)
-	ft := self.codegenFuncType(ftIr)
-	if vararg {
-		ft = self.builder.FunctionType(true, ft.ReturnType(), ft.Params()...)
-	}
-
-	f := self.builder.NewFunction(name, ft)
-	f.SetLinkage(stlval.Ternary(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
-	if !link {
-		f.SetDSOLocal(true)
-	}
-	if types.Is[types.NoReturnType](ftIr.Ret(), true) {
-		f.AddAttribute(llvm.FuncAttributeNoReturn)
-	}
-	if inline != nil {
-		f.AddAttribute(stlval.Ternary(*inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
-	}
+	f := self.declFunc(self.getIdentName(ir), ir.CallableType().(types.FuncType), ir.Attrs()...)
 	self.values.Set(ir, f)
 }
 
 func (self *CodeGenerator) declMethodDef(ir *global.OriginMethodDef) {
-	var inline *bool
-	var vararg, link bool
-	for _, attr := range ir.Attrs() {
-		switch attr := attr.(type) {
-		case *global.FuncAttrLinkName:
-			link = true
-		case *global.FuncAttrInline:
-			inline = stlval.Ptr(attr.Inline())
-		case *global.FuncAttrVararg:
-			vararg = true
-		}
+	if len(ir.GenericParams()) > 0 {
+		return
 	}
-
-	name := self.getIdentName(ir)
-	ftIr := ir.CallableType().(types.FuncType)
-	ft := self.codegenFuncType(ftIr)
-	if vararg {
-		ft = self.builder.FunctionType(true, ft.ReturnType(), ft.Params()...)
-	}
-
-	f := self.builder.NewFunction(name, ft)
-	f.SetLinkage(stlval.Ternary(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
-	if !link {
-		f.SetDSOLocal(true)
-	}
-	if types.Is[types.NoReturnType](ftIr.Ret(), true) {
-		f.AddAttribute(llvm.FuncAttributeNoReturn)
-	}
-	if inline != nil {
-		f.AddAttribute(stlval.Ternary(*inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
-	}
+	f := self.declFunc(self.getIdentName(ir), ir.CallableType().(types.FuncType), ir.Attrs()...)
 	self.values.Set(ir, f)
 }
 
@@ -168,39 +119,27 @@ func (self *CodeGenerator) codegenGlobalVarDef(pkg *hir.Package) {
 }
 
 func (self *CodeGenerator) defFuncDef(ir *global.FuncDef) {
+	if len(ir.GenericParams()) > 0 {
+		return
+	}
 	body, ok := ir.Body()
 	if !ok {
 		return
 	}
-
 	f := self.values.Get(ir).(llvm.Function)
-	self.builder.MoveToAfter(f.NewBlock(""))
-	for i, pIr := range ir.Params() {
-		p := self.builder.CreateAlloca("", self.codegenType(pIr.Type()))
-		self.builder.CreateStore(f.Params()[i], p)
-		self.values.Set(pIr, p)
-	}
-
-	block, _ := self.codegenBlock(body, nil)
-	self.builder.CreateBr(block)
+	self.defFunc(f, ir.Params(), body)
 }
 
 func (self *CodeGenerator) defMethodDef(ir *global.OriginMethodDef) {
+	if len(ir.GenericParams()) > 0 {
+		return
+	}
 	body, ok := ir.Body()
 	if !ok {
 		return
 	}
-
 	f := self.values.Get(ir).(llvm.Function)
-	self.builder.MoveToAfter(f.NewBlock(""))
-	for i, pIr := range ir.Params() {
-		p := self.builder.CreateAlloca("", self.codegenType(pIr.Type()))
-		self.builder.CreateStore(f.Params()[i], p)
-		self.values.Set(pIr, p)
-	}
-
-	block, _ := self.codegenBlock(body, nil)
-	self.builder.CreateBr(block)
+	self.defFunc(f, ir.Params(), body)
 }
 
 func (self *CodeGenerator) defGlobalVarDef(ir *global.VarDef) {

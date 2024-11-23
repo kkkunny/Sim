@@ -73,6 +73,12 @@ func Is[T hir.Type](typ hir.Type, strict ...bool) bool {
 
 func ReplaceVirtualType(table hashmap.HashMap[VirtualType, hir.Type], typ hir.Type) hir.Type {
 	switch t := typ.(type) {
+	case VirtualType:
+		return table.Get(t, t)
+	case GenericCustomType:
+		return t.WithArgs(stlslices.Map(t.Args(), func(_ int, arg hir.Type) hir.Type {
+			return ReplaceVirtualType(table, arg)
+		}))
 	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef:
 		return t
 	case RefType:
@@ -103,12 +109,6 @@ func ReplaceVirtualType(table hashmap.HashMap[VirtualType, hir.Type], typ hir.Ty
 			}
 			return NewEnumField(field.name, newElem...)
 		})...)
-	case GenericCustomType:
-		return t.WithArgs(stlslices.Map(t.Args(), func(_ int, arg hir.Type) hir.Type {
-			return ReplaceVirtualType(table, arg)
-		}))
-	case VirtualType:
-		return table.Get(t, t)
 	default:
 		panic("unreachable")
 	}

@@ -1,19 +1,12 @@
 import std::os
 
-type A struct{
-	data: u8
-}
+type A<T> B::<T>
 
-func (A) get<T>(self: &Self, v: T)T{
-	let v: T = v
-	return v
-}
-
-func (A) get2<T>(v: T)T{
-	return v
+type B<T> struct{
+	data: T
 }
 
 func main(){
-	let a = A{data: 1}
-	os::exit(a.get::<u8>(1) - 1)
+	let a = A::<u8>{data: 1}
+	os::exit(a.data - 1)
 }

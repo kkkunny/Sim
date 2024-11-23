@@ -2,6 +2,7 @@ package codegen_ir
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
@@ -23,7 +24,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
-func (self *CodeGenerator) getIdentName(ir values.Ident) string {
+func (self *CodeGenerator) getIdentName(ir values.Ident, genericArgs ...hir.Type) string {
 	switch ident := ir.(type) {
 	case *global.FuncDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
@@ -36,7 +37,14 @@ func (self *CodeGenerator) getIdentName(ir values.Ident) string {
 		if name != "" {
 			return name
 		}
-		return fmt.Sprintf("%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.GetName()))
+		name = fmt.Sprintf("%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.GetName()))
+		if len(ident.GenericParams()) == 0 || len(genericArgs) == 0 {
+			return name
+		}
+		genericArgStrs := stlslices.Map(genericArgs, func(_ int, arg hir.Type) string {
+			return arg.String()
+		})
+		return fmt.Sprintf("%s::<%s>", name, strings.Join(genericArgStrs, ","))
 	case global.MethodDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
 			nameAttr, ok := attr.(*global.FuncAttrLinkName)
@@ -48,7 +56,14 @@ func (self *CodeGenerator) getIdentName(ir values.Ident) string {
 		if name != "" {
 			return name
 		}
-		return fmt.Sprintf("%s::%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.From().GetName()), stlval.IgnoreWith(ident.GetName()))
+		name = fmt.Sprintf("%s::%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.From().GetName()), stlval.IgnoreWith(ident.GetName()))
+		if len(ident.GenericParams()) == 0 || len(genericArgs) == 0 {
+			return name
+		}
+		genericArgStrs := stlslices.Map(genericArgs, func(_ int, arg hir.Type) string {
+			return arg.String()
+		})
+		return fmt.Sprintf("%s::<%s>", name, strings.Join(genericArgStrs, ","))
 	case *global.VarDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.VarAttr) []string {
 			nameAttr, ok := attr.(*global.VarAttrLinkName)
@@ -585,6 +600,74 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	}
 }
 
+func (self *CodeGenerator) declFunc(name string, ftIr types.FuncType, attrs ...global.FuncAttr) llvm.Function {
+	var inline *bool
+	var vararg, link bool
+	for _, attr := range attrs {
+		switch attr := attr.(type) {
+		case *global.FuncAttrLinkName:
+			link = true
+		case *global.FuncAttrInline:
+			inline = stlval.Ptr(attr.Inline())
+		case *global.FuncAttrVararg:
+			vararg = true
+		}
+	}
+
+	ft := self.codegenFuncType(ftIr)
+	if vararg {
+		ft = self.builder.FunctionType(true, ft.ReturnType(), ft.Params()...)
+	}
+
+	f := self.builder.NewFunction(name, ft)
+	f.SetLinkage(stlval.Ternary(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
+	if !link {
+		f.SetDSOLocal(true)
+	}
+	if types.Is[types.NoReturnType](ftIr.Ret(), true) {
+		f.AddAttribute(llvm.FuncAttributeNoReturn)
+	}
+	if inline != nil {
+		f.AddAttribute(stlval.Ternary(*inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
+	}
+	return f
+}
+
+func (self *CodeGenerator) defFunc(f llvm.Function, params []*local.Param, body *local.Block) {
+	preBlock := self.builder.CurrentBlock()
+	defer func() {
+		self.builder.MoveToAfter(preBlock)
+	}()
+	self.builder.MoveToAfter(f.NewBlock(""))
+	for i, pIr := range params {
+		p := self.builder.CreateAlloca("", self.codegenType(pIr.Type()))
+		self.builder.CreateStore(f.Params()[i], p)
+		self.values.Set(pIr, p)
+	}
+
+	block, _ := self.codegenBlock(body, nil)
+	self.builder.CreateBr(block)
+}
+
+func (self *CodeGenerator) storeGenericParamMap(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) hashmap.HashMap[types.VirtualType, hir.Type] {
+	preMap := hashmap.AnyWithCap[types.VirtualType, hir.Type](genericParamMap.Length())
+	for _, kvs := range genericParamMap.KeyValues() {
+		preMap.Set(kvs.E1(), self.virtualTypes.Get(kvs.E1()))
+		self.virtualTypes.Set(kvs.E1(), kvs.E2())
+	}
+	return preMap
+}
+
+func (self *CodeGenerator) releaseGenericParamMap(preMap hashmap.HashMap[types.VirtualType, hir.Type]) {
+	for _, kvs := range preMap.KeyValues() {
+		if kvs.E2() == nil {
+			self.virtualTypes.Remove(kvs.E1())
+		} else {
+			self.virtualTypes.Set(kvs.E1(), kvs.E2())
+		}
+	}
+}
+
 // CodegenIr 中间代码生成
 func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 	entryPkg, err := analyse.Analyse(path)
@@ -684,8 +767,8 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 		}
 	}
 
-	passOption := llvm.NewPassOption()
-	defer passOption.Free()
-	err = stlerr.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
+	// passOption := llvm.NewPassOption()
+	// defer passOption.Free()
+	// err = stlerr.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
 	return module, nil
 }

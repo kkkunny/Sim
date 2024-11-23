@@ -12,9 +12,11 @@ func (self *CodeGenerator) codegenType(ir hir.Type) llvm.Type {
 	switch ir := ir.(type) {
 	case types.NoThingType, types.NoReturnType:
 		return self.builder.VoidType()
+	case types.GenericCustomType:
+		return self.codegenGenericCustomType(ir)
 	case types.CustomType:
-		if t := self.types.Get(ir); t != nil {
-			return t
+		if t := self.builder.GetTypeByName(ir.String()); t != nil {
+			return *t
 		}
 		return self.codegenType(ir.Target())
 	case types.AliasType:
@@ -39,6 +41,12 @@ func (self *CodeGenerator) codegenType(ir hir.Type) llvm.Type {
 		return self.codegenStructType(ir)
 	case types.EnumType:
 		return self.codegenEnumType(ir)
+	case types.VirtualType:
+		tir := self.virtualTypes.Get(ir)
+		if tir == nil {
+			panic("unreachable")
+		}
+		return self.codegenType(tir)
 	default:
 		panic("unreachable")
 	}
@@ -125,4 +133,25 @@ func (self *CodeGenerator) codegenEnumType(ir types.EnumType) llvm.Type {
 		}
 	}
 	return self.builder.StructType(false, maxSizeType, self.builder.I8())
+}
+
+func (self *CodeGenerator) codegenGenericCustomType(ir types.GenericCustomType) llvm.Type {
+	stPtr := self.builder.GetTypeByName(ir.String())
+	if stPtr != nil {
+		return *stPtr
+	}
+
+	targetIr := ir.Target()
+	if !self.typeIsStruct(targetIr) {
+		return self.codegenType(targetIr)
+	}
+
+	st := self.builder.NamedStructType(ir.String(), false)
+	target := self.codegenType(targetIr)
+	if tt, ok := target.(llvm.StructType); ok {
+		st.SetElems(false, tt.Elems()...)
+	} else {
+		st.SetElems(true, target)
+	}
+	return st
 }

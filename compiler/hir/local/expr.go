@@ -465,6 +465,9 @@ func (self *MethodExpr) GetRight() hir.Value {
 	return values.NewString(types.Str, stlval.IgnoreWith(self.method.GetName()))
 }
 func (self *MethodExpr) Method() CallableDef { return self.method }
+func (self *MethodExpr) GenericArgs() []hir.Type {
+	return self.genericArgs
+}
 func (self *MethodExpr) GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
 	type getCompiler interface {
 		GenericParams() []types.GenericParamType
@@ -490,7 +493,7 @@ func (self *MethodExpr) GenericParamMap() hashmap.HashMap[types.VirtualType, hir
 }
 func (self *MethodExpr) CallableType() types.CallableType {
 	ft := self.method.CallableType()
-	ft = types.NewFuncType(ft.Ret(), ft.Params()[1:]...)
+	ft = types.NewLambdaType(ft.Ret(), ft.Params()[1:]...)
 
 	genericParamMap := self.GenericParamMap()
 	if genericParamMap.Empty() {
@@ -803,11 +806,11 @@ type StaticMethodExpr struct {
 func NewStaticMethodExpr(self types.CustomType, method CallableDef, genericArgs []hir.Type) *StaticMethodExpr {
 	return &StaticMethodExpr{self: self, method: method, genericArgs: genericArgs}
 }
-func (self *StaticMethodExpr) Type() hir.Type      { return self.CallableType() }
-func (self *StaticMethodExpr) Mutable() bool       { return false }
-func (self *StaticMethodExpr) Storable() bool      { return false }
-func (self *StaticMethodExpr) Method() CallableDef { return self.method }
-func (self *StaticMethodExpr) GetArgs() []hir.Type { return self.genericArgs }
+func (self *StaticMethodExpr) Type() hir.Type          { return self.CallableType() }
+func (self *StaticMethodExpr) Mutable() bool           { return false }
+func (self *StaticMethodExpr) Storable() bool          { return false }
+func (self *StaticMethodExpr) Method() CallableDef     { return self.method }
+func (self *StaticMethodExpr) GenericArgs() []hir.Type { return self.genericArgs }
 func (self *StaticMethodExpr) GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
 	type getCompiler interface {
 		GenericParams() []types.GenericParamType

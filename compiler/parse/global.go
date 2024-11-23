@@ -63,7 +63,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 	}, func() reader.Position {
 		return pub.Position
 	})
-	body := stlval.TernaryAction(self.nextIs(token.LBR), func() optional.Optional[*ast.Block] {
+	body := stlval.TernaryAction(self.nextIs(token.LBR) || (genericParams.IsSome() && len(stlval.IgnoreWith(genericParams.Value()).Params) > 0), func() optional.Optional[*ast.Block] {
 		return optional.Some(self.parseBlock())
 	}, func() optional.Optional[*ast.Block] {
 		return optional.None[*ast.Block]()
