@@ -10,7 +10,7 @@ var Self SelfType = new(_SelfType_)
 
 // SelfType Self类型
 type SelfType interface {
-	hir.Type
+	VirtualType
 	_Self_()
 }
 
@@ -29,3 +29,5 @@ func (self *_SelfType_) _Self_() {}
 func (self *_SelfType_) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
+
+func (self *_SelfType_) virtual() {}

@@ -66,7 +66,7 @@ func (self *_AliasTypeDef_) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
-func (self *_AliasTypeDef_) Wrap(inner hir.Type) types.BuildInType {
+func (self *_AliasTypeDef_) Wrap(inner hir.Type) hir.BuildInType {
 	switch v := inner.(type) {
 	case types.SintType:
 		return &aliasSintType{AliasTypeDef: self, SintType: v}

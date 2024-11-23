@@ -246,6 +246,9 @@ func (self *FuncDef) Output(w io.Writer, depth uint) (err error) {
 			return err
 		}
 	}
+	if err = outputf(w, "func "); err != nil {
+		return err
+	}
 	if selfType, ok := self.SelfType.Value(); ok {
 		if err = outputf(w, "("); err != nil {
 			return err
@@ -257,7 +260,7 @@ func (self *FuncDef) Output(w io.Writer, depth uint) (err error) {
 			return err
 		}
 	}
-	if err = outputf(w, "func %s", self.Name.Source()); err != nil {
+	if err = outputf(w, self.Name.Source()); err != nil {
 		return err
 	}
 	if genericParams, ok := self.GenericParams.Value(); ok {

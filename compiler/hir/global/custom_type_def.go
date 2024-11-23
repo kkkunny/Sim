@@ -15,26 +15,26 @@ import (
 // CustomTypeDef 自定义类型定义
 type CustomTypeDef interface {
 	types.CustomType
-	AddMethod(m *MethodDef) bool
-	GetMethod(name string) (*MethodDef, bool)
+	AddMethod(m MethodDef) bool
+	GetMethod(name string) (MethodDef, bool)
 	HasImpl(trait *Trait) bool
-	CompilerParams() []types.CompileParamType
+	CompilerParams() []types.GenericParamType
 }
 
 type _CustomTypeDef_ struct {
 	pkgGlobalAttr
 	name          string
-	compileParams []types.CompileParamType
+	compileParams []types.GenericParamType
 	target        hir.Type
-	methods       hashmap.HashMap[string, *MethodDef]
+	methods       hashmap.HashMap[string, MethodDef]
 }
 
-func NewCustomTypeDef(name string, compileParams []types.CompileParamType, target hir.Type) CustomTypeDef {
+func NewCustomTypeDef(name string, compileParams []types.GenericParamType, target hir.Type) CustomTypeDef {
 	return &_CustomTypeDef_{
 		name:          name,
 		compileParams: compileParams,
 		target:        target,
-		methods:       hashmap.StdWith[string, *MethodDef](),
+		methods:       hashmap.StdWith[string, MethodDef](),
 	}
 }
 
@@ -65,7 +65,7 @@ func (self *_CustomTypeDef_) Custom() {
 
 }
 
-func (self *_CustomTypeDef_) AddMethod(m *MethodDef) bool {
+func (self *_CustomTypeDef_) AddMethod(m MethodDef) bool {
 	mn, ok := m.GetName()
 	if !ok {
 		return true
@@ -80,7 +80,7 @@ func (self *_CustomTypeDef_) AddMethod(m *MethodDef) bool {
 	return true
 }
 
-func (self *_CustomTypeDef_) GetMethod(name string) (*MethodDef, bool) {
+func (self *_CustomTypeDef_) GetMethod(name string) (MethodDef, bool) {
 	method := self.methods.Get(name)
 	return method, method != nil
 }
@@ -91,7 +91,7 @@ func (self *_CustomTypeDef_) HasImpl(trait *Trait) bool {
 		if !ok {
 			return false
 		}
-		return method.Type().Equal(types.ReplaceSelfType(self, dstF.Type()))
+		return method.Type().Equal(types.ReplaceVirtualType(hashmap.AnyWith[types.VirtualType, hir.Type](types.Self, self), dstF.Type()))
 	})
 }
 
@@ -99,11 +99,11 @@ func (self *_CustomTypeDef_) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
-func (self *_CustomTypeDef_) CompilerParams() []types.CompileParamType {
+func (self *_CustomTypeDef_) CompilerParams() []types.GenericParamType {
 	return self.compileParams
 }
 
-func (self *_CustomTypeDef_) Wrap(inner hir.Type) types.BuildInType {
+func (self *_CustomTypeDef_) Wrap(inner hir.Type) hir.BuildInType {
 	switch v := inner.(type) {
 	case types.SintType:
 		return &customSintType{CustomTypeDef: self, SintType: v}

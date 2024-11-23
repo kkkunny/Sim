@@ -9,12 +9,12 @@ import (
 type FuncDef struct {
 	pkgGlobalAttr
 	*FuncDecl
-	compileParams []types.CompileParamType
+	compileParams []types.GenericParamType
 	attrs         []FuncAttr
 	body          *local.Block
 }
 
-func NewFuncDef(decl *FuncDecl, compileParams []types.CompileParamType, attrs ...FuncAttr) *FuncDef {
+func NewFuncDef(decl *FuncDecl, compileParams []types.GenericParamType, attrs ...FuncAttr) *FuncDef {
 	return &FuncDef{
 		FuncDecl:      decl,
 		compileParams: compileParams,
@@ -22,7 +22,7 @@ func NewFuncDef(decl *FuncDecl, compileParams []types.CompileParamType, attrs ..
 	}
 }
 
-func (self *FuncDef) CompilerParams() []types.CompileParamType {
+func (self *FuncDef) CompilerParams() []types.GenericParamType {
 	return self.compileParams
 }
 

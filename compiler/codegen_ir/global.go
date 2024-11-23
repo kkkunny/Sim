@@ -57,7 +57,7 @@ func (self *CodeGenerator) codegenGlobalVarDecl(pkg *hir.Package) {
 		switch ir := iter.Value().(type) {
 		case *global.FuncDef:
 			self.declFuncDef(ir)
-		case *global.MethodDef:
+		case *global.OriginMethodDef:
 			self.declMethodDef(ir)
 		case *global.VarDef:
 			self.declGlobalVarDef(ir)
@@ -100,7 +100,7 @@ func (self *CodeGenerator) declFuncDef(ir *global.FuncDef) {
 	self.values.Set(ir, f)
 }
 
-func (self *CodeGenerator) declMethodDef(ir *global.MethodDef) {
+func (self *CodeGenerator) declMethodDef(ir *global.OriginMethodDef) {
 	var inline *bool
 	var vararg, link bool
 	for _, attr := range ir.Attrs() {
@@ -159,7 +159,7 @@ func (self *CodeGenerator) codegenGlobalVarDef(pkg *hir.Package) {
 		switch ir := iter.Value().(type) {
 		case *global.FuncDef:
 			self.defFuncDef(ir)
-		case *global.MethodDef:
+		case *global.OriginMethodDef:
 			self.defMethodDef(ir)
 		case *global.VarDef:
 			self.defGlobalVarDef(ir)
@@ -185,7 +185,7 @@ func (self *CodeGenerator) defFuncDef(ir *global.FuncDef) {
 	self.builder.CreateBr(block)
 }
 
-func (self *CodeGenerator) defMethodDef(ir *global.MethodDef) {
+func (self *CodeGenerator) defMethodDef(ir *global.OriginMethodDef) {
 	body, ok := ir.Body()
 	if !ok {
 		return

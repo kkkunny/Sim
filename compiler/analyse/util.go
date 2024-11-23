@@ -59,7 +59,7 @@ func (self *Analyser) checkTypeCircle(trace set.Set[hir.Type], t hir.Type) bool 
 	}()
 
 	switch typ := t.(type) {
-	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.StrType, types.RefType, types.CallableType, types.CompileParamType:
+	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.StrType, types.RefType, types.CallableType, types.GenericParamType:
 		return false
 	case types.ArrayType:
 		return self.checkTypeCircle(trace, typ.Elem())
@@ -216,7 +216,7 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 		if len(ident.CompilerParams()) == 0 {
 			return either.Right[hir.Type, hir.Value](ident), true
 		}
-		return either.Right[hir.Type, hir.Value](local.NewCompileCallExpr(ident, compilerArgs...)), true
+		return either.Right[hir.Type, hir.Value](local.NewGenericFuncInstExpr(ident, compilerArgs...)), true
 	case hir.Value:
 		return either.Right[hir.Type, hir.Value](ident), true
 	case global.CustomTypeDef:
@@ -232,7 +232,7 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 		if len(ident.CompilerParams()) == 0 {
 			return either.Left[hir.Type, hir.Value](ident), true
 		}
-		return either.Left[hir.Type, hir.Value](global.NewCompileCallTypeDef(ident, compilerArgs...)), true
+		return either.Left[hir.Type, hir.Value](global.NewGenericCustomTypeDef(ident, compilerArgs...)), true
 	case hir.Type:
 		return either.Left[hir.Type, hir.Value](ident), true
 	}

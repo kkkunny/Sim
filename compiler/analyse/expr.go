@@ -544,9 +544,9 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Value {
 		return v
 	}
 
-	if fromBt, fromOk := types.As[types.BuildInType](ft); fromOk && false {
+	if fromBt, fromOk := types.As[hir.BuildInType](ft); fromOk && false {
 		panic("unreachable")
-	} else if toBt, toOk := types.As[types.BuildInType](tt); fromOk && toOk && fromBt.Equal(toBt) {
+	} else if toBt, toOk := types.As[hir.BuildInType](tt); fromOk && toOk && fromBt.Equal(toBt) {
 		// build-in -> build-in
 		return local.NewWrapTypeExpr(from, tt)
 	} else if toIt, toOk := types.As[types.IntType](tt); toOk && types.Is[types.IntType](ft) {
@@ -682,7 +682,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 					// 静态方法
 					method, ok := ctd.GetMethod(fieldName)
 					if ok && (method.Public() || self.pkg.Equal(method.Package())) {
-						return method
+						return local.NewStaticMethodExpr(ctd, method)
 					}
 				}
 				if et, ok := types.As[types.EnumType](identType); ok {
@@ -754,7 +754,7 @@ func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
 	}
 
 	if method.Static() {
-		return method, true
+		return local.NewStaticMethodExpr(fromCtd, method), true
 	}
 
 	selfParam, ok := method.SelfParam()

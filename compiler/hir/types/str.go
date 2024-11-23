@@ -10,7 +10,7 @@ var Str StrType = new(_StrType_)
 
 // StrType 字符串类型
 type StrType interface {
-	BuildInType
+	hir.BuildInType
 	Str()
 }
 

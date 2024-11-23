@@ -8,7 +8,7 @@ import (
 
 // NoThingType 无返回值类型
 type NoThingType interface {
-	BuildInType
+	hir.BuildInType
 	_NoThingType_()
 }
 

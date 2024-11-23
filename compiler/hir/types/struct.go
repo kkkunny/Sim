@@ -45,7 +45,7 @@ func (self *Field) Mutable() bool {
 
 // StructType 结构体类型
 type StructType interface {
-	BuildInType
+	hir.BuildInType
 	Fields() linkedhashmap.LinkedHashMap[string, *Field]
 }
 
