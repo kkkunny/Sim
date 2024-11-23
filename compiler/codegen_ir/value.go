@@ -51,6 +51,8 @@ func (self *CodeGenerator) codegenValue(ir hir.Value, load bool) llvm.Value {
 		return self.codegenMethod(ir)
 	case *local.EnumExpr:
 		return self.codegenEnum(ir)
+	case *local.StaticMethodExpr:
+		return self.codegenStaticMethod(ir)
 	default:
 		panic("unreachable")
 	}
@@ -242,18 +244,6 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 
 	switch identIr := ir.(type) {
 	case *global.FuncDef:
-		if !self.pkg.Equal(identIr.Package()) {
-			name := self.getIdentName(identIr)
-			f, ok := self.builder.GetFunction(name)
-			if ok {
-				return f
-			}
-			f = self.builder.NewFunction(name, self.codegenFuncType(identIr.CallableType().(types.FuncType)))
-			f.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
-			return f
-		}
-		return self.values.Get(identIr)
-	case *global.MethodDef:
 		if !self.pkg.Equal(identIr.Package()) {
 			name := self.getIdentName(identIr)
 			f, ok := self.builder.GetFunction(name)
@@ -608,4 +598,19 @@ func (self *CodeGenerator) codegenEnum(ir *local.EnumExpr) llvm.Value {
 		self.builder.CreateStructIndex(ut, ptr, 1, true),
 	)
 	return self.builder.CreateLoad("", ut, ptr)
+}
+
+func (self *CodeGenerator) codegenStaticMethod(ir *local.StaticMethodExpr) llvm.Value {
+	method := ir.Method().(global.MethodDef)
+	if !self.pkg.Equal(method.Package()) {
+		name := self.getIdentName(method)
+		f, ok := self.builder.GetFunction(name)
+		if ok {
+			return f
+		}
+		f = self.builder.NewFunction(name, self.codegenFuncType(method.CallableType().(types.FuncType)))
+		f.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
+		return f
+	}
+	return self.values.Get(method)
 }

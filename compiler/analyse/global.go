@@ -1,6 +1,7 @@
 package analyse
 
 import (
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
@@ -70,7 +71,20 @@ func (self *Analyser) declTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
-	return self.pkg.AppendGlobal(node.Public, global.NewCustomTypeDef(name, types.NoThing)).(global.CustomTypeDef)
+
+	// 编译参数
+	compileParams := linkedhashmap.StdWith[string, types.GenericParamType]()
+	if genericParamsNode, ok := node.GenericParams.Value(); ok {
+		for _, genericParamNode := range genericParamsNode.Params {
+			genericParamName := genericParamNode.Source()
+			if compileParams.Contain(genericParamName) {
+				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
+			}
+			compileParams.Set(genericParamName, types.NewGenericParam(genericParamName))
+		}
+	}
+
+	return self.pkg.AppendGlobal(node.Public, global.NewCustomTypeDef(name, compileParams.Values(), types.NoThing)).(global.CustomTypeDef)
 }
 
 func (self *Analyser) declTypeAlias(node *ast.TypeAlias) global.AliasTypeDef {
@@ -96,7 +110,10 @@ func (self *Analyser) defTrait(node *ast.Trait) *global.Trait {
 
 func (self *Analyser) defTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Name.Source())).(global.CustomTypeDef)
-	decl.SetTarget(self.analyseType(node.Target, self.structTypeAnalyser(), self.enumTypeAnalyser(), self.selfTypeAnalyserWith(decl, true)))
+	fnDeclCompileParamAnalyser := stlslices.Map(decl.GenericParams(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(compileParam, true)
+	})
+	decl.SetTarget(self.analyseType(node.Target, append([]typeAnalyser{self.structTypeAnalyser(), self.enumTypeAnalyser(), self.selfTypeAnalyserWith(decl, true)}, fnDeclCompileParamAnalyser...)...))
 	return decl
 }
 
@@ -135,7 +152,22 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 		errors.ThrowExpectAttribute(node.Position(), new(ast.Extern))
 	}
 
-	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl), attrs...)
+	// 泛型参数
+	genericParams := linkedhashmap.StdWith[string, types.GenericParamType]()
+	if genericParamsNode, ok := node.GenericParams.Value(); ok {
+		for _, genericParamNode := range genericParamsNode.Params {
+			genericParamName := genericParamNode.Source()
+			if genericParams.Contain(genericParamName) {
+				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
+			}
+			genericParams.Set(genericParamName, types.NewGenericParam(genericParamName))
+		}
+	}
+	fnDeclGenericParamAnalyser := stlslices.Map(genericParams.Values(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(compileParam, true)
+	})
+
+	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl, fnDeclGenericParamAnalyser...), genericParams.Values(), attrs...)
 	if stlval.IgnoreWith(f.GetName()) == "main" {
 		mainType := types.NewFuncType(types.NoThing)
 		if !f.Type().Equal(types.NewFuncType(types.NoThing)) {
@@ -145,7 +177,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 	return self.pkg.AppendGlobal(node.Public, f).(*global.FuncDef)
 }
 
-func (self *Analyser) declMethodDef(node *ast.FuncDef) *global.MethodDef {
+func (self *Analyser) declMethodDef(node *ast.FuncDef) global.MethodDef {
 	customTypeObj, ok := self.pkg.GetIdent(node.SelfType.MustValue().Source(), false)
 	if !ok || !stlval.Is[global.CustomTypeDef](customTypeObj) {
 		errors.ThrowUnknownIdentifierError(node.SelfType.MustValue().Position, node.SelfType.MustValue())
@@ -174,12 +206,38 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) *global.MethodDef {
 		errors.ThrowExpectAttribute(node.Position(), new(ast.Extern))
 	}
 
-	f := global.NewMethodDef(customType, self.analyseFuncDecl(node.FuncDecl, self.selfTypeAnalyserWith(customType, true)), attrs...)
+	// 泛型参数
+	genericParams := linkedhashmap.StdWith[string, types.GenericParamType]()
+	for _, genericParamNode := range customType.GenericParams() {
+		genericParams.Set(genericParamNode.String(), genericParamNode)
+	}
+	fnDeclGenericParamAnalyser := stlslices.Map(genericParams.Values(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(compileParam, true)
+	})
+	genericParams = linkedhashmap.StdWith[string, types.GenericParamType]()
+	if genericParamsNode, ok := node.GenericParams.Value(); ok {
+		for _, genericParamNode := range genericParamsNode.Params {
+			genericParamName := genericParamNode.Source()
+			if genericParams.Contain(genericParamName) {
+				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
+			}
+			compileParam := types.NewGenericParam(genericParamName)
+			genericParams.Set(genericParamName, compileParam)
+			fnDeclGenericParamAnalyser = append(fnDeclGenericParamAnalyser, self.genericParamAnalyserWith(compileParam, true))
+		}
+	}
+
+	f := global.NewOriginMethodDef(
+		customType,
+		self.analyseFuncDecl(node.FuncDecl, append([]typeAnalyser{self.selfTypeAnalyserWith(customType, true)}, fnDeclGenericParamAnalyser...)...),
+		genericParams.Values(),
+		attrs...,
+	)
 	if !customType.AddMethod(f) {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
 
-	return self.pkg.AppendGlobal(node.Public, f).(*global.MethodDef)
+	return self.pkg.AppendGlobal(node.Public, f).(global.MethodDef)
 }
 
 func (self *Analyser) declSingleGlobalVariable(node *ast.SingleVariableDef) *global.VarDef {
@@ -221,9 +279,9 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *global.FuncDef {
 	return decl
 }
 
-func (self *Analyser) defMethodDef(node *ast.FuncDef) *global.MethodDef {
+func (self *Analyser) defMethodDef(node *ast.FuncDef) global.MethodDef {
 	ct := stlval.IgnoreWith(self.pkg.GetIdent(node.SelfType.MustValue().Source(), false)).(global.CustomTypeDef)
-	decl := stlval.IgnoreWith(ct.GetMethod(node.Name.Source()))
+	decl := stlval.IgnoreWith(ct.GetMethod(node.Name.Source())).(*global.OriginMethodDef)
 	if node.Body.IsNone() {
 		return decl
 	}

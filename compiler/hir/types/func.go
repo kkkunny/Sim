@@ -12,7 +12,7 @@ import (
 
 // FuncType 函数类型
 type FuncType interface {
-	BuildInType
+	hir.BuildInType
 	CallableType
 	Func()
 }

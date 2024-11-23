@@ -9,7 +9,7 @@ import (
 
 // ArrayType 数组类型
 type ArrayType interface {
-	BuildInType
+	hir.BuildInType
 	Elem() hir.Type
 	Size() uint
 }

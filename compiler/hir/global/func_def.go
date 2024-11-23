@@ -2,21 +2,28 @@ package global
 
 import (
 	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 // FuncDef 函数定义
 type FuncDef struct {
 	pkgGlobalAttr
 	*FuncDecl
-	attrs []FuncAttr
-	body  *local.Block
+	genericParams []types.GenericParamType
+	attrs         []FuncAttr
+	body          *local.Block
 }
 
-func NewFuncDef(decl *FuncDecl, attrs ...FuncAttr) *FuncDef {
+func NewFuncDef(decl *FuncDecl, genericParams []types.GenericParamType, attrs ...FuncAttr) *FuncDef {
 	return &FuncDef{
-		FuncDecl: decl,
-		attrs:    attrs,
+		FuncDecl:      decl,
+		genericParams: genericParams,
+		attrs:         attrs,
 	}
+}
+
+func (self *FuncDef) GenericParams() []types.GenericParamType {
+	return self.genericParams
 }
 
 func (self *FuncDef) Attrs() []FuncAttr {

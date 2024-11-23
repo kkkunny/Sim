@@ -12,7 +12,7 @@ import (
 
 // TupleType 元组类型
 type TupleType interface {
-	BuildInType
+	hir.BuildInType
 	Elems() []hir.Type
 }
 

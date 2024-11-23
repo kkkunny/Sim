@@ -3,6 +3,7 @@ package ast
 import (
 	"io"
 
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/tuple"
 
 	"github.com/kkkunny/Sim/compiler/reader"
@@ -354,11 +355,15 @@ func (self *Struct) Output(w io.Writer, depth uint) (err error) {
 
 // Dot 点
 type Dot struct {
-	From  Expr
-	Index token.Token
+	From        Expr
+	Index       token.Token
+	GenericArgs optional.Optional[*GenericArgList]
 }
 
 func (self *Dot) Position() reader.Position {
+	if genericArgs, ok := self.GenericArgs.Value(); ok {
+		return reader.MixPosition(self.From.Position(), genericArgs.Position())
+	}
 	return reader.MixPosition(self.From.Position(), self.Index.Position)
 }
 
@@ -373,7 +378,15 @@ func (self *Dot) Output(w io.Writer, depth uint) (err error) {
 	if err = outputf(w, "."); err != nil {
 		return err
 	}
-	return outputf(w, self.Index.Source())
+	if err = outputf(w, self.Index.Source()); err != nil {
+		return err
+	}
+	if genericArgs, ok := self.GenericArgs.Value(); ok {
+		if err = genericArgs.Output(w, depth); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // String 字符串

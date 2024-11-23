@@ -166,7 +166,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewAndExpr(left, right)
 		}
@@ -175,7 +175,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewOrExpr(left, right)
 		}
@@ -184,7 +184,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewXorExpr(left, right)
 		}
@@ -193,7 +193,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewShlExpr(left, right)
 		}
@@ -202,7 +202,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
 			return local.NewShrExpr(left, right)
 		}
@@ -211,7 +211,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewAddExpr(left, right)
 		}
@@ -220,7 +220,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewSubExpr(left, right)
 		}
@@ -229,7 +229,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewMulExpr(left, right)
 		}
@@ -238,7 +238,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewDivExpr(left, right)
 		}
@@ -247,7 +247,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewRemExpr(left, right)
 		}
@@ -256,7 +256,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) {
 			if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
 				return values.NewBoolean(true)
@@ -269,7 +269,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewNotExpr(local.NewCallExpr(local.NewMethodExpr(left, method), right))
+			return local.NewNotExpr(local.NewCallExpr(local.NewMethodExpr(left, method, nil), right))
 		} else if lt.Equal(rt) {
 			if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
 				return values.NewBoolean(false)
@@ -282,7 +282,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewLtExpr(left, right)
 		}
@@ -291,7 +291,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewGtExpr(left, right)
 		}
@@ -303,8 +303,8 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(EQtrait.FirstMethod()).GetName())))
 			LTmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(LTtrait.FirstMethod()).GetName())))
 			return local.NewLogicAndExpr(
-				local.NewCallExpr(local.NewMethodExpr(left, EQmethod), right),
-				local.NewCallExpr(local.NewMethodExpr(left, LTmethod), right),
+				local.NewCallExpr(local.NewMethodExpr(left, EQmethod, nil), right),
+				local.NewCallExpr(local.NewMethodExpr(left, LTmethod, nil), right),
 			)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewLeExpr(left, right)
@@ -317,8 +317,8 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(EQtrait.FirstMethod()).GetName())))
 			GTmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(GTtrait.FirstMethod()).GetName())))
 			return local.NewLogicAndExpr(
-				local.NewCallExpr(local.NewMethodExpr(left, EQmethod), right),
-				local.NewCallExpr(local.NewMethodExpr(left, GTmethod), right),
+				local.NewCallExpr(local.NewMethodExpr(left, EQmethod, nil), right),
+				local.NewCallExpr(local.NewMethodExpr(left, GTmethod, nil), right),
 			)
 		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
 			return local.NewGeExpr(left, right)
@@ -328,7 +328,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.BoolType](lt) {
 			return local.NewLogicAndExpr(left, right)
 		}
@@ -337,7 +337,7 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		ct, ok := types.As[global.CustomTypeDef](lt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method), right)
+			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
 		} else if lt.Equal(rt) && types.Is[types.BoolType](lt) {
 			return local.NewLogicOrExpr(left, right)
 		}
@@ -358,7 +358,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Value {
 		ct, ok := types.As[global.CustomTypeDef](vt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(value, method))
+			return local.NewCallExpr(local.NewMethodExpr(value, method, nil))
 		} else if types.Is[types.SintType](vt) || types.Is[types.FloatType](vt) {
 			return local.NewOppositeExpr(value)
 		}
@@ -371,7 +371,7 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Value {
 		ct, ok := types.As[global.CustomTypeDef](vt, true)
 		if ok && ct.HasImpl(trait) {
 			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(value, method))
+			return local.NewCallExpr(local.NewMethodExpr(value, method, nil))
 		}
 		switch {
 		case types.Is[types.IntType](vt):
@@ -412,28 +412,12 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Value {
 	}
 }
 
-func (self *Analyser) tryAnalyseIdentExpr(node *ast.IdentExpr) (hir.Value, bool) {
-	scope := self.scope
-	if pkgToken, ok := node.Pkg.Value(); ok {
-		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
-		if !ok {
-			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
-		}
-	}
-
-	v, ok := scope.GetIdent(node.Name.Source(), true)
-	if ok && stlval.Is[hir.Value](v) {
-		return v.(hir.Value), true
-	}
-	return nil, false
-}
-
 func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Value {
-	v, ok := self.tryAnalyseIdentExpr(node)
-	if !ok {
+	v, ok := self.tryAnalyseIdent((*ast.Ident)(node))
+	if !ok || v.IsLeft() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return v
+	return stlval.IgnoreWith(v.Right())
 }
 
 func (self *Analyser) tryAnalyseEnum(node *ast.Call) (*local.EnumExpr, bool) {
@@ -560,9 +544,9 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Value {
 		return v
 	}
 
-	if fromBt, fromOk := types.As[types.BuildInType](ft); fromOk && false {
+	if fromBt, fromOk := types.As[hir.BuildInType](ft); fromOk && false {
 		panic("unreachable")
-	} else if toBt, toOk := types.As[types.BuildInType](tt); fromOk && toOk && fromBt.Equal(toBt) {
+	} else if toBt, toOk := types.As[hir.BuildInType](tt); fromOk && toOk && fromBt.Equal(toBt) {
 		// build-in -> build-in
 		return local.NewWrapTypeExpr(from, tt)
 	} else if toIt, toOk := types.As[types.IntType](tt); toOk && types.Is[types.IntType](ft) {
@@ -692,28 +676,33 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	fieldName := node.Index.Source()
 
 	if identNode, ok := node.From.(*ast.IdentExpr); ok {
-		identType, ok := self.tryAnalyseIdentType((*ast.IdentType)(identNode))
-		if ok {
-			if ctd, ok := types.As[global.CustomTypeDef](identType, true); ok {
-				// 静态方法
-				method, ok := ctd.GetMethod(fieldName)
-				if ok && (method.Public() || self.pkg.Equal(method.Package())) {
-					return method
+		if identRes, ok := self.tryAnalyseIdent((*ast.Ident)(identNode)); ok {
+			if identType, ok := identRes.Left(); ok {
+				if ctd, ok := types.As[global.CustomTypeDef](identType, true); ok {
+					// 静态方法
+					method, ok := ctd.GetMethod(fieldName)
+					if ok && (method.Public() || self.pkg.Equal(method.Package())) {
+						return self.analyseStaticMethod(node, ctd, method)
+					}
 				}
-			}
-			if et, ok := types.As[types.EnumType](identType); ok {
-				// 枚举值
-				if et.EnumFields().Contain(fieldName) {
-					_, ok = et.EnumFields().Get(fieldName).Elem()
-					if !ok {
-						return local.NewEnumExpr(et, fieldName)
+				if node.GenericArgs.IsSome() && len(stlval.IgnoreWith(node.GenericArgs.Value()).Args) != 0 {
+					errors.ThrowUnknownIdentifierError(node.Position(), identNode.Name)
+				}
+				if et, ok := types.As[types.EnumType](identType); ok {
+					// 枚举值
+					if et.EnumFields().Contain(fieldName) {
+						_, ok = et.EnumFields().Get(fieldName).Elem()
+						if !ok {
+							return local.NewEnumExpr(et, fieldName)
+						}
 					}
 				}
 			}
 		}
+
 	}
 
-	if method, ok := self.analyseMethod(node); ok {
+	if method, ok := self.analyseMethod(node); ok || (node.GenericArgs.IsSome() && len(stlval.IgnoreWith(node.GenericArgs.Value()).Args) != 0) {
 		return method
 	}
 
@@ -746,6 +735,11 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	return local.NewFieldExpr(fromStVal, fieldName)
 }
 
+func (self *Analyser) analyseStaticMethod(node *ast.Dot, selfType types.CustomType, method global.MethodDef) *local.StaticMethodExpr {
+	compilerArgs := self.analyseOptionalGenericArgList(len(method.GenericParams()), node.Position(), node.GenericArgs)
+	return local.NewStaticMethodExpr(selfType, method, compilerArgs)
+}
+
 func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
 	fieldName := node.Index.Source()
 	from := self.analyseExpr(nil, node.From)
@@ -768,7 +762,7 @@ func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
 	}
 
 	if method.Static() {
-		return method, true
+		return self.analyseStaticMethod(node, fromCtd, method), true
 	}
 
 	selfParam, ok := method.SelfParam()
@@ -787,7 +781,9 @@ func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
 		selfVal = from
 	}
 
-	return local.NewMethodExpr(selfVal, method), true
+	compilerArgs := self.analyseOptionalGenericArgList(len(method.GenericParams()), node.Position(), node.GenericArgs)
+
+	return local.NewMethodExpr(selfVal, method, compilerArgs), true
 }
 
 func (self *Analyser) analyseString(expect hir.Type, node *ast.String) *values.String {

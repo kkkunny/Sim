@@ -37,7 +37,7 @@ func (self *CodeGenerator) getIdentName(ir values.Ident) string {
 			return name
 		}
 		return fmt.Sprintf("%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.GetName()))
-	case *global.MethodDef:
+	case global.MethodDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
 			nameAttr, ok := attr.(*global.FuncAttrLinkName)
 			if !ok {

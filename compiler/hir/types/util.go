@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
@@ -13,7 +14,7 @@ func As[T hir.Type](typ hir.Type, strict ...bool) (T, bool) {
 	}
 	isStrict := stlslices.Last(strict)
 	switch t := typ.(type) {
-	case NoThingType, NoReturnType, NumType, BoolType, StrType, RefType, ArrayType, TupleType, CallableType, StructType, EnumType, SelfType:
+	case NoThingType, NoReturnType, NumType, BoolType, StrType, RefType, ArrayType, TupleType, CallableType, StructType, EnumType, VirtualType:
 		to, ok := t.(T)
 		return to, ok
 	case CustomType:
@@ -50,7 +51,7 @@ func Is[T hir.Type](typ hir.Type, strict ...bool) bool {
 	}
 	isStrict := stlslices.Last(strict)
 	switch t := typ.(type) {
-	case NoThingType, NoReturnType, NumType, BoolType, StrType, RefType, ArrayType, TupleType, CallableType, StructType, EnumType, SelfType:
+	case NoThingType, NoReturnType, NumType, BoolType, StrType, RefType, ArrayType, TupleType, CallableType, StructType, EnumType, VirtualType:
 		return stlval.Is[T](t)
 	case CustomType:
 		if stlval.Is[T](t) {
@@ -70,40 +71,44 @@ func Is[T hir.Type](typ hir.Type, strict ...bool) bool {
 	}
 }
 
-func ReplaceSelfType(to, typ hir.Type) hir.Type {
+func ReplaceVirtualType(table hashmap.HashMap[VirtualType, hir.Type], typ hir.Type) hir.Type {
 	switch t := typ.(type) {
+	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef:
+		return t
 	case RefType:
-		return NewRefType(t.Mutable(), ReplaceSelfType(to, t.Pointer()))
+		return NewRefType(t.Mutable(), ReplaceVirtualType(table, t.Pointer()))
 	case ArrayType:
-		return NewArrayType(ReplaceSelfType(to, t.Elem()), t.Size())
+		return NewArrayType(ReplaceVirtualType(table, t.Elem()), t.Size())
 	case TupleType:
 		return NewTupleType(stlslices.Map(t.Elems(), func(_ int, elem hir.Type) hir.Type {
-			return ReplaceSelfType(to, elem)
+			return ReplaceVirtualType(table, elem)
 		})...)
 	case FuncType:
-		return NewFuncType(ReplaceSelfType(to, t.Ret()), stlslices.Map(t.Params(), func(_ int, param hir.Type) hir.Type {
-			return ReplaceSelfType(to, param)
+		return NewFuncType(ReplaceVirtualType(table, t.Ret()), stlslices.Map(t.Params(), func(_ int, param hir.Type) hir.Type {
+			return ReplaceVirtualType(table, param)
 		})...)
 	case LambdaType:
-		return NewLambdaType(ReplaceSelfType(to, t.Ret()), stlslices.Map(t.Params(), func(_ int, param hir.Type) hir.Type {
-			return ReplaceSelfType(to, param)
+		return NewLambdaType(ReplaceVirtualType(table, t.Ret()), stlslices.Map(t.Params(), func(_ int, param hir.Type) hir.Type {
+			return ReplaceVirtualType(table, param)
 		})...)
 	case StructType:
 		return NewStructType(stlslices.Map(t.Fields().Values(), func(_ int, field *Field) *Field {
-			return NewField(field.pub, field.mut, field.name, ReplaceSelfType(to, field.typ))
+			return NewField(field.pub, field.mut, field.name, ReplaceVirtualType(table, field.typ))
 		})...)
 	case EnumType:
 		return NewEnumType(stlslices.Map(t.EnumFields().Values(), func(_ int, field *EnumField) *EnumField {
 			var newElem []hir.Type
 			if elem, ok := field.Elem(); ok {
-				newElem = append(newElem, ReplaceSelfType(to, elem))
+				newElem = append(newElem, ReplaceVirtualType(table, elem))
 			}
 			return NewEnumField(field.name, newElem...)
 		})...)
-	case SelfType:
-		return to
-	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef:
-		return t
+	case GenericCustomType:
+		return t.WithArgs(stlslices.Map(t.Args(), func(_ int, arg hir.Type) hir.Type {
+			return ReplaceVirtualType(table, arg)
+		}))
+	case VirtualType:
+		return table.Get(t, t)
 	default:
 		panic("unreachable")
 	}

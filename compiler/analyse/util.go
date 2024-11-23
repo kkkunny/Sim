@@ -2,6 +2,7 @@ package analyse
 
 import (
 	"github.com/kkkunny/stl/container/either"
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
@@ -59,7 +60,7 @@ func (self *Analyser) checkTypeCircle(trace set.Set[hir.Type], t hir.Type) bool 
 	}()
 
 	switch typ := t.(type) {
-	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.StrType, types.RefType, types.CallableType:
+	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.StrType, types.RefType, types.CallableType, types.GenericParamType:
 		return false
 	case types.ArrayType:
 		return self.checkTypeCircle(trace, typ.Elem())
@@ -141,14 +142,84 @@ func (self *Analyser) hasTypeDefault(typ hir.Type) bool {
 	}
 }
 
-func (self *Analyser) tryAnalyseIdent(node *ast.Ident) (either.Either[hir.Type, hir.Value], bool) {
-	t, ok := self.tryAnalyseIdentType((*ast.IdentType)(node))
-	if ok {
-		return either.Left[hir.Type, hir.Value](t), true
+func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnalyser) (res either.Either[hir.Type, hir.Value], ok bool) {
+	scope := self.scope
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
+		if !ok {
+			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
+		}
 	}
-	v, ok := self.tryAnalyseIdentExpr((*ast.IdentExpr)(node))
-	if ok {
-		return either.Right[hir.Type, hir.Value](v), true
+
+	name := node.Name.Source()
+	defer func() {
+		if !ok {
+			if self.pkg.IsBuildIn() {
+				var buildinType hir.Type
+				switch name {
+				case "__buildin_isize":
+					buildinType = types.Isize
+				case "__buildin_i8":
+					buildinType = types.I8
+				case "__buildin_i16":
+					buildinType = types.I16
+				case "__buildin_i32":
+					buildinType = types.I32
+				case "__buildin_i64":
+					buildinType = types.I64
+				case "__buildin_usize":
+					buildinType = types.Usize
+				case "__buildin_u8":
+					buildinType = types.U8
+				case "__buildin_u16":
+					buildinType = types.U16
+				case "__buildin_u32":
+					buildinType = types.U32
+				case "__buildin_u64":
+					buildinType = types.U64
+				case "__buildin_f16":
+					buildinType = types.F16
+				case "__buildin_f32":
+					buildinType = types.F32
+				case "__buildin_f64":
+					buildinType = types.F64
+				case "__buildin_f128":
+					buildinType = types.F128
+				case "__buildin_bool":
+					buildinType = types.Bool
+				case "__buildin_str":
+					buildinType = types.Str
+				}
+				if buildinType != nil {
+					res = either.Left[hir.Type, hir.Value](buildinType)
+					ok = true
+				}
+			}
+		}
+	}()
+
+	identObj, ok := scope.GetIdent(node.Name.Source(), true)
+	if !ok {
+		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
+	}
+
+	switch ident := identObj.(type) {
+	case *global.FuncDef:
+		compilerArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs)
+		if len(compilerArgs) == 0 {
+			return either.Right[hir.Type, hir.Value](ident), true
+		}
+		return either.Right[hir.Type, hir.Value](local.NewGenericFuncInstExpr(ident, compilerArgs...)), true
+	case hir.Value:
+		return either.Right[hir.Type, hir.Value](ident), true
+	case global.CustomTypeDef:
+		compilerArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs)
+		if len(compilerArgs) == 0 {
+			return either.Left[hir.Type, hir.Value](ident), true
+		}
+		return either.Left[hir.Type, hir.Value](global.NewGenericCustomTypeDef(ident, compilerArgs...)), true
+	case hir.Type:
+		return either.Left[hir.Type, hir.Value](ident), true
 	}
 	return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 }
@@ -159,4 +230,20 @@ func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *loca
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return local.NewDefaultExpr(t)
+}
+
+func (self *Analyser) analyseOptionalGenericArgList(expectNumber int, pos reader.Position, node optional.Optional[*ast.GenericArgList]) []hir.Type {
+	genericArgsNode, ok := node.Value()
+	if !ok {
+		return nil
+	}
+	if expectNumber != len(genericArgsNode.Args) {
+		errors.ThrowParameterNumberNotMatchError(pos, uint(expectNumber), uint(len(genericArgsNode.Args)))
+	}
+	if expectNumber == 0 {
+		return nil
+	}
+	return stlslices.Map(genericArgsNode.Args, func(_ int, genericArgNode ast.Type) hir.Type {
+		return self.analyseType(genericArgNode)
+	})
 }

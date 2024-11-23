@@ -13,27 +13,27 @@ type AliasTypeDef interface {
 	types.AliasType
 }
 
-type __AliasTypeDef__ struct {
+type _AliasTypeDef_ struct {
 	pkgGlobalAttr
 	name   string
 	target hir.Type
 }
 
 func NewAliasTypeDef(name string, target hir.Type) AliasTypeDef {
-	return &__AliasTypeDef__{
+	return &_AliasTypeDef_{
 		name:   name,
 		target: target,
 	}
 }
 
-func (self *__AliasTypeDef__) String() string {
+func (self *_AliasTypeDef_) String() string {
 	if self.pkg.IsBuildIn() {
 		return self.name
 	}
 	return fmt.Sprintf("%s::%s", self.pkg.String(), self.name)
 }
 
-func (self *__AliasTypeDef__) Equal(dst hir.Type) bool {
+func (self *_AliasTypeDef_) Equal(dst hir.Type) bool {
 	if self.Hash() == dst.Hash() {
 		return true
 	}
@@ -46,27 +46,27 @@ func (self *__AliasTypeDef__) Equal(dst hir.Type) bool {
 	}
 }
 
-func (self *__AliasTypeDef__) GetName() (string, bool) {
+func (self *_AliasTypeDef_) GetName() (string, bool) {
 	return self.name, self.name != "_"
 }
 
-func (self *__AliasTypeDef__) Target() hir.Type {
+func (self *_AliasTypeDef_) Target() hir.Type {
 	return self.target
 }
 
-func (self *__AliasTypeDef__) SetTarget(t hir.Type) {
+func (self *_AliasTypeDef_) SetTarget(t hir.Type) {
 	self.target = t
 }
 
-func (self *__AliasTypeDef__) Alias() {
+func (self *_AliasTypeDef_) Alias() {
 
 }
 
-func (self *__AliasTypeDef__) Hash() uint64 {
+func (self *_AliasTypeDef_) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
-func (self *__AliasTypeDef__) Wrap(inner hir.Type) types.BuildInType {
+func (self *_AliasTypeDef_) Wrap(inner hir.Type) hir.BuildInType {
 	switch v := inner.(type) {
 	case types.SintType:
 		return &aliasSintType{AliasTypeDef: self, SintType: v}

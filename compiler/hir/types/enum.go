@@ -33,7 +33,7 @@ func (self *EnumField) Elem() (hir.Type, bool) {
 
 // EnumType 枚举类型
 type EnumType interface {
-	BuildInType
+	hir.BuildInType
 	EnumFields() linkedhashmap.LinkedHashMap[string, *EnumField]
 	Simple() bool
 }

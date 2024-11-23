@@ -10,7 +10,7 @@ var Bool BoolType = new(_BoolType_)
 
 // BoolType 布尔类型
 type BoolType interface {
-	BuildInType
+	hir.BuildInType
 	Bool()
 }
 
