@@ -178,9 +178,15 @@ func (self *Parser) parseOptionSuffixUnary(front optional.Optional[ast.Expr], ca
 				Index: self.curTok,
 			})
 		} else {
+			index := self.expectNextIs(token.IDENT)
+			var genericArgs optional.Optional[*ast.GenericArgList]
+			if self.skipNextIs(token.SCOPE) {
+				genericArgs = optional.Some(self.parseGenericArgList())
+			}
 			front = optional.Some[ast.Expr](&ast.Dot{
-				From:  fv,
-				Index: self.expectNextIs(token.IDENT),
+				From:        fv,
+				Index:       index,
+				GenericArgs: genericArgs,
 			})
 		}
 	case token.NOT:

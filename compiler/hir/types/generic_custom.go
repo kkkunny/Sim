@@ -11,5 +11,5 @@ type GenericCustomType interface {
 	CustomType
 	Args() []hir.Type
 	WithArgs(args []hir.Type) GenericCustomType
-	CompileParamMap() hashmap.HashMap[VirtualType, hir.Type]
+	GenericParamMap() hashmap.HashMap[VirtualType, hir.Type]
 }

@@ -18,7 +18,7 @@ type CustomTypeDef interface {
 	AddMethod(m MethodDef) bool
 	GetMethod(name string) (MethodDef, bool)
 	HasImpl(trait *Trait) bool
-	CompilerParams() []types.GenericParamType
+	GenericParams() []types.GenericParamType
 }
 
 type _CustomTypeDef_ struct {
@@ -99,7 +99,7 @@ func (self *_CustomTypeDef_) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
-func (self *_CustomTypeDef_) CompilerParams() []types.GenericParamType {
+func (self *_CustomTypeDef_) GenericParams() []types.GenericParamType {
 	return self.compileParams
 }
 

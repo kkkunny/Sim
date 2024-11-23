@@ -2,6 +2,7 @@ package analyse
 
 import (
 	"github.com/kkkunny/stl/container/either"
+	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
@@ -204,32 +205,16 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 
 	switch ident := identObj.(type) {
 	case *global.FuncDef:
-		var compilerArgs []hir.Type
-		if genericArgsNode, ok := node.GenericArgs.Value(); ok {
-			compilerArgs = stlslices.Map(genericArgsNode.Args, func(_ int, genericArgNode ast.Type) hir.Type {
-				return self.analyseType(genericArgNode)
-			})
-		}
-		if len(ident.CompilerParams()) != len(compilerArgs) {
-			errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ident.CompilerParams())), uint(len(compilerArgs)))
-		}
-		if len(ident.CompilerParams()) == 0 {
+		compilerArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs)
+		if len(compilerArgs) == 0 {
 			return either.Right[hir.Type, hir.Value](ident), true
 		}
 		return either.Right[hir.Type, hir.Value](local.NewGenericFuncInstExpr(ident, compilerArgs...)), true
 	case hir.Value:
 		return either.Right[hir.Type, hir.Value](ident), true
 	case global.CustomTypeDef:
-		var compilerArgs []hir.Type
-		if genericArgsNode, ok := node.GenericArgs.Value(); ok {
-			compilerArgs = stlslices.Map(genericArgsNode.Args, func(_ int, genericArgNode ast.Type) hir.Type {
-				return self.analyseType(genericArgNode, typeAnalysers...)
-			})
-		}
-		if len(ident.CompilerParams()) != len(compilerArgs) {
-			errors.ThrowParameterNumberNotMatchError(node.Position(), uint(len(ident.CompilerParams())), uint(len(compilerArgs)))
-		}
-		if len(ident.CompilerParams()) == 0 {
+		compilerArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs)
+		if len(compilerArgs) == 0 {
 			return either.Left[hir.Type, hir.Value](ident), true
 		}
 		return either.Left[hir.Type, hir.Value](global.NewGenericCustomTypeDef(ident, compilerArgs...)), true
@@ -245,4 +230,20 @@ func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *loca
 		errors.ThrowCanNotGetDefault(pos, t)
 	}
 	return local.NewDefaultExpr(t)
+}
+
+func (self *Analyser) analyseOptionalGenericArgList(expectNumber int, pos reader.Position, node optional.Optional[*ast.GenericArgList]) []hir.Type {
+	genericArgsNode, ok := node.Value()
+	if !ok {
+		return nil
+	}
+	if expectNumber != len(genericArgsNode.Args) {
+		errors.ThrowParameterNumberNotMatchError(pos, uint(expectNumber), uint(len(genericArgsNode.Args)))
+	}
+	if expectNumber == 0 {
+		return nil
+	}
+	return stlslices.Map(genericArgsNode.Args, func(_ int, genericArgNode ast.Type) hir.Type {
+		return self.analyseType(genericArgNode)
+	})
 }

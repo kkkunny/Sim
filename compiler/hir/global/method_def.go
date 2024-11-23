@@ -3,6 +3,7 @@ package global
 import (
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -19,4 +20,5 @@ type MethodDef interface {
 	Static() bool
 	SelfParamIsRef() bool
 	NotGlobalNamed()
+	GenericParams() []types.GenericParamType
 }

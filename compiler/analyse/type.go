@@ -67,7 +67,7 @@ func (self *Analyser) enumTypeAnalyser(deep ...bool) typeAnalyser {
 	}, stlslices.Last(deep))
 }
 
-func (self *Analyser) compileParamAnalyserWith(param types.GenericParamType, deep ...bool) typeAnalyser {
+func (self *Analyser) genericParamAnalyserWith(param types.GenericParamType, deep ...bool) typeAnalyser {
 	return tuple.Pack2[typeAnalyserFunc, bool](func(node ast.Type, analysers ...typeAnalyser) (hir.Type, bool) {
 		if ident, ok := node.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.Name.Source() == param.String() {
 			return param, true

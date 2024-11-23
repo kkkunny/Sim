@@ -49,16 +49,16 @@ func (self *_GenericCustomTypeDef_) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
-func (self *_GenericCustomTypeDef_) CompileParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
+func (self *_GenericCustomTypeDef_) GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
 	var i int
-	return hashmap.AnyWith[types.VirtualType, hir.Type](stlslices.FlatMap(self.CustomTypeDef.CompilerParams(), func(_ int, compileParam types.GenericParamType) []any {
+	return hashmap.AnyWith[types.VirtualType, hir.Type](stlslices.FlatMap(self.CustomTypeDef.GenericParams(), func(_ int, compileParam types.GenericParamType) []any {
 		i++
 		return []any{types.VirtualType(compileParam), self.args[i-1]}
 	})...)
 }
 
 func (self *_GenericCustomTypeDef_) Target() hir.Type {
-	return types.ReplaceVirtualType(self.CompileParamMap(), self.CustomTypeDef.Target())
+	return types.ReplaceVirtualType(self.GenericParamMap(), self.CustomTypeDef.Target())
 }
 
 func (self *_GenericCustomTypeDef_) SetTarget(_ hir.Type) {

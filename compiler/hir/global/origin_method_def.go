@@ -14,11 +14,12 @@ type OriginMethodDef struct {
 	from CustomTypeDef
 }
 
-func NewOriginMethodDef(from CustomTypeDef, decl *FuncDecl, attrs ...FuncAttr) *OriginMethodDef {
+func NewOriginMethodDef(from CustomTypeDef, decl *FuncDecl, genericParams []types.GenericParamType, attrs ...FuncAttr) *OriginMethodDef {
 	return &OriginMethodDef{
 		FuncDef: FuncDef{
-			FuncDecl: decl,
-			attrs:    attrs,
+			FuncDecl:      decl,
+			attrs:         attrs,
+			genericParams: genericParams,
 		},
 		from: from,
 	}

@@ -110,8 +110,8 @@ func (self *Analyser) defTrait(node *ast.Trait) *global.Trait {
 
 func (self *Analyser) defTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Name.Source())).(global.CustomTypeDef)
-	fnDeclCompileParamAnalyser := stlslices.Map(decl.CompilerParams(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
-		return self.compileParamAnalyserWith(compileParam, true)
+	fnDeclCompileParamAnalyser := stlslices.Map(decl.GenericParams(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(compileParam, true)
 	})
 	decl.SetTarget(self.analyseType(node.Target, append([]typeAnalyser{self.structTypeAnalyser(), self.enumTypeAnalyser(), self.selfTypeAnalyserWith(decl, true)}, fnDeclCompileParamAnalyser...)...))
 	return decl
@@ -153,21 +153,21 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 	}
 
 	// 泛型参数
-	compileParams := linkedhashmap.StdWith[string, types.GenericParamType]()
+	genericParams := linkedhashmap.StdWith[string, types.GenericParamType]()
 	if genericParamsNode, ok := node.GenericParams.Value(); ok {
 		for _, genericParamNode := range genericParamsNode.Params {
 			genericParamName := genericParamNode.Source()
-			if compileParams.Contain(genericParamName) {
+			if genericParams.Contain(genericParamName) {
 				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
 			}
-			compileParams.Set(genericParamName, types.NewGenericParam(genericParamName))
+			genericParams.Set(genericParamName, types.NewGenericParam(genericParamName))
 		}
 	}
-	fnDeclCompileParamAnalyser := stlslices.Map(compileParams.Values(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
-		return self.compileParamAnalyserWith(compileParam, true)
+	fnDeclGenericParamAnalyser := stlslices.Map(genericParams.Values(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(compileParam, true)
 	})
 
-	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl, fnDeclCompileParamAnalyser...), compileParams.Values(), attrs...)
+	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl, fnDeclGenericParamAnalyser...), genericParams.Values(), attrs...)
 	if stlval.IgnoreWith(f.GetName()) == "main" {
 		mainType := types.NewFuncType(types.NoThing)
 		if !f.Type().Equal(types.NewFuncType(types.NoThing)) {
@@ -207,15 +207,32 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) global.MethodDef {
 	}
 
 	// 泛型参数
-	compileParams := linkedhashmap.StdWith[string, types.GenericParamType]()
-	for _, genericParamNode := range customType.CompilerParams() {
-		compileParams.Set(genericParamNode.String(), genericParamNode)
+	genericParams := linkedhashmap.StdWith[string, types.GenericParamType]()
+	for _, genericParamNode := range customType.GenericParams() {
+		genericParams.Set(genericParamNode.String(), genericParamNode)
 	}
-	fnDeclCompileParamAnalyser := stlslices.Map(compileParams.Values(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
-		return self.compileParamAnalyserWith(compileParam, true)
+	fnDeclGenericParamAnalyser := stlslices.Map(genericParams.Values(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(compileParam, true)
 	})
+	genericParams = linkedhashmap.StdWith[string, types.GenericParamType]()
+	if genericParamsNode, ok := node.GenericParams.Value(); ok {
+		for _, genericParamNode := range genericParamsNode.Params {
+			genericParamName := genericParamNode.Source()
+			if genericParams.Contain(genericParamName) {
+				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
+			}
+			compileParam := types.NewGenericParam(genericParamName)
+			genericParams.Set(genericParamName, compileParam)
+			fnDeclGenericParamAnalyser = append(fnDeclGenericParamAnalyser, self.genericParamAnalyserWith(compileParam, true))
+		}
+	}
 
-	f := global.NewOriginMethodDef(customType, self.analyseFuncDecl(node.FuncDecl, append([]typeAnalyser{self.selfTypeAnalyserWith(customType, true)}, fnDeclCompileParamAnalyser...)...), attrs...)
+	f := global.NewOriginMethodDef(
+		customType,
+		self.analyseFuncDecl(node.FuncDecl, append([]typeAnalyser{self.selfTypeAnalyserWith(customType, true)}, fnDeclGenericParamAnalyser...)...),
+		genericParams.Values(),
+		attrs...,
+	)
 	if !customType.AddMethod(f) {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}

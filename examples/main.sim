@@ -1,19 +1,19 @@
 import std::os
 
-type A<T> struct{
-	data: T
+type A struct{
+	data: u8
 }
 
-func (A) get(self: &Self)T{
-	let v: T = self.data
+func (A) get<T>(self: &Self, v: T)T{
+	let v: T = v
 	return v
 }
 
-func (A) get2(v: T)T{
+func (A) get2<T>(v: T)T{
 	return v
 }
 
 func main(){
-	let a = A::<u8>{data: 1}
-	os::exit(a.get2(1) - 1)
+	let a = A{data: 1}
+	os::exit(a.get::<u8>(1) - 1)
 }

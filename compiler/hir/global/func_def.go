@@ -9,21 +9,21 @@ import (
 type FuncDef struct {
 	pkgGlobalAttr
 	*FuncDecl
-	compileParams []types.GenericParamType
+	genericParams []types.GenericParamType
 	attrs         []FuncAttr
 	body          *local.Block
 }
 
-func NewFuncDef(decl *FuncDecl, compileParams []types.GenericParamType, attrs ...FuncAttr) *FuncDef {
+func NewFuncDef(decl *FuncDecl, genericParams []types.GenericParamType, attrs ...FuncAttr) *FuncDef {
 	return &FuncDef{
 		FuncDecl:      decl,
-		compileParams: compileParams,
+		genericParams: genericParams,
 		attrs:         attrs,
 	}
 }
 
-func (self *FuncDef) CompilerParams() []types.GenericParamType {
-	return self.compileParams
+func (self *FuncDef) GenericParams() []types.GenericParamType {
+	return self.genericParams
 }
 
 func (self *FuncDef) Attrs() []FuncAttr {

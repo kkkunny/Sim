@@ -51,9 +51,7 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 
 	var genericParams optional.Optional[*ast.GenericParamList]
 	afterNameFn := func() {
-		if selfType.IsNone() {
-			genericParams = self.parseGenericParamList()
-		}
+		genericParams = self.parseGenericParamList()
 		if genericParams.IsSome() {
 			expectAttrIn(attrs, new(ast.Inline), new(ast.NoInline))
 		}

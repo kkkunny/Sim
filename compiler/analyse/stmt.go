@@ -25,16 +25,17 @@ func (self *Analyser) analyseFuncBody(f local.CallableDef, params []ast.Param, n
 		self.scope = parent
 	}()
 
-	if methodDef, ok := f.(global.MethodDef); ok {
-		self.scope.SetIdent("Self", methodDef.From())
-	}
-	if funcDef, ok := f.(*global.FuncDef); ok {
-		for _, compileParam := range funcDef.CompilerParams() {
+	switch fdef := f.(type) {
+	case *global.FuncDef:
+		for _, compileParam := range fdef.GenericParams() {
 			self.scope.SetIdent(compileParam.String(), compileParam)
 		}
-	}
-	if methodDef, ok := f.(*global.OriginMethodDef); ok {
-		for _, compileParam := range methodDef.From().CompilerParams() {
+	case *global.OriginMethodDef:
+		self.scope.SetIdent("Self", fdef.From())
+		for _, compileParam := range fdef.From().GenericParams() {
+			self.scope.SetIdent(compileParam.String(), compileParam)
+		}
+		for _, compileParam := range fdef.GenericParams() {
 			self.scope.SetIdent(compileParam.String(), compileParam)
 		}
 	}
