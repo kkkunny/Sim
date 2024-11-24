@@ -318,27 +318,23 @@ func (self *CodeGenerator) codegenFuncCall(ir *local.CallExpr) llvm.Value {
 
 func (self *CodeGenerator) codegenMethodCall(ir *local.CallExpr) llvm.Value {
 	methodIr := ir.GetFunc().(*local.MethodExpr)
-	var method llvm.Value
-	if methodIr.GenericParamMap().Length() > 0 {
-		originDef := methodIr.Method().(global.MethodDef)
-		name := self.getIdentName(originDef, methodIr.GenericArgs()...)
-		f, ok := self.builder.GetFunction(name)
-		if !ok {
-			ct := methodIr.Type().(types.CallableType)
-			f = self.declFunc(name, types.NewFuncType(ct.Ret(), append([]hir.Type{methodIr.GetLeft().Type()}, ct.Params()...)...), originDef.Attrs()...)
-			defer self.releaseGenericParamMap(self.storeGenericParamMap(methodIr.GenericParamMap()))
-			self.defFunc(f, originDef.Params(), stlval.IgnoreWith(originDef.Body()))
-		}
-		method = f
-	} else {
-		method = self.codegenValue(methodIr.Method(), true)
-	}
 
 	selfVal := self.codegenValue(methodIr.GetLeft(), true)
 	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr hir.Value) llvm.Value {
 		return self.codegenValue(argIr, true)
 	})
-	return self.builder.CreateCall("", self.codegenFuncType(methodIr.Method().CallableType().(types.FuncType)), method, append([]llvm.Value{selfVal}, args...)...)
+
+	var method llvm.Value
+	var ft llvm.FunctionType
+	if methodIr.GenericParamMap().Length() > 0 {
+		method = self.instGenericFunc(methodIr.Method().(global.MethodDef), methodIr)
+		ft = method.(llvm.Function).FunctionType()
+	} else {
+		method = self.codegenValue(methodIr.Method(), true)
+		ft = self.codegenFuncType(methodIr.Method().CallableType().(types.FuncType))
+	}
+
+	return self.builder.CreateCall("", ft, method, append([]llvm.Value{selfVal}, args...)...)
 }
 
 func (self *CodeGenerator) codegenLambdaCall(ir *local.CallExpr) llvm.Value {
@@ -432,6 +428,14 @@ func (self *CodeGenerator) codegenCovert(ir local.CovertExpr, load bool) llvm.Va
 		} else {
 			return from
 		}
+	case *local.Ref2UsizeExpr:
+		from := self.codegenValue(ir.GetFrom(), true)
+		tt := self.codegenType(ir.Type()).(llvm.IntegerType)
+		return self.builder.CreatePtrToInt("", from, tt)
+	case *local.Usize2RefExpr:
+		from := self.codegenValue(ir.GetFrom(), true)
+		tt := self.codegenType(ir.Type()).(llvm.PointerType)
+		return self.builder.CreateIntToPtr("", from, tt)
 	case *local.NoReturn2AnyExpr:
 		from := self.codegenValue(ir.GetFrom(), false)
 		self.builder.CreateUnreachable()
@@ -577,16 +581,7 @@ func (self *CodeGenerator) codegenLambda(ir *local.LambdaExpr) llvm.Value {
 func (self *CodeGenerator) codegenMethod(ir *local.MethodExpr) llvm.Value {
 	var method llvm.Value
 	if ir.GenericParamMap().Length() > 0 {
-		originDef := ir.Method().(*global.OriginMethodDef)
-		name := self.getIdentName(originDef, ir.GenericArgs()...)
-		f, ok := self.builder.GetFunction(name)
-		if !ok {
-			ct := ir.Type().(types.CallableType)
-			f = self.declFunc(name, types.NewFuncType(ct.Ret(), append([]hir.Type{ir.GetLeft().Type()}, ct.Params()...)...), originDef.Attrs()...)
-			defer self.releaseGenericParamMap(self.storeGenericParamMap(ir.GenericParamMap()))
-			self.defFunc(f, originDef.Params(), stlval.IgnoreWith(originDef.Body()))
-		}
-		method = f
+		method = self.instGenericFunc(ir.Method().(*global.OriginMethodDef), ir)
 	} else {
 		method = self.codegenIdent(ir.Method().(values.Ident), true)
 	}
@@ -645,16 +640,7 @@ func (self *CodeGenerator) codegenEnum(ir *local.EnumExpr) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenGenericFuncInst(ir *local.GenericFuncInstExpr) llvm.Value {
-	originDef := ir.GetFunc().(*global.FuncDef)
-	name := self.getIdentName(originDef, ir.GetArgs()...)
-	f, ok := self.builder.GetFunction(name)
-	if ok {
-		return f
-	}
-	f = self.declFunc(name, ir.Type().(types.FuncType), originDef.Attrs()...)
-	defer self.releaseGenericParamMap(self.storeGenericParamMap(ir.GenericParamMap()))
-	self.defFunc(f, originDef.Params(), stlval.IgnoreWith(originDef.Body()))
-	return f
+	return self.instGenericFunc(ir.GetFunc().(*global.FuncDef), ir)
 }
 
 func (self *CodeGenerator) codegenStaticMethod(ir *local.StaticMethodExpr) llvm.Value {
@@ -662,14 +648,5 @@ func (self *CodeGenerator) codegenStaticMethod(ir *local.StaticMethodExpr) llvm.
 		return self.codegenIdent(ir.Method().(values.Ident), true)
 	}
 
-	originDef := ir.Method().(*global.OriginMethodDef)
-	name := self.getIdentName(originDef, ir.GenericArgs()...)
-	f, ok := self.builder.GetFunction(name)
-	if ok {
-		return f
-	}
-	f = self.declFunc(name, ir.Type().(types.FuncType), originDef.Attrs()...)
-	defer self.releaseGenericParamMap(self.storeGenericParamMap(ir.GenericParamMap()))
-	self.defFunc(f, originDef.Params(), stlval.IgnoreWith(originDef.Body()))
-	return f
+	return self.instGenericFunc(ir.Method().(*global.OriginMethodDef), ir)
 }

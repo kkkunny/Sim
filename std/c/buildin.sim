@@ -1,3 +1,7 @@
+import std::unsafe::ptr
+
+pub type voidptr = ptr::Ptr::<u8>
+
 pub type char = i8
 pub type short = i16
 pub type int = i32
@@ -10,3 +14,5 @@ pub type unsigned_long = u64
 
 pub type float = f32
 pub type double = f64
+
+pub type size_t = usize

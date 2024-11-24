@@ -136,7 +136,8 @@ func (self *CodeGenerator) codegenEnumType(ir types.EnumType) llvm.Type {
 }
 
 func (self *CodeGenerator) codegenGenericCustomType(ir types.GenericCustomType) llvm.Type {
-	stPtr := self.builder.GetTypeByName(ir.String())
+	name := ir.TotalName(self.virtualTypes)
+	stPtr := self.builder.GetTypeByName(name)
 	if stPtr != nil {
 		return *stPtr
 	}
@@ -146,7 +147,7 @@ func (self *CodeGenerator) codegenGenericCustomType(ir types.GenericCustomType) 
 		return self.codegenType(targetIr)
 	}
 
-	st := self.builder.NamedStructType(ir.String(), false)
+	st := self.builder.NamedStructType(name, false)
 	target := self.codegenType(targetIr)
 	if tt, ok := target.(llvm.StructType); ok {
 		st.SetElems(false, tt.Elems()...)

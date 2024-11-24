@@ -1,6 +1,8 @@
 package global
 
 import (
+	"github.com/kkkunny/stl/container/hashmap"
+
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
@@ -21,4 +23,5 @@ type MethodDef interface {
 	SelfParamIsRef() bool
 	NotGlobalNamed()
 	GenericParams() []types.GenericParamType
+	TotalName(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) string
 }

@@ -202,6 +202,10 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 	if !ok {
 		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 	}
+	// TODO: 全局语句公开性
+	if g, ok := identObj.(hir.Global); ok && !g.Package().Equal(self.pkg) && !g.Public() {
+		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
+	}
 
 	switch ident := identObj.(type) {
 	case *global.FuncDef:

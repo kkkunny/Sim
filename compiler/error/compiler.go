@@ -174,7 +174,7 @@ func ThrowInvalidPackage(pos reader.Position, paths []token.Token) {
 	pathStrs := stlslices.Map(paths, func(_ int, v token.Token) string {
 		return v.Source()
 	})
-	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs, "."))
+	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs, "::"))
 }
 
 // ThrowCircularReference 循环引用

@@ -79,7 +79,7 @@ func (self *CodeGenerator) declFuncDef(ir *global.FuncDef) {
 }
 
 func (self *CodeGenerator) declMethodDef(ir *global.OriginMethodDef) {
-	if len(ir.GenericParams()) > 0 {
+	if len(ir.From().GenericParams()) > 0 || len(ir.GenericParams()) > 0 {
 		return
 	}
 	f := self.declFunc(self.getIdentName(ir), ir.CallableType().(types.FuncType), ir.Attrs()...)
@@ -131,7 +131,7 @@ func (self *CodeGenerator) defFuncDef(ir *global.FuncDef) {
 }
 
 func (self *CodeGenerator) defMethodDef(ir *global.OriginMethodDef) {
-	if len(ir.GenericParams()) > 0 {
+	if len(ir.From().GenericParams()) > 0 || len(ir.GenericParams()) > 0 {
 		return
 	}
 	body, ok := ir.Body()

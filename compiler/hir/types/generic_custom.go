@@ -9,7 +9,8 @@ import (
 // GenericCustomType 泛型自定义类型
 type GenericCustomType interface {
 	CustomType
-	Args() []hir.Type
-	WithArgs(args []hir.Type) GenericCustomType
+	GenericArgs() []hir.Type
+	WithGenericArgs(args []hir.Type) GenericCustomType
 	GenericParamMap() hashmap.HashMap[VirtualType, hir.Type]
+	TotalName(genericParamMap hashmap.HashMap[VirtualType, hir.Type]) string
 }

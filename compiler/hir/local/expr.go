@@ -441,8 +441,8 @@ func (self *FieldExpr) Type() hir.Type {
 	})
 	return field.Type()
 }
-func (self *FieldExpr) Mutable() bool       { return false }
-func (self *FieldExpr) Storable() bool      { return false }
+func (self *FieldExpr) Mutable() bool       { return self.from.Mutable() }
+func (self *FieldExpr) Storable() bool      { return self.from.Storable() }
 func (self *FieldExpr) GetLeft() hir.Value  { return self.from }
 func (self *FieldExpr) GetRight() hir.Value { return values.NewString(types.Str, self.field) }
 func (self *FieldExpr) Field() string       { return self.field }
@@ -646,6 +646,35 @@ func (self *Float2FloatExpr) Storable() bool      { return false }
 func (self *Float2FloatExpr) GetFrom() hir.Value  { return self.from }
 func (self *Float2FloatExpr) GetToType() hir.Type { return self.to }
 
+// Ref2UsizeExpr ref -> usize
+type Ref2UsizeExpr struct {
+	from hir.Value
+}
+
+func NewRef2UsizeExpr(f hir.Value) *Ref2UsizeExpr {
+	return &Ref2UsizeExpr{from: f}
+}
+func (self *Ref2UsizeExpr) Type() hir.Type      { return self.GetToType() }
+func (self *Ref2UsizeExpr) Mutable() bool       { return false }
+func (self *Ref2UsizeExpr) Storable() bool      { return false }
+func (self *Ref2UsizeExpr) GetFrom() hir.Value  { return self.from }
+func (self *Ref2UsizeExpr) GetToType() hir.Type { return types.Usize }
+
+// Usize2RefExpr usize -> ref
+type Usize2RefExpr struct {
+	from hir.Value
+	to   types.RefType
+}
+
+func NewUsize2RefExpr(f hir.Value, t types.RefType) *Usize2RefExpr {
+	return &Usize2RefExpr{from: f, to: t}
+}
+func (self *Usize2RefExpr) Type() hir.Type      { return self.to }
+func (self *Usize2RefExpr) Mutable() bool       { return false }
+func (self *Usize2RefExpr) Storable() bool      { return false }
+func (self *Usize2RefExpr) GetFrom() hir.Value  { return self.from }
+func (self *Usize2RefExpr) GetToType() hir.Type { return self.to }
+
 // WrapTypeExpr custom -> custom
 type WrapTypeExpr struct {
 	from hir.Value
@@ -781,7 +810,7 @@ func (self *GenericFuncInstExpr) Type() hir.Type {
 func (self *GenericFuncInstExpr) Mutable() bool            { return false }
 func (self *GenericFuncInstExpr) Storable() bool           { return false }
 func (self *GenericFuncInstExpr) GetFunc() values.Callable { return self.fn }
-func (self *GenericFuncInstExpr) GetArgs() []hir.Type      { return self.args }
+func (self *GenericFuncInstExpr) GenericArgs() []hir.Type  { return self.args }
 func (self *GenericFuncInstExpr) GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
 	type getCompiler interface {
 		GenericParams() []types.GenericParamType

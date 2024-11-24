@@ -1,12 +1,8 @@
-import std::os
-
-type A<T> B::<T>
-
-type B<T> struct{
-	data: T
-}
+import std::collection::vec
+import std::io
 
 func main(){
-	let a = A::<u8>{data: 1}
-	os::exit(a.data - 1)
+	let vs = vec::new::<usize>()
+	vs.set(0, 6)
+	io::printf::<usize>("hello world %lld\n", vs.get(0).must_some())
 }

@@ -2,7 +2,6 @@ package codegen_ir
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
@@ -24,7 +23,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
-func (self *CodeGenerator) getIdentName(ir values.Ident, genericArgs ...hir.Type) string {
+func (self *CodeGenerator) getIdentName(ir values.Ident) string {
 	switch ident := ir.(type) {
 	case *global.FuncDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
@@ -37,14 +36,7 @@ func (self *CodeGenerator) getIdentName(ir values.Ident, genericArgs ...hir.Type
 		if name != "" {
 			return name
 		}
-		name = fmt.Sprintf("%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.GetName()))
-		if len(ident.GenericParams()) == 0 || len(genericArgs) == 0 {
-			return name
-		}
-		genericArgStrs := stlslices.Map(genericArgs, func(_ int, arg hir.Type) string {
-			return arg.String()
-		})
-		return fmt.Sprintf("%s::<%s>", name, strings.Join(genericArgStrs, ","))
+		return ident.TotalName(self.virtualTypes)
 	case global.MethodDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
 			nameAttr, ok := attr.(*global.FuncAttrLinkName)
@@ -56,14 +48,7 @@ func (self *CodeGenerator) getIdentName(ir values.Ident, genericArgs ...hir.Type
 		if name != "" {
 			return name
 		}
-		name = fmt.Sprintf("%s::%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.From().GetName()), stlval.IgnoreWith(ident.GetName()))
-		if len(ident.GenericParams()) == 0 || len(genericArgs) == 0 {
-			return name
-		}
-		genericArgStrs := stlslices.Map(genericArgs, func(_ int, arg hir.Type) string {
-			return arg.String()
-		})
-		return fmt.Sprintf("%s::<%s>", name, strings.Join(genericArgStrs, ","))
+		return ident.TotalName(self.virtualTypes)
 	case *global.VarDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.VarAttr) []string {
 			nameAttr, ok := attr.(*global.VarAttrLinkName)
@@ -649,7 +634,11 @@ func (self *CodeGenerator) defFunc(f llvm.Function, params []*local.Param, body 
 	self.builder.CreateBr(block)
 }
 
+// 存储泛型参数映射
 func (self *CodeGenerator) storeGenericParamMap(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) hashmap.HashMap[types.VirtualType, hir.Type] {
+	for iter := genericParamMap.Iterator(); iter.Next(); {
+		genericParamMap.Set(iter.Value().E1(), types.ReplaceVirtualType(self.virtualTypes, iter.Value().E2()))
+	}
 	preMap := hashmap.AnyWithCap[types.VirtualType, hir.Type](genericParamMap.Length())
 	for _, kvs := range genericParamMap.KeyValues() {
 		preMap.Set(kvs.E1(), self.virtualTypes.Get(kvs.E1()))
@@ -658,6 +647,7 @@ func (self *CodeGenerator) storeGenericParamMap(genericParamMap hashmap.HashMap[
 	return preMap
 }
 
+// 释放泛型参数映射
 func (self *CodeGenerator) releaseGenericParamMap(preMap hashmap.HashMap[types.VirtualType, hir.Type]) {
 	for _, kvs := range preMap.KeyValues() {
 		if kvs.E2() == nil {
@@ -666,6 +656,37 @@ func (self *CodeGenerator) releaseGenericParamMap(preMap hashmap.HashMap[types.V
 			self.virtualTypes.Set(kvs.E1(), kvs.E2())
 		}
 	}
+}
+
+// 泛型函数/方法实例化
+func (self *CodeGenerator) instGenericFunc(def local.CallableDef, ir hir.Value) llvm.Function {
+	type genericArgsGetter interface {
+		GenericArgs() []hir.Type
+		GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type]
+	}
+	type attrsGetter interface {
+		Attrs() []global.FuncAttr
+	}
+
+	defer self.releaseGenericParamMap(self.storeGenericParamMap(ir.(genericArgsGetter).GenericParamMap()))
+
+	name := self.getIdentName(def.(values.Ident))
+	f, ok := self.builder.GetFunction(name)
+	if ok {
+		return f
+	}
+
+	var ft types.FuncType
+	ct := ir.Type().(types.CallableType)
+	if methodIr, ok := ir.(*local.MethodExpr); ok {
+		ft = types.NewFuncType(ct.Ret(), append([]hir.Type{methodIr.GetLeft().Type()}, ct.Params()...)...)
+	} else {
+		ft = ct.(types.FuncType)
+	}
+
+	f = self.declFunc(name, ft, def.(attrsGetter).Attrs()...)
+	self.defFunc(f, def.Params(), stlval.IgnoreWith(def.Body()))
+	return f
 }
 
 // CodegenIr 中间代码生成

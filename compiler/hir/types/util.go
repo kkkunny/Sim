@@ -28,6 +28,8 @@ func As[T hir.Type](typ hir.Type, strict ...bool) (T, bool) {
 		tt, ok := As[T](t.Target())
 		if !ok {
 			return tt, ok
+		} else if !stlval.Is[hir.BuildInType](tt) {
+			return tt, true
 		}
 		return wrap[T](t, tt), true
 	case AliasType:
@@ -38,6 +40,8 @@ func As[T hir.Type](typ hir.Type, strict ...bool) (T, bool) {
 		tt, ok := As[T](t.Target())
 		if !ok {
 			return tt, ok
+		} else if !stlval.Is[hir.BuildInType](tt) {
+			return tt, true
 		}
 		return wrap[T](t, tt), true
 	default:
@@ -72,11 +76,15 @@ func Is[T hir.Type](typ hir.Type, strict ...bool) bool {
 }
 
 func ReplaceVirtualType(table hashmap.HashMap[VirtualType, hir.Type], typ hir.Type) hir.Type {
+	if table.Empty() {
+		return typ
+	}
+
 	switch t := typ.(type) {
 	case VirtualType:
 		return table.Get(t, t)
 	case GenericCustomType:
-		return t.WithArgs(stlslices.Map(t.Args(), func(_ int, arg hir.Type) hir.Type {
+		return t.WithGenericArgs(stlslices.Map(t.GenericArgs(), func(_ int, arg hir.Type) hir.Type {
 			return ReplaceVirtualType(table, arg)
 		}))
 	case NoThingType, NoReturnType, NumType, BoolType, StrType, TypeDef:

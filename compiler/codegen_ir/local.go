@@ -281,6 +281,11 @@ func (self *CodeGenerator) codegenMatch(ir *local.Match) {
 		return
 	}
 
+	type casePair = struct {
+		Value llvm.Value
+		Block llvm.Block
+	}
+
 	etIr := stlval.IgnoreWith(types.As[types.EnumType](ir.Cond().Type()))
 	t := self.codegenType(ir.Cond().Type())
 	value := self.codegenValue(ir.Cond(), false)
@@ -297,11 +302,14 @@ func (self *CodeGenerator) codegenMatch(ir *local.Match) {
 	curBlock := self.builder.CurrentBlock()
 	endBlock := curBlock.Belong().NewBlock("")
 
-	cases := make([]struct {
-		Value llvm.Value
-		Block llvm.Block
-	}, 0, len(ir.Cases()))
-	for i, caseIr := range ir.Cases() {
+	cases := make([]casePair, 0, len(ir.Cases()))
+	for _, caseIr := range ir.Cases() {
+		var i int
+		for j, name := range etIr.EnumFields().Keys() {
+			if name == caseIr.Name() {
+				i = j
+			}
+		}
 		caseBlock, caseCurBlock := self.codegenBlock(caseIr.Body(), func(block llvm.Block) {
 			caseVar, ok := caseIr.Var()
 			if !ok {
@@ -317,10 +325,7 @@ func (self *CodeGenerator) codegenMatch(ir *local.Match) {
 		self.builder.MoveToAfter(caseCurBlock)
 		self.builder.CreateBr(endBlock)
 
-		cases = append(cases, struct {
-			Value llvm.Value
-			Block llvm.Block
-		}{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: caseBlock})
+		cases = append(cases, casePair{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: caseBlock})
 	}
 
 	var otherBlock llvm.Block
@@ -337,4 +342,9 @@ func (self *CodeGenerator) codegenMatch(ir *local.Match) {
 	self.builder.CreateSwitch(index, otherBlock, cases...)
 
 	self.builder.MoveToAfter(endBlock)
+	if stlslices.All(ir.Cases(), func(_ int, c *local.MatchCase) bool {
+		return c.Body().BlockEndType() == local.BlockEndTypeFuncRet
+	}) {
+		self.builder.CreateUnreachable()
+	}
 }

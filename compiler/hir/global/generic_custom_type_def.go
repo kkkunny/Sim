@@ -3,7 +3,6 @@ package global
 import (
 	"fmt"
 	"strings"
-	"unsafe"
 
 	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -38,15 +37,30 @@ func (self *_GenericCustomTypeDef_) String() string {
 }
 
 func (self *_GenericCustomTypeDef_) Equal(dst hir.Type) bool {
-	return self == dst
+	gctd, ok := types.As[GenericCustomTypeDef](dst, true)
+	if !ok {
+		return false
+	} else if !self.CustomTypeDef.Equal(gctd.(CustomTypeDef)) {
+		return false
+	}
+	return stlslices.All(self.args, func(i int, e hir.Type) bool {
+		return e.Equal(gctd.GenericArgs()[i])
+	})
 }
 
 func (self *_GenericCustomTypeDef_) GetName() (string, bool) {
 	return self.String(), true
 }
 
+func (self *_GenericCustomTypeDef_) TotalName(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) string {
+	args := stlslices.Map(self.args, func(_ int, arg hir.Type) string {
+		return types.ReplaceVirtualType(genericParamMap, arg).String()
+	})
+	return fmt.Sprintf("%s::<%s>", self.CustomTypeDef.String(), strings.Join(args, ","))
+}
+
 func (self *_GenericCustomTypeDef_) Hash() uint64 {
-	return uint64(uintptr(unsafe.Pointer(self)))
+	return self.CustomTypeDef.Hash()
 }
 
 func (self *_GenericCustomTypeDef_) GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
@@ -77,11 +91,11 @@ func (self *_GenericCustomTypeDef_) GetMethod(name string) (MethodDef, bool) {
 	return newGenericCustomTypeMethodDef(method.(*OriginMethodDef), self), true
 }
 
-func (self *_GenericCustomTypeDef_) Args() []hir.Type {
+func (self *_GenericCustomTypeDef_) GenericArgs() []hir.Type {
 	return self.args
 }
 
-func (self *_GenericCustomTypeDef_) WithArgs(args []hir.Type) types.GenericCustomType {
+func (self *_GenericCustomTypeDef_) WithGenericArgs(args []hir.Type) types.GenericCustomType {
 	return NewGenericCustomTypeDef(self.CustomTypeDef, args...)
 }
 

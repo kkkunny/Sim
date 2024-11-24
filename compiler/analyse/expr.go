@@ -523,8 +523,8 @@ func (self *Analyser) autoTypeCovert(tt hir.Type, v hir.Value) (hir.Value, bool)
 	} else if toRt, toOk := types.As[types.RefType](tt, true); fromOk && toOk && fromRt.Mutable() && !toRt.Mutable() && fromRt.Pointer().Equal(toRt.Pointer()) {
 		// &mut i8 -> &i8
 		return local.NewWrapTypeExpr(v, toRt), true
-	} else if types.Is[types.NoReturnType](ft, true) && (types.Is[types.NoThingType](tt, true) || self.hasTypeDefault(tt)) {
-		// X -> default
+	} else if types.Is[types.NoReturnType](ft, true) {
+		// X -> any
 		return local.NewNoReturn2AnyExpr(v, tt), true
 	} else if fromFt, fromOk := types.As[types.FuncType](ft, true); fromOk && false {
 		panic("unreachable")
@@ -561,6 +561,12 @@ func (self *Analyser) analyseCovert(node *ast.Covert) hir.Value {
 	} else if toOk && types.Is[types.FloatType](ft) {
 		// float -> float
 		return local.NewFloat2FloatExpr(from, toFt)
+	} else if types.Is[types.RefType](ft) && tt.Equal(types.Usize) {
+		// ref -> usize
+		return local.NewRef2UsizeExpr(from)
+	} else if toRt, ok := types.As[types.RefType](tt); ok && ft.Equal(types.Usize) {
+		// usize -> ref
+		return local.NewUsize2RefExpr(from, toRt)
 	} else if fromEt, fromOk := types.As[types.EnumType](ft); fromOk && false {
 		panic("unreachable")
 	} else if toUt, toOk := types.As[types.UintType](tt, true); fromOk && toOk && fromEt.Simple() && toUt.Equal(types.U8) {
@@ -699,10 +705,12 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 				}
 			}
 		}
-
 	}
 
-	if method, ok := self.analyseMethod(node); ok || (node.GenericArgs.IsSome() && len(stlval.IgnoreWith(node.GenericArgs.Value()).Args) != 0) {
+	if node.GenericArgs.IsSome() && len(stlval.IgnoreWith(node.GenericArgs.Value()).Args) != 0 {
+		return stlval.IgnoreWith(self.analyseMethod(true, node))
+	}
+	if method, ok := self.analyseMethod(false, node); ok {
 		return method
 	}
 
@@ -740,7 +748,7 @@ func (self *Analyser) analyseStaticMethod(node *ast.Dot, selfType types.CustomTy
 	return local.NewStaticMethodExpr(selfType, method, compilerArgs)
 }
 
-func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
+func (self *Analyser) analyseMethod(must bool, node *ast.Dot) (values.Callable, bool) {
 	fieldName := node.Index.Source()
 	from := self.analyseExpr(nil, node.From)
 	ft := from.Type()
@@ -758,6 +766,9 @@ func (self *Analyser) analyseMethod(node *ast.Dot) (values.Callable, bool) {
 
 	method, ok := fromCtd.GetMethod(fieldName)
 	if !ok || (!method.Public() && !self.pkg.Equal(method.Package())) {
+		if must {
+			errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+		}
 		return nil, false
 	}
 
