@@ -1,0 +1,38 @@
+import std::collection::optional
+
+pub type Ptr<T> usize
+
+pub func null<T>()Ptr::<T>{
+	return 0
+}
+
+pub func ptr<T>(p: &T)Ptr::<T>{
+	return p as usize as Ptr::<T>
+}
+
+pub func from<T>(addr: usize)Ptr::<T>{
+	return addr as Ptr::<T>
+}
+
+pub func (Ptr) ref(self: Self)optional::Optional::<&T>{
+	if self == 0{
+		return optional::none::<&T>()
+	}
+	return optional::some::<&T>(self as usize as &T)
+}
+
+pub func (Ptr) mut_ref(self: Self)optional::Optional::<&mut T>{
+	if self == 0{
+		return optional::none::<&mut T>()
+	}
+	return optional::some::<&mut T>(self as usize as &mut T)
+}
+
+pub func (Ptr) to<F>(self: Self)Ptr::<F>{
+	return from::<F>(self as usize)
+}
+
+pub func (Ptr) index(self: Self, i: usize)Ptr::<T>{
+	let size: usize = 8
+	return from::<T>(self as usize + i * size)
+}

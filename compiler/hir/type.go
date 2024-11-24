@@ -13,3 +13,9 @@ type Type interface {
 	stlhash.Hashable
 	stlcmp.Equalable[Type]
 }
+
+// BuildInType 内置类型
+type BuildInType interface {
+	Type
+	BuildIn()
+}

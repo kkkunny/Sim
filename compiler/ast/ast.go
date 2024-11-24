@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/kkkunny/stl/container/optional"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/reader"
 
@@ -39,7 +40,7 @@ func (self Param) Output(w io.Writer, depth uint) (err error) {
 		}
 	}
 	if name, ok := self.Name.Value(); ok {
-		if err = outputf(w, "%s: ", name); err != nil {
+		if err = outputf(w, "%s: ", name.Source()); err != nil {
 			return err
 		}
 	}
@@ -72,15 +73,23 @@ func (self Field) Output(w io.Writer, depth uint) (err error) {
 
 // Ident 标识符
 type Ident struct {
-	Pkg  optional.Optional[token.Token]
-	Name token.Token
+	Pkg         optional.Optional[token.Token]
+	Name        token.Token
+	GenericArgs optional.Optional[*GenericArgList]
 }
 
 func (self *Ident) Position() reader.Position {
-	if pkg, ok := self.Pkg.Value(); ok {
-		return reader.MixPosition(pkg.Position, self.Name.Position)
-	}
-	return self.Name.Position
+	begin := stlval.TernaryAction(self.Pkg.IsNone(), func() reader.Position {
+		return self.Name.Position
+	}, func() reader.Position {
+		return self.Pkg.MustValue().Position
+	})
+	end := stlval.TernaryAction(self.GenericArgs.IsNone(), func() reader.Position {
+		return self.Name.Position
+	}, func() reader.Position {
+		return self.GenericArgs.MustValue().End
+	})
+	return reader.MixPosition(begin, end)
 }
 
 func (self *Ident) Output(w io.Writer, depth uint) (err error) {
@@ -89,7 +98,69 @@ func (self *Ident) Output(w io.Writer, depth uint) (err error) {
 			return err
 		}
 	}
-	return outputf(w, self.Name.Source())
+	if err = outputf(w, self.Name.Source()); err != nil {
+		return err
+	}
+	if genericArgs, ok := self.GenericArgs.Value(); ok {
+		if err = genericArgs.Output(w, depth); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type GenericParamList struct {
+	Begin  reader.Position
+	Params []token.Token
+	End    reader.Position
+}
+
+func (self *GenericParamList) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *GenericParamList) Output(w io.Writer, depth uint) (err error) {
+	if err = outputf(w, "<"); err != nil {
+		return err
+	}
+	for i, param := range self.Params {
+		if err = outputf(w, param.Source()); err != nil {
+			return err
+		}
+		if i < len(self.Params)-1 {
+			if err = outputf(w, ", "); err != nil {
+				return err
+			}
+		}
+	}
+	return outputf(w, ">")
+}
+
+type GenericArgList struct {
+	Begin reader.Position
+	Args  []Type
+	End   reader.Position
+}
+
+func (self *GenericArgList) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *GenericArgList) Output(w io.Writer, depth uint) (err error) {
+	if err = outputf(w, "::<"); err != nil {
+		return err
+	}
+	for i, arg := range self.Args {
+		if err = arg.Output(w, depth); err != nil {
+			return err
+		}
+		if i < len(self.Args)-1 {
+			if err = outputf(w, ", "); err != nil {
+				return err
+			}
+		}
+	}
+	return outputf(w, ">")
 }
 
 // FuncDecl 函数声明

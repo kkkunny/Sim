@@ -20,23 +20,23 @@ type CodeGenerator struct {
 	builder *llvmUtil.Builder
 	pkg     *hir.Package
 
-	types  hashmap.HashMap[types.CustomType, llvm.Type]
 	values hashmap.HashMap[hir.Value, llvm.Value]
 
 	funcCache        hashmap.HashMap[string, llvm.Function]
 	loops            hashmap.HashMap[local.Loop, loop]
 	lambdaCaptureMap queue.Queue[hashmap.HashMap[values.Ident, llvm.Value]]
+	virtualTypes     hashmap.HashMap[types.VirtualType, hir.Type]
 }
 
 func New(target llvm.Target, pkg *hir.Package) *CodeGenerator {
 	return &CodeGenerator{
 		builder:          llvmUtil.NewBuilder(llvm.GlobalContext, target),
 		pkg:              pkg,
-		types:            hashmap.AnyWith[types.CustomType, llvm.Type](),
 		values:           hashmap.StdWith[hir.Value, llvm.Value](),
 		funcCache:        hashmap.StdWith[string, llvm.Function](),
 		loops:            hashmap.StdWith[local.Loop, loop](),
 		lambdaCaptureMap: queue.New[hashmap.HashMap[values.Ident, llvm.Value]](),
+		virtualTypes:     hashmap.AnyWith[types.VirtualType, hir.Type](),
 	}
 }
 

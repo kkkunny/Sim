@@ -15,54 +15,57 @@ import (
 // CustomTypeDef 自定义类型定义
 type CustomTypeDef interface {
 	types.CustomType
-	AddMethod(m *MethodDef) bool
-	GetMethod(name string) (*MethodDef, bool)
+	AddMethod(m MethodDef) bool
+	GetMethod(name string) (MethodDef, bool)
 	HasImpl(trait *Trait) bool
+	GenericParams() []types.GenericParamType
 }
 
-type __CustomTypeDef__ struct {
+type _CustomTypeDef_ struct {
 	pkgGlobalAttr
-	name    string
-	target  hir.Type
-	methods hashmap.HashMap[string, *MethodDef]
+	name          string
+	compileParams []types.GenericParamType
+	target        hir.Type
+	methods       hashmap.HashMap[string, MethodDef]
 }
 
-func NewCustomTypeDef(name string, target hir.Type) CustomTypeDef {
-	return &__CustomTypeDef__{
-		name:    name,
-		target:  target,
-		methods: hashmap.StdWith[string, *MethodDef](),
+func NewCustomTypeDef(name string, compileParams []types.GenericParamType, target hir.Type) CustomTypeDef {
+	return &_CustomTypeDef_{
+		name:          name,
+		compileParams: compileParams,
+		target:        target,
+		methods:       hashmap.StdWith[string, MethodDef](),
 	}
 }
 
-func (self *__CustomTypeDef__) String() string {
+func (self *_CustomTypeDef_) String() string {
 	if self.pkg.IsBuildIn() {
 		return self.name
 	}
 	return fmt.Sprintf("%s::%s", self.pkg.String(), self.name)
 }
 
-func (self *__CustomTypeDef__) Equal(dst hir.Type) bool {
+func (self *_CustomTypeDef_) Equal(dst hir.Type) bool {
 	return self.Hash() == dst.Hash()
 }
 
-func (self *__CustomTypeDef__) GetName() (string, bool) {
+func (self *_CustomTypeDef_) GetName() (string, bool) {
 	return self.name, self.name != "_"
 }
 
-func (self *__CustomTypeDef__) Target() hir.Type {
+func (self *_CustomTypeDef_) Target() hir.Type {
 	return self.target
 }
 
-func (self *__CustomTypeDef__) SetTarget(t hir.Type) {
+func (self *_CustomTypeDef_) SetTarget(t hir.Type) {
 	self.target = t
 }
 
-func (self *__CustomTypeDef__) Custom() {
+func (self *_CustomTypeDef_) Custom() {
 
 }
 
-func (self *__CustomTypeDef__) AddMethod(m *MethodDef) bool {
+func (self *_CustomTypeDef_) AddMethod(m MethodDef) bool {
 	mn, ok := m.GetName()
 	if !ok {
 		return true
@@ -77,26 +80,30 @@ func (self *__CustomTypeDef__) AddMethod(m *MethodDef) bool {
 	return true
 }
 
-func (self *__CustomTypeDef__) GetMethod(name string) (*MethodDef, bool) {
+func (self *_CustomTypeDef_) GetMethod(name string) (MethodDef, bool) {
 	method := self.methods.Get(name)
 	return method, method != nil
 }
 
-func (self *__CustomTypeDef__) HasImpl(trait *Trait) bool {
+func (self *_CustomTypeDef_) HasImpl(trait *Trait) bool {
 	return stlslices.All(trait.Methods(), func(_ int, dstF *FuncDecl) bool {
 		method, ok := self.GetMethod(stlval.IgnoreWith(dstF.GetName()))
 		if !ok {
 			return false
 		}
-		return method.Type().Equal(types.ReplaceSelfType(self, dstF.Type()))
+		return method.Type().Equal(types.ReplaceVirtualType(hashmap.AnyWith[types.VirtualType, hir.Type](types.Self, self), dstF.Type()))
 	})
 }
 
-func (self *__CustomTypeDef__) Hash() uint64 {
+func (self *_CustomTypeDef_) Hash() uint64 {
 	return uint64(uintptr(unsafe.Pointer(self)))
 }
 
-func (self *__CustomTypeDef__) Wrap(inner hir.Type) types.BuildInType {
+func (self *_CustomTypeDef_) GenericParams() []types.GenericParamType {
+	return self.compileParams
+}
+
+func (self *_CustomTypeDef_) Wrap(inner hir.Type) hir.BuildInType {
 	switch v := inner.(type) {
 	case types.SintType:
 		return &customSintType{CustomTypeDef: self, SintType: v}

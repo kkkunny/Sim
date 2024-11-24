@@ -13,7 +13,7 @@ import (
 
 // LambdaType 匿名函数类型
 type LambdaType interface {
-	BuildInType
+	hir.BuildInType
 	CallableType
 	Lambda()
 }

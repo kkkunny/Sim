@@ -1,0 +1,5 @@
+// import std::unsafe::ptr
+
+@extern("printf")
+@var_arg
+pub func printf(format: ptr::Ptr::<char>)int

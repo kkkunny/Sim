@@ -1,0 +1,44 @@
+import std::unsafe::ptr
+import std::mem
+import std::collection::optional
+
+pub type Vec<T> struct{
+	pub data: ptr::Ptr::<T>,
+	pub len: usize
+}
+
+pub func new<T>()Vec::<T>{
+	let mut vec = Vec::<T>{
+		data: ptr::null::<T>(),
+		len: 0
+	}
+	vec.init()
+	return vec
+}
+
+func (Vec) init(mut self: &mut Self){
+	self.len = 10
+	self.data = mem::malloc::<[10]T>().to::<T>()
+}
+
+pub func (Vec) set(mut self: &mut Self, i: usize, v: T){
+	match self.data.index(i).mut_ref(){
+	case Some(mut ref):
+		*ref = v
+	other:
+	}
+}
+
+pub func (Vec) get(self: Self, i: usize)optional::Optional::<&T>{
+	// if i >= self.len{
+	// 	return optional::none::<&T>()
+	// }
+	let p = self.data.index(i) as usize as &T
+	return optional::some::<&T>(p)
+	// match self.data.index(i).mut_ref(){
+	// case Some(ref):
+	// 	return *ref
+	// other:
+	// 	return panic("not is some")
+	// }
+}

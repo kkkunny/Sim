@@ -40,30 +40,42 @@ func (self *Parser) parseGlobal() ast.Global {
 
 func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global {
 	expectAttrIn(attrs, new(ast.Extern), new(ast.Inline), new(ast.NoInline), new(ast.VarArg))
+
 	var selfType optional.Optional[token.Token]
-	decl := self.parseFuncDecl(func() {
+	beforeNameFn := func() {
 		if self.skipNextIs(token.LPA) {
 			selfType = optional.Some(self.expectNextIs(token.IDENT))
 			self.expectNextIs(token.RPA)
 		}
-	})
+	}
+
+	var genericParams optional.Optional[*ast.GenericParamList]
+	afterNameFn := func() {
+		genericParams = self.parseGenericParamList()
+		if genericParams.IsSome() {
+			expectAttrIn(attrs, new(ast.Inline), new(ast.NoInline))
+		}
+	}
+	decl := self.parseFuncDecl(beforeNameFn, afterNameFn)
+
 	begin := stlval.TernaryAction(pub == nil, func() reader.Position {
 		return decl.Begin
 	}, func() reader.Position {
 		return pub.Position
 	})
-	body := stlval.TernaryAction(self.nextIs(token.LBR), func() optional.Optional[*ast.Block] {
+	body := stlval.TernaryAction(self.nextIs(token.LBR) || (genericParams.IsSome() && len(stlval.IgnoreWith(genericParams.Value()).Params) > 0), func() optional.Optional[*ast.Block] {
 		return optional.Some(self.parseBlock())
 	}, func() optional.Optional[*ast.Block] {
 		return optional.None[*ast.Block]()
 	})
 	return &ast.FuncDef{
-		Attrs:    attrs,
-		Begin:    begin,
-		Public:   pub != nil,
-		SelfType: selfType,
-		FuncDecl: decl,
-		Body:     body,
+		Attrs:         attrs,
+		Begin:         begin,
+		Public:        pub != nil,
+		SelfType:      selfType,
+		FuncDecl:      decl,
+		GenericParams: genericParams,
+		Body:          body,
 	}
 }
 
@@ -172,7 +184,12 @@ func (self *Parser) parseTypeDefOrAlias(attrs []ast.Attr, pub *token.Token) ast.
 		begin = pub.Position
 	}
 	name := self.expectNextIs(token.IDENT)
-	isAlias := self.skipNextIs(token.ASS)
+	genericParams := self.parseGenericParamList()
+
+	var isAlias bool
+	if genericParams.IsNone() {
+		isAlias = self.skipNextIs(token.ASS)
+	}
 	if isAlias {
 		return &ast.TypeAlias{
 			Begin:  begin,
@@ -182,10 +199,11 @@ func (self *Parser) parseTypeDefOrAlias(attrs []ast.Attr, pub *token.Token) ast.
 		}
 	} else {
 		return &ast.TypeDef{
-			Begin:  begin,
-			Public: pub != nil,
-			Name:   name,
-			Target: self.parseTypeInTypedef(),
+			Begin:         begin,
+			Public:        pub != nil,
+			Name:          name,
+			GenericParams: genericParams,
+			Target:        self.parseTypeInTypedef(),
 		}
 	}
 }
@@ -201,7 +219,7 @@ func (self *Parser) parseTrait(attrs []ast.Attr, pub *token.Token) *ast.Trait {
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
 	methods := loopParseWithUtil(self, token.COM, token.RBR, func() *ast.FuncDecl {
-		return stlval.Ptr(self.parseFuncDecl(nil))
+		return stlval.Ptr(self.parseFuncDecl(nil, nil))
 	})
 	end := self.expectNextIs(token.RBR).Position
 

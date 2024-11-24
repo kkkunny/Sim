@@ -2,8 +2,10 @@ package local
 
 import (
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -68,18 +70,25 @@ func (self *Match) Other() (*Block, bool) {
 }
 
 func (self *Match) BlockEndType() BlockEndType {
-	other, ok := self.Other()
-	if !ok {
+	if stlslices.Empty(self.cases) && self.other == nil {
 		return BlockEndTypeNone
+	} else if stlslices.Empty(self.cases) {
+		return self.other.BlockEndType()
 	}
-	if stlslices.Empty(self.cases) {
-		return other.BlockEndType()
-	}
+
 	minType := BlockEndTypeFuncRet
 	for _, c := range self.cases {
 		minType = min(minType, c.body.BlockEndType())
 	}
-	return min(minType, other.BlockEndType())
+
+	et := stlval.IgnoreWith(types.As[types.EnumType](self.cond.Type()))
+	if int(et.EnumFields().Length()) == len(self.cases) {
+		return minType
+	} else if self.other != nil {
+		return min(minType, self.other.BlockEndType())
+	}
+
+	return BlockEndTypeNone
 }
 
 func (self *Match) Cond() hir.Value {

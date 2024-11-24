@@ -1,12 +1,8 @@
-import std::os
-
-type A struct{}
-
-func (A) get(self: Self, v: u8)u8{
-    return v
-}
+import std::collection::vec
+import std::io
 
 func main(){
-    let a = A{}
-    os::exit(a.get(0))
+	let vs = vec::new::<usize>()
+	vs.set(0, 6)
+	io::printf::<usize>("hello world %lld\n", vs.get(0).must_some())
 }

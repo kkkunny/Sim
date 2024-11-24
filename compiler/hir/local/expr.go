@@ -3,6 +3,7 @@ package local
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
@@ -440,20 +441,21 @@ func (self *FieldExpr) Type() hir.Type {
 	})
 	return field.Type()
 }
-func (self *FieldExpr) Mutable() bool       { return false }
-func (self *FieldExpr) Storable() bool      { return false }
+func (self *FieldExpr) Mutable() bool       { return self.from.Mutable() }
+func (self *FieldExpr) Storable() bool      { return self.from.Storable() }
 func (self *FieldExpr) GetLeft() hir.Value  { return self.from }
 func (self *FieldExpr) GetRight() hir.Value { return values.NewString(types.Str, self.field) }
 func (self *FieldExpr) Field() string       { return self.field }
 
 // MethodExpr 方法
 type MethodExpr struct {
-	self   hir.Value
-	method CallableDef
+	self        hir.Value
+	method      CallableDef
+	genericArgs []hir.Type
 }
 
-func NewMethodExpr(self hir.Value, method CallableDef) *MethodExpr {
-	return &MethodExpr{self: self, method: method}
+func NewMethodExpr(self hir.Value, method CallableDef, genericArgs []hir.Type) *MethodExpr {
+	return &MethodExpr{self: self, method: method, genericArgs: genericArgs}
 }
 func (self *MethodExpr) Type() hir.Type     { return self.CallableType() }
 func (self *MethodExpr) Mutable() bool      { return false }
@@ -463,9 +465,42 @@ func (self *MethodExpr) GetRight() hir.Value {
 	return values.NewString(types.Str, stlval.IgnoreWith(self.method.GetName()))
 }
 func (self *MethodExpr) Method() CallableDef { return self.method }
+func (self *MethodExpr) GenericArgs() []hir.Type {
+	return self.genericArgs
+}
+func (self *MethodExpr) GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
+	type getCompiler interface {
+		GenericParams() []types.GenericParamType
+	}
+	var i int
+	genericParamMap := hashmap.AnyWith[types.VirtualType, hir.Type](stlslices.FlatMap(self.method.(getCompiler).GenericParams(), func(_ int, compileParam types.GenericParamType) []any {
+		i++
+		return []any{types.VirtualType(compileParam), self.genericArgs[i-1]}
+	})...)
+
+	if t, ok := types.As[types.RefType](self.self.Type(), true); ok {
+		if t, ok := types.As[types.GenericCustomType](t.Pointer(), true); ok {
+			for iter := t.GenericParamMap().Iterator(); iter.Next(); {
+				genericParamMap.Set(iter.Value().Unpack())
+			}
+		}
+	} else if t, ok := types.As[types.GenericCustomType](self.self.Type(), true); ok {
+		for iter := t.GenericParamMap().Iterator(); iter.Next(); {
+			genericParamMap.Set(iter.Value().Unpack())
+		}
+	}
+	return genericParamMap
+}
 func (self *MethodExpr) CallableType() types.CallableType {
 	ft := self.method.CallableType()
-	return types.NewFuncType(ft.Ret(), ft.Params()[1:]...)
+	ft = types.NewLambdaType(ft.Ret(), ft.Params()[1:]...)
+
+	genericParamMap := self.GenericParamMap()
+	if genericParamMap.Empty() {
+		return ft
+	} else {
+		return types.ReplaceVirtualType(genericParamMap, ft).(types.CallableType)
+	}
 }
 
 // ---------------------------------UnaryExpr---------------------------------
@@ -611,6 +646,35 @@ func (self *Float2FloatExpr) Storable() bool      { return false }
 func (self *Float2FloatExpr) GetFrom() hir.Value  { return self.from }
 func (self *Float2FloatExpr) GetToType() hir.Type { return self.to }
 
+// Ref2UsizeExpr ref -> usize
+type Ref2UsizeExpr struct {
+	from hir.Value
+}
+
+func NewRef2UsizeExpr(f hir.Value) *Ref2UsizeExpr {
+	return &Ref2UsizeExpr{from: f}
+}
+func (self *Ref2UsizeExpr) Type() hir.Type      { return self.GetToType() }
+func (self *Ref2UsizeExpr) Mutable() bool       { return false }
+func (self *Ref2UsizeExpr) Storable() bool      { return false }
+func (self *Ref2UsizeExpr) GetFrom() hir.Value  { return self.from }
+func (self *Ref2UsizeExpr) GetToType() hir.Type { return types.Usize }
+
+// Usize2RefExpr usize -> ref
+type Usize2RefExpr struct {
+	from hir.Value
+	to   types.RefType
+}
+
+func NewUsize2RefExpr(f hir.Value, t types.RefType) *Usize2RefExpr {
+	return &Usize2RefExpr{from: f, to: t}
+}
+func (self *Usize2RefExpr) Type() hir.Type      { return self.to }
+func (self *Usize2RefExpr) Mutable() bool       { return false }
+func (self *Usize2RefExpr) Storable() bool      { return false }
+func (self *Usize2RefExpr) GetFrom() hir.Value  { return self.from }
+func (self *Usize2RefExpr) GetToType() hir.Type { return self.to }
+
 // WrapTypeExpr custom -> custom
 type WrapTypeExpr struct {
 	from hir.Value
@@ -727,3 +791,79 @@ func (self *TypeJudgmentExpr) Mutable() bool    { return false }
 func (self *TypeJudgmentExpr) Storable() bool   { return false }
 func (self *TypeJudgmentExpr) Value() hir.Value { return self.value }
 func (self *TypeJudgmentExpr) Target() hir.Type { return self.target }
+
+// GenericFuncInstExpr 泛型函数实例
+type GenericFuncInstExpr struct {
+	fn   values.Callable
+	args []hir.Type
+}
+
+func NewGenericFuncInstExpr(fn values.Callable, args ...hir.Type) *GenericFuncInstExpr {
+	return &GenericFuncInstExpr{
+		fn:   fn,
+		args: args,
+	}
+}
+func (self *GenericFuncInstExpr) Type() hir.Type {
+	return self.CallableType()
+}
+func (self *GenericFuncInstExpr) Mutable() bool            { return false }
+func (self *GenericFuncInstExpr) Storable() bool           { return false }
+func (self *GenericFuncInstExpr) GetFunc() values.Callable { return self.fn }
+func (self *GenericFuncInstExpr) GenericArgs() []hir.Type  { return self.args }
+func (self *GenericFuncInstExpr) GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
+	type getCompiler interface {
+		GenericParams() []types.GenericParamType
+	}
+	var i int
+	return hashmap.AnyWith[types.VirtualType, hir.Type](stlslices.FlatMap(self.fn.(getCompiler).GenericParams(), func(_ int, compileParam types.GenericParamType) []any {
+		i++
+		return []any{types.VirtualType(compileParam), self.args[i-1]}
+	})...)
+}
+func (self *GenericFuncInstExpr) CallableType() types.CallableType {
+	return types.ReplaceVirtualType(self.GenericParamMap(), self.fn.CallableType()).(types.CallableType)
+}
+
+// StaticMethodExpr 静态方法
+type StaticMethodExpr struct {
+	self        types.CustomType
+	method      CallableDef
+	genericArgs []hir.Type
+}
+
+func NewStaticMethodExpr(self types.CustomType, method CallableDef, genericArgs []hir.Type) *StaticMethodExpr {
+	return &StaticMethodExpr{self: self, method: method, genericArgs: genericArgs}
+}
+func (self *StaticMethodExpr) Type() hir.Type          { return self.CallableType() }
+func (self *StaticMethodExpr) Mutable() bool           { return false }
+func (self *StaticMethodExpr) Storable() bool          { return false }
+func (self *StaticMethodExpr) Method() CallableDef     { return self.method }
+func (self *StaticMethodExpr) GenericArgs() []hir.Type { return self.genericArgs }
+func (self *StaticMethodExpr) GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type] {
+	type getCompiler interface {
+		GenericParams() []types.GenericParamType
+	}
+	var i int
+	genericParamMap := hashmap.AnyWith[types.VirtualType, hir.Type](stlslices.FlatMap(self.method.(getCompiler).GenericParams(), func(_ int, compileParam types.GenericParamType) []any {
+		i++
+		return []any{types.VirtualType(compileParam), self.genericArgs[i-1]}
+	})...)
+
+	if t, ok := types.As[types.GenericCustomType](self.self, true); ok {
+		for iter := t.GenericParamMap().Iterator(); iter.Next(); {
+			genericParamMap.Set(iter.Value().Unpack())
+		}
+	}
+	return genericParamMap
+}
+func (self *StaticMethodExpr) CallableType() types.CallableType {
+	ft := self.method.CallableType()
+
+	genericParamMap := self.GenericParamMap()
+	if genericParamMap.Empty() {
+		return ft
+	} else {
+		return types.ReplaceVirtualType(genericParamMap, ft).(types.CallableType)
+	}
+}

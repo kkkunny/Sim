@@ -9,7 +9,7 @@ import (
 
 // RefType 引用类型
 type RefType interface {
-	BuildInType
+	hir.BuildInType
 	Mutable() bool
 	Pointer() hir.Type
 }

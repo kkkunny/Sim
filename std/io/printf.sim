@@ -1,0 +1,12 @@
+import std::c
+import std::unsafe::ptr
+
+type stringHeader struct{
+	data: ptr::Ptr::<c::char>,
+	len: usize
+}
+
+pub func printf<T>(format: str, v: T){
+	let header = &format as usize as &stringHeader
+	c::printf(header.data, v)
+}

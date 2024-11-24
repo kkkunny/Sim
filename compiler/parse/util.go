@@ -66,7 +66,7 @@ func (self *Parser) parseParam() ast.Param {
 	} else {
 		var name optional.Optional[token.Token]
 		typ := self.parseType()
-		if ident, ok := typ.(*ast.IdentType); ok && ident.Pkg.IsNone() && self.skipNextIs(token.COL) {
+		if ident, ok := typ.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.GenericArgs.IsNone() && self.skipNextIs(token.COL) {
 			name = optional.Some(ident.Name)
 			typ = self.parseType()
 		}
@@ -116,24 +116,67 @@ loop:
 func (self *Parser) parseIdent() *ast.Ident {
 	var pkg optional.Optional[token.Token]
 	var name token.Token
+	var genericArgs optional.Optional[*ast.GenericArgList]
+
 	pkgOrName := self.expectNextIs(token.IDENT)
 	if !self.skipNextIs(token.SCOPE) {
-		pkg, name = optional.None[token.Token](), pkgOrName
+		name = pkgOrName
 	} else {
-		pkg, name = optional.Some(pkgOrName), self.expectNextIs(token.IDENT)
+		if !self.nextIs(token.LT) {
+			pkg, name = optional.Some(pkgOrName), self.expectNextIs(token.IDENT)
+			if self.skipNextIs(token.SCOPE) {
+				genericArgs = optional.Some(self.parseGenericArgList())
+			}
+		} else {
+			name = pkgOrName
+			genericArgs = optional.Some(self.parseGenericArgList())
+		}
 	}
 	return &ast.Ident{
-		Pkg:  pkg,
-		Name: name,
+		Pkg:         pkg,
+		Name:        name,
+		GenericArgs: genericArgs,
 	}
 }
 
-func (self *Parser) parseFuncDecl(afterName func()) ast.FuncDecl {
+func (self *Parser) parseGenericParamList() optional.Optional[*ast.GenericParamList] {
+	if !self.skipNextIs(token.LT) {
+		return optional.None[*ast.GenericParamList]()
+	}
+	begin := self.curTok.Position
+	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
+		return self.expectNextIs(token.IDENT)
+	}, true)
+	end := self.expectNextIs(token.GT).Position
+	return optional.Some(&ast.GenericParamList{
+		Begin:  begin,
+		Params: params,
+		End:    end,
+	})
+}
+
+func (self *Parser) parseGenericArgList() *ast.GenericArgList {
+	begin := self.expectNextIs(token.LT).Position
+	args := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {
+		return self.parseType()
+	}, true)
+	end := self.expectNextIs(token.GT).Position
+	return &ast.GenericArgList{
+		Begin: begin,
+		Args:  args,
+		End:   end,
+	}
+}
+
+func (self *Parser) parseFuncDecl(beforeName, afterName func()) ast.FuncDecl {
 	begin := self.expectNextIs(token.FUNC).Position
+	if beforeName != nil {
+		beforeName()
+	}
+	name := self.expectNextIs(token.IDENT)
 	if afterName != nil {
 		afterName()
 	}
-	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LPA)
 	params := self.parseParamList(token.RPA)
 	self.expectNextIs(token.RPA)

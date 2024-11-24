@@ -8,7 +8,7 @@ import (
 
 // NoReturnType 无返回类型
 type NoReturnType interface {
-	BuildInType
+	hir.BuildInType
 	_NoReturnType_()
 }
 
