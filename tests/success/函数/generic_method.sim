@@ -1,0 +1,14 @@
+import std::os
+
+type Str<T> struct{
+	data: T
+}
+
+func (Str) get<F>(self: &Self, v: F)T{
+	return self.data
+}
+
+func main(){
+	let s = Str::<u8>{data: 1}
+	os::exit(s.get::<u16>(1)-1)
+}

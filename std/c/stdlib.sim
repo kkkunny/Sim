@@ -1,2 +1,5 @@
 @extern("exit")
 pub func exit(status: int)X
+
+@extern("calloc")
+pub func calloc(num: size_t, size: size_t)voidptr

@@ -36,7 +36,7 @@ func (self *CodeGenerator) getIdentName(ir values.Ident) string {
 		if name != "" {
 			return name
 		}
-		return fmt.Sprintf("%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.GetName()))
+		return ident.TotalName(self.virtualTypes)
 	case global.MethodDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
 			nameAttr, ok := attr.(*global.FuncAttrLinkName)
@@ -48,7 +48,7 @@ func (self *CodeGenerator) getIdentName(ir values.Ident) string {
 		if name != "" {
 			return name
 		}
-		return fmt.Sprintf("%s::%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.From().GetName()), stlval.IgnoreWith(ident.GetName()))
+		return ident.TotalName(self.virtualTypes)
 	case *global.VarDef:
 		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.VarAttr) []string {
 			nameAttr, ok := attr.(*global.VarAttrLinkName)
@@ -585,6 +585,110 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 	}
 }
 
+func (self *CodeGenerator) declFunc(name string, ftIr types.FuncType, attrs ...global.FuncAttr) llvm.Function {
+	var inline *bool
+	var vararg, link bool
+	for _, attr := range attrs {
+		switch attr := attr.(type) {
+		case *global.FuncAttrLinkName:
+			link = true
+		case *global.FuncAttrInline:
+			inline = stlval.Ptr(attr.Inline())
+		case *global.FuncAttrVararg:
+			vararg = true
+		}
+	}
+
+	ft := self.codegenFuncType(ftIr)
+	if vararg {
+		ft = self.builder.FunctionType(true, ft.ReturnType(), ft.Params()...)
+	}
+
+	f := self.builder.NewFunction(name, ft)
+	f.SetLinkage(stlval.Ternary(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
+	if !link {
+		f.SetDSOLocal(true)
+	}
+	if types.Is[types.NoReturnType](ftIr.Ret(), true) {
+		f.AddAttribute(llvm.FuncAttributeNoReturn)
+	}
+	if inline != nil {
+		f.AddAttribute(stlval.Ternary(*inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
+	}
+	return f
+}
+
+func (self *CodeGenerator) defFunc(f llvm.Function, params []*local.Param, body *local.Block) {
+	preBlock := self.builder.CurrentBlock()
+	defer func() {
+		self.builder.MoveToAfter(preBlock)
+	}()
+	self.builder.MoveToAfter(f.NewBlock(""))
+	for i, pIr := range params {
+		p := self.builder.CreateAlloca("", self.codegenType(pIr.Type()))
+		self.builder.CreateStore(f.Params()[i], p)
+		self.values.Set(pIr, p)
+	}
+
+	block, _ := self.codegenBlock(body, nil)
+	self.builder.CreateBr(block)
+}
+
+// 存储泛型参数映射
+func (self *CodeGenerator) storeGenericParamMap(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) hashmap.HashMap[types.VirtualType, hir.Type] {
+	for iter := genericParamMap.Iterator(); iter.Next(); {
+		genericParamMap.Set(iter.Value().E1(), types.ReplaceVirtualType(self.virtualTypes, iter.Value().E2()))
+	}
+	preMap := hashmap.AnyWithCap[types.VirtualType, hir.Type](genericParamMap.Length())
+	for _, kvs := range genericParamMap.KeyValues() {
+		preMap.Set(kvs.E1(), self.virtualTypes.Get(kvs.E1()))
+		self.virtualTypes.Set(kvs.E1(), kvs.E2())
+	}
+	return preMap
+}
+
+// 释放泛型参数映射
+func (self *CodeGenerator) releaseGenericParamMap(preMap hashmap.HashMap[types.VirtualType, hir.Type]) {
+	for _, kvs := range preMap.KeyValues() {
+		if kvs.E2() == nil {
+			self.virtualTypes.Remove(kvs.E1())
+		} else {
+			self.virtualTypes.Set(kvs.E1(), kvs.E2())
+		}
+	}
+}
+
+// 泛型函数/方法实例化
+func (self *CodeGenerator) instGenericFunc(def local.CallableDef, ir hir.Value) llvm.Function {
+	type genericArgsGetter interface {
+		GenericArgs() []hir.Type
+		GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type]
+	}
+	type attrsGetter interface {
+		Attrs() []global.FuncAttr
+	}
+
+	defer self.releaseGenericParamMap(self.storeGenericParamMap(ir.(genericArgsGetter).GenericParamMap()))
+
+	name := self.getIdentName(def.(values.Ident))
+	f, ok := self.builder.GetFunction(name)
+	if ok {
+		return f
+	}
+
+	var ft types.FuncType
+	ct := ir.Type().(types.CallableType)
+	if methodIr, ok := ir.(*local.MethodExpr); ok {
+		ft = types.NewFuncType(ct.Ret(), append([]hir.Type{methodIr.GetLeft().Type()}, ct.Params()...)...)
+	} else {
+		ft = ct.(types.FuncType)
+	}
+
+	f = self.declFunc(name, ft, def.(attrsGetter).Attrs()...)
+	self.defFunc(f, def.Params(), stlval.IgnoreWith(def.Body()))
+	return f
+}
+
 // CodegenIr 中间代码生成
 func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 	entryPkg, err := analyse.Analyse(path)
@@ -684,8 +788,8 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 		}
 	}
 
-	passOption := llvm.NewPassOption()
-	defer passOption.Free()
-	err = stlerr.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
+	// passOption := llvm.NewPassOption()
+	// defer passOption.Free()
+	// err = stlerr.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
 	return module, nil
 }

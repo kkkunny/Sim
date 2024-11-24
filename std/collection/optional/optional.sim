@@ -1,0 +1,29 @@
+pub type Optional<T> enum{
+	None,
+	Some: T
+}
+
+pub func none<T>()Optional::<T>{
+	return Optional::<T>.None
+}
+
+pub func some<T>(v: T)Optional::<T>{
+	return Optional::<T>.Some(v)
+}
+
+pub func (Optional) must_none(self: Self){
+	match self{
+	case None:
+	case Some(v):
+		panic("not is none")
+	}
+}
+
+pub func (Optional) must_some(self: Self)T{
+	match self{
+	case Some(v):
+		return v
+	case None:
+		return panic("not is some")
+	}
+}

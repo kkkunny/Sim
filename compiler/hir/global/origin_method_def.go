@@ -1,6 +1,10 @@
 package global
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
@@ -63,3 +67,14 @@ func (self *OriginMethodDef) SelfParamIsRef() bool {
 }
 
 func (self *OriginMethodDef) NotGlobalNamed() {}
+
+func (self *OriginMethodDef) TotalName(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) string {
+	name := fmt.Sprintf("%s::%s::%s", self.pkg, self.from, self.name)
+	if len(self.genericParams) == 0 {
+		return name
+	}
+	args := stlslices.Map(self.genericParams, func(_ int, arg types.GenericParamType) string {
+		return types.ReplaceVirtualType(genericParamMap, arg).String()
+	})
+	return fmt.Sprintf(":%s::<%s>", name, strings.Join(args, ","))
+}

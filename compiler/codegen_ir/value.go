@@ -47,10 +47,10 @@ func (self *CodeGenerator) codegenValue(ir hir.Value, load bool) llvm.Value {
 		return self.codegenTypeJudgment(ir)
 	case *local.LambdaExpr:
 		return self.codegenLambda(ir)
-	case *local.MethodExpr:
-		return self.codegenMethod(ir)
 	case *local.EnumExpr:
 		return self.codegenEnum(ir)
+	case *local.GenericFuncInstExpr:
+		return self.codegenGenericFuncInst(ir)
 	case *local.StaticMethodExpr:
 		return self.codegenStaticMethod(ir)
 	default:
@@ -205,6 +205,8 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return self.codegenExtract(ir, load)
 	case *local.FieldExpr:
 		return self.codegenField(ir, load)
+	case *local.MethodExpr:
+		return self.codegenMethod(ir)
 	default:
 		panic("unreachable")
 	}
@@ -244,6 +246,18 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 
 	switch identIr := ir.(type) {
 	case *global.FuncDef:
+		if !self.pkg.Equal(identIr.Package()) {
+			name := self.getIdentName(identIr)
+			f, ok := self.builder.GetFunction(name)
+			if ok {
+				return f
+			}
+			f = self.builder.NewFunction(name, self.codegenFuncType(identIr.CallableType().(types.FuncType)))
+			f.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
+			return f
+		}
+		return self.values.Get(identIr)
+	case global.MethodDef:
 		if !self.pkg.Equal(identIr.Package()) {
 			name := self.getIdentName(identIr)
 			f, ok := self.builder.GetFunction(name)
@@ -303,13 +317,24 @@ func (self *CodeGenerator) codegenFuncCall(ir *local.CallExpr) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenMethodCall(ir *local.CallExpr) llvm.Value {
-	methodIr, _ := ir.GetFunc().(*local.MethodExpr)
-	method := self.codegenValue(methodIr.Method(), true)
+	methodIr := ir.GetFunc().(*local.MethodExpr)
+
 	selfVal := self.codegenValue(methodIr.GetLeft(), true)
 	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr hir.Value) llvm.Value {
 		return self.codegenValue(argIr, true)
 	})
-	return self.builder.CreateCall("", self.codegenFuncType(methodIr.Method().CallableType().(types.FuncType)), method, append([]llvm.Value{selfVal}, args...)...)
+
+	var method llvm.Value
+	var ft llvm.FunctionType
+	if methodIr.GenericParamMap().Length() > 0 {
+		method = self.instGenericFunc(methodIr.Method().(global.MethodDef), methodIr)
+		ft = method.(llvm.Function).FunctionType()
+	} else {
+		method = self.codegenValue(methodIr.Method(), true)
+		ft = self.codegenFuncType(methodIr.Method().CallableType().(types.FuncType))
+	}
+
+	return self.builder.CreateCall("", ft, method, append([]llvm.Value{selfVal}, args...)...)
 }
 
 func (self *CodeGenerator) codegenLambdaCall(ir *local.CallExpr) llvm.Value {
@@ -403,6 +428,14 @@ func (self *CodeGenerator) codegenCovert(ir local.CovertExpr, load bool) llvm.Va
 		} else {
 			return from
 		}
+	case *local.Ref2UsizeExpr:
+		from := self.codegenValue(ir.GetFrom(), true)
+		tt := self.codegenType(ir.Type()).(llvm.IntegerType)
+		return self.builder.CreatePtrToInt("", from, tt)
+	case *local.Usize2RefExpr:
+		from := self.codegenValue(ir.GetFrom(), true)
+		tt := self.codegenType(ir.Type()).(llvm.PointerType)
+		return self.builder.CreateIntToPtr("", from, tt)
 	case *local.NoReturn2AnyExpr:
 		from := self.codegenValue(ir.GetFrom(), false)
 		self.builder.CreateUnreachable()
@@ -546,6 +579,13 @@ func (self *CodeGenerator) codegenLambda(ir *local.LambdaExpr) llvm.Value {
 }
 
 func (self *CodeGenerator) codegenMethod(ir *local.MethodExpr) llvm.Value {
+	var method llvm.Value
+	if ir.GenericParamMap().Length() > 0 {
+		method = self.instGenericFunc(ir.Method().(*global.OriginMethodDef), ir)
+	} else {
+		method = self.codegenIdent(ir.Method().(values.Ident), true)
+	}
+
 	lts := self.codegenLambdaType()
 	ft := self.codegenFuncType(ir.CallableType().ToFunc())
 	lt := self.builder.FunctionType(ft.IsVarArg(), ft.ReturnType(), append([]llvm.Type{self.builder.OpaquePointerType()}, ft.Params()...)...)
@@ -563,7 +603,6 @@ func (self *CodeGenerator) codegenMethod(ir *local.MethodExpr) llvm.Value {
 
 	preBlock := self.builder.CurrentBlock()
 	self.builder.MoveToAfter(f.NewBlock(""))
-	method := self.codegenIdent(ir.Method().(values.Ident), true)
 	selfVal := self.builder.CreateStructIndex(ctxType, f.GetParam(0), 0, false)
 	args := []llvm.Value{selfVal}
 	args = append(args, stlslices.Map(f.Params()[1:], func(i int, e llvm.Param) llvm.Value {
@@ -600,17 +639,14 @@ func (self *CodeGenerator) codegenEnum(ir *local.EnumExpr) llvm.Value {
 	return self.builder.CreateLoad("", ut, ptr)
 }
 
+func (self *CodeGenerator) codegenGenericFuncInst(ir *local.GenericFuncInstExpr) llvm.Value {
+	return self.instGenericFunc(ir.GetFunc().(*global.FuncDef), ir)
+}
+
 func (self *CodeGenerator) codegenStaticMethod(ir *local.StaticMethodExpr) llvm.Value {
-	method := ir.Method().(global.MethodDef)
-	if !self.pkg.Equal(method.Package()) {
-		name := self.getIdentName(method)
-		f, ok := self.builder.GetFunction(name)
-		if ok {
-			return f
-		}
-		f = self.builder.NewFunction(name, self.codegenFuncType(method.CallableType().(types.FuncType)))
-		f.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
-		return f
+	if ir.GenericParamMap().Length() == 0 {
+		return self.codegenIdent(ir.Method().(values.Ident), true)
 	}
-	return self.values.Get(method)
+
+	return self.instGenericFunc(ir.Method().(*global.OriginMethodDef), ir)
 }

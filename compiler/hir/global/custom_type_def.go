@@ -46,7 +46,7 @@ func (self *_CustomTypeDef_) String() string {
 }
 
 func (self *_CustomTypeDef_) Equal(dst hir.Type) bool {
-	return self == dst
+	return self.Hash() == dst.Hash()
 }
 
 func (self *_CustomTypeDef_) GetName() (string, bool) {

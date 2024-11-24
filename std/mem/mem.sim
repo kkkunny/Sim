@@ -1,0 +1,11 @@
+import std::c
+import std::unsafe::ptr
+
+pub func size<T>()usize{
+	return 8
+}
+
+pub func malloc<T>()ptr::Ptr::<T>{
+	let size = size::<T>()
+	return c::calloc(1, size as c::size_t).to::<T>()
+}
