@@ -3,9 +3,10 @@ package hir
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlhash "github.com/kkkunny/stl/hash"
 	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
+
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 type File struct {
@@ -32,7 +33,7 @@ func (self *File) Equal(dst *File) bool {
 }
 
 func (self *File) Hash() uint64 {
-	return stlhash.Hash(self.path)
+	return util.StringHashFunc(string(self.path))
 }
 
 func (self *File) Package() *Package {

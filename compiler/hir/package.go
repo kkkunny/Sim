@@ -7,10 +7,10 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/set"
-	stlhash "github.com/kkkunny/stl/hash"
 	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/config"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 type Package struct {
@@ -43,11 +43,11 @@ func (self *Package) Equal(dst *Package) bool {
 }
 
 func (self *Package) Hash() uint64 {
-	return stlhash.Hash(self.path)
+	return util.StringHashFunc(string(self.path))
 }
 
 func (self *Package) GetDependencyPackages() []*Package {
-	pkgs := set.StdHashSetWith[*Package]()
+	pkgs := set.AnyHashSetWith[*Package]()
 	for fileIter := self.files.Iterator(); fileIter.Next(); {
 		for pkgIter := fileIter.Value().externs.Iterator(); pkgIter.Next(); {
 			for _, pkg := range pkgIter.Value().E2() {

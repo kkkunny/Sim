@@ -729,7 +729,7 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 	}
 
 	var buildinPkgTaskID string
-	existPkgs := hashmap.StdWith[*hir.Package, string]()
+	existPkgs := hashmap.AnyWith[*hir.Package, string]()
 	pkgs := queue.New[*hir.Package](entryPkg)
 	dager := dag.NewDAG()
 	for !pkgs.Empty() {
