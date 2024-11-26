@@ -6,10 +6,9 @@ import (
 
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
-	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/set"
 	stlhash "github.com/kkkunny/stl/hash"
 	stlos "github.com/kkkunny/stl/os"
-	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/config"
 )
@@ -17,16 +16,16 @@ import (
 type Package struct {
 	path    stlos.FilePath
 	globals linkedlist.LinkedList[Global]
+	files   set.Set[*File]
 
-	externs hashmap.HashMap[string, []*Package]
-	idents  hashmap.HashMap[string, any]
+	idents hashmap.HashMap[string, any]
 }
 
 func NewPackage(path stlos.FilePath) *Package {
 	return &Package{
 		path:    path,
 		globals: linkedlist.NewLinkedList[Global](),
-		externs: hashmap.StdWith[string, []*Package](),
+		files:   set.AnyHashSetWith[*File](),
 		idents:  hashmap.StdWith[string, any](),
 	}
 }
@@ -40,40 +39,23 @@ func (self *Package) String() string {
 }
 
 func (self *Package) Equal(dst *Package) bool {
-	if self == dst {
-		return true
-	}
-	return *self == *dst
+	return self.path == dst.path
 }
 
 func (self *Package) Hash() uint64 {
 	return stlhash.Hash(self.path)
 }
 
-func (self *Package) SetExternPackage(name string, pkg *Package) {
-	self.externs.Set(name, []*Package{pkg})
-}
-
-func (self *Package) GetExternPackage(name string) (*Package, bool) {
-	if len(name) == 0 {
-		return nil, false
-	}
-	pkg := stlslices.Last(self.externs.Get(name))
-	return pkg, pkg != nil
-}
-
-func (self *Package) AddLinkedPackage(pkg *Package) {
-	self.externs.Set("", append(self.GetLinkedPackages(), pkg))
-}
-
-func (self *Package) GetLinkedPackages() []*Package {
-	return self.externs.Get("")
-}
-
 func (self *Package) GetDependencyPackages() []*Package {
-	return stlslices.FlatMap(self.externs.Values(), func(_ int, pkgs []*Package) []*Package {
-		return pkgs
-	})
+	pkgs := set.StdHashSetWith[*Package]()
+	for fileIter := self.files.Iterator(); fileIter.Next(); {
+		for pkgIter := fileIter.Value().externs.Iterator(); pkgIter.Next(); {
+			for _, pkg := range pkgIter.Value().E2() {
+				pkgs.Add(pkg)
+			}
+		}
+	}
+	return pkgs.ToSlice()
 }
 
 func (self *Package) SetIdent(name string, ident any) bool {
@@ -84,41 +66,13 @@ func (self *Package) SetIdent(name string, ident any) bool {
 	return true
 }
 
-func (self *Package) GetIdent(name string, allowLinkedPkgs ...bool) (any, bool) {
-	isAllowLinkedPkgs := stlslices.Last(allowLinkedPkgs)
+func (self *Package) GetIdent(name string, _ ...bool) (any, bool) {
 	ident := self.idents.Get(name)
-	if ident != nil {
-		return ident, true
-	}
-	if isAllowLinkedPkgs {
-		for _, pkg := range self.GetLinkedPackages() {
-			ident, ok := pkg.GetIdent(name, false)
-			if ok {
-				return ident, true
-			}
-		}
-	}
-	return nil, false
+	return ident, ident != nil
 }
 
-type named interface {
-	GetName() (string, bool)
-}
-
-type notGlobalNamed interface {
-	NotGlobalNamed()
-}
-
-func (self *Package) AppendGlobal(pub bool, g Global) Global {
-	g.SetPackage(self)
-	g.SetPublic(pub)
-	self.globals.PushBack(g)
-	if namedGlobal, ok := g.(named); ok && !stlval.Is[notGlobalNamed](namedGlobal) {
-		if name, ok := namedGlobal.GetName(); ok {
-			self.idents.Set(name, g)
-		}
-	}
-	return g
+func (self *Package) AddFile(file *File) {
+	self.files.Add(file)
 }
 
 // IsIn 是否处于目标包下
@@ -141,4 +95,8 @@ func (self *Package) Path() stlos.FilePath {
 
 func (self *Package) Globals() linkedlist.LinkedList[Global] {
 	return self.globals
+}
+
+func (self *Package) Package() *Package {
+	return self
 }

@@ -33,7 +33,7 @@ func (self *GenericCustomTypeMethodDef) SetBody(b *local.Block) {
 }
 
 func (self *GenericCustomTypeMethodDef) TotalName(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) string {
-	name := fmt.Sprintf("%s::%s::%s", self.pkg, self.from.TotalName(genericParamMap), self.name)
+	name := fmt.Sprintf("%s::%s::%s", self.Package(), self.from.TotalName(genericParamMap), self.name)
 	if len(self.genericParams) == 0 {
 		return name
 	}

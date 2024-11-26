@@ -85,6 +85,10 @@ func (self *Block) PushBack(l hir.Local) *Block {
 	return self
 }
 
+func (self *Block) Package() *hir.Package {
+	return self.CallableDef().Parent().Package()
+}
+
 func (self *Block) SetIdent(name string, ident any) bool {
 	self.idents.Set(name, ident)
 	return true

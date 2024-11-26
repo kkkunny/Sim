@@ -658,7 +658,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *local.StructExpr {
 	existedFields := make(map[string]hir.Value)
 	for _, fieldNode := range node.Fields {
 		fn := fieldNode.E1().Source()
-		if !st.Fields().Contain(fn) || (!self.pkg.Equal(td.Package()) && !st.Fields().Get(fn).Public()) {
+		if !st.Fields().Contain(fn) || (!self.scope.Package().Equal(td.Package()) && !st.Fields().Get(fn).Public()) {
 			errors.ThrowUnknownIdentifierError(fieldNode.E1().Position, fieldNode.E1())
 		}
 		existedFields[fn] = self.expectExpr(st.Fields().Get(fn).Type(), fieldNode.E2())
@@ -687,7 +687,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 				if ctd, ok := types.As[global.CustomTypeDef](identType, true); ok {
 					// 静态方法
 					method, ok := ctd.GetMethod(fieldName)
-					if ok && (method.Public() || self.pkg.Equal(method.Package())) {
+					if ok && (method.Public() || self.scope.Package().Equal(method.Package())) {
 						return self.analyseStaticMethod(node, ctd, method)
 					}
 				}
@@ -737,7 +737,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 		panic("unreachable")
 	}
 
-	if field := fromSt.Fields().Get(fieldName); !fromSt.Fields().Contain(fieldName) || (!field.Public() && !self.pkg.Equal(fromTd.Package())) {
+	if field := fromSt.Fields().Get(fieldName); !fromSt.Fields().Contain(fieldName) || (!field.Public() && !self.scope.Package().Equal(fromTd.Package())) {
 		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 	}
 	return local.NewFieldExpr(fromStVal, fieldName)
@@ -765,7 +765,7 @@ func (self *Analyser) analyseMethod(must bool, node *ast.Dot) (values.Callable, 
 	}
 
 	method, ok := fromCtd.GetMethod(fieldName)
-	if !ok || (!method.Public() && !self.pkg.Equal(method.Package())) {
+	if !ok || (!method.Public() && !self.scope.Package().Equal(method.Package())) {
 		if must {
 			errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
 		}

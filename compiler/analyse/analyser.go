@@ -21,14 +21,16 @@ import (
 type Analyser struct {
 	importStack stack.Stack[*hir.Package]                     // 包的依赖链，从main包开始，不包括当前包
 	allPkgs     hashmap.HashMap[stlos.FilePath, *hir.Package] // main包的所有依赖包
-	pkg         *hir.Package
-	scope       local.Scope // 当前所处作用域
+	allFiles    hashmap.HashMap[stlos.FilePath, *hir.File]    // 文件路径与文件作用域映射
+	pkg         *hir.Package                                  // 当前包
+	scope       local.Scope                                   // 当前所处作用域
 }
 
 func New(path stlos.FilePath) *Analyser {
 	return &Analyser{
 		importStack: stack.New[*hir.Package](),
 		allPkgs:     hashmap.StdWith[stlos.FilePath, *hir.Package](),
+		allFiles:    hashmap.StdWith[stlos.FilePath, *hir.File](),
 		pkg:         hir.NewPackage(path),
 	}
 }
@@ -37,36 +39,106 @@ func newSon(parent *Analyser, pkg *hir.Package) *Analyser {
 	return &Analyser{
 		importStack: parent.importStack,
 		allPkgs:     parent.allPkgs,
+		allFiles:    parent.allFiles,
 		pkg:         pkg,
 	}
 }
 
-func (self *Analyser) Analyse(asts linkedlist.LinkedList[ast.Global]) *hir.Package {
-	// 包导入
-	self.analyseSonPackage(asts)
+func (self *Analyser) Analyse(astsList ...linkedlist.LinkedList[ast.Global]) *hir.Package {
+	if len(astsList) == 0 {
+		return self.pkg
+	}
 
-	// 设置当前作用域
 	self.scope = self.pkg
+	if self.allPkgs.Contain(self.pkg.Path()) {
+		self.allPkgs.Set(self.pkg.Path(), self.pkg)
+	}
+
+	// 包导入
+	for _, asts := range astsList {
+		self.analyseDepPackage(asts)
+	}
 
 	// 类型声明
-	self.analyseTypeDecl(asts)
+	for _, asts := range astsList {
+		self.analyseFileTypeDecl(asts)
+	}
 
 	// 类型定义
-	self.analyseTypeDef(asts)
+	for _, asts := range astsList {
+		self.analyseFileTypeDef(asts)
+	}
 
 	// 值声明
-	self.analyseValueDecl(asts)
+	for _, asts := range astsList {
+		self.analyseFileValueDecl(asts)
+	}
 
 	// 值定义
-	self.analyseValueDef(asts)
+	for _, asts := range astsList {
+		self.analyseFileValueDef(asts)
+	}
 
 	return self.pkg
 }
 
-// 类型声明
-func (self *Analyser) analyseSonPackage(asts linkedlist.LinkedList[ast.Global]) {
-	if !self.pkg.IsBuildIn() {
-		self.importPackage(config.BuildInPkgPath, "", true)
+func (self *Analyser) analyseFileTypeDecl(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	self.scope = self.getFileByPath(asts.Front().Position())
+
+	// 类型声明
+	self.analyseTypeDecl(asts)
+}
+
+func (self *Analyser) analyseFileTypeDef(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	self.scope = self.getFileByPath(asts.Front().Position())
+
+	// 类型定义
+	self.analyseTypeDef(asts)
+}
+
+func (self *Analyser) analyseFileValueDecl(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	self.scope = self.getFileByPath(asts.Front().Position())
+
+	// 值声明
+	self.analyseValueDecl(asts)
+}
+
+func (self *Analyser) analyseFileValueDef(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	self.scope = self.getFileByPath(asts.Front().Position())
+
+	// 值定义
+	self.analyseValueDef(asts)
+}
+
+// 依赖包
+func (self *Analyser) analyseDepPackage(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	filePath := asts.Front().Position().Reader.Path()
+	file := hir.NewFile(filePath, self.pkg)
+	self.allFiles.Set(filePath, file)
+	self.pkg.AddFile(file)
+
+	if !self.getFileByPath(asts.Front().Position()).Package().IsBuildIn() {
+		_, _ = self.importPackage(asts.Front().Position(), config.BuildInPkgPath, "", true)
 	}
 	for iter := asts.Iterator(); iter.Next(); {
 		switch node := iter.Value().(type) {

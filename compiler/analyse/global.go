@@ -38,7 +38,7 @@ func (self *Analyser) analyseImport(node *ast.Import) *hir.Package {
 	pkgPath := config.OfficialPkgPath.Join(paths...)
 
 	// 导入包
-	pkg, err := self.importPackage(pkgPath, pkgName, importAll)
+	pkg, err := self.importPackage(node.Position(), pkgPath, pkgName, importAll)
 	if err != nil {
 		switch e := err.(type) {
 		case *importPackageCircularError:
@@ -58,16 +58,16 @@ func (self *Analyser) analyseImport(node *ast.Import) *hir.Package {
 
 func (self *Analyser) declTrait(node *ast.Trait) *global.Trait {
 	name := node.Name.Source()
-	_, exist := self.pkg.GetIdent(name)
+	_, exist := self.scope.GetIdent(name)
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
-	return self.pkg.AppendGlobal(node.Public, global.NewTrait(name)).(*global.Trait)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewTrait(name)).(*global.Trait)
 }
 
 func (self *Analyser) declTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 	name := node.Name.Source()
-	_, exist := self.pkg.GetIdent(name)
+	_, exist := self.scope.GetIdent(name)
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
@@ -84,20 +84,20 @@ func (self *Analyser) declTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 		}
 	}
 
-	return self.pkg.AppendGlobal(node.Public, global.NewCustomTypeDef(name, genericParams.Values(), types.NoThing)).(global.CustomTypeDef)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewCustomTypeDef(name, genericParams.Values(), types.NoThing)).(global.CustomTypeDef)
 }
 
 func (self *Analyser) declTypeAlias(node *ast.TypeAlias) global.AliasTypeDef {
 	name := node.Name.Source()
-	_, exist := self.pkg.GetIdent(name)
+	_, exist := self.scope.GetIdent(name)
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
-	return self.pkg.AppendGlobal(node.Public, global.NewAliasTypeDef(name, types.NoThing)).(global.AliasTypeDef)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewAliasTypeDef(name, types.NoThing)).(global.AliasTypeDef)
 }
 
 func (self *Analyser) defTrait(node *ast.Trait) *global.Trait {
-	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Name.Source())).(*global.Trait)
+	decl := stlval.IgnoreWith(self.scope.GetIdent(node.Name.Source())).(*global.Trait)
 
 	for _, methodNode := range node.Methods {
 		method := self.analyseFuncDecl(*methodNode, self.selfTypeAnalyser(true))
@@ -109,7 +109,7 @@ func (self *Analyser) defTrait(node *ast.Trait) *global.Trait {
 }
 
 func (self *Analyser) defTypeDef(node *ast.TypeDef) global.CustomTypeDef {
-	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Name.Source())).(global.CustomTypeDef)
+	decl := stlval.IgnoreWith(self.scope.GetIdent(node.Name.Source())).(global.CustomTypeDef)
 	fnDeclCompileParamAnalyser := stlslices.Map(decl.GenericParams(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
 		return self.genericParamAnalyserWith(compileParam, true)
 	})
@@ -118,14 +118,14 @@ func (self *Analyser) defTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 }
 
 func (self *Analyser) defTypeAlias(node *ast.TypeAlias) global.AliasTypeDef {
-	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Name.Source())).(global.AliasTypeDef)
+	decl := stlval.IgnoreWith(self.scope.GetIdent(node.Name.Source())).(global.AliasTypeDef)
 	decl.SetTarget(self.analyseType(node.Target))
 	return decl
 }
 
 func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 	name := node.Name.Source()
-	_, exist := self.pkg.GetIdent(name, false)
+	_, exist := self.scope.GetIdent(name, false)
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
@@ -174,11 +174,11 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 			errors.ThrowTypeMismatchError(node.Position(), f.Type(), mainType)
 		}
 	}
-	return self.pkg.AppendGlobal(node.Public, f).(*global.FuncDef)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, f).(*global.FuncDef)
 }
 
 func (self *Analyser) declMethodDef(node *ast.FuncDef) global.MethodDef {
-	customTypeObj, ok := self.pkg.GetIdent(node.SelfType.MustValue().Source(), false)
+	customTypeObj, ok := self.scope.GetIdent(node.SelfType.MustValue().Source(), false)
 	if !ok || !stlval.Is[global.CustomTypeDef](customTypeObj) {
 		errors.ThrowUnknownIdentifierError(node.SelfType.MustValue().Position, node.SelfType.MustValue())
 	}
@@ -251,12 +251,12 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) global.MethodDef {
 		errors.ThrowIdentifierDuplicationError(node.Position(), node.Name)
 	}
 
-	return self.pkg.AppendGlobal(node.Public, f).(global.MethodDef)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, f).(global.MethodDef)
 }
 
 func (self *Analyser) declSingleGlobalVariable(node *ast.SingleVariableDef) *global.VarDef {
 	name := node.Var.Name.Source()
-	_, exist := self.pkg.GetIdent(name, false)
+	_, exist := self.scope.GetIdent(name, false)
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
@@ -274,7 +274,7 @@ func (self *Analyser) declSingleGlobalVariable(node *ast.SingleVariableDef) *glo
 	}
 
 	v := global.NewVarDef(node.Var.Mutable, name, self.analyseType(node.Var.Type.MustValue()), attrs...)
-	return self.pkg.AppendGlobal(node.Public, v).(*global.VarDef)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, v).(*global.VarDef)
 }
 
 func (self *Analyser) declMultiGlobalVariable(node *ast.MultipleVariableDef) []*global.VarDef {
@@ -284,7 +284,7 @@ func (self *Analyser) declMultiGlobalVariable(node *ast.MultipleVariableDef) []*
 }
 
 func (self *Analyser) defFuncDef(node *ast.FuncDef) *global.FuncDef {
-	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Name.Source())).(*global.FuncDef)
+	decl := stlval.IgnoreWith(self.scope.GetIdent(node.Name.Source())).(*global.FuncDef)
 	if node.Body.IsNone() {
 		return decl
 	}
@@ -294,7 +294,7 @@ func (self *Analyser) defFuncDef(node *ast.FuncDef) *global.FuncDef {
 }
 
 func (self *Analyser) defMethodDef(node *ast.FuncDef) global.MethodDef {
-	ct := stlval.IgnoreWith(self.pkg.GetIdent(node.SelfType.MustValue().Source(), false)).(global.CustomTypeDef)
+	ct := stlval.IgnoreWith(self.scope.GetIdent(node.SelfType.MustValue().Source(), false)).(global.CustomTypeDef)
 	decl := stlval.IgnoreWith(ct.GetMethod(node.Name.Source())).(*global.OriginMethodDef)
 	if node.Body.IsNone() {
 		return decl
@@ -305,7 +305,7 @@ func (self *Analyser) defMethodDef(node *ast.FuncDef) global.MethodDef {
 }
 
 func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *global.VarDef {
-	decl := stlval.IgnoreWith(self.pkg.GetIdent(node.Var.Name.Source())).(*global.VarDef)
+	decl := stlval.IgnoreWith(self.scope.GetIdent(node.Var.Name.Source())).(*global.VarDef)
 
 	var linkname = ""
 	for _, attr := range decl.Attrs() {
@@ -325,7 +325,7 @@ func (self *Analyser) defSingleGlobalVariable(node *ast.SingleVariableDef) *glob
 
 func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) []*global.VarDef {
 	decls := stlslices.Map(node.Vars, func(_ int, item ast.VarDef) *global.VarDef {
-		return stlval.IgnoreWith(self.pkg.GetIdent(item.Name.Source())).(*global.VarDef)
+		return stlval.IgnoreWith(self.scope.GetIdent(item.Name.Source())).(*global.VarDef)
 	})
 	varTypes := stlslices.Map(decls, func(_ int, decl *global.VarDef) hir.Type {
 		return decl.Type()

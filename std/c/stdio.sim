@@ -1,4 +1,4 @@
-// import std::unsafe::ptr
+import std::unsafe::ptr
 
 @extern("printf")
 @var_arg

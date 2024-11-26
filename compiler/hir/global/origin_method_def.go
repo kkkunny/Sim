@@ -79,7 +79,7 @@ func (self *OriginMethodDef) SelfParamIsRef() bool {
 func (self *OriginMethodDef) NotGlobalNamed() {}
 
 func (self *OriginMethodDef) TotalName(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) string {
-	name := fmt.Sprintf("%s::%s::%s", self.pkg, self.from, self.name)
+	name := fmt.Sprintf("%s::%s::%s", self.Package(), self.from, self.name)
 	if len(self.genericParams) == 0 {
 		return name
 	}

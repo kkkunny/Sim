@@ -1,8 +1,9 @@
 package hir
 
 type Global interface {
+	File() *File
 	Package() *Package
-	SetPackage(pkg *Package)
+	SetFile(file *File)
 	Public() bool
 	SetPublic(pub bool)
 }

@@ -8,6 +8,7 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/config"
 	errors "github.com/kkkunny/Sim/compiler/error"
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/global"
@@ -15,6 +16,16 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/reader"
 )
+
+// 当前文件作用域
+func (self *Analyser) getFileByPath(pos reader.Position) *hir.File {
+	return self.allFiles.Get(pos.Reader.Path())
+}
+
+// buildin包
+func (self *Analyser) buildinPkg() *hir.Package {
+	return self.allPkgs.Get(config.BuildInPkgPath)
+}
 
 func (self *Analyser) analyseParam(node ast.Param, analysers ...typeAnalyser) *local.Param {
 	mut := !node.Mutable.IsNone()
@@ -94,15 +105,6 @@ func (self *Analyser) checkTypeCircle(trace set.Set[hir.Type], t hir.Type) bool 
 	}
 }
 
-func (self *Analyser) buildinPkg() *hir.Package {
-	if self.pkg.IsBuildIn() {
-		return self.pkg
-	}
-	return stlval.IgnoreWith(stlslices.FindFirst(self.pkg.GetLinkedPackages(), func(_ int, pkg *hir.Package) bool {
-		return pkg.IsBuildIn()
-	}))
-}
-
 // 类型是否有默认值
 func (self *Analyser) hasTypeDefault(typ hir.Type) bool {
 	switch t := typ.(type) {
@@ -145,7 +147,7 @@ func (self *Analyser) hasTypeDefault(typ hir.Type) bool {
 func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnalyser) (res either.Either[hir.Type, hir.Value], ok bool) {
 	scope := self.scope
 	if pkgToken, ok := node.Pkg.Value(); ok {
-		scope, ok = self.pkg.GetExternPackage(pkgToken.Source())
+		scope, ok = self.getFileByPath(node.Position()).GetExternPackage(pkgToken.Source())
 		if !ok {
 			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
 		}
@@ -154,7 +156,7 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 	name := node.Name.Source()
 	defer func() {
 		if !ok {
-			if self.pkg.IsBuildIn() {
+			if self.scope.Package().IsBuildIn() {
 				var buildinType hir.Type
 				switch name {
 				case "__buildin_isize":
@@ -203,7 +205,7 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 	}
 	// TODO: 全局语句公开性
-	if g, ok := identObj.(hir.Global); ok && !g.Package().Equal(self.pkg) && !g.Public() {
+	if g, ok := identObj.(hir.Global); ok && !g.Package().Equal(self.scope.Package()) && !g.Public() {
 		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 	}
 

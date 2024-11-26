@@ -200,34 +200,38 @@ func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
 }
 
 // 语法解析目标目录
-func parseDir(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
+func parseDir(path stlos.FilePath) ([]linkedlist.LinkedList[ast.Global], error) {
 	entries, err := stlerror.ErrorWith(os.ReadDir(string(path)))
 	if err != nil {
-		return linkedlist.LinkedList[ast.Global]{}, err
+		return nil, err
 	}
-	var asts linkedlist.LinkedList[ast.Global]
+	var astsList []linkedlist.LinkedList[ast.Global]
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sim" {
 			continue
 		}
 		fileAst, err := parseFile(path.Join(entry.Name()))
 		if err != nil {
-			return linkedlist.LinkedList[ast.Global]{}, err
+			return nil, err
 		}
-		asts.Append(fileAst)
+		astsList = append(astsList, fileAst)
 	}
-	return asts, nil
+	return astsList, nil
 }
 
 // Parse 语法解析
-func Parse(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
+func Parse(path stlos.FilePath) ([]linkedlist.LinkedList[ast.Global], error) {
 	fs, err := stlerror.ErrorWith(os.Stat(string(path)))
 	if err != nil {
-		return linkedlist.LinkedList[ast.Global]{}, err
+		return nil, err
 	}
 	if fs.IsDir() {
 		return parseDir(path)
 	} else {
-		return parseFile(path)
+		asts, err := parseFile(path)
+		if err != nil {
+			return nil, err
+		}
+		return []linkedlist.LinkedList[ast.Global]{asts}, nil
 	}
 }

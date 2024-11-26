@@ -775,7 +775,7 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 		resList, err = stlerr.ErrorWith(dager.DescendantsFlow(buildinPkgTaskID, nil, func(d *dag.DAG, id string, depResults []dag.FlowResult) (interface{}, error) {
 			_, err := stlslices.MapError(depResults, func(_ int, res dag.FlowResult) (any, error) {
 				if res.Error != nil {
-					return nil, res.Error
+					return nil, stlerr.ErrorWrap(res.Error)
 				}
 				return nil, nil
 			})
@@ -796,7 +796,7 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 		if err == nil {
 			_, err = stlslices.MapError(resList, func(_ int, res dag.FlowResult) (any, error) {
 				if res.Error != nil {
-					return nil, res.Error
+					return nil, stlerr.ErrorWrap(res.Error)
 				}
 				return nil, nil
 			})
@@ -820,7 +820,7 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 		}
 	}
 
-	err = module.Verify()
+	err = stlerr.ErrorWrap(module.Verify())
 	if err != nil {
 		return llvm.Module{}, err
 	}

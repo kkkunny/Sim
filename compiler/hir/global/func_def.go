@@ -54,11 +54,11 @@ func (self *FuncDef) Storable() bool {
 }
 
 func (self *FuncDef) Parent() local.Scope {
-	return self.pkg
+	return self.file
 }
 
 func (self *FuncDef) TotalName(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) string {
-	name := fmt.Sprintf("%s::%s", self.pkg, self.name)
+	name := fmt.Sprintf("%s::%s", self.Package(), self.name)
 	if len(self.genericParams) == 0 {
 		return name
 	}

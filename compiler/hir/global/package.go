@@ -3,16 +3,20 @@ package global
 import "github.com/kkkunny/Sim/compiler/hir"
 
 type pkgGlobalAttr struct {
-	pkg *hir.Package
-	pub bool
+	file *hir.File
+	pub  bool
+}
+
+func (self pkgGlobalAttr) File() *hir.File {
+	return self.file
 }
 
 func (self pkgGlobalAttr) Package() *hir.Package {
-	return self.pkg
+	return self.file.Package()
 }
 
-func (self *pkgGlobalAttr) SetPackage(pkg *hir.Package) {
-	self.pkg = pkg
+func (self *pkgGlobalAttr) SetFile(file *hir.File) {
+	self.file = file
 }
 
 func (self pkgGlobalAttr) Public() bool {

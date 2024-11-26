@@ -39,10 +39,10 @@ func NewCustomTypeDef(name string, compileParams []types.GenericParamType, targe
 }
 
 func (self *_CustomTypeDef_) String() string {
-	if self.pkg.IsBuildIn() {
+	if self.Package().IsBuildIn() {
 		return self.name
 	}
-	return fmt.Sprintf("%s::%s", self.pkg.String(), self.name)
+	return fmt.Sprintf("%s::%s", self.Package().String(), self.name)
 }
 
 func (self *_CustomTypeDef_) Equal(dst hir.Type) bool {

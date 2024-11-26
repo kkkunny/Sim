@@ -10,6 +10,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/parse"
+	"github.com/kkkunny/Sim/compiler/reader"
 )
 
 type importPackageError interface {
@@ -48,22 +49,23 @@ func (err *importPackageInvalidError) Error() string {
 func (err *importPackageInvalidError) importPackage() {}
 
 // importPackage 导入包
-func (self *Analyser) importPackage(pkgPath stlos.FilePath, name string, importAll bool) (dstPkg *hir.Package, err importPackageError) {
+func (self *Analyser) importPackage(pos reader.Position, pkgPath stlos.FilePath, name string, importAll bool) (dstPkg *hir.Package, err importPackageError) {
 	name = stlval.Ternary(name != "", name, pkgPath.Base())
 
+	curFile := self.getFileByPath(pos)
 	defer func() {
 		if err != nil {
 			return
 		}
 		if importAll {
-			self.pkg.AddLinkedPackage(dstPkg)
+			curFile.AddLinkedPackage(dstPkg)
 		} else {
-			self.pkg.SetExternPackage(name, dstPkg)
+			curFile.SetExternPackage(name, dstPkg)
 		}
 	}()
 
 	// 检查包名冲突
-	if !importAll && tuple.Pack2(self.pkg.GetExternPackage(name)).E2() {
+	if !importAll && tuple.Pack2(curFile.GetExternPackage(name)).E2() {
 		return nil, &importPackageDuplicationError{name: name}
 	}
 
@@ -92,7 +94,7 @@ func (self *Analyser) importPackage(pkgPath stlos.FilePath, name string, importA
 
 	// 分析包
 	self.allPkgs.Set(dstPkg.Path(), dstPkg)
-	self.importStack.Push(self.pkg)
+	self.importStack.Push(self.getFileByPath(pos).Package())
 	defer func() {
 		self.importStack.Pop()
 	}()
@@ -105,21 +107,21 @@ func (self *Analyser) importPackage(pkgPath stlos.FilePath, name string, importA
 
 // Analyse 语义分析
 func Analyse(path stlos.FilePath) (*hir.Package, error) {
-	asts, err := parse.Parse(path)
+	astsList, err := parse.Parse(path)
 	if err != nil {
 		return nil, err
 	}
-	return New(path).Analyse(asts), nil
+	return New(path).Analyse(astsList...), nil
 }
 
 // 语义分析子包
 func analyseSonPackage(parent *Analyser, pkg *hir.Package) (bool, error) {
-	asts, err := parse.Parse(pkg.Path())
+	astsList, err := parse.Parse(pkg.Path())
 	if err != nil {
 		return false, err
-	} else if asts.Empty() {
+	} else if len(astsList) == 0 {
 		return true, nil
 	}
-	newSon(parent, pkg).Analyse(asts)
+	newSon(parent, pkg).Analyse(astsList...)
 	return false, nil
 }

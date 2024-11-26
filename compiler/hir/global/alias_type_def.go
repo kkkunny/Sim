@@ -27,10 +27,10 @@ func NewAliasTypeDef(name string, target hir.Type) AliasTypeDef {
 }
 
 func (self *_AliasTypeDef_) String() string {
-	if self.pkg.IsBuildIn() {
+	if self.Package().IsBuildIn() {
 		return self.name
 	}
-	return fmt.Sprintf("%s::%s", self.pkg.String(), self.name)
+	return fmt.Sprintf("%s::%s", self.Package().String(), self.name)
 }
 
 func (self *_AliasTypeDef_) Equal(dst hir.Type) bool {
