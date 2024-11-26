@@ -20,5 +20,5 @@ func (self *Builder) ConstString(v string) llvm.Constant {
 		})
 		self.stringMap.Set(v, dataPtr)
 	}
-	return self.ConstStruct(false, self.stringMap.Get(v), self.ConstIsize(int64(len(v))))
+	return self.ConstNamedStruct(self.Str(), self.stringMap.Get(v), self.ConstIsize(int64(len(v))))
 }

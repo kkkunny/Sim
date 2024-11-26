@@ -1,8 +1,11 @@
-import std::collection::vec
-import std::io
+import std::os
 
 func main(){
-	let vs = vec::new::<usize>()
-	vs.set(0, 6)
-	io::printf::<usize>("hello world %lld\n", vs.get(0).must_some())
+	let a: u32 = 1
+	let b = a + 1
+	let c = b - 1
+	let d = c * 4
+	let e = d / 2
+	let f = e % 2
+	os::exit(f as u8)
 }

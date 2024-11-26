@@ -15,10 +15,7 @@ func (self *CodeGenerator) codegenType(ir hir.Type) llvm.Type {
 	case types.GenericCustomType:
 		return self.codegenGenericCustomType(ir)
 	case types.CustomType:
-		if t := self.builder.GetTypeByName(ir.String()); t != nil {
-			return *t
-		}
-		return self.codegenType(ir.Target())
+		return self.codegenCustomType(ir)
 	case types.AliasType:
 		return self.codegenType(ir.Target())
 	case types.IntType:
@@ -133,6 +130,26 @@ func (self *CodeGenerator) codegenEnumType(ir types.EnumType) llvm.Type {
 		}
 	}
 	return self.builder.StructType(false, maxSizeType, self.builder.I8())
+}
+
+func (self *CodeGenerator) codegenCustomType(ir types.CustomType) llvm.Type {
+	if !self.typeIsStruct(ir.Target()) {
+		return self.codegenType(ir.Target())
+	}
+
+	stPtr := self.builder.GetTypeByName(ir.String())
+	if stPtr != nil {
+		return *stPtr
+	}
+	st := self.builder.NamedStructType(ir.String(), false)
+
+	target := self.codegenType(ir.Target())
+	if tt, ok := target.(llvm.StructType); ok {
+		st.SetElems(false, tt.Elems()...)
+	} else {
+		st.SetElems(true, target)
+	}
+	return st
 }
 
 func (self *CodeGenerator) codegenGenericCustomType(ir types.GenericCustomType) llvm.Type {

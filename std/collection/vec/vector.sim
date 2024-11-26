@@ -30,15 +30,13 @@ pub func (Vec) set(mut self: &mut Self, i: usize, v: T){
 }
 
 pub func (Vec) get(self: Self, i: usize)optional::Optional::<&T>{
-	// if i >= self.len{
-	// 	return optional::none::<&T>()
-	// }
-	let p = self.data.index(i) as usize as &T
-	return optional::some::<&T>(p)
-	// match self.data.index(i).mut_ref(){
-	// case Some(ref):
-	// 	return *ref
-	// other:
-	// 	return panic("not is some")
-	// }
+	if i >= self.len{
+		return optional::none::<&T>()
+	}
+	match self.data.index(i).mut_ref(){
+	case Some(ref):
+		return optional::some::<&T>(ref)
+	other:
+		return optional::none::<&T>()
+	}
 }

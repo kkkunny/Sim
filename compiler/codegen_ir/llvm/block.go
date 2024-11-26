@@ -67,3 +67,16 @@ func (self *Builder) CreatePackArray(t llvm.ArrayType, elems ...llvm.Value) llvm
 	}
 	return self.CreateLoad("", t, ptr)
 }
+
+func (b Builder) CreateSwitch(v llvm.Value, defaultBlock llvm.Block, conds ...struct {
+	Value llvm.Value
+	Block llvm.Block
+}) llvm.Switch {
+	conds = stlslices.Filter(conds, func(_ int, cond struct {
+		Value llvm.Value
+		Block llvm.Block
+	}) bool {
+		return cond.Block != defaultBlock
+	})
+	return b.Builder.CreateSwitch(v, defaultBlock, conds...)
+}

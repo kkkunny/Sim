@@ -252,7 +252,7 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 			if ok {
 				return f
 			}
-			f = self.builder.NewFunction(name, self.codegenFuncType(identIr.CallableType().(types.FuncType)))
+			f = self.declFunc(name, identIr.CallableType().(types.FuncType), identIr.Attrs()...)
 			f.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
 			return f
 		}
@@ -264,7 +264,7 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 			if ok {
 				return f
 			}
-			f = self.builder.NewFunction(name, self.codegenFuncType(identIr.CallableType().(types.FuncType)))
+			f = self.declFunc(name, identIr.CallableType().(types.FuncType), identIr.Attrs()...)
 			f.SetLinkage(llvm.LinkOnceODRAutoHideLinkage)
 			return f
 		}
@@ -313,7 +313,16 @@ func (self *CodeGenerator) codegenFuncCall(ir *local.CallExpr) llvm.Value {
 	args := stlslices.Map(ir.GetArgs(), func(_ int, argIr hir.Value) llvm.Value {
 		return self.codegenValue(argIr, true)
 	})
-	return self.builder.CreateCall("", self.codegenFuncType(fIr.Type().(types.FuncType)), f, args...)
+	ft := self.codegenFuncType(fIr.Type().(types.FuncType))
+	if fdefIr, ok := fIr.(*global.FuncDef); ok {
+		vararg := stlslices.Exist(fdefIr.Attrs(), func(_ int, attr global.FuncAttr) bool {
+			return stlval.Is[*global.FuncAttrVararg](attr)
+		})
+		if vararg {
+			ft = self.builder.FunctionType(true, ft.ReturnType(), ft.Params()...)
+		}
+	}
+	return self.builder.CreateCall("", ft, f, args...)
 }
 
 func (self *CodeGenerator) codegenMethodCall(ir *local.CallExpr) llvm.Value {
@@ -522,6 +531,7 @@ func (self *CodeGenerator) codegenLambda(ir *local.LambdaExpr) llvm.Value {
 	isSimpleFunc := len(ir.Context()) == 0
 	vft := stlval.Ternary(isSimpleFunc, ft, lt)
 	f := self.builder.NewFunction("", vft)
+	defer self.removeUnreachableInst(f)
 	if types.Is[types.NoReturnType](ir.CallableType().Ret()) {
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}

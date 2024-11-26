@@ -232,7 +232,7 @@ func (self *CodeGenerator) buildCheckZero(v llvm.Value) {
 }
 
 func (self *CodeGenerator) buildPanic(s string) {
-	fn := self.builder.GetExternFunction("sim_runtime_panic", self.builder.FunctionType(false, self.builder.VoidType(), self.builder.OpaquePointerType()))
+	fn := self.builder.GetExternFunction("sim_runtime_panic", self.builder.FunctionType(false, self.builder.VoidType(), self.builder.Str()))
 	self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.ConstString(s))
 	self.builder.CreateUnreachable()
 }
@@ -619,6 +619,8 @@ func (self *CodeGenerator) declFunc(name string, ftIr types.FuncType, attrs ...g
 }
 
 func (self *CodeGenerator) defFunc(f llvm.Function, params []*local.Param, body *local.Block) {
+	defer self.removeUnreachableInst(f)
+
 	preBlock := self.builder.CurrentBlock()
 	defer func() {
 		self.builder.MoveToAfter(preBlock)
@@ -632,6 +634,36 @@ func (self *CodeGenerator) defFunc(f llvm.Function, params []*local.Param, body 
 
 	block, _ := self.codegenBlock(body, nil)
 	self.builder.CreateBr(block)
+}
+
+// 删除不可达语句
+func (self *CodeGenerator) removeUnreachableInst(f llvm.Function) {
+	delBlockQueue := queue.New[llvm.Block]()
+	delInstQueue := queue.New[llvm.Instruction]()
+	f.ForeachBlock(func(block llvm.Block) {
+		delInstQueue.Clear()
+		var terminator bool
+		block.ForeachInst(func(inst llvm.Instruction) {
+			if !terminator {
+				if stlval.Is[llvm.Terminator](inst) {
+					terminator = true
+				}
+			} else {
+				delInstQueue.Push(inst)
+			}
+		})
+		for !delInstQueue.Empty() {
+			inst := delInstQueue.Pop()
+			inst.RemoveFromBlock()
+		}
+		if block.Empty() {
+			delBlockQueue.Push(block)
+		}
+	})
+	for !delBlockQueue.Empty() {
+		block := delBlockQueue.Pop()
+		block.RemoveFromBelong()
+	}
 }
 
 // 存储泛型参数映射
@@ -788,8 +820,11 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 		}
 	}
 
-	// passOption := llvm.NewPassOption()
-	// defer passOption.Free()
-	// err = stlerr.ErrorWrap(module.RunPasses(passOption, append(modulePasses, functionPasses...)...))
+	err = module.Verify()
+	if err != nil {
+		return llvm.Module{}, err
+	}
+
+	// module.AutoOpt(llvm.OptLevelO2)
 	return module, nil
 }

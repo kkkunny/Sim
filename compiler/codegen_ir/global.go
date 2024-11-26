@@ -10,53 +10,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (self *CodeGenerator) codegenTypeDefDecl(pkg *hir.Package) {
-	for iter := pkg.Globals().Iterator(); iter.Next(); {
-		switch ir := iter.Value().(type) {
-		case global.CustomTypeDef:
-			self.declCustomType(ir)
-		}
-	}
-}
-
-func (self *CodeGenerator) declCustomType(ir global.CustomTypeDef) {
-	if len(ir.GenericParams()) > 0 {
-		return
-	} else if !self.typeIsStruct(ir.Target()) {
-		return
-	}
-
-	self.builder.NamedStructType(ir.String(), false)
-}
-
-func (self *CodeGenerator) codegenTypeDefDef(pkg *hir.Package) {
-	for iter := pkg.Globals().Iterator(); iter.Next(); {
-		switch ir := iter.Value().(type) {
-		case global.CustomTypeDef:
-			self.defCustomType(ir)
-		}
-	}
-}
-
-func (self *CodeGenerator) defCustomType(ir global.CustomTypeDef) {
-	if len(ir.GenericParams()) > 0 {
-		return
-	}
-
-	stPtr := self.builder.GetTypeByName(ir.String())
-	if stPtr == nil {
-		return
-	}
-	st := *stPtr
-
-	target := self.codegenType(ir.Target())
-	if tt, ok := target.(llvm.StructType); ok {
-		st.SetElems(false, tt.Elems()...)
-	} else {
-		st.SetElems(true, target)
-	}
-}
-
 func (self *CodeGenerator) codegenGlobalVarDecl(pkg *hir.Package) {
 	for iter := pkg.Globals().Iterator(); iter.Next(); {
 		switch ir := iter.Value().(type) {

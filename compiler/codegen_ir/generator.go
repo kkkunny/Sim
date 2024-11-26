@@ -71,10 +71,6 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 }
 
 func (self *CodeGenerator) codegenPkg(pkg *hir.Package) {
-	// 类型声明
-	self.codegenTypeDefDecl(pkg)
-	// 类型定义
-	self.codegenTypeDefDef(pkg)
 	// 变量声明
 	self.codegenGlobalVarDecl(pkg)
 	// 变量定义

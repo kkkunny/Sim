@@ -1,4 +1,4 @@
-package extern
+package runtime
 
 // Function 外部函数
 type Function struct {
@@ -11,14 +11,14 @@ var FuncList = [...]Function{
 	// runtime
 	{
 		Name: "sim_runtime_debug",
-		To:   Debug,
+		To:   sim_runtime_debug,
 	},
 	{
 		Name: "sim_runtime_panic",
-		To:   Panic,
+		To:   sim_runtime_panic,
 	},
 	{
 		Name: "sim_runtime_malloc",
-		To:   GCAlloc,
+		To:   sim_runtime_malloc,
 	},
 }

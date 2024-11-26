@@ -17,9 +17,10 @@ func main() {
 	stlerror.Must(llvm.InitializeTargetInfo(llvm.X86))
 	stlerror.Must(llvm.InitializeTarget(llvm.X86))
 	stlerror.Must(llvm.InitializeTargetMC(llvm.X86))
-	target := stlerror.MustWith(llvm.NewTargetFromTriple("x86_64-pc-windows-msvc"))
 	stlerror.Must(llvm.InitializeNativeAsmPrinter())
-	reader := stlerror.MustWith(codegen_asm.CodegenAsm(target, stlos.NewFilePath(os.Args[1])))
+	target := stlerror.MustWith(llvm.NewTargetFromTriple("x86_64-pc-windows-msvc"))
+	path := stlerror.MustWith(stlos.NewFilePath(os.Args[1]).Abs())
+	reader := stlerror.MustWith(codegen_asm.CodegenAsm(target, path))
 	defer reader.Close()
 	stlerror.MustWith(io.Copy(os.Stdout, reader))
 }
