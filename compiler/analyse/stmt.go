@@ -31,7 +31,17 @@ func (self *Analyser) analyseFuncBody(f local.CallableDef, params []ast.Param, n
 			self.scope.SetIdent(compileParam.String(), compileParam)
 		}
 	case *global.OriginMethodDef:
-		self.scope.SetIdent("Self", fdef.From())
+		selfType := stlval.TernaryAction(len(fdef.From().GenericParams()) > 0, func() hir.Type {
+			return global.NewGenericCustomTypeDef(
+				fdef.From(),
+				stlslices.Map(fdef.From().GenericParams(), func(_ int, gp types.GenericParamType) hir.Type {
+					return gp
+				})...,
+			)
+		}, func() hir.Type {
+			return fdef.From()
+		})
+		self.scope.SetIdent("Self", selfType)
 		for _, compileParam := range fdef.From().GenericParams() {
 			self.scope.SetIdent(compileParam.String(), compileParam)
 		}

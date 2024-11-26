@@ -1,0 +1,48 @@
+pub type Res<T> enum{
+	Err: str,
+	Ok: T
+}
+
+pub func err<T>(s: str)Res::<T>{
+	return Res::<T>.Err(s)
+}
+
+pub func ok<T>(v: T)Res::<T>{
+	return Res::<T>.Ok(v)
+}
+
+pub func (Res) is_err(self: Self)bool{
+	match self{
+	case Err(s):
+		return true
+	case Ok(v):
+		return false
+	}
+}
+
+pub func (Res) must_err(self: Self)str{
+	match self{
+	case Err(s):
+		return s
+	case Ok(v):
+		return panic("not is err")
+	}
+}
+
+pub func (Res) is_ok(self: Self)bool{
+	match self{
+	case Ok(v):
+		return true
+	case Err(s):
+		return false
+	}
+}
+
+pub func (Res) must_ok(self: Self)T{
+	match self{
+	case Ok(v):
+		return v
+	case Err(s):
+		return panic(s)
+	}
+}

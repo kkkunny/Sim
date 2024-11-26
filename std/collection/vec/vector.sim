@@ -1,6 +1,6 @@
 import std::unsafe::ptr
 import std::mem
-import std::collection::optional
+import std::collection::result
 
 pub type Vec<T> struct{
 	pub data: ptr::Ptr::<T>,
@@ -21,22 +21,38 @@ func (Vec) init(mut self: &mut Self){
 	self.data = mem::malloc::<[10]T>().to::<T>()
 }
 
-pub func (Vec) set(mut self: &mut Self, i: usize, v: T){
+func (Vec) check_index(self: Self, i: usize)result::Res::<()>{
+	if i >= self.len{
+		return result::err::<()>("out of index")
+	}
+	return result::ok::<()>(())
+}
+
+pub func (Vec) set(mut self: &mut Self, i: usize, v: T)result::Res::<()>{
+	let res = self.check_index(i)
+	if res.is_err(){
+		return res
+	}
+
 	match self.data.index(i).mut_ref(){
 	case Some(mut ref):
 		*ref = v
+		return result::ok::<()>(())
 	other:
+		return result::err::<()>("zero ptr")
 	}
 }
 
-pub func (Vec) get(self: Self, i: usize)optional::Optional::<&T>{
-	if i >= self.len{
-		return optional::none::<&T>()
+pub func (Vec) get(self: Self, i: usize)result::Res::<&T>{
+	let res = self.check_index(i)
+	if res.is_err(){
+		return result::err::<&T>(res.must_err())
 	}
+
 	match self.data.index(i).mut_ref(){
 	case Some(ref):
-		return optional::some::<&T>(ref)
+		return result::ok::<&T>(ref)
 	other:
-		return optional::none::<&T>()
+		return result::err::<&T>("zero ptr")
 	}
 }

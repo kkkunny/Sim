@@ -24,7 +24,7 @@ type CustomTypeDef interface {
 type _CustomTypeDef_ struct {
 	pkgGlobalAttr
 	name          string
-	compileParams []types.GenericParamType
+	genericParams []types.GenericParamType
 	target        hir.Type
 	methods       hashmap.HashMap[string, MethodDef]
 }
@@ -32,7 +32,7 @@ type _CustomTypeDef_ struct {
 func NewCustomTypeDef(name string, compileParams []types.GenericParamType, target hir.Type) CustomTypeDef {
 	return &_CustomTypeDef_{
 		name:          name,
-		compileParams: compileParams,
+		genericParams: compileParams,
 		target:        target,
 		methods:       hashmap.StdWith[string, MethodDef](),
 	}
@@ -100,7 +100,7 @@ func (self *_CustomTypeDef_) Hash() uint64 {
 }
 
 func (self *_CustomTypeDef_) GenericParams() []types.GenericParamType {
-	return self.compileParams
+	return self.genericParams
 }
 
 func (self *_CustomTypeDef_) Wrap(inner hir.Type) hir.BuildInType {
