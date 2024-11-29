@@ -144,8 +144,16 @@ func (self *Parser) parseGenericParamList() optional.Optional[*ast.GenericParamL
 		return optional.None[*ast.GenericParamList]()
 	}
 	begin := self.curTok.Position
-	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {
-		return self.expectNextIs(token.IDENT)
+	params := loopParseWithUtil(self, token.COM, token.GT, func() *ast.GenericParam {
+		name := self.expectNextIs(token.IDENT)
+		var restraint optional.Optional[*ast.IdentType]
+		if self.skipNextIs(token.COL) {
+			restraint = optional.Some((*ast.IdentType)(self.parseIdent()))
+		}
+		return &ast.GenericParam{
+			Name:      name,
+			Restraint: restraint,
+		}
 	}, true)
 	end := self.expectNextIs(token.GT).Position
 	return optional.Some(&ast.GenericParamList{

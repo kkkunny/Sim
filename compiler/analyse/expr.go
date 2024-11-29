@@ -132,7 +132,7 @@ var assMap = map[token.Kind]token.Kind{
 func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value {
 	left := self.analyseExpr(expect, node.Left)
 	lt := left.Type()
-	right := self.analyseExpr(lt, node.Right)
+	right := self.expectExpr(lt, node.Right)
 	rt := right.Type()
 
 	switch node.Opera.Kind {
@@ -163,182 +163,98 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		})
 	case token.AND:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("And")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.IntType](lt) {
 			return local.NewAndExpr(left, right)
 		}
 	case token.OR:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Or")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.IntType](lt) {
 			return local.NewOrExpr(left, right)
 		}
 	case token.XOR:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Xor")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.IntType](lt) {
 			return local.NewXorExpr(left, right)
 		}
 	case token.SHL:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shl")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.IntType](lt) {
 			return local.NewShlExpr(left, right)
 		}
 	case token.SHR:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shr")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.IntType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.IntType](lt) {
 			return local.NewShrExpr(left, right)
 		}
 	case token.ADD:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Add")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.NumType](lt) {
 			return local.NewAddExpr(left, right)
 		}
 	case token.SUB:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Sub")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.NumType](lt) {
 			return local.NewSubExpr(left, right)
 		}
 	case token.MUL:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Mul")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.NumType](lt) {
 			return local.NewMulExpr(left, right)
 		}
 	case token.DIV:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Div")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.NumType](lt) {
 			return local.NewDivExpr(left, right)
 		}
 	case token.REM:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Rem")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.NumType](lt) {
 			return local.NewRemExpr(left, right)
 		}
 	case token.EQ:
-		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) {
-			if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
-				return values.NewBoolean(true)
-			} else {
-				return local.NewEqExpr(left, right)
-			}
+		// trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
+			return values.NewBoolean(true)
+		} else {
+			return local.NewEqExpr(left, right)
 		}
 	case token.NE:
-		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewNotExpr(local.NewCallExpr(local.NewMethodExpr(left, method, nil), right))
-		} else if lt.Equal(rt) {
-			if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
-				return values.NewBoolean(false)
-			} else {
-				return local.NewNeExpr(left, right)
-			}
+		// trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		if types.Is[types.NoThingType](lt, true) || types.Is[types.NoReturnType](lt, true) {
+			return values.NewBoolean(false)
+		} else {
+			return local.NewNeExpr(left, right)
 		}
 	case token.LT:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.NumType](lt) {
 			return local.NewLtExpr(left, right)
 		}
 	case token.GT:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.NumType](lt) {
 			return local.NewGtExpr(left, right)
 		}
 	case token.LE:
 		EQtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
 		LTtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(EQtrait) && ct.HasImpl(LTtrait) {
-			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(EQtrait.FirstMethod()).GetName())))
-			LTmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(LTtrait.FirstMethod()).GetName())))
-			return local.NewLogicAndExpr(
-				local.NewCallExpr(local.NewMethodExpr(left, EQmethod, nil), right),
-				local.NewCallExpr(local.NewMethodExpr(left, LTmethod, nil), right),
-			)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
-			return local.NewLeExpr(left, right)
+		if (EQtrait.HasBeImpled(lt) && LTtrait.HasBeImpled(lt)) || types.Is[types.NumType](lt) {
+			return local.NewLtExpr(left, right)
 		}
 	case token.GE:
 		EQtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
 		GTtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(EQtrait) && ct.HasImpl(GTtrait) {
-			EQmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(EQtrait.FirstMethod()).GetName())))
-			GTmethod := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(GTtrait.FirstMethod()).GetName())))
-			return local.NewLogicAndExpr(
-				local.NewCallExpr(local.NewMethodExpr(left, EQmethod, nil), right),
-				local.NewCallExpr(local.NewMethodExpr(left, GTmethod, nil), right),
-			)
-		} else if lt.Equal(rt) && types.Is[types.NumType](lt) {
-			return local.NewGeExpr(left, right)
+		if (EQtrait.HasBeImpled(lt) && GTtrait.HasBeImpled(lt)) || types.Is[types.NumType](lt) {
+			return local.NewLtExpr(left, right)
 		}
 	case token.LAND:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Land")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.BoolType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.BoolType](lt) {
 			return local.NewLogicAndExpr(left, right)
 		}
 	case token.LOR:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lor")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](lt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(left, method, nil), right)
-		} else if lt.Equal(rt) && types.Is[types.BoolType](lt) {
+		if trait.HasBeImpled(lt) || types.Is[types.BoolType](lt) {
 			return local.NewLogicOrExpr(left, right)
 		}
 	default:
@@ -744,7 +660,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 }
 
 func (self *Analyser) analyseStaticMethod(node *ast.Dot, selfType types.CustomType, method global.MethodDef) *local.StaticMethodExpr {
-	compilerArgs := self.analyseOptionalGenericArgList(len(method.GenericParams()), node.Position(), node.GenericArgs)
+	compilerArgs := self.analyseOptionalGenericArgList(method.GenericParams(), node.Position(), node.GenericArgs)
 	return local.NewStaticMethodExpr(selfType, method, compilerArgs)
 }
 
@@ -792,7 +708,7 @@ func (self *Analyser) analyseMethod(must bool, node *ast.Dot) (values.Callable, 
 		selfVal = from
 	}
 
-	compilerArgs := self.analyseOptionalGenericArgList(len(method.GenericParams()), node.Position(), node.GenericArgs)
+	compilerArgs := self.analyseOptionalGenericArgList(method.GenericParams(), node.Position(), node.GenericArgs)
 
 	return local.NewMethodExpr(selfVal, method, compilerArgs), true
 }

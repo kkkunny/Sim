@@ -23,6 +23,16 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
+// buildin包
+func (self *CodeGenerator) buildinPkg() *hir.Package {
+	if self.pkg.IsBuildIn() {
+		return self.pkg
+	}
+	return stlval.IgnoreWith(stlslices.FindFirst(self.pkg.GetDependencyPackages(), func(_ int, pkg *hir.Package) bool {
+		return pkg.IsBuildIn()
+	}))
+}
+
 func (self *CodeGenerator) getIdentName(ir values.Ident) string {
 	switch ident := ir.(type) {
 	case *global.FuncDef:

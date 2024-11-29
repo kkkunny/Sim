@@ -1,8 +1,25 @@
-import std::io
-import std::collection::vec
+// import std::io
+// import std::collection::vec
+//
+// func add<T: Add>(l: T, r: T)T{
+// 	return l + r
+// }
+//
+// func main(){
+// 	io::printf::<usize>("%lld\n", add::<usize>(1, 2))
+// }
+import std::os
+
+type A i32
+
+func (A) eq(self: Self, dst: Self)bool{
+	return true
+}
 
 func main(){
-	let v = vec::new::<usize>()
-	v.set(0, 10).must_ok()
-	io::printf::<usize>("%lld\n", v.get(0).must_ok())
+	let mut v: A
+	if v != 1{
+		os::exit(1)
+	}
+	os::exit(0)
 }
