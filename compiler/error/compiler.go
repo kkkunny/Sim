@@ -126,6 +126,11 @@ func ThrowExpectStructError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a struct but there is type `%s`", t)
 }
 
+// ThrowUnknownFieldOrMethodError 未知的字段或者方法
+func ThrowUnknownFieldOrMethodError(pos reader.Position, t hir.Type, field token.Token) {
+	ThrowError(pos, "type `%s` not have field or method named `%s`", t, field.Source())
+}
+
 // ThrowInvalidIndexError 超出下标
 func ThrowInvalidIndexError(pos reader.Position, index uint) {
 	ThrowError(pos, "invalid index with `%d`", index)

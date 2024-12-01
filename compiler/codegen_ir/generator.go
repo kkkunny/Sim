@@ -64,7 +64,7 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 		f := self.values.Get(fIr).(llvm.Function)
 		self.builder.MoveToAfter(stlslices.First(self.builder.GetMainFunction().Blocks()))
 		self.builder.CreateCall("", f.FunctionType(), f)
-		self.builder.CreateRet(stlval.Ptr[llvm.Value](self.builder.ConstInteger(self.builder.IntegerType(8), 0)))
+		self.builder.CreateRet(self.builder.ConstInteger(self.builder.IntegerType(8), 0))
 		break
 	}
 	return self.builder.Module

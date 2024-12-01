@@ -3,6 +3,7 @@ package analyse
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerror "github.com/kkkunny/stl/error"
@@ -239,13 +240,13 @@ func (self *Analyser) analyseBinary(expect hir.Type, node *ast.Binary) hir.Value
 		EQtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
 		LTtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
 		if (EQtrait.HasBeImpled(lt) && LTtrait.HasBeImpled(lt)) || types.Is[types.NumType](lt) {
-			return local.NewLtExpr(left, right)
+			return local.NewLeExpr(left, right)
 		}
 	case token.GE:
 		EQtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
 		GTtrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
 		if (EQtrait.HasBeImpled(lt) && GTtrait.HasBeImpled(lt)) || types.Is[types.NumType](lt) {
-			return local.NewLtExpr(left, right)
+			return local.NewGeExpr(left, right)
 		}
 	case token.LAND:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Land")).(*global.Trait)
@@ -600,15 +601,23 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	if identNode, ok := node.From.(*ast.IdentExpr); ok {
 		if identRes, ok := self.tryAnalyseIdent((*ast.Ident)(identNode)); ok {
 			if identType, ok := identRes.Left(); ok {
+				// 静态方法
 				if ctd, ok := types.As[global.CustomTypeDef](identType, true); ok {
-					// 静态方法
 					method, ok := ctd.GetMethod(fieldName)
 					if ok && (method.Public() || self.scope.Package().Equal(method.Package())) {
 						return self.analyseStaticMethod(node, ctd, method)
 					}
+				} else if gpt, ok := types.As[types.GenericParamType](identType, true); ok {
+					restraint, ok := gpt.Restraint()
+					if ok {
+						_, ok = restraint.(*global.Trait).GetMethod(fieldName)
+						if ok {
+							return local.NewTraitStaticMethodExpr(gpt, fieldName)
+						}
+					}
 				}
 				if node.GenericArgs.IsSome() && len(stlval.IgnoreWith(node.GenericArgs.Value()).Args) != 0 {
-					errors.ThrowUnknownIdentifierError(node.Position(), identNode.Name)
+					errors.ThrowUnknownFieldOrMethodError(node.Position(), identType, identNode.Name)
 				}
 				if et, ok := types.As[types.EnumType](identType); ok {
 					// 枚举值
@@ -642,7 +651,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	} else if fromOk && types.Is[types.StructType](fromRt.Pointer()) {
 		fromStVal = local.NewDeRefExpr(from)
 	} else {
-		errors.ThrowExpectStructError(node.From.Position(), ft)
+		errors.ThrowUnknownFieldOrMethodError(node.From.Position(), ft, node.Index)
 	}
 	fromSt, ok := types.As[types.StructType](fromStVal.Type())
 	if !ok {
@@ -654,7 +663,7 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	}
 
 	if field := fromSt.Fields().Get(fieldName); !fromSt.Fields().Contain(fieldName) || (!field.Public() && !self.scope.Package().Equal(fromTd.Package())) {
-		errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+		errors.ThrowUnknownFieldOrMethodError(node.Index.Position, fromStVal.Type(), node.Index)
 	}
 	return local.NewFieldExpr(fromStVal, fieldName)
 }
@@ -669,48 +678,89 @@ func (self *Analyser) analyseMethod(must bool, node *ast.Dot) (values.Callable, 
 	from := self.analyseExpr(nil, node.From)
 	ft := from.Type()
 
-	var fromCtd global.CustomTypeDef
-	if fromCtd2, fromOk := types.As[global.CustomTypeDef](ft, true); fromOk {
-		fromCtd = fromCtd2
-	} else if fromRt, fromOk := types.As[types.RefType](ft, true); fromOk && false {
+	var fromType either.Either[global.CustomTypeDef, types.GenericParamType]
+	if fromCtd, ok := types.As[global.CustomTypeDef](ft, true); ok {
+		fromType = either.Left[global.CustomTypeDef, types.GenericParamType](fromCtd)
+	} else if fromGpt, ok := types.As[types.GenericParamType](ft, true); ok {
+		fromType = either.Right[global.CustomTypeDef, types.GenericParamType](fromGpt)
+	} else if fromRt, refOk := types.As[types.RefType](ft, true); refOk && false {
 		panic("unreachable")
-	} else if fromOk && types.Is[global.CustomTypeDef](fromRt.Pointer(), true) {
-		fromCtd, _ = types.As[global.CustomTypeDef](fromRt.Pointer(), true)
+	} else if fromCtd, ok = types.As[global.CustomTypeDef](fromRt.Pointer(), true); refOk && ok {
+		fromType = either.Left[global.CustomTypeDef, types.GenericParamType](fromCtd)
+	} else if fromGpt, ok = types.As[types.GenericParamType](fromRt.Pointer(), true); refOk && ok {
+		fromType = either.Right[global.CustomTypeDef, types.GenericParamType](fromGpt)
 	} else {
 		return nil, false
 	}
 
-	method, ok := fromCtd.GetMethod(fieldName)
-	if !ok || (!method.Public() && !self.scope.Package().Equal(method.Package())) {
-		if must {
-			errors.ThrowUnknownIdentifierError(node.Index.Position, node.Index)
+	if fromCtd, ok := fromType.Left(); ok {
+		method, ok := fromCtd.GetMethod(fieldName)
+		if !ok || (!method.Public() && !self.scope.Package().Equal(method.Package())) {
+			if must {
+				errors.ThrowUnknownFieldOrMethodError(node.Index.Position, fromCtd, node.Index)
+			}
+			return nil, false
 		}
-		return nil, false
-	}
 
-	if method.Static() {
-		return self.analyseStaticMethod(node, fromCtd, method), true
-	}
+		if method.Static() {
+			return self.analyseStaticMethod(node, fromCtd, method), true
+		}
 
-	selfParam, ok := method.SelfParam()
-	if !ok {
+		selfParam, ok := method.SelfParam()
+		if !ok {
+			panic("unreachable")
+		}
+		var selfVal hir.Value
+		if fromIsRef := types.Is[types.RefType](ft, true); method.SelfParamIsRef() && !fromIsRef {
+			if !from.Storable() {
+				errors.ThrowExprTemporaryError(node.From.Position())
+			}
+			selfVal = local.NewGetRefExpr(selfParam.Mutable(), from)
+		} else if !method.SelfParamIsRef() && fromIsRef {
+			selfVal = local.NewDeRefExpr(from)
+		} else {
+			selfVal = from
+		}
+
+		genericArgs := self.analyseOptionalGenericArgList(method.GenericParams(), node.Position(), node.GenericArgs)
+		return local.NewMethodExpr(selfVal, method, genericArgs), true
+	} else if fromGpt, ok := fromType.Right(); ok {
+		restraint, ok := fromGpt.Restraint()
+		if !ok {
+			if must {
+				errors.ThrowUnknownFieldOrMethodError(node.Index.Position, fromCtd, node.Index)
+			}
+			return nil, false
+		}
+		method, ok := restraint.(*global.Trait).GetMethod(fieldName)
+		if !ok {
+			if must {
+				errors.ThrowUnknownFieldOrMethodError(node.Index.Position, fromCtd, node.Index)
+			}
+			return nil, false
+		}
+
+		selfParam, ok := method.GetSelfParam(fromGpt)
+		if !ok {
+			return local.NewTraitStaticMethodExpr(fromGpt, fieldName), true
+		}
+
+		var selfVal hir.Value
+		if fromIsRef := types.Is[types.RefType](ft, true); types.Is[types.RefType](selfParam.Type(), true) && !fromIsRef {
+			if !from.Storable() {
+				errors.ThrowExprTemporaryError(node.From.Position())
+			}
+			selfVal = local.NewGetRefExpr(selfParam.Mutable(), from)
+		} else if !types.Is[types.RefType](selfParam.Type(), true) && fromIsRef {
+			selfVal = local.NewDeRefExpr(from)
+		} else {
+			selfVal = from
+		}
+
+		return local.NewTraitMethodExpr(selfVal, fieldName), true
+	} else {
 		panic("unreachable")
 	}
-	var selfVal hir.Value
-	if fromIsRef := types.Is[types.RefType](ft, true); method.SelfParamIsRef() && !fromIsRef {
-		if !from.Storable() {
-			errors.ThrowExprTemporaryError(node.From.Position())
-		}
-		selfVal = local.NewGetRefExpr(selfParam.Mutable(), from)
-	} else if !method.SelfParamIsRef() && fromIsRef {
-		selfVal = local.NewDeRefExpr(from)
-	} else {
-		selfVal = from
-	}
-
-	compilerArgs := self.analyseOptionalGenericArgList(method.GenericParams(), node.Position(), node.GenericArgs)
-
-	return local.NewMethodExpr(selfVal, method, compilerArgs), true
 }
 
 func (self *Analyser) analyseString(expect hir.Type, node *ast.String) *values.String {

@@ -1,6 +1,9 @@
 package global
 
 import (
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
+
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
@@ -34,6 +37,34 @@ func (self *FuncDecl) Type() hir.Type {
 }
 
 func (self *FuncDecl) Ident() {}
+
+func (self *FuncDecl) GetSelfParam(selfType hir.Type) (*local.Param, bool) {
+	if len(self.params) == 0 {
+		return nil, false
+	}
+	if ctd, ok := types.As[CustomTypeDef](selfType, true); ok && len(ctd.GenericParams()) > 0 {
+		selfType = NewGenericCustomTypeDef(
+			ctd,
+			stlslices.Map(ctd.GenericParams(), func(_ int, gp types.GenericParamType) hir.Type {
+				return gp
+			})...,
+		)
+	}
+	firstParam := stlslices.First(self.params)
+	firstParamType := stlval.TernaryAction(types.Is[types.RefType](firstParam.Type(), true), func() hir.Type {
+		rt, ok := types.As[types.RefType](firstParam.Type(), true)
+		if !ok {
+			panic("unreachable")
+		}
+		return rt.Pointer()
+	}, func() hir.Type {
+		return firstParam.Type()
+	})
+	if !firstParamType.Equal(selfType) && !firstParamType.Equal(types.Self) {
+		return nil, false
+	}
+	return firstParam, true
+}
 
 // FuncAttr 函数属性
 type FuncAttr interface {

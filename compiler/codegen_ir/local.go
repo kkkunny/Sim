@@ -66,7 +66,7 @@ func (self *CodeGenerator) codegenReturn(ir *local.Return) {
 		if types.Is[types.NoThingType](vIr.Type(), true) || types.Is[types.NoReturnType](vIr.Type(), true) {
 			self.builder.CreateRet(nil)
 		} else {
-			self.builder.CreateRet(&v)
+			self.builder.CreateRet(v)
 		}
 	} else {
 		self.builder.CreateRet(nil)

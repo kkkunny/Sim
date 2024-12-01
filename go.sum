@@ -25,6 +25,10 @@ github.com/kkkunny/go-llvm v0.0.0-20241124134237-83be125d22cb h1:qiew6uoUtQv1zQE
 github.com/kkkunny/go-llvm v0.0.0-20241124134237-83be125d22cb/go.mod h1:puB0yoojrYTG+E3ESl+RYF41FQgvg4E26x74Vdl1YoU=
 github.com/kkkunny/go-llvm v0.0.0-20241126052231-a2d4bbb9e467 h1:Rk7hX3cOwtCAPs+89/VJRnnbf9f+mZi15cu2E5/dkXA=
 github.com/kkkunny/go-llvm v0.0.0-20241126052231-a2d4bbb9e467/go.mod h1:pOTXtuVQgoxnYgmaGdi2GUvAN6nnI0MhHoF/hbNW8Qg=
+github.com/kkkunny/go-llvm v0.0.0-20241130083701-16631c59b12a h1:nZD0vFPhEC76gHcmQh9cKb/sVyyyC2b9g6KiQ6WZzIg=
+github.com/kkkunny/go-llvm v0.0.0-20241130083701-16631c59b12a/go.mod h1:pOTXtuVQgoxnYgmaGdi2GUvAN6nnI0MhHoF/hbNW8Qg=
+github.com/kkkunny/go-llvm v0.0.0-20241201032613-d581ea5977a3 h1:dA0cfO2ighYczvFoJeU6QOysdJokQnAxG4vNgReLmv8=
+github.com/kkkunny/go-llvm v0.0.0-20241201032613-d581ea5977a3/go.mod h1:pOTXtuVQgoxnYgmaGdi2GUvAN6nnI0MhHoF/hbNW8Qg=
 github.com/kkkunny/maphash v0.0.0-20241013073711-aff67359a91c h1:KQldlImkyfG4ptyXtzGgLZcMeQb1GVegJ4QzZ2fAewM=
 github.com/kkkunny/maphash v0.0.0-20241013073711-aff67359a91c/go.mod h1:NZ7xS0DNYhr201BpEW4HK+aLpoCV47OBCq47C25LLtk=
 github.com/kkkunny/stl v0.0.0-20241116043033-308ffc3d1d79 h1:gWOspbg5H5N20hJ5k61XllkFJRFFKQYu7UO/ApsDAOY=

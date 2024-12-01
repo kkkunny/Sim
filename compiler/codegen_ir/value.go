@@ -53,6 +53,10 @@ func (self *CodeGenerator) codegenValue(ir hir.Value, load bool) llvm.Value {
 		return self.codegenGenericFuncInst(ir)
 	case *local.StaticMethodExpr:
 		return self.codegenStaticMethod(ir)
+	case *local.TraitStaticMethodExpr:
+		return self.codegenTraitStaticMethod(ir)
+	case *local.TraitMethodExpr:
+		return self.codegenValue(self.covertTraitMethodToMethod(ir), load)
 	default:
 		panic("unreachable")
 	}
@@ -422,6 +426,8 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 func (self *CodeGenerator) codegenCall(ir *local.CallExpr) llvm.Value {
 	if stlval.Is[*local.MethodExpr](ir.GetFunc()) {
 		return self.codegenMethodCall(ir)
+	} else if stlval.Is[*local.TraitMethodExpr](ir.GetFunc()) {
+		return self.codegenTraitMethodCall(ir)
 	} else if types.Is[types.LambdaType](ir.GetFunc().Type()) {
 		return self.codegenLambdaCall(ir)
 	} else {
@@ -466,6 +472,23 @@ func (self *CodeGenerator) codegenMethodCall(ir *local.CallExpr) llvm.Value {
 	}
 
 	return self.builder.CreateCall("", ft, method, append([]llvm.Value{selfVal}, args...)...)
+}
+
+func (self *CodeGenerator) codegenTraitMethodCall(ir *local.CallExpr) llvm.Value {
+	methodIr := ir.GetFunc().(*local.TraitMethodExpr)
+
+	selfType := methodIr.Self().Type()
+	trait := stlval.IgnoreWith(stlval.IgnoreWith(types.As[types.GenericParamType](selfType)).Restraint()).(*global.Trait)
+	selfType = types.ReplaceVirtualType(self.virtualTypes, selfType)
+	if rt, ok := types.As[types.RefType](selfType, true); ok {
+		selfType = rt.Pointer()
+	}
+
+	if trait.HasBeImpled(selfType, true) {
+		return self.codegenMethodCall(local.NewCallExpr(self.covertTraitMethodToMethod(methodIr), ir.GetArgs()...))
+	}
+
+	return self.codegenValue(stlval.IgnoreWith(trait.GetCovertValue(methodIr.Self(), ir.GetArgs()...)), true)
 }
 
 func (self *CodeGenerator) codegenLambdaCall(ir *local.CallExpr) llvm.Value {
@@ -744,7 +767,7 @@ func (self *CodeGenerator) codegenMethod(ir *local.MethodExpr) llvm.Value {
 	if ret.Type().Equal(self.builder.VoidType()) {
 		self.builder.CreateRet(nil)
 	} else {
-		self.builder.CreateRet(stlval.Ptr[llvm.Value](ret))
+		self.builder.CreateRet(ret)
 	}
 
 	self.builder.MoveToAfter(preBlock)
@@ -781,4 +804,40 @@ func (self *CodeGenerator) codegenStaticMethod(ir *local.StaticMethodExpr) llvm.
 	}
 
 	return self.instGenericFunc(ir.Method().(*global.OriginMethodDef), ir)
+}
+
+func (self *CodeGenerator) codegenTraitStaticMethod(ir *local.TraitStaticMethodExpr) llvm.Value {
+	selfType := types.ReplaceVirtualType(self.virtualTypes, ir.Self()).(global.CustomTypeDef)
+	method := stlval.IgnoreWith(selfType.GetMethod(ir.Method()))
+	return self.codegenStaticMethod(local.NewStaticMethodExpr(selfType, method, nil))
+}
+
+func (self *CodeGenerator) covertTraitMethodToMethod(ir *local.TraitMethodExpr) values.Callable {
+	selfType := ir.Self().Type()
+	trait := stlval.IgnoreWith(stlval.IgnoreWith(types.As[types.GenericParamType](selfType)).Restraint()).(*global.Trait)
+	selfType = types.ReplaceVirtualType(self.virtualTypes, selfType)
+	if rt, ok := types.As[types.RefType](selfType, true); ok {
+		selfType = rt.Pointer()
+	}
+
+	if trait.HasBeImpled(selfType, true) {
+		selfGpt := stlval.IgnoreWith(types.As[types.GenericParamType](selfType, true))
+		selfCtd := self.virtualTypes.Get(selfGpt).(global.CustomTypeDef)
+		method := stlval.IgnoreWith(selfCtd.GetMethod(ir.Method()))
+		return local.NewMethodExpr(ir.Self(), method, nil)
+	}
+
+	typeMap := self.virtualTypes.Clone().(hashmap.HashMap[types.VirtualType, hir.Type])
+	typeMap.Set(types.Self, selfType)
+	methodType := types.ReplaceVirtualType(typeMap, stlval.IgnoreWith(trait.GetMethodType(ir.Method()))).(types.CallableType)
+	params := stlslices.Map(methodType.Params()[1:], func(_ int, p hir.Type) *local.Param {
+		return local.NewParam(true, "", p)
+	})
+	cl := local.NewLambdaExpr(nil, types.NewLambdaType(methodType.Ret(), []hir.Type{}...), params)
+	block := local.NewBlock(nil)
+	block.PushBack(local.NewReturn(stlval.IgnoreWith(trait.GetCovertValue(stlslices.First(params), stlslices.Map(params, func(_ int, p *local.Param) hir.Value {
+		return p
+	})...))))
+	cl.SetBody(block)
+	return cl
 }

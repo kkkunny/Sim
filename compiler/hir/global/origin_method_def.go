@@ -6,7 +6,6 @@ import (
 
 	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
@@ -34,33 +33,7 @@ func (self *OriginMethodDef) From() CustomTypeDef {
 }
 
 func (self *OriginMethodDef) SelfParam() (*local.Param, bool) {
-	if len(self.params) == 0 {
-		return nil, false
-	}
-	fromType := stlval.TernaryAction(len(self.from.GenericParams()) > 0, func() hir.Type {
-		return NewGenericCustomTypeDef(
-			self.from,
-			stlslices.Map(self.from.GenericParams(), func(_ int, gp types.GenericParamType) hir.Type {
-				return gp
-			})...,
-		)
-	}, func() hir.Type {
-		return self.from
-	})
-	firstParam := stlslices.First(self.params)
-	firstParamType := stlval.TernaryAction(types.Is[types.RefType](firstParam.Type(), true), func() hir.Type {
-		rt, ok := types.As[types.RefType](firstParam.Type(), true)
-		if !ok {
-			panic("unreachable")
-		}
-		return rt.Pointer()
-	}, func() hir.Type {
-		return firstParam.Type()
-	})
-	if !firstParamType.Equal(fromType) {
-		return nil, false
-	}
-	return firstParam, true
+	return self.FuncDecl.GetSelfParam(self.from)
 }
 
 func (self *OriginMethodDef) Static() bool {

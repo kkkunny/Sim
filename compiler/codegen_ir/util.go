@@ -508,7 +508,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			self.builder.CreateBr(condBlock)
 
 			self.builder.MoveToAfter(endBlock)
-			self.builder.CreateRet(stlval.Ptr[llvm.Value](self.builder.CreateLoad("", at, arrayPtr)))
+			self.builder.CreateRet(self.builder.CreateLoad("", at, arrayPtr))
 
 			self.builder.MoveToAfter(curBlock)
 		} else {
@@ -537,7 +537,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			if ft.ReturnType().Equal(self.builder.VoidType()) {
 				self.builder.CreateRet(nil)
 			} else {
-				self.builder.CreateRet(stlval.Ptr(self.buildCopy(ir.Ret(), self.codegenDefault(ir.Ret()))))
+				self.builder.CreateRet(self.buildCopy(ir.Ret(), self.codegenDefault(ir.Ret())))
 			}
 			self.builder.MoveToAfter(curBlock)
 		} else {

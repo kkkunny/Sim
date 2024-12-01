@@ -6,11 +6,149 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
+type traitCovertInfo struct {
+	checkFn  func(t hir.Type) bool
+	covertFn func(self hir.Value, args ...hir.Value) hir.Value
+}
+
+var traitCovertMap = map[string]traitCovertInfo{
+	"And": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.IntType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewAndExpr(self, stlslices.First(args))
+		},
+	},
+	"Or": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.IntType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewOrExpr(self, stlslices.First(args))
+		},
+	},
+	"Xor": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.IntType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewXorExpr(self, stlslices.First(args))
+		},
+	},
+	"Shl": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.IntType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewShlExpr(self, stlslices.First(args))
+		},
+	},
+	"Shr": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.IntType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewShrExpr(self, stlslices.First(args))
+		},
+	},
+	"Add": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewAddExpr(self, stlslices.First(args))
+		},
+	},
+	"Sub": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewSubExpr(self, stlslices.First(args))
+		},
+	},
+	"Mul": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewMulExpr(self, stlslices.First(args))
+		},
+	},
+	"Div": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewDivExpr(self, stlslices.First(args))
+		},
+	},
+	"Rem": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewRemExpr(self, stlslices.First(args))
+		},
+	},
+	"Lt": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewLtExpr(self, stlslices.First(args))
+		},
+	},
+	"Gt": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewGtExpr(self, stlslices.First(args))
+		},
+	},
+	"Le": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewLeExpr(self, stlslices.First(args))
+		},
+	},
+	"Ge": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewGeExpr(self, stlslices.First(args))
+		},
+	},
+	"Land": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.BoolType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewLogicAndExpr(self, stlslices.First(args))
+		},
+	},
+	"Lor": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.BoolType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewLogicOrExpr(self, stlslices.First(args))
+		},
+	},
+}
+
 type Trait struct {
 	pkgGlobalAttr
+	hir.GenericRestraint
 	name    string
 	methods hashmap.HashMap[string, *FuncDecl]
 }
@@ -45,26 +183,45 @@ func (self *Trait) FirstMethod() (*FuncDecl, bool) {
 	return stlslices.First(self.methods.Values()), !self.methods.Empty()
 }
 
-func (self *Trait) HasBeImpled(t hir.Type) bool {
-	if self.Package().IsBuildIn() {
-		switch self.name {
-		case "And", "Or", "Xor", "Shl", "Shr":
-			switch {
-			case types.Is[types.IntType](t, true):
-				return true
-			}
-		case "Add", "Sub", "Mul", "Div", "Rem", "Lt", "Gt", "Le", "ge":
-			switch {
-			case types.Is[types.NumType](t, true):
-				return true
-			}
-		case "Land", "Lor":
-			switch {
-			case types.Is[types.BoolType](t, true):
-				return true
+func (self *Trait) GetMethod(name string) (*FuncDecl, bool) {
+	f := self.methods.Get(name)
+	return f, f != nil
+}
+
+func (self *Trait) GetMethodType(name string) (hir.Type, bool) {
+	f, ok := self.GetMethod(name)
+	if !ok {
+		return nil, false
+	}
+	return f.Type(), true
+}
+
+func (self *Trait) ContainMethod(name string) bool {
+	return self.methods.Contain(name)
+}
+
+func (self *Trait) GetCovertValue(selfValue hir.Value, args ...hir.Value) (hir.Value, bool) {
+	info, ok := traitCovertMap[self.name]
+	if !self.Package().IsBuildIn() || !ok {
+		return nil, false
+	}
+	return info.covertFn(selfValue, args...), true
+}
+
+func (self *Trait) HasBeImpled(t hir.Type, noBuildin ...bool) (ok bool) {
+	defer func() {
+		if !ok && self.Package().IsBuildIn() && !stlslices.Last(noBuildin) {
+			for traitName, covertInfo := range traitCovertMap {
+				if traitName != self.name {
+					continue
+				}
+				ok = covertInfo.checkFn(t)
+				if ok {
+					return
+				}
 			}
 		}
-	}
+	}()
 
 	if ct, ok := types.As[CustomTypeDef](t, true); ok {
 		return stlslices.All(self.Methods(), func(_ int, dstF *FuncDecl) bool {
