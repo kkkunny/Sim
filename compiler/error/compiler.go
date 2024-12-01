@@ -131,6 +131,11 @@ func ThrowUnknownFieldOrMethodError(pos reader.Position, t hir.Type, field token
 	ThrowError(pos, "type `%s` not have field or method named `%s`", t, field.Source())
 }
 
+// ThrowTheTraitMethodMustBeCalled trait的方法必须被调用
+func ThrowTheTraitMethodMustBeCalled(pos reader.Position) {
+	ThrowError(pos, "trait method must be called")
+}
+
 // ThrowInvalidIndexError 超出下标
 func ThrowInvalidIndexError(pos reader.Position, index uint) {
 	ThrowError(pos, "invalid index with `%d`", index)

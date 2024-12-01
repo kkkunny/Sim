@@ -511,18 +511,7 @@ type UnaryExpr interface {
 	GetValue() hir.Value
 }
 
-// OppositeExpr 取相反数
-type OppositeExpr struct {
-	value hir.Value
-}
-
-func NewOppositeExpr(v hir.Value) *OppositeExpr { return &OppositeExpr{value: v} }
-func (self *OppositeExpr) Type() hir.Type       { return self.value.Type() }
-func (self *OppositeExpr) Mutable() bool        { return false }
-func (self *OppositeExpr) Storable() bool       { return false }
-func (self *OppositeExpr) GetValue() hir.Value  { return self.value }
-
-// NegExpr 按位取反
+// NegExpr -
 type NegExpr struct {
 	value hir.Value
 }
@@ -533,7 +522,7 @@ func (self *NegExpr) Mutable() bool       { return false }
 func (self *NegExpr) Storable() bool      { return false }
 func (self *NegExpr) GetValue() hir.Value { return self.value }
 
-// NotExpr 否定
+// NotExpr !
 type NotExpr struct {
 	value hir.Value
 }

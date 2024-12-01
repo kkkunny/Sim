@@ -113,7 +113,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return nil
 	case *local.AndExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("And")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -121,7 +121,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return self.builder.CreateAnd("", left, right)
 	case *local.LogicAndExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Land")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -129,7 +129,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return self.builder.CreateAnd("", left, right)
 	case *local.OrExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Or")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -137,7 +137,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return self.builder.CreateOr("", left, right)
 	case *local.LogicOrExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lor")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -145,7 +145,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return self.builder.CreateOr("", left, right)
 	case *local.XorExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Xor")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -153,7 +153,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return self.builder.CreateXor("", left, right)
 	case *local.ShlExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shl")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -161,7 +161,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return self.builder.CreateShl("", left, right)
 	case *local.ShrExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shr")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -173,7 +173,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		}
 	case *local.AddExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Add")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -187,7 +187,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		}
 	case *local.SubExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Sub")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -201,7 +201,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		}
 	case *local.MulExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Mul")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -215,7 +215,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		}
 	case *local.DivExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Div")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -230,7 +230,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		}
 	case *local.RemExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Rem")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -245,7 +245,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		}
 	case *local.LtExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -259,7 +259,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		}
 	case *local.GtExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -274,7 +274,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 	case *local.LeExpr:
 		eqTrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
 		ltTrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && eqTrait.HasBeImpled(lt) && ltTrait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && eqTrait.HasBeImpled(lt, true) && ltTrait.HasBeImpled(lt, true) {
 			eqMethod := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(eqTrait.FirstMethod()).GetName())))
 			leMethod := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(ltTrait.FirstMethod()).GetName())))
 			return self.codegenBinary(local.NewLogicAndExpr(
@@ -293,7 +293,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 	case *local.GeExpr:
 		eqTrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
 		gtTrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && eqTrait.HasBeImpled(lt) && gtTrait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && eqTrait.HasBeImpled(lt, true) && gtTrait.HasBeImpled(lt, true) {
 			eqMethod := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(eqTrait.FirstMethod()).GetName())))
 			gtMethod := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(gtTrait.FirstMethod()).GetName())))
 			return self.codegenBinary(local.NewLogicAndExpr(
@@ -311,7 +311,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		}
 	case *local.EqExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
 		}
@@ -319,7 +319,7 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 		return self.builder.CreateZExt("", self.buildEqual(ir.GetLeft().Type(), left, right, false), self.builder.BooleanType())
 	case *local.NeExpr:
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
-		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt) {
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
 			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
 			return self.codegenUnary(local.NewNotExpr(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight())), load)
 		}
@@ -340,12 +340,24 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 
 func (self *CodeGenerator) codegenUnary(ir local.UnaryExpr, load bool) llvm.Value {
 	switch ir := ir.(type) {
-	case *local.OppositeExpr:
+	case *local.NegExpr:
+		tIr := ir.Type()
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Neg")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](tIr, true); ok && trait.HasBeImpled(tIr, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetValue(), method, nil)))
+		}
 		return self.codegenBinary(local.NewSubExpr(
 			local.NewDefaultExpr(ir.GetValue().Type()),
 			ir.GetValue(),
 		), load)
-	case *local.NegExpr, *local.NotExpr:
+	case *local.NotExpr:
+		tIr := ir.Type()
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Not")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](tIr, true); ok && trait.HasBeImpled(tIr, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetValue(), method, nil)))
+		}
 		return self.builder.CreateNot("", self.codegenValue(ir.GetValue(), true))
 	case *local.GetRefExpr:
 		return self.codegenValue(ir.GetValue(), false)
@@ -812,7 +824,7 @@ func (self *CodeGenerator) codegenTraitStaticMethod(ir *local.TraitStaticMethodE
 	return self.codegenStaticMethod(local.NewStaticMethodExpr(selfType, method, nil))
 }
 
-func (self *CodeGenerator) covertTraitMethodToMethod(ir *local.TraitMethodExpr) values.Callable {
+func (self *CodeGenerator) covertTraitMethodToMethod(ir *local.TraitMethodExpr) hir.Value {
 	selfType := ir.Self().Type()
 	trait := stlval.IgnoreWith(stlval.IgnoreWith(types.As[types.GenericParamType](selfType)).Restraint()).(*global.Trait)
 	selfType = types.ReplaceVirtualType(self.virtualTypes, selfType)
@@ -827,17 +839,5 @@ func (self *CodeGenerator) covertTraitMethodToMethod(ir *local.TraitMethodExpr) 
 		return local.NewMethodExpr(ir.Self(), method, nil)
 	}
 
-	typeMap := self.virtualTypes.Clone().(hashmap.HashMap[types.VirtualType, hir.Type])
-	typeMap.Set(types.Self, selfType)
-	methodType := types.ReplaceVirtualType(typeMap, stlval.IgnoreWith(trait.GetMethodType(ir.Method()))).(types.CallableType)
-	params := stlslices.Map(methodType.Params()[1:], func(_ int, p hir.Type) *local.Param {
-		return local.NewParam(true, "", p)
-	})
-	cl := local.NewLambdaExpr(nil, types.NewLambdaType(methodType.Ret(), []hir.Type{}...), params)
-	block := local.NewBlock(nil)
-	block.PushBack(local.NewReturn(stlval.IgnoreWith(trait.GetCovertValue(stlslices.First(params), stlslices.Map(params, func(_ int, p *local.Param) hir.Value {
-		return p
-	})...))))
-	cl.SetBody(block)
-	return cl
+	panic("unreachable")
 }

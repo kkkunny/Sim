@@ -1,9 +1,13 @@
 import std::os
 
-func sub<T: Sub>(l: T, r: T)T{
-	return l - r
+func not<T: Not>(v: T)T{
+	return v.not()
 }
 
 func main(){
-	os::exit(sub::<u8>(1, 1))
+	if not::<bool>(true){
+		debug("1")
+		return
+	}
+	debug("2")
 }

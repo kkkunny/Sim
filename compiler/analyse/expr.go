@@ -49,7 +49,7 @@ func (self *Analyser) analyseExpr(expect hir.Type, node ast.Expr) hir.Value {
 	case *ast.Struct:
 		return self.analyseStruct(exprNode)
 	case *ast.Dot:
-		return self.analyseDot(exprNode)
+		return self.analyseDot(exprNode, false)
 	case *ast.String:
 		return self.analyseString(expect, exprNode)
 	case *ast.Judgment:
@@ -272,30 +272,19 @@ func (self *Analyser) analyseUnary(expect hir.Type, node *ast.Unary) hir.Value {
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.Type()
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Neg")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](vt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(value, method, nil))
-		} else if types.Is[types.SintType](vt) || types.Is[types.FloatType](vt) {
-			return local.NewOppositeExpr(value)
+		if trait.HasBeImpled(vt) || types.Is[types.NumType](vt) {
+			return local.NewNegExpr(value)
+		} else {
+			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
+			return nil
 		}
-		errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
-		return nil
 	case token.NOT:
 		value := self.analyseExpr(expect, node.Value)
 		vt := value.Type()
 		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Not")).(*global.Trait)
-		ct, ok := types.As[global.CustomTypeDef](vt, true)
-		if ok && ct.HasImpl(trait) {
-			method := stlval.IgnoreWith(ct.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
-			return local.NewCallExpr(local.NewMethodExpr(value, method, nil))
-		}
-		switch {
-		case types.Is[types.IntType](vt):
-			return local.NewNegExpr(value)
-		case types.Is[types.BoolType](vt):
+		if trait.HasBeImpled(vt) || types.Is[types.IntType](vt) || types.Is[types.BoolType](vt) {
 			return local.NewNotExpr(value)
-		default:
+		} else {
 			errors.ThrowIllegalUnaryError(node.Position(), node.Opera, vt)
 			return nil
 		}
@@ -381,7 +370,11 @@ func (self *Analyser) analyseCall(expect hir.Type, node *ast.Call) hir.Value {
 	if expect != nil {
 		expect = types.NewFuncType(expect)
 	}
-	f := self.analyseExpr(expect, node.Func)
+	f := stlval.TernaryAction(stlval.Is[*ast.Dot](node.Func), func() hir.Value {
+		return self.analyseDot(node.Func.(*ast.Dot), true)
+	}, func() hir.Value {
+		return self.analyseExpr(expect, node.Func)
+	})
 	ct, ok := types.As[types.CallableType](f.Type())
 	if !ok {
 		errors.ThrowExpectCallableError(node.Func.Position(), f.Type())
@@ -595,7 +588,7 @@ func (self *Analyser) analyseStruct(node *ast.Struct) *local.StructExpr {
 	return local.NewStructExpr(st, fields...)
 }
 
-func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
+func (self *Analyser) analyseDot(node *ast.Dot, call bool) hir.Value {
 	fieldName := node.Index.Source()
 
 	if identNode, ok := node.From.(*ast.IdentExpr); ok {
@@ -633,9 +626,9 @@ func (self *Analyser) analyseDot(node *ast.Dot) hir.Value {
 	}
 
 	if node.GenericArgs.IsSome() && len(stlval.IgnoreWith(node.GenericArgs.Value()).Args) != 0 {
-		return stlval.IgnoreWith(self.analyseMethod(true, node))
+		return stlval.IgnoreWith(self.analyseMethod(true, node, call))
 	}
-	if method, ok := self.analyseMethod(false, node); ok {
+	if method, ok := self.analyseMethod(false, node, call); ok {
 		return method
 	}
 
@@ -673,7 +666,7 @@ func (self *Analyser) analyseStaticMethod(node *ast.Dot, selfType types.CustomTy
 	return local.NewStaticMethodExpr(selfType, method, compilerArgs)
 }
 
-func (self *Analyser) analyseMethod(must bool, node *ast.Dot) (values.Callable, bool) {
+func (self *Analyser) analyseMethod(must bool, node *ast.Dot, call bool) (values.Callable, bool) {
 	fieldName := node.Index.Source()
 	from := self.analyseExpr(nil, node.From)
 	ft := from.Type()
@@ -725,6 +718,9 @@ func (self *Analyser) analyseMethod(must bool, node *ast.Dot) (values.Callable, 
 		genericArgs := self.analyseOptionalGenericArgList(method.GenericParams(), node.Position(), node.GenericArgs)
 		return local.NewMethodExpr(selfVal, method, genericArgs), true
 	} else if fromGpt, ok := fromType.Right(); ok {
+		if !call {
+			errors.ThrowTheTraitMethodMustBeCalled(node.Position())
+		}
 		restraint, ok := fromGpt.Restraint()
 		if !ok {
 			if must {

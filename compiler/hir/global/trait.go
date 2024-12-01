@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
 type traitCovertInfo struct {
@@ -142,6 +143,37 @@ var traitCovertMap = map[string]traitCovertInfo{
 		},
 		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
 			return local.NewLogicOrExpr(self, stlslices.First(args))
+		},
+	},
+	"Eq": {
+		checkFn: func(t hir.Type) bool {
+			return true
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			if st := self.Type(); types.Is[types.NoThingType](st, true) || types.Is[types.NoReturnType](st, true) {
+				return values.NewBoolean(true)
+			} else {
+				return local.NewEqExpr(self, stlslices.First(args))
+			}
+		},
+	},
+	"Neg": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.NumType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewSubExpr(
+				local.NewDefaultExpr(self.Type()),
+				self,
+			)
+		},
+	},
+	"Not": {
+		checkFn: func(t hir.Type) bool {
+			return types.Is[types.IntType](t) || types.Is[types.BoolType](t)
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewNotExpr(self)
 		},
 	},
 }
