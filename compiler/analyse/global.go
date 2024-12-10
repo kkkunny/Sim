@@ -72,18 +72,7 @@ func (self *Analyser) declTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
 
-	// 编译参数
-	genericParams := linkedhashmap.StdWith[string, types.GenericParamType]()
-	if genericParamsNode, ok := node.GenericParams.Value(); ok {
-		for _, genericParamNode := range genericParamsNode.Params {
-			genericParamName := genericParamNode.Source()
-			if genericParams.Contain(genericParamName) {
-				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
-			}
-			genericParams.Set(genericParamName, types.NewGenericParam(genericParamName))
-		}
-	}
-
+	genericParams := self.analyseGenericParamsList(node.GenericParams)
 	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewCustomTypeDef(name, genericParams.Values(), types.NoThing)).(global.CustomTypeDef)
 }
 
@@ -153,18 +142,9 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 	}
 
 	// 泛型参数
-	genericParams := linkedhashmap.StdWith[string, types.GenericParamType]()
-	if genericParamsNode, ok := node.GenericParams.Value(); ok {
-		for _, genericParamNode := range genericParamsNode.Params {
-			genericParamName := genericParamNode.Source()
-			if genericParams.Contain(genericParamName) {
-				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
-			}
-			genericParams.Set(genericParamName, types.NewGenericParam(genericParamName))
-		}
-	}
-	fnDeclGenericParamAnalyser := stlslices.Map(genericParams.Values(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
-		return self.genericParamAnalyserWith(compileParam, true)
+	genericParams := self.analyseGenericParamsList(node.GenericParams)
+	fnDeclGenericParamAnalyser := stlslices.Map(genericParams.Values(), func(_ int, genericParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(genericParam, true)
 	})
 
 	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl, fnDeclGenericParamAnalyser...), genericParams.Values(), attrs...)
@@ -207,25 +187,23 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) global.MethodDef {
 	}
 
 	// 泛型参数
-	genericParams := linkedhashmap.StdWith[string, types.GenericParamType]()
+	selfGenericParams := linkedhashmap.StdWith[string, types.GenericParamType]()
 	for _, genericParamNode := range customType.GenericParams() {
-		genericParams.Set(genericParamNode.String(), genericParamNode)
+		selfGenericParams.Set(genericParamNode.String(), genericParamNode)
 	}
-	fnDeclGenericParamAnalyser := stlslices.Map(genericParams.Values(), func(_ int, compileParam types.GenericParamType) typeAnalyser {
-		return self.genericParamAnalyserWith(compileParam, true)
+	selfFnDeclGenericParamAnalyser := stlslices.Map(selfGenericParams.Values(), func(_ int, genericParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(genericParam, true)
 	})
-	genericParams = linkedhashmap.StdWith[string, types.GenericParamType]()
-	if genericParamsNode, ok := node.GenericParams.Value(); ok {
-		for _, genericParamNode := range genericParamsNode.Params {
-			genericParamName := genericParamNode.Source()
-			if genericParams.Contain(genericParamName) {
-				errors.ThrowIdentifierDuplicationError(genericParamNode.Position, genericParamNode)
-			}
-			compileParam := types.NewGenericParam(genericParamName)
-			genericParams.Set(genericParamName, compileParam)
-			fnDeclGenericParamAnalyser = append(fnDeclGenericParamAnalyser, self.genericParamAnalyserWith(compileParam, true))
+	genericParams := self.analyseGenericParamsList(node.GenericParams)
+	for i := range genericParams.Values() {
+		param := node.GenericParams.MustValue().Params[i]
+		if selfGenericParams.Contain(param.Name.Source()) {
+			errors.ThrowIdentifierDuplicationError(param.Name.Position, param.Name)
 		}
 	}
+	fnDeclGenericParamAnalyser := stlslices.Map(genericParams.Values(), func(_ int, genericParam types.GenericParamType) typeAnalyser {
+		return self.genericParamAnalyserWith(genericParam, true)
+	})
 
 	typeAnalysers := append(
 		[]typeAnalyser{self.selfTypeAnalyserWith(
@@ -239,7 +217,7 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) global.MethodDef {
 			}, func() hir.Type {
 				return customType
 			}), true)},
-		fnDeclGenericParamAnalyser...,
+		append(selfFnDeclGenericParamAnalyser, fnDeclGenericParamAnalyser...)...,
 	)
 	f := global.NewOriginMethodDef(
 		customType,

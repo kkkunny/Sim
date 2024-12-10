@@ -7,9 +7,11 @@ import (
 
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlos "github.com/kkkunny/stl/os"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/reader"
 
 	"github.com/kkkunny/Sim/compiler/token"
@@ -94,6 +96,11 @@ func ThrowExpectEnumTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a enum type but there is type `%s`", t)
 }
 
+// ThrowExpectTraitError 期待Trait
+func ThrowExpectTraitError(pos reader.Position) {
+	ThrowError(pos, "expect a trait")
+}
+
 // ThrowExpectCallableError 期待一个可调用的
 func ThrowExpectCallableError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a callable but there is type `%s`", t)
@@ -117,6 +124,16 @@ func ThrowExpectTupleError(pos reader.Position, t hir.Type) {
 // ThrowExpectStructError 期待一个结构体
 func ThrowExpectStructError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a struct but there is type `%s`", t)
+}
+
+// ThrowUnknownFieldOrMethodError 未知的字段或者方法
+func ThrowUnknownFieldOrMethodError(pos reader.Position, t hir.Type, field token.Token) {
+	ThrowError(pos, "type `%s` not have field or method named `%s`", t, field.Source())
+}
+
+// ThrowTheTraitMethodMustBeCalled trait的方法必须被调用
+func ThrowTheTraitMethodMustBeCalled(pos reader.Position) {
+	ThrowError(pos, "trait method must be called")
 }
 
 // ThrowInvalidIndexError 超出下标
@@ -167,6 +184,11 @@ func ThrowUnExpectAttr(pos reader.Position) {
 // ThrowIllegalType 非法的类型
 func ThrowIllegalType(pos reader.Position) {
 	ThrowError(pos, "illegal type")
+}
+
+// ThrowNotImplTrait 没有实现trait
+func ThrowNotImplTrait(pos reader.Position, t hir.Type, trait *global.Trait) {
+	ThrowError(pos, "type `%s` not impl trait `%s`", t.String(), stlval.IgnoreWith(trait.GetName()))
 }
 
 // ThrowInvalidPackage 无效包

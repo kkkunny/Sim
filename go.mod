@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/heimdalr/dag v1.5.0
-	github.com/kkkunny/go-llvm v0.0.0-20241126052231-a2d4bbb9e467
+	github.com/kkkunny/go-llvm v0.0.0-20241201032613-d581ea5977a3
 	github.com/kkkunny/stl v0.0.0-20241116043033-308ffc3d1d79
 	github.com/samber/lo v1.47.0
 	github.com/spf13/cobra v1.8.1

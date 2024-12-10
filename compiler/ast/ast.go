@@ -109,9 +109,36 @@ func (self *Ident) Output(w io.Writer, depth uint) (err error) {
 	return nil
 }
 
+type GenericParam struct {
+	Name      token.Token
+	Restraint optional.Optional[*IdentType]
+}
+
+func (self *GenericParam) Position() reader.Position {
+	restraint, ok := self.Restraint.Value()
+	if !ok {
+		return self.Name.Position
+	}
+	return reader.MixPosition(self.Name.Position, restraint.Position())
+}
+
+func (self *GenericParam) Output(w io.Writer, depth uint) (err error) {
+	if err = outputf(w, self.Name.Source()); err != nil {
+		return err
+	}
+	restraint, ok := self.Restraint.Value()
+	if !ok {
+		return nil
+	}
+	if err = outputf(w, ": "); err != nil {
+		return err
+	}
+	return restraint.Output(w, depth)
+}
+
 type GenericParamList struct {
 	Begin  reader.Position
-	Params []token.Token
+	Params []*GenericParam
 	End    reader.Position
 }
 
@@ -124,7 +151,7 @@ func (self *GenericParamList) Output(w io.Writer, depth uint) (err error) {
 		return err
 	}
 	for i, param := range self.Params {
-		if err = outputf(w, param.Source()); err != nil {
+		if err = param.Output(w, depth); err != nil {
 			return err
 		}
 		if i < len(self.Params)-1 {

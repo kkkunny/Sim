@@ -1,0 +1,9 @@
+import std::os
+
+func sub<T: Sub>(l: T, r: T)T{
+	return l - r
+}
+
+func main(){
+	os::exit(sub::<u8>(1, 1))
+}

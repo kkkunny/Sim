@@ -264,20 +264,7 @@ func (self *FuncDef) Output(w io.Writer, depth uint) (err error) {
 		return err
 	}
 	if genericParams, ok := self.GenericParams.Value(); ok {
-		if err = outputf(w, "<"); err != nil {
-			return err
-		}
-		for i, param := range genericParams.Params {
-			if err = outputf(w, param.Source()); err != nil {
-				return err
-			}
-			if i < len(genericParams.Params)-1 {
-				if err = outputf(w, ", "); err != nil {
-					return err
-				}
-			}
-		}
-		if err = outputf(w, ">"); err != nil {
+		if err = genericParams.Output(w, depth); err != nil {
 			return err
 		}
 	}
@@ -338,20 +325,7 @@ func (self *TypeDef) Output(w io.Writer, depth uint) (err error) {
 		return err
 	}
 	if genericParams, ok := self.GenericParams.Value(); ok {
-		if err = outputf(w, "<"); err != nil {
-			return err
-		}
-		for i, param := range genericParams.Params {
-			if err = outputf(w, param.Source()); err != nil {
-				return err
-			}
-			if i < len(genericParams.Params)-1 {
-				if err = outputf(w, ", "); err != nil {
-					return err
-				}
-			}
-		}
-		if err = outputf(w, ">"); err != nil {
+		if err = genericParams.Output(w, depth); err != nil {
 			return err
 		}
 	}

@@ -53,6 +53,10 @@ func (self *CodeGenerator) codegenValue(ir hir.Value, load bool) llvm.Value {
 		return self.codegenGenericFuncInst(ir)
 	case *local.StaticMethodExpr:
 		return self.codegenStaticMethod(ir)
+	case *local.TraitStaticMethodExpr:
+		return self.codegenTraitStaticMethod(ir)
+	case *local.TraitMethodExpr:
+		return self.codegenValue(self.covertTraitMethodToMethod(ir), load)
 	default:
 		panic("unreachable")
 	}
@@ -102,102 +106,224 @@ func (self *CodeGenerator) codegenUnTuple(fromIr hir.Value, toIrs []hir.Value) {
 }
 
 func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Value {
-	left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+	lt := ir.GetLeft().Type()
 	switch ir := ir.(type) {
 	case *local.AssignExpr:
 		self.codegenAssign(ir)
 		return nil
-	case *local.AndExpr, *local.LogicAndExpr:
+	case *local.AndExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("And")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
 		return self.builder.CreateAnd("", left, right)
-	case *local.OrExpr, *local.LogicOrExpr:
+	case *local.LogicAndExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Land")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		return self.builder.CreateAnd("", left, right)
+	case *local.OrExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Or")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		return self.builder.CreateOr("", left, right)
+	case *local.LogicOrExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lor")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
 		return self.builder.CreateOr("", left, right)
 	case *local.XorExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Xor")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
 		return self.builder.CreateXor("", left, right)
 	case *local.ShlExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shl")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
 		return self.builder.CreateShl("", left, right)
 	case *local.ShrExpr:
-		if t := ir.Type(); types.Is[types.SintType](t) {
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Shr")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		if types.Is[types.SintType](lt) {
 			return self.builder.CreateAShr("", left, right)
 		} else {
 			return self.builder.CreateLShr("", left, right)
 		}
 	case *local.AddExpr:
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Add")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFAdd("", left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateSAdd("", left, right)
 		} else {
 			return self.builder.CreateUAdd("", left, right)
 		}
 	case *local.SubExpr:
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Sub")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFSub("", left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateSSub("", left, right)
 		} else {
 			return self.builder.CreateUSub("", left, right)
 		}
 	case *local.MulExpr:
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Mul")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFMul("", left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateSMul("", left, right)
 		} else {
 			return self.builder.CreateUMul("", left, right)
 		}
 	case *local.DivExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Div")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
 		self.buildCheckZero(right)
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFDiv("", left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateSDiv("", left, right)
 		} else {
 			return self.builder.CreateUDiv("", left, right)
 		}
 	case *local.RemExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Rem")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
 		self.buildCheckZero(right)
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFRem("", left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateSRem("", left, right)
 		} else {
 			return self.builder.CreateURem("", left, right)
 		}
 	case *local.LtExpr:
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFloatCmp("", llvm.FloatOLT, left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateIntCmp("", llvm.IntSLT, left, right)
 		} else {
 			return self.builder.CreateIntCmp("", llvm.IntULT, left, right)
 		}
 	case *local.GtExpr:
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFloatCmp("", llvm.FloatOGT, left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateIntCmp("", llvm.IntSGT, left, right)
 		} else {
 			return self.builder.CreateIntCmp("", llvm.IntUGT, left, right)
 		}
 	case *local.LeExpr:
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		eqTrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		ltTrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Lt")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && eqTrait.HasBeImpled(lt, true) && ltTrait.HasBeImpled(lt, true) {
+			eqMethod := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(eqTrait.FirstMethod()).GetName())))
+			leMethod := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(ltTrait.FirstMethod()).GetName())))
+			return self.codegenBinary(local.NewLogicAndExpr(
+				local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), eqMethod, nil), ir.GetRight()),
+				local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), leMethod, nil), ir.GetRight()),
+			), load)
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFloatCmp("", llvm.FloatOLE, left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateIntCmp("", llvm.IntSLE, left, right)
 		} else {
 			return self.builder.CreateIntCmp("", llvm.IntULE, left, right)
 		}
 	case *local.GeExpr:
-		if t := ir.Type(); types.Is[types.FloatType](t) {
+		eqTrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		gtTrait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Gt")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && eqTrait.HasBeImpled(lt, true) && gtTrait.HasBeImpled(lt, true) {
+			eqMethod := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(eqTrait.FirstMethod()).GetName())))
+			gtMethod := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(gtTrait.FirstMethod()).GetName())))
+			return self.codegenBinary(local.NewLogicAndExpr(
+				local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), eqMethod, nil), ir.GetRight()),
+				local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), gtMethod, nil), ir.GetRight()),
+			), load)
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
+		if types.Is[types.FloatType](lt) {
 			return self.builder.CreateFloatCmp("", llvm.FloatOGE, left, right)
-		} else if types.Is[types.SintType](t) {
+		} else if types.Is[types.SintType](lt) {
 			return self.builder.CreateIntCmp("", llvm.IntSGE, left, right)
 		} else {
 			return self.builder.CreateIntCmp("", llvm.IntUGE, left, right)
 		}
 	case *local.EqExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight()))
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
 		return self.builder.CreateZExt("", self.buildEqual(ir.GetLeft().Type(), left, right, false), self.builder.BooleanType())
 	case *local.NeExpr:
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Eq")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](lt, true); ok && trait.HasBeImpled(lt, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenUnary(local.NewNotExpr(local.NewCallExpr(local.NewMethodExpr(ir.GetLeft(), method, nil), ir.GetRight())), load)
+		}
+		left, right := self.codegenValue(ir.GetLeft(), true), self.codegenValue(ir.GetRight(), true)
 		return self.builder.CreateZExt("", self.buildEqual(ir.GetLeft().Type(), left, right, true), self.builder.BooleanType())
 	case *local.IndexExpr:
 		return self.codegenIndex(ir, load)
@@ -214,12 +340,24 @@ func (self *CodeGenerator) codegenBinary(ir local.BinaryExpr, load bool) llvm.Va
 
 func (self *CodeGenerator) codegenUnary(ir local.UnaryExpr, load bool) llvm.Value {
 	switch ir := ir.(type) {
-	case *local.OppositeExpr:
+	case *local.NegExpr:
+		tIr := ir.Type()
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Neg")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](tIr, true); ok && trait.HasBeImpled(tIr, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetValue(), method, nil)))
+		}
 		return self.codegenBinary(local.NewSubExpr(
 			local.NewDefaultExpr(ir.GetValue().Type()),
 			ir.GetValue(),
 		), load)
-	case *local.NegExpr, *local.NotExpr:
+	case *local.NotExpr:
+		tIr := ir.Type()
+		trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Not")).(*global.Trait)
+		if ctd, ok := types.As[global.CustomTypeDef](tIr, true); ok && trait.HasBeImpled(tIr, true) {
+			method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+			return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.GetValue(), method, nil)))
+		}
 		return self.builder.CreateNot("", self.codegenValue(ir.GetValue(), true))
 	case *local.GetRefExpr:
 		return self.codegenValue(ir.GetValue(), false)
@@ -300,6 +438,8 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 func (self *CodeGenerator) codegenCall(ir *local.CallExpr) llvm.Value {
 	if stlval.Is[*local.MethodExpr](ir.GetFunc()) {
 		return self.codegenMethodCall(ir)
+	} else if stlval.Is[*local.TraitMethodExpr](ir.GetFunc()) {
+		return self.codegenTraitMethodCall(ir)
 	} else if types.Is[types.LambdaType](ir.GetFunc().Type()) {
 		return self.codegenLambdaCall(ir)
 	} else {
@@ -344,6 +484,23 @@ func (self *CodeGenerator) codegenMethodCall(ir *local.CallExpr) llvm.Value {
 	}
 
 	return self.builder.CreateCall("", ft, method, append([]llvm.Value{selfVal}, args...)...)
+}
+
+func (self *CodeGenerator) codegenTraitMethodCall(ir *local.CallExpr) llvm.Value {
+	methodIr := ir.GetFunc().(*local.TraitMethodExpr)
+
+	selfType := methodIr.Self().Type()
+	trait := stlval.IgnoreWith(stlval.IgnoreWith(types.As[types.GenericParamType](selfType)).Restraint()).(*global.Trait)
+	selfType = types.ReplaceVirtualType(self.virtualTypes, selfType)
+	if rt, ok := types.As[types.RefType](selfType, true); ok {
+		selfType = rt.Pointer()
+	}
+
+	if trait.HasBeImpled(selfType, true) {
+		return self.codegenMethodCall(local.NewCallExpr(self.covertTraitMethodToMethod(methodIr), ir.GetArgs()...))
+	}
+
+	return self.codegenValue(stlval.IgnoreWith(trait.GetCovertValue(methodIr.Self(), ir.GetArgs()...)), true)
 }
 
 func (self *CodeGenerator) codegenLambdaCall(ir *local.CallExpr) llvm.Value {
@@ -622,7 +779,7 @@ func (self *CodeGenerator) codegenMethod(ir *local.MethodExpr) llvm.Value {
 	if ret.Type().Equal(self.builder.VoidType()) {
 		self.builder.CreateRet(nil)
 	} else {
-		self.builder.CreateRet(stlval.Ptr[llvm.Value](ret))
+		self.builder.CreateRet(ret)
 	}
 
 	self.builder.MoveToAfter(preBlock)
@@ -659,4 +816,28 @@ func (self *CodeGenerator) codegenStaticMethod(ir *local.StaticMethodExpr) llvm.
 	}
 
 	return self.instGenericFunc(ir.Method().(*global.OriginMethodDef), ir)
+}
+
+func (self *CodeGenerator) codegenTraitStaticMethod(ir *local.TraitStaticMethodExpr) llvm.Value {
+	selfType := types.ReplaceVirtualType(self.virtualTypes, ir.Self()).(global.CustomTypeDef)
+	method := stlval.IgnoreWith(selfType.GetMethod(ir.Method()))
+	return self.codegenStaticMethod(local.NewStaticMethodExpr(selfType, method, nil))
+}
+
+func (self *CodeGenerator) covertTraitMethodToMethod(ir *local.TraitMethodExpr) hir.Value {
+	selfType := ir.Self().Type()
+	trait := stlval.IgnoreWith(stlval.IgnoreWith(types.As[types.GenericParamType](selfType)).Restraint()).(*global.Trait)
+	selfType = types.ReplaceVirtualType(self.virtualTypes, selfType)
+	if rt, ok := types.As[types.RefType](selfType, true); ok {
+		selfType = rt.Pointer()
+	}
+
+	if trait.HasBeImpled(selfType, true) {
+		selfGpt := stlval.IgnoreWith(types.As[types.GenericParamType](selfType, true))
+		selfCtd := self.virtualTypes.Get(selfGpt).(global.CustomTypeDef)
+		method := stlval.IgnoreWith(selfCtd.GetMethod(ir.Method()))
+		return local.NewMethodExpr(ir.Self(), method, nil)
+	}
+
+	panic("unreachable")
 }

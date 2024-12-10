@@ -23,6 +23,16 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
+// buildin包
+func (self *CodeGenerator) buildinPkg() *hir.Package {
+	if self.pkg.IsBuildIn() {
+		return self.pkg
+	}
+	return stlval.IgnoreWith(stlslices.FindFirst(self.pkg.GetDependencyPackages(), func(_ int, pkg *hir.Package) bool {
+		return pkg.IsBuildIn()
+	}))
+}
+
 func (self *CodeGenerator) getIdentName(ir values.Ident) string {
 	switch ident := ir.(type) {
 	case *global.FuncDef:
@@ -498,7 +508,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			self.builder.CreateBr(condBlock)
 
 			self.builder.MoveToAfter(endBlock)
-			self.builder.CreateRet(stlval.Ptr[llvm.Value](self.builder.CreateLoad("", at, arrayPtr)))
+			self.builder.CreateRet(self.builder.CreateLoad("", at, arrayPtr))
 
 			self.builder.MoveToAfter(curBlock)
 		} else {
@@ -527,7 +537,7 @@ func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
 			if ft.ReturnType().Equal(self.builder.VoidType()) {
 				self.builder.CreateRet(nil)
 			} else {
-				self.builder.CreateRet(stlval.Ptr(self.buildCopy(ir.Ret(), self.codegenDefault(ir.Ret()))))
+				self.builder.CreateRet(self.buildCopy(ir.Ret(), self.codegenDefault(ir.Ret())))
 			}
 			self.builder.MoveToAfter(curBlock)
 		} else {

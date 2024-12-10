@@ -2,6 +2,7 @@ package analyse
 
 import (
 	"github.com/kkkunny/stl/container/either"
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -200,18 +201,18 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 		}
 	}()
 
-	identObj, ok := scope.GetIdent(node.Name.Source(), true)
+	// TODO: 外部包不能再次allowLinked
+	identObj, ok := scope.GetIdent(name, true)
 	if !ok {
 		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 	}
-	// TODO: 全局语句公开性
 	if g, ok := identObj.(hir.Global); ok && !g.Package().Equal(self.scope.Package()) && !g.Public() {
 		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 	}
 
 	switch ident := identObj.(type) {
 	case *global.FuncDef:
-		genericArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs)
+		genericArgs := self.analyseOptionalGenericArgList(ident.GenericParams(), node.Position(), node.GenericArgs)
 		if len(genericArgs) == 0 {
 			return either.Right[hir.Type, hir.Value](ident), true
 		}
@@ -219,7 +220,7 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 	case hir.Value:
 		return either.Right[hir.Type, hir.Value](ident), true
 	case global.CustomTypeDef:
-		genericArgs := self.analyseOptionalGenericArgList(len(ident.GenericParams()), node.Position(), node.GenericArgs, typeAnalysers...)
+		genericArgs := self.analyseOptionalGenericArgList(ident.GenericParams(), node.Position(), node.GenericArgs, typeAnalysers...)
 		if len(genericArgs) == 0 {
 			return either.Left[hir.Type, hir.Value](ident), true
 		}
@@ -230,6 +231,30 @@ func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnal
 	return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 }
 
+func (self *Analyser) analyseTraitIdent(node *ast.IdentType) *global.Trait {
+	scope := self.scope
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		scope, ok = self.getFileByPath(node.Position()).GetExternPackage(pkgToken.Source())
+		if !ok {
+			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
+		}
+	}
+
+	// TODO: 外部包不能再次allowLinked
+	identObj, ok := scope.GetIdent(node.Name.Source(), true)
+	if !ok {
+		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+	}
+	trait, ok := identObj.(*global.Trait)
+	if !ok {
+		errors.ThrowExpectTraitError(node.Position())
+	} else if !trait.Package().Equal(self.scope.Package()) && !trait.Public() {
+		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+	}
+
+	return trait
+}
+
 // 获取类型默认值
 func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *local.DefaultExpr {
 	if !self.hasTypeDefault(t) {
@@ -238,18 +263,45 @@ func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *loca
 	return local.NewDefaultExpr(t)
 }
 
-func (self *Analyser) analyseOptionalGenericArgList(expectNumber int, pos reader.Position, node optional.Optional[*ast.GenericArgList], typeAnalysers ...typeAnalyser) []hir.Type {
+func (self *Analyser) analyseGenericParamsList(node optional.Optional[*ast.GenericParamList]) linkedhashmap.LinkedHashMap[string, types.GenericParamType] {
+	res := linkedhashmap.StdWith[string, types.GenericParamType]()
+	if genericParamsNode, ok := node.Value(); ok {
+		for _, genericParamNode := range genericParamsNode.Params {
+			genericParamName := genericParamNode.Name.Source()
+			if res.Contain(genericParamName) {
+				errors.ThrowIdentifierDuplicationError(genericParamNode.Name.Position, genericParamNode.Name)
+			}
+			if restraintNode, ok := genericParamNode.Restraint.Value(); ok {
+				restraint := self.analyseTraitIdent(restraintNode)
+				res.Set(genericParamName, types.NewGenericParam(genericParamName, restraint))
+			} else {
+				res.Set(genericParamName, types.NewGenericParam(genericParamName))
+			}
+		}
+	}
+	return res
+}
+
+func (self *Analyser) analyseOptionalGenericArgList(genericParams []types.GenericParamType, pos reader.Position, node optional.Optional[*ast.GenericArgList], typeAnalysers ...typeAnalyser) []hir.Type {
 	genericArgsNode, ok := node.Value()
 	if !ok {
 		return nil
 	}
-	if expectNumber != len(genericArgsNode.Args) {
-		errors.ThrowParameterNumberNotMatchError(pos, uint(expectNumber), uint(len(genericArgsNode.Args)))
+	if len(genericParams) != len(genericArgsNode.Args) {
+		errors.ThrowParameterNumberNotMatchError(pos, uint(len(genericParams)), uint(len(genericArgsNode.Args)))
 	}
-	if expectNumber == 0 {
+	if len(genericParams) == 0 {
 		return nil
 	}
-	return stlslices.Map(genericArgsNode.Args, func(_ int, genericArgNode ast.Type) hir.Type {
-		return self.analyseType(genericArgNode, typeAnalysers...)
+	return stlslices.Map(genericArgsNode.Args, func(i int, genericArgNode ast.Type) hir.Type {
+		t := self.analyseType(genericArgNode, typeAnalysers...)
+		restraint, ok := genericParams[i].Restraint()
+		if !ok {
+			return t
+		}
+		if trait := restraint.(*global.Trait); !trait.HasBeImpled(t) {
+			errors.ThrowNotImplTrait(genericArgNode.Position(), t, trait)
+		}
+		return t
 	})
 }

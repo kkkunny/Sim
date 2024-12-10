@@ -511,18 +511,7 @@ type UnaryExpr interface {
 	GetValue() hir.Value
 }
 
-// OppositeExpr 取相反数
-type OppositeExpr struct {
-	value hir.Value
-}
-
-func NewOppositeExpr(v hir.Value) *OppositeExpr { return &OppositeExpr{value: v} }
-func (self *OppositeExpr) Type() hir.Type       { return self.value.Type() }
-func (self *OppositeExpr) Mutable() bool        { return false }
-func (self *OppositeExpr) Storable() bool       { return false }
-func (self *OppositeExpr) GetValue() hir.Value  { return self.value }
-
-// NegExpr 按位取反
+// NegExpr -
 type NegExpr struct {
 	value hir.Value
 }
@@ -533,7 +522,7 @@ func (self *NegExpr) Mutable() bool       { return false }
 func (self *NegExpr) Storable() bool      { return false }
 func (self *NegExpr) GetValue() hir.Value { return self.value }
 
-// NotExpr 否定
+// NotExpr !
 type NotExpr struct {
 	value hir.Value
 }
@@ -866,4 +855,47 @@ func (self *StaticMethodExpr) CallableType() types.CallableType {
 	} else {
 		return types.ReplaceVirtualType(genericParamMap, ft).(types.CallableType)
 	}
+}
+
+// TraitStaticMethodExpr Trait静态方法
+type TraitStaticMethodExpr struct {
+	self   types.GenericParamType
+	method string
+}
+
+func NewTraitStaticMethodExpr(self types.GenericParamType, method string) *TraitStaticMethodExpr {
+	return &TraitStaticMethodExpr{self: self, method: method}
+}
+func (self *TraitStaticMethodExpr) Type() hir.Type               { return self.CallableType() }
+func (self *TraitStaticMethodExpr) Mutable() bool                { return false }
+func (self *TraitStaticMethodExpr) Storable() bool               { return false }
+func (self *TraitStaticMethodExpr) Self() types.GenericParamType { return self.self }
+func (self *TraitStaticMethodExpr) Method() string               { return self.method }
+func (self *TraitStaticMethodExpr) CallableType() types.CallableType {
+	trait := stlval.IgnoreWith(self.self.Restraint())
+	ft := stlval.IgnoreWith(trait.GetMethodType(self.method))
+	return types.ReplaceVirtualType(hashmap.AnyWith[types.VirtualType, hir.Type](types.Self, self.self), ft).(types.CallableType)
+}
+
+// TraitMethodExpr Trait方法
+type TraitMethodExpr struct {
+	self      hir.Value
+	method    string
+	onCapture func(hir.Type)
+}
+
+func NewTraitMethodExpr(self hir.Value, method string) *TraitMethodExpr {
+	return &TraitMethodExpr{self: self, method: method}
+}
+func (self *TraitMethodExpr) Type() hir.Type  { return self.CallableType() }
+func (self *TraitMethodExpr) Mutable() bool   { return false }
+func (self *TraitMethodExpr) Storable() bool  { return false }
+func (self *TraitMethodExpr) Self() hir.Value { return self.self }
+func (self *TraitMethodExpr) Method() string  { return self.method }
+func (self *TraitMethodExpr) CallableType() types.CallableType {
+	gpt := stlval.IgnoreWith(types.As[types.GenericParamType](self.self.Type(), true))
+	trait := stlval.IgnoreWith(gpt.Restraint())
+	ft := stlval.IgnoreWith(trait.GetMethodType(self.method)).(types.CallableType)
+	ft = types.NewLambdaType(ft.Ret(), ft.Params()[1:]...)
+	return types.ReplaceVirtualType(hashmap.AnyWith[types.VirtualType, hir.Type](types.Self, self.self.Type()), ft).(types.CallableType)
 }
