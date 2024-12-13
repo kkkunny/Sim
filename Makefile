@@ -54,9 +54,9 @@ analyse: $(WORK_PATH)/ $(TEST_FILE)
 codegenir: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags codegenir $(WORK_PATH) $(TEST_FILE)
 
-.PHONY: codegenasm
-codegenasm: $(WORK_PATH)/ $(TEST_FILE)
-	@go run -tags codegenasm $(WORK_PATH) $(TEST_FILE)
+.PHONY: opt
+opt: $(WORK_PATH)/ $(TEST_FILE)
+	@go run -tags optimize $(WORK_PATH) $(TEST_FILE)
 
 .PHONY: run
 run: $(WORK_PATH)/ $(TEST_FILE)

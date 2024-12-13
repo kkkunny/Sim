@@ -1,4 +1,4 @@
-//go:build codegenir && windows
+//go:build codegenir
 
 package main
 
@@ -11,14 +11,12 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/codegen_ir"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 func main() {
 	llvm.EnablePrettyStackTrace()
-	stlerror.Must(llvm.InitializeTargetInfo(llvm.X86))
-	stlerror.Must(llvm.InitializeTarget(llvm.X86))
-	stlerror.Must(llvm.InitializeTargetMC(llvm.X86))
-	target := stlerror.MustWith(llvm.NewTargetFromTriple("x86_64-pc-windows-msvc"))
+	target := stlerror.MustWith(util.GetLLVMTarget())
 	path := stlerror.MustWith(stlos.NewFilePath(os.Args[1]).Abs())
 	module := stlerror.MustWith(codegen_ir.CodegenIr(target, path))
 	fmt.Println(module)

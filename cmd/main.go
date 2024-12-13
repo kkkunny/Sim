@@ -15,6 +15,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/codegen_ir"
 	"github.com/kkkunny/Sim/compiler/interpret"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 var (
@@ -45,11 +46,8 @@ var buildCmd = &cobra.Command{
 		input = stlerr.MustWith(input.Abs())
 		oOutputPath := input.Dir().Join(strings.ReplaceAll(input.Base(), input.Ext(), ".obj"))
 
-		stlerr.Must(llvm.InitializeTargetInfo(llvm.X86))
-		stlerr.Must(llvm.InitializeTarget(llvm.X86))
-		stlerr.Must(llvm.InitializeTargetMC(llvm.X86))
-		stlerr.Must(llvm.InitializeNativeAsmPrinter())
-		target := stlerr.MustWith(llvm.NewTargetFromTriple("x86_64-pc-windows-msvc"))
+		llvm.EnablePrettyStackTrace()
+		target := stlerr.MustWith(util.GetLLVMTarget())
 		module := stlerr.MustWith(codegen_ir.CodegenIr(target, input))
 		stlerr.Must(stlerr.ErrorWrap(target.WriteOBJToFile(module, string(oOutputPath), llvm.CodeOptLevelDefault, llvm.RelocModePIC, llvm.CodeModelDefault)))
 		defer os.Remove(string(oOutputPath))
@@ -74,10 +72,7 @@ var runCmd = &cobra.Command{
 		input := stlos.NewFilePath(stlslices.First(args))
 		input = stlerr.MustWith(input.Abs())
 		llvm.EnablePrettyStackTrace()
-		stlerr.Must(llvm.InitializeTargetInfo(llvm.X86))
-		stlerr.Must(llvm.InitializeTarget(llvm.X86))
-		stlerr.Must(llvm.InitializeTargetMC(llvm.X86))
-		target := stlerr.MustWith(llvm.NewTargetFromTriple("x86_64-pc-windows-msvc"))
+		target := stlerr.MustWith(util.GetLLVMTarget())
 		module := stlerr.MustWith(codegen_ir.CodegenIr(target, input))
 		ret := stlerr.MustWith(interpret.Interpret(module))
 		os.Exit(int(ret))

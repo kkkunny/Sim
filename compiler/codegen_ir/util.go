@@ -835,6 +835,5 @@ func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
 		return llvm.Module{}, err
 	}
 
-	// module.AutoOpt(llvm.OptLevelO2)
 	return module, nil
 }
