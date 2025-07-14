@@ -1,0 +1,5 @@
+import std::os
+
+func main(){
+    os::exit(0)
+}

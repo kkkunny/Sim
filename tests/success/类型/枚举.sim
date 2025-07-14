@@ -1,0 +1,12 @@
+import std::os
+
+type Enum enum {
+	A,
+	B,
+	C,
+}
+
+func main(){
+	let v1 = Enum.A
+	os::exit(0)
+}

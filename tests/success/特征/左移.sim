@@ -1,0 +1,13 @@
+import std::os
+
+type A i32
+
+func (A) shl(self: Self, dst: Self)Self{
+	return 0
+}
+
+func main(){
+	let mut v: A = 1
+	v = v << 0
+	os::exit(v as u8)
+}

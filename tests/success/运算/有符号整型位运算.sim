@@ -1,0 +1,9 @@
+import std::os
+
+func main(){
+    let a: i32 = 1
+    let b = a & 1
+    let c = b | 0
+    let d = c ^ 1
+    os::exit(d as u8)
+}

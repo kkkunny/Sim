@@ -1,0 +1,15 @@
+import std::os
+
+type A enum{
+	A1: i8,
+	A2: i64,
+	A3
+}
+
+func main(){
+	let a = A.A1(1)
+	let b = A.A3
+	if a != b{
+		os::exit(1)
+	}
+}

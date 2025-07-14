@@ -1,147 +1,69 @@
 package analyse
 
 import (
-	"strings"
-
-	stlbasic "github.com/kkkunny/stl/basic"
 	"github.com/kkkunny/stl/container/either"
-	"github.com/kkkunny/stl/container/hashset"
-	"github.com/kkkunny/stl/container/linkedlist"
-	stlerror "github.com/kkkunny/stl/error"
-	stlos "github.com/kkkunny/stl/os"
-	stlslices "github.com/kkkunny/stl/slices"
+	"github.com/kkkunny/stl/container/linkedhashmap"
+	"github.com/kkkunny/stl/container/optional"
+	"github.com/kkkunny/stl/container/set"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/ast"
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/parse"
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/config"
+	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/reader"
 )
 
-type importPackageErrorKind uint8
-
-const (
-	importPackageErrorNone importPackageErrorKind = iota
-	// 循环导入
-	importPackageErrorCircular
-	// 包名冲突
-	importPackageErrorDuplication
-	// 无效包
-	importPackageErrorInvalid
-)
-
-// importPackage 导入包
-func (self *Analyser) importPackage(pkg hir.Package, name string, importAll bool) (hirs linkedlist.LinkedList[hir.Global], err importPackageErrorKind) {
-	name = stlbasic.Ternary(name!="", name, pkg.GetPackageName())
-
-	if !importAll && self.pkgScope.externs.ContainKey(name){
-		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorDuplication
-	}
-
-	var scope *_PkgScope
-	defer func() {
-		if err != importPackageErrorNone{
-			return
-		}
-		// 关联包
-		if importAll {
-			self.pkgScope.links.Add(scope)
-		} else {
-			self.pkgScope.externs.Set(name, scope)
-		}
-	}()
-
-	if scope = self.pkgs.Get(pkg); self.pkgs.ContainKey(pkg) && scope == nil{
-		// 循环导入
-		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorCircular
-	} else if self.pkgs.ContainKey(pkg) && scope != nil{
-		// 导入过该包，有缓存，不再追加该包的语句
-		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorNone
-	}
-
-	// 开始分析该包，放一个占位符，以便检测循环导入
-	self.pkgs.Set(pkg, nil)
-	// 分析并追加该包的语句
-	var analyseError stlerror.Error
-	hirs, scope, analyseError = analyseSonPackage(self, pkg)
-	if analyseError != nil && hirs.Empty(){
-		return linkedlist.LinkedList[hir.Global]{}, importPackageErrorInvalid
-	}
-	self.pkgs.Set(pkg, scope)
-	return hirs, importPackageErrorNone
+// 当前文件作用域
+func (self *Analyser) getFileByPath(pos reader.Position) *hir.File {
+	return self.allFiles.Get(pos.Reader.Path())
 }
 
-func (self *Analyser) setSelfValue(v *hir.Param)(callback func()){
-	bk := self.selfValue
-	self.selfValue = v
-	return func() {
-		self.selfValue = bk
-	}
+// buildin包
+func (self *Analyser) buildinPkg() *hir.Package {
+	return self.allPkgs.Get(config.BuildInPkgPath)
 }
 
-func (self *Analyser) setSelfType(td hir.TypeDef)(callback func()){
-	bk := self.selfType
-	self.selfType = td
-	return func() {
-		self.selfType = bk
-	}
+func (self *Analyser) analyseParam(node ast.Param, analysers ...typeAnalyser) *local.Param {
+	mut := !node.Mutable.IsNone()
+	name := stlval.TernaryAction(node.Name.IsSome(), func() string {
+		return node.Name.MustValue().Source()
+	}, func() string {
+		return ""
+	})
+	typ := self.analyseType(node.Type, analysers...)
+	return local.NewParam(mut, name, typ)
 }
 
-// 获取类型默认值
-func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) hir.Expr{
-	if !self.isTypeHasDefault(t){
-		errors.ThrowCanNotGetDefault(pos, t)
-	}
-	return &hir.Default{Type: t}
-}
+func (self *Analyser) analyseFuncDecl(node ast.FuncDecl, analysers ...typeAnalyser) *global.FuncDecl {
+	name := node.Name.Source()
 
-// 类型是否有默认值
-func (self *Analyser) isTypeHasDefault(t hir.Type)bool{
-	switch tt := t.(type) {
-	case *hir.EmptyType, *hir.RefType, *hir.FuncType:
-		return false
-	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType, *hir.StringType, *hir.PtrType:
-		return true
-	case *hir.ArrayType:
-		return self.isTypeHasDefault(tt.Elem)
-	case *hir.TupleType:
-		for _, e := range tt.Elems{
-			if !self.isTypeHasDefault(e){
-				return false
-			}
+	paramNameSet := set.StdHashSetWith[string]()
+	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *local.Param {
+		param := self.analyseParam(e, analysers...)
+		if paramName, ok := param.GetName(); ok && !paramNameSet.Add(paramName) {
+			errors.ThrowIdentifierDuplicationError(e.Name.MustValue().Position, e.Name.MustValue())
 		}
-		return true
-	case *hir.StructType:
-		for iter:=tt.Fields.Values().Iterator(); iter.Next(); {
-			if !self.isTypeHasDefault(iter.Value().Type){
-				return false
-			}
-		}
-		return true
-	case *hir.UnionType:
-		for _, e := range tt.Elems {
-			if !self.isTypeHasDefault(e){
-				return false
-			}
-		}
-		return true
-	case *hir.SelfType:
-		return self.isTypeHasDefault(tt.Self)
-	case *hir.AliasType:
-		return self.isTypeHasDefault(tt.Target)
-	case *hir.GenericIdentType:
-		return false
-	case *hir.GenericStructInst:
-		return self.isTypeHasDefault(tt.StructType())
-	default:
-		panic("unreachable")
+		return param
+	})
+	paramTypes := stlslices.Map(params, func(_ int, p *local.Param) hir.Type {
+		return p.Type()
+	})
+
+	var ret hir.Type = types.NoThing
+	if retNode, ok := node.Ret.Value(); ok {
+		ret = self.analyseType(retNode, append(analysers, self.noReturnTypeAnalyser())...)
 	}
+	return global.NewFuncDecl(types.NewFuncType(ret, paramTypes...), name, params...)
 }
 
-// 检查类型是否循环
-func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Type)bool{
-	if trace.Contain(t){
+// 检查类型是否循环（是否不能确定size）
+func (self *Analyser) checkTypeCircle(trace set.Set[hir.Type], t hir.Type) bool {
+	if trace.Contain(t) {
 		return true
 	}
 	trace.Add(t)
@@ -150,196 +72,236 @@ func (self *Analyser) checkTypeCircle(trace *hashset.HashSet[hir.Type], t hir.Ty
 	}()
 
 	switch typ := t.(type) {
-	case *hir.EmptyType, *hir.SintType, *hir.UintType, *hir.FloatType, *hir.FuncType, *hir.BoolType, *hir.StringType, *hir.PtrType, *hir.RefType, *hir.GenericIdentType, *hir.GenericStructInst:
-	case *hir.ArrayType:
-		return self.checkTypeCircle(trace, typ.Elem)
-	case *hir.TupleType:
-		for _, e := range typ.Elems{
-			if self.checkTypeCircle(trace, e){
+	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.StrType, types.RefType, types.CallableType, types.GenericParamType:
+		return false
+	case types.ArrayType:
+		return self.checkTypeCircle(trace, typ.Elem())
+	case types.TupleType:
+		for _, e := range typ.Elems() {
+			if self.checkTypeCircle(trace, e) {
 				return true
 			}
 		}
-	case *hir.StructType:
-		for iter:=typ.Fields.Iterator(); iter.Next(); {
-			if self.checkTypeCircle(trace, iter.Value().Second.Type){
+		return false
+	case types.StructType:
+		for _, f := range typ.Fields().Values() {
+			if self.checkTypeCircle(trace, f.Type()) {
 				return true
 			}
 		}
-	case *hir.UnionType:
-		for _, e := range typ.Elems {
-			if self.checkTypeCircle(trace, e){
-				return true
+		return false
+	case types.EnumType:
+		for iter := typ.EnumFields().Iterator(); iter.Next(); {
+			if e, ok := iter.Value().E2().Elem(); ok {
+				if self.checkTypeCircle(trace, e) {
+					return true
+				}
 			}
 		}
-	case *hir.SelfType:
-		if self.checkTypeCircle(trace, typ.Self){
-			return true
-		}
-	case *hir.AliasType:
-		if self.checkTypeCircle(trace, typ.Target){
-			return true
-		}
+		return false
+	case types.TypeDef:
+		return self.checkTypeCircle(trace, typ.Target())
 	default:
 		panic("unreachable")
 	}
-	return false
 }
 
-func (self *Analyser) isInDstStructScope(st *hir.StructType)bool{
-	if self.selfType == nil{
+// 类型是否有默认值
+func (self *Analyser) hasTypeDefault(typ hir.Type) bool {
+	switch t := typ.(type) {
+	case types.NoThingType, types.NoReturnType, types.RefType:
 		return false
+	case types.NumType, types.BoolType, types.StrType:
+		return true
+	case types.CallableType:
+		if types.Is[types.NoThingType](t.Ret(), true) {
+			return true
+		}
+		return self.hasTypeDefault(t.Ret())
+	case types.ArrayType:
+		return self.hasTypeDefault(t.Elem())
+	case types.TupleType:
+		return stlslices.All(t.Elems(), func(_ int, e hir.Type) bool {
+			return self.hasTypeDefault(e)
+		})
+	case types.StructType:
+		return stlslices.All(t.Fields().Values(), func(_ int, f *types.Field) bool {
+			return self.hasTypeDefault(f.Type())
+		})
+	case types.EnumType:
+		return stlslices.All(t.EnumFields().Values(), func(_ int, f *types.EnumField) bool {
+			e, ok := f.Elem()
+			if !ok {
+				return true
+			}
+			return self.hasTypeDefault(e)
+		})
+	case types.CustomType:
+		return self.hasTypeDefault(t.Target())
+	case types.AliasType:
+		return self.hasTypeDefault(t.Target())
+	default:
+		panic("unreachable")
 	}
-	selfName := stlbasic.TernaryAction(!strings.Contains(self.selfType.GetName(), "::"), func() string {
-		return self.selfType.GetName()
-	}, func() string {
-		return strings.Split(self.selfType.GetName(), "::")[0]
-	})
-	stName := stlbasic.TernaryAction(!strings.Contains(st.GetName(), "::"), func() string {
-		return st.GetName()
-	}, func() string {
-		return strings.Split(st.GetName(), "::")[0]
-	})
-	return self.selfType.GetPackage().Equal(st.GetPackage()) && selfName == stName
 }
 
-func (self *Analyser) analyseIdent(node *ast.Ident, flag ...bool) util.Option[either.Either[hir.Expr, hir.Type]] {
-	var pkgName string
+func (self *Analyser) tryAnalyseIdent(node *ast.Ident, typeAnalysers ...typeAnalyser) (res either.Either[hir.Type, hir.Value], ok bool) {
+	scope := self.scope
 	if pkgToken, ok := node.Pkg.Value(); ok {
-		pkgName = pkgToken.Source()
-		if !self.pkgScope.externs.ContainKey(pkgName) {
+		scope, ok = self.getFileByPath(node.Position()).GetExternPackage(pkgToken.Source())
+		if !ok {
 			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
 		}
 	}
 
-	if genericArgs, ok := node.Name.Params.Value(); !ok{
-		if len(flag) == 0 || !flag[0]{
-			// 类型
-			switch name := node.Name.Name.Source(); name {
-			case "isize":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.Isize))
-			case "i8":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.I8))
-			case "i16":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.I16))
-			case "i32":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.I32))
-			case "i64":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.I64))
-			case "usize":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.Usize))
-			case "u8":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.U8))
-			case "u16":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.U16))
-			case "u32":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.U32))
-			case "u64":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.U64))
-			case "f32":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.F32))
-			case "f64":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.F64))
-			case "bool":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.Bool))
-			case "str":
-				return util.Some(either.Right[hir.Expr, hir.Type](hir.Str))
-			default:
-				// 泛型标识符类型
-				if pkgName == ""{
-					if to := self.genericIdentMap.Get(name); to != nil {
-						return util.Some(either.Right[hir.Expr, hir.Type](to))
-					}
+	name := node.Name.Source()
+	defer func() {
+		if !ok {
+			if self.scope.Package().IsBuildIn() {
+				var buildinType hir.Type
+				switch name {
+				case "__buildin_isize":
+					buildinType = types.Isize
+				case "__buildin_i8":
+					buildinType = types.I8
+				case "__buildin_i16":
+					buildinType = types.I16
+				case "__buildin_i32":
+					buildinType = types.I32
+				case "__buildin_i64":
+					buildinType = types.I64
+				case "__buildin_usize":
+					buildinType = types.Usize
+				case "__buildin_u8":
+					buildinType = types.U8
+				case "__buildin_u16":
+					buildinType = types.U16
+				case "__buildin_u32":
+					buildinType = types.U32
+				case "__buildin_u64":
+					buildinType = types.U64
+				case "__buildin_f16":
+					buildinType = types.F16
+				case "__buildin_f32":
+					buildinType = types.F32
+				case "__buildin_f64":
+					buildinType = types.F64
+				case "__buildin_f128":
+					buildinType = types.F128
+				case "__buildin_bool":
+					buildinType = types.Bool
+				case "__buildin_str":
+					buildinType = types.Str
 				}
-				// 类型定义
-				if td, ok := self.pkgScope.GetTypeDef(pkgName, name); ok {
-					return util.Some(either.Right[hir.Expr, hir.Type](td))
+				if buildinType != nil {
+					res = either.Left[hir.Type, hir.Value](buildinType)
+					ok = true
 				}
 			}
 		}
+	}()
 
-		if len(flag) == 0 || flag[0]{
-			// 表达式
-			// 标识符表达式
-			value, ok := self.localScope.GetValue(pkgName, node.Name.Name.Source())
-			if ok {
-				return util.Some(either.Left[hir.Expr, hir.Type](value))
-			}
-		}
-	}else{
-		if len(flag) == 0 || !flag[0]{
-			// 泛型结构体
-			if st, ok := self.pkgScope.GetGenericStructDef(pkgName, node.Name.Name.Source()); ok{
-				if st.GenericParams.Length() != uint(len(genericArgs.Data)){
-					errors.ThrowParameterNumberNotMatchError(genericArgs.Position(), st.GenericParams.Length(), uint(len(genericArgs.Data)))
-				}
-				params := stlslices.Map(genericArgs.Data, func(_ int, e ast.Type) hir.Type {
-					return self.analyseType(e)
-				})
-				instType := &hir.GenericStructInst{
-					Define: st,
-					Params: params,
-				}
-
-				if self.checkTypeCircle(stlbasic.Ptr(hashset.NewHashSet[hir.Type]()), instType){
-					errors.ThrowCircularReference(node.Name.Position(), node.Name.Name)
-				}
-
-				return util.Some(either.Right[hir.Expr, hir.Type](instType))
-			}
-		}
-
-		if len(flag) == 0 || flag[0]{
-			// 表达式
-			// 泛型标识符表达式实例化
-			f, ok := self.pkgScope.GetGenericFuncDef(pkgName, node.Name.Name.Source())
-			if ok{
-				if f.GenericParams.Length() != uint(len(genericArgs.Data)){
-					errors.ThrowParameterNumberNotMatchError(genericArgs.Position(), f.GenericParams.Length(), uint(len(genericArgs.Data)))
-				}
-				params := stlslices.Map(genericArgs.Data, func(_ int, e ast.Type) hir.Type {
-					return self.analyseType(e)
-				})
-				return util.Some(either.Left[hir.Expr, hir.Type](&hir.GenericFuncInst{
-					Define: f,
-					Params: params,
-				}))
-			}
-		}
+	// TODO: 外部包不能再次allowLinked
+	identObj, ok := scope.GetIdent(name, true)
+	if !ok {
+		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 	}
-	return util.None[either.Either[hir.Expr, hir.Type]]()
+	if g, ok := identObj.(hir.Global); ok && !g.Package().Equal(self.scope.Package()) && !g.Public() {
+		return stlval.Default[either.Either[hir.Type, hir.Value]](), false
+	}
+
+	switch ident := identObj.(type) {
+	case *global.FuncDef:
+		genericArgs := self.analyseOptionalGenericArgList(ident.GenericParams(), node.Position(), node.GenericArgs)
+		if len(genericArgs) == 0 {
+			return either.Right[hir.Type, hir.Value](ident), true
+		}
+		return either.Right[hir.Type, hir.Value](local.NewGenericFuncInstExpr(ident, genericArgs...)), true
+	case hir.Value:
+		return either.Right[hir.Type, hir.Value](ident), true
+	case global.CustomTypeDef:
+		genericArgs := self.analyseOptionalGenericArgList(ident.GenericParams(), node.Position(), node.GenericArgs, typeAnalysers...)
+		if len(genericArgs) == 0 {
+			return either.Left[hir.Type, hir.Value](ident), true
+		}
+		return either.Left[hir.Type, hir.Value](global.NewGenericCustomTypeDef(ident, genericArgs...)), true
+	case hir.Type:
+		return either.Left[hir.Type, hir.Value](ident), true
+	}
+	return stlval.Default[either.Either[hir.Type, hir.Value]](), false
 }
 
-func (self *Analyser) analyseFuncBody(node *ast.Block)*hir.Block{
-	fn := self.localScope.GetFunc()
-	body, jump := self.analyseBlock(node, nil)
-	if jump != hir.BlockEofReturn {
-		retType := fn.GetFuncType().Ret
-		if !hir.IsEmptyType(retType) {
-			errors.ThrowMissingReturnValueError(node.Position(), retType)
+func (self *Analyser) analyseTraitIdent(node *ast.IdentType) *global.Trait {
+	scope := self.scope
+	if pkgToken, ok := node.Pkg.Value(); ok {
+		scope, ok = self.getFileByPath(node.Position()).GetExternPackage(pkgToken.Source())
+		if !ok {
+			errors.ThrowUnknownIdentifierError(pkgToken.Position, pkgToken)
 		}
-		body.Stmts.PushBack(&hir.Return{
-			Func:  fn,
-			Value: util.None[hir.Expr](),
-		})
 	}
-	return body
+
+	// TODO: 外部包不能再次allowLinked
+	identObj, ok := scope.GetIdent(node.Name.Source(), true)
+	if !ok {
+		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+	}
+	trait, ok := identObj.(*global.Trait)
+	if !ok {
+		errors.ThrowExpectTraitError(node.Position())
+	} else if !trait.Package().Equal(self.scope.Package()) && !trait.Public() {
+		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
+	}
+
+	return trait
 }
 
-// Analyse 语义分析
-func Analyse(path stlos.FilePath) (linkedlist.LinkedList[hir.Global], stlerror.Error) {
-	asts, err := parse.Parse(path)
-	if err != nil{
-		return linkedlist.LinkedList[hir.Global]{}, err
+// 获取类型默认值
+func (self *Analyser) getTypeDefaultValue(pos reader.Position, t hir.Type) *local.DefaultExpr {
+	if !self.hasTypeDefault(t) {
+		errors.ThrowCanNotGetDefault(pos, t)
 	}
-	return New(asts).Analyse(), nil
+	return local.NewDefaultExpr(t)
 }
 
-// 语义分析子包
-func analyseSonPackage(parent *Analyser, pkg hir.Package) (linkedlist.LinkedList[hir.Global], *_PkgScope, stlerror.Error) {
-	asts, err := parse.Parse(pkg.Path())
-	if err != nil{
-		return linkedlist.LinkedList[hir.Global]{}, nil, err
+func (self *Analyser) analyseGenericParamsList(node optional.Optional[*ast.GenericParamList]) linkedhashmap.LinkedHashMap[string, types.GenericParamType] {
+	res := linkedhashmap.StdWith[string, types.GenericParamType]()
+	if genericParamsNode, ok := node.Value(); ok {
+		for _, genericParamNode := range genericParamsNode.Params {
+			genericParamName := genericParamNode.Name.Source()
+			if res.Contain(genericParamName) {
+				errors.ThrowIdentifierDuplicationError(genericParamNode.Name.Position, genericParamNode.Name)
+			}
+			if restraintNode, ok := genericParamNode.Restraint.Value(); ok {
+				restraint := self.analyseTraitIdent(restraintNode)
+				res.Set(genericParamName, types.NewGenericParam(genericParamName, restraint))
+			} else {
+				res.Set(genericParamName, types.NewGenericParam(genericParamName))
+			}
+		}
 	}
-	analyser := newSon(parent, asts)
-	return analyser.Analyse(), analyser.pkgScope, nil
+	return res
+}
+
+func (self *Analyser) analyseOptionalGenericArgList(genericParams []types.GenericParamType, pos reader.Position, node optional.Optional[*ast.GenericArgList], typeAnalysers ...typeAnalyser) []hir.Type {
+	genericArgsNode, ok := node.Value()
+	if !ok {
+		return nil
+	}
+	if len(genericParams) != len(genericArgsNode.Args) {
+		errors.ThrowParameterNumberNotMatchError(pos, uint(len(genericParams)), uint(len(genericArgsNode.Args)))
+	}
+	if len(genericParams) == 0 {
+		return nil
+	}
+	return stlslices.Map(genericArgsNode.Args, func(i int, genericArgNode ast.Type) hir.Type {
+		t := self.analyseType(genericArgNode, typeAnalysers...)
+		restraint, ok := genericParams[i].Restraint()
+		if !ok {
+			return t
+		}
+		if trait := restraint.(*global.Trait); !trait.HasBeImpled(t) {
+			errors.ThrowNotImplTrait(genericArgNode.Position(), t, trait)
+		}
+		return t
+	})
 }

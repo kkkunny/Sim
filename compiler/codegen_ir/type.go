@@ -1,180 +1,175 @@
 package codegen_ir
 
 import (
-	"fmt"
-	"strings"
+	"github.com/kkkunny/go-llvm"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
-	"github.com/kkkunny/stl/container/pair"
-	stlos "github.com/kkkunny/stl/os"
-	stlslices "github.com/kkkunny/stl/slices"
-
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/types"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (self *CodeGenerator) codegenTypeOnly(ir hir.Type)mir.Type{
-	t, _ := self.codegenType(ir)
-	return t
-}
-
-func (self *CodeGenerator) codegenType(ir hir.Type) (mir.Type, types.Type) {
-	switch t := ir.(type) {
-	case *hir.EmptyType:
-		return self.codegenEmptyType()
-	case *hir.SintType:
-		return self.codegenSintType(t)
-	case *hir.UintType:
-		return self.codegenUintType(t)
-	case *hir.FloatType:
-		return self.codegenFloatType(t)
-	case *hir.FuncType:
-		return self.codegenFuncType(t)
-	case *hir.BoolType:
-		return self.codegenBoolType()
-	case *hir.ArrayType:
-		return self.codegenArrayType(t)
-	case *hir.TupleType:
-		return self.codegenTupleType(t)
-	case *hir.StructType:
-		return self.codegenStructType(t)
-	case *hir.StringType:
-		return self.codegenStringType()
-	case *hir.UnionType:
-		return self.codegenUnionType(t)
-	case *hir.PtrType:
-		return self.codegenPtrType(t)
-	case *hir.RefType:
-		return self.codegenRefType(t)
-	case *hir.SelfType:
-		return self.codegenSelfType(t)
-	case *hir.AliasType:
-		return self.codegenAliasType(t)
-	case *hir.GenericIdentType:
-		return self.codegenGenericIdentType(t)
-	case *hir.GenericStructInst:
-		return self.codegenGenericStructInst(t)
+func (self *CodeGenerator) codegenType(ir hir.Type) llvm.Type {
+	switch ir := ir.(type) {
+	case types.NoThingType, types.NoReturnType:
+		return self.builder.VoidType()
+	case types.GenericCustomType:
+		return self.codegenGenericCustomType(ir)
+	case types.CustomType:
+		return self.codegenCustomType(ir)
+	case types.AliasType:
+		return self.codegenType(ir.Target())
+	case types.IntType:
+		return self.codegenIntType(ir)
+	case types.FloatType:
+		return self.codegenFloatType(ir)
+	case types.BoolType:
+		return self.builder.BooleanType()
+	case types.StrType:
+		return self.builder.Str()
+	case types.RefType, types.FuncType:
+		return self.builder.OpaquePointerType()
+	case types.ArrayType:
+		return self.codegenArrayType(ir)
+	case types.TupleType:
+		return self.codegenTupleType(ir)
+	case types.LambdaType:
+		return self.codegenLambdaType()
+	case types.StructType:
+		return self.codegenStructType(ir)
+	case types.EnumType:
+		return self.codegenEnumType(ir)
+	case types.VirtualType:
+		tir := self.virtualTypes.Get(ir)
+		if tir == nil {
+			panic("unreachable")
+		}
+		return self.codegenType(tir)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenEmptyType() (mir.VoidType, *types.EmptyType) {
-	return self.ctx.Void(), types.TypeEmpty
-}
-
-func (self *CodeGenerator) codegenSintType(ir *hir.SintType) (mir.SintType, *types.SintType) {
-	if ir.Bits == 0{
-		return self.ctx.Isize(), types.TypeIsize
-	}
-	return self.ctx.NewSintType(stlos.Size(ir.Bits)), types.NewSintType(uint64(ir.Bits))
-}
-
-func (self *CodeGenerator) codegenUintType(ir *hir.UintType) (mir.UintType, *types.UintType) {
-	if ir.Bits == 0{
-		return self.ctx.Usize(), types.TypeUsize
-	}
-	return self.ctx.NewUintType(stlos.Size(ir.Bits)), types.NewUintType(uint64(ir.Bits))
-}
-
-func (self *CodeGenerator) codegenFloatType(ir *hir.FloatType) (mir.FloatType, *types.FloatType) {
-	switch ir.Bits {
-	case 32:
-		return self.ctx.F32(), types.NewFloatType(32)
-	case 64:
-		return self.ctx.F64(), types.NewFloatType(64)
+func (self *CodeGenerator) codegenIntType(ir types.IntType) llvm.IntegerType {
+	switch ir.Kind() {
+	case types.IntTypeKindSize:
+		return self.builder.Isize()
+	case types.IntTypeKindByte:
+		return self.builder.I8()
+	case types.IntTypeKindShort:
+		return self.builder.I16()
+	case types.IntTypeKindInt:
+		return self.builder.I32()
+	case types.IntTypeKindLong:
+		return self.builder.I64()
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) codegenFuncType(ir *hir.FuncType) (mir.FuncType, *types.FuncType) {
-	ret, retRt := self.codegenType(ir.Ret)
-	params, paramRts := make([]mir.Type, len(ir.Params)), make([]types.Type, len(ir.Params))
-	for i, p := range ir.Params{
-		params[i], paramRts[i] = self.codegenType(p)
+func (self *CodeGenerator) codegenFloatType(ir types.FloatType) llvm.FloatType {
+	switch ir.Kind() {
+	case types.FloatTypeKindHalf:
+		return self.builder.F16()
+	case types.FloatTypeKindFloat:
+		return self.builder.F32()
+	case types.FloatTypeKindDouble:
+		return self.builder.F64()
+	case types.FloatTypeKindFP128:
+		return self.builder.F128()
+	default:
+		panic("unreachable")
 	}
-	return self.ctx.NewFuncType(ret, params...), types.NewFuncType(retRt, )
 }
 
-func (self *CodeGenerator) codegenBoolType() (mir.UintType, *types.BoolType) {
-	return self.ctx.NewUintType(1), types.TypeBool
+func (self *CodeGenerator) codegenFuncType(ir types.FuncType) llvm.FunctionType {
+	ret := self.codegenType(ir.Ret())
+	params := stlslices.Map(ir.Params(), func(_ int, p hir.Type) llvm.Type {
+		return self.codegenType(p)
+	})
+	return self.builder.FunctionType(false, ret, params...)
 }
 
-func (self *CodeGenerator) codegenArrayType(ir *hir.ArrayType) (mir.ArrayType, *types.ArrayType) {
-	elem, elemRt := self.codegenType(ir.Elem)
-	return self.ctx.NewArrayType(ir.Size, elem), types.NewArrayType(uint64(ir.Size), elemRt)
+func (self *CodeGenerator) codegenArrayType(ir types.ArrayType) llvm.ArrayType {
+	elem := self.codegenType(ir.Elem())
+	return self.builder.ArrayType(elem, uint32(ir.Size()))
 }
 
-func (self *CodeGenerator) codegenTupleType(ir *hir.TupleType) (mir.StructType, *types.TupleType) {
-	elems, elemRts := make([]mir.Type, len(ir.Elems)), make([]types.Type, len(ir.Elems))
-	for i, e := range ir.Elems{
-		elems[i], elemRts[i] = self.codegenType(e)
+func (self *CodeGenerator) codegenTupleType(ir types.TupleType) llvm.StructType {
+	elems := stlslices.Map(ir.Elems(), func(_ int, e hir.Type) llvm.Type {
+		return self.codegenType(e)
+	})
+	return self.builder.StructType(false, elems...)
+}
+
+func (self *CodeGenerator) codegenStructType(ir types.StructType) llvm.StructType {
+	elems := stlslices.Map(ir.Fields().Values(), func(_ int, f *types.Field) llvm.Type {
+		return self.codegenType(f.Type())
+	})
+	return self.builder.StructType(false, elems...)
+}
+
+func (self *CodeGenerator) codegenLambdaType() llvm.StructType {
+	return self.builder.StructType(false, self.builder.OpaquePointerType(), self.builder.OpaquePointerType())
+}
+
+func (self *CodeGenerator) codegenEnumType(ir types.EnumType) llvm.Type {
+	if ir.Simple() {
+		return self.builder.I8()
 	}
-	return self.ctx.NewStructType(elems...), types.NewTupleType(elemRts...)
-}
 
-func (self *CodeGenerator) codegenStructType(ir *hir.StructType) (mir.StructType, *types.StructType) {
-	pair := self.structs.Get(ir.String())
-	return pair.First, pair.Second
-}
-
-func (self *CodeGenerator) codegenStringType() (mir.StructType, *types.StringType) {
-	st, ok := self.module.NamedStructType("str")
-	if ok {
-		return st, types.TypeStr
-	}
-	return self.module.NewNamedStructType("str", self.ctx.NewPtrType(self.ctx.U8()), self.ctx.Usize()), types.TypeStr
-}
-
-func (self *CodeGenerator) codegenUnionType(ir *hir.UnionType) (mir.StructType, *types.UnionType) {
-	var maxSizeType mir.Type
-	var maxSize stlos.Size
-	elemRts := make([]types.Type, len(ir.Elems))
-	for i, e := range ir.Elems{
-		var et mir.Type
-		et, elemRts[i] = self.codegenType(e)
-		if esize := et.Size(); esize > maxSize {
-			maxSizeType, maxSize = et, esize
+	var maxSizeType llvm.Type
+	var maxSize uint
+	for iter := ir.EnumFields().Iterator(); iter.Next(); {
+		elemIr, ok := iter.Value().E2().Elem()
+		if !ok {
+			continue
+		}
+		elem := self.codegenType(elemIr)
+		if esize := self.builder.GetStoreSizeOfType(elem); esize > maxSize {
+			maxSizeType, maxSize = elem, esize
 		}
 	}
-	return self.ctx.NewStructType(maxSizeType, self.ctx.U8()), types.NewUnionType(elemRts...)
+	return self.builder.StructType(false, maxSizeType, self.builder.I8())
 }
 
-func (self *CodeGenerator) codegenPtrType(ir *hir.PtrType) (mir.PtrType, *types.PtrType) {
-	elem, elemRt := self.codegenType(ir.Elem)
-	return self.ctx.NewPtrType(elem), types.NewPtrType(elemRt)
-}
-
-func (self *CodeGenerator) codegenRefType(ir *hir.RefType) (mir.PtrType, *types.RefType) {
-	elem, elemRt := self.codegenType(ir.Elem)
-	return self.ctx.NewPtrType(elem), types.NewRefType(elemRt)
-}
-func (self *CodeGenerator) codegenSelfType(ir *hir.SelfType)(mir.Type, types.Type){
-	return self.codegenType(ir.Self)
-}
-
-func (self *CodeGenerator) codegenAliasType(ir *hir.AliasType)(mir.Type, types.Type){
-	// TODO: 处理类型循环
-	return self.codegenType(ir.Target)
-}
-
-func (self *CodeGenerator) codegenGenericIdentType(ir *hir.GenericIdentType)(mir.Type, types.Type){
-	pair := self.genericIdentMapStack.Peek().Get(ir)
-	return pair.First, pair.Second
-}
-
-func (self *CodeGenerator) codegenGenericStructInst(ir *hir.GenericStructInst)(mir.StructType, types.Type){
-	key := fmt.Sprintf("generic_struct(%p)<%s>", ir.Define, strings.Join(stlslices.Map(ir.Params, func(i int, e hir.Type) string {
-		pt, _ := self.codegenType(e)
-		return pt.String()
-	}), ","))
-	if stp := self.structCache.Get(key); stp.First != nil{
-		return stp.First, stp.Second
+func (self *CodeGenerator) codegenCustomType(ir types.CustomType) llvm.Type {
+	if !self.typeIsStruct(ir.Target()) {
+		return self.codegenType(ir.Target())
 	}
 
-	st, stRt := self.declGenericStructDef(ir)
-	self.structCache.Set(key, pair.NewPair(st, stRt))
-	self.defGenericStructDef(ir, st)
-	return st, stRt
+	stPtr := self.builder.GetTypeByName(ir.String())
+	if stPtr != nil {
+		return *stPtr
+	}
+	st := self.builder.NamedStructType(ir.String(), false)
+
+	target := self.codegenType(ir.Target())
+	if tt, ok := target.(llvm.StructType); ok {
+		st.SetElems(false, tt.Elems()...)
+	} else {
+		st.SetElems(true, target)
+	}
+	return st
+}
+
+func (self *CodeGenerator) codegenGenericCustomType(ir types.GenericCustomType) llvm.Type {
+	name := ir.TotalName(self.virtualTypes)
+	stPtr := self.builder.GetTypeByName(name)
+	if stPtr != nil {
+		return *stPtr
+	}
+
+	targetIr := ir.Target()
+	if !self.typeIsStruct(targetIr) {
+		return self.codegenType(targetIr)
+	}
+
+	st := self.builder.NamedStructType(name, false)
+	target := self.codegenType(targetIr)
+	if tt, ok := target.(llvm.StructType); ok {
+		st.SetElems(false, tt.Elems()...)
+	} else {
+		st.SetElems(true, target)
+	}
+	return st
 }

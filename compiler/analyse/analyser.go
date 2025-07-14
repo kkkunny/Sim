@@ -2,134 +2,221 @@ package analyse
 
 import (
 	"github.com/kkkunny/stl/container/hashmap"
-	"github.com/kkkunny/stl/container/hashset"
-	stliter "github.com/kkkunny/stl/container/iter"
+	"github.com/kkkunny/stl/container/linkedhashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
-	stlerror "github.com/kkkunny/stl/error"
+	"github.com/kkkunny/stl/container/set"
+	"github.com/kkkunny/stl/container/stack"
+	stlos "github.com/kkkunny/stl/os"
 
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/token"
-
-	"github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/config"
+	errors "github.com/kkkunny/Sim/compiler/error"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 // Analyser 语义分析器
 type Analyser struct {
-	parent *Analyser
-	asts   linkedlist.LinkedList[ast.Global]
-
-	pkgs       *hashmap.HashMap[hir.Package, *_PkgScope]
-	pkgScope   *_PkgScope
-	localScope _LocalScope
-
-	selfValue *hir.Param
-	selfType  hir.TypeDef
-
-	typeAliasTrace hashset.HashSet[*ast.TypeAlias]
-	genericIdentMap hashmap.HashMap[string, *hir.GenericIdentType]
+	importStack stack.Stack[*hir.Package]                     // 包的依赖链，从main包开始，不包括当前包
+	allPkgs     hashmap.HashMap[stlos.FilePath, *hir.Package] // main包的所有依赖包
+	allFiles    hashmap.HashMap[stlos.FilePath, *hir.File]    // 文件路径与文件作用域映射
+	pkg         *hir.Package                                  // 当前包
+	scope       local.Scope                                   // 当前所处作用域
 }
 
-func New(asts linkedlist.LinkedList[ast.Global]) *Analyser {
-	var pkg hir.Package
-	if !asts.Empty(){
-		pkg = stlerror.MustWith(hir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
-	}
-	pkgs := hashmap.NewHashMap[hir.Package, *_PkgScope]()
+func New(path stlos.FilePath) *Analyser {
 	return &Analyser{
-		asts:     asts,
-		pkgs:     &pkgs,
-		pkgScope: _NewPkgScope(pkg),
+		importStack: stack.New[*hir.Package](),
+		allPkgs:     hashmap.StdWith[stlos.FilePath, *hir.Package](),
+		allFiles:    hashmap.StdWith[stlos.FilePath, *hir.File](),
+		pkg:         hir.NewPackage(path),
 	}
 }
 
-func newSon(parent *Analyser, asts linkedlist.LinkedList[ast.Global]) *Analyser {
-	var pkg hir.Package
-	if !asts.Empty(){
-		pkg = stlerror.MustWith(hir.NewPackage(asts.Front().Position().Reader.Path().Dir()))
-	}
+func newSon(parent *Analyser, pkg *hir.Package) *Analyser {
 	return &Analyser{
-		parent:   parent,
-		asts:     asts,
-		pkgs:     parent.pkgs,
-		pkgScope: _NewPkgScope(pkg),
+		importStack: parent.importStack,
+		allPkgs:     parent.allPkgs,
+		allFiles:    parent.allFiles,
+		pkg:         pkg,
 	}
 }
 
-// Analyse 分析语义
-func (self *Analyser) Analyse() linkedlist.LinkedList[hir.Global] {
-	meanNodes := linkedlist.NewLinkedList[hir.Global]()
-
-	// 包
-	if self.pkgScope.pkg != hir.BuildInPackage {
-		hirs, _ := self.importPackage(hir.BuildInPackage, "", true)
-		meanNodes.Append(hirs)
+func (self *Analyser) Analyse(astsList ...linkedlist.LinkedList[ast.Global]) *hir.Package {
+	if len(astsList) == 0 {
+		return self.pkg
 	}
-	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		if im, ok := v.(*ast.Import); ok {
-			meanNodes.Append(self.analyseImport(im))
+
+	self.scope = self.pkg
+	if self.allPkgs.Contain(self.pkg.Path()) {
+		self.allPkgs.Set(self.pkg.Path(), self.pkg)
+	}
+
+	// 包导入
+	for _, asts := range astsList {
+		self.analyseDepPackage(asts)
+	}
+
+	// 类型声明
+	for _, asts := range astsList {
+		self.analyseFileTypeDecl(asts)
+	}
+
+	// 类型定义
+	for _, asts := range astsList {
+		self.analyseFileTypeDef(asts)
+	}
+
+	// 值声明
+	for _, asts := range astsList {
+		self.analyseFileValueDecl(asts)
+	}
+
+	// 值定义
+	for _, asts := range astsList {
+		self.analyseFileValueDef(asts)
+	}
+
+	return self.pkg
+}
+
+func (self *Analyser) analyseFileTypeDecl(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	self.scope = self.getFileByPath(asts.Front().Position())
+
+	// 类型声明
+	self.analyseTypeDecl(asts)
+}
+
+func (self *Analyser) analyseFileTypeDef(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	self.scope = self.getFileByPath(asts.Front().Position())
+
+	// 类型定义
+	self.analyseTypeDef(asts)
+}
+
+func (self *Analyser) analyseFileValueDecl(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	self.scope = self.getFileByPath(asts.Front().Position())
+
+	// 值声明
+	self.analyseValueDecl(asts)
+}
+
+func (self *Analyser) analyseFileValueDef(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	self.scope = self.getFileByPath(asts.Front().Position())
+
+	// 值定义
+	self.analyseValueDef(asts)
+}
+
+// 依赖包
+func (self *Analyser) analyseDepPackage(asts linkedlist.LinkedList[ast.Global]) {
+	if asts.Empty() {
+		return
+	}
+
+	filePath := asts.Front().Position().Reader.Path()
+	file := hir.NewFile(filePath, self.pkg)
+	self.allFiles.Set(filePath, file)
+	self.pkg.AddFile(file)
+
+	if !self.getFileByPath(asts.Front().Position()).Package().IsBuildIn() {
+		_, _ = self.importPackage(asts.Front().Position(), config.BuildInPkgPath, "", true)
+	}
+	for iter := asts.Iterator(); iter.Next(); {
+		switch node := iter.Value().(type) {
+		case *ast.Import:
+			self.analyseImport(node)
 		}
-		return true
-	})
+	}
+}
 
-	// 类型
-	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		switch node := v.(type) {
-		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				self.declStructDef(node)
-			}else{
-				self.declGenericStructDef(node)
-			}
+// 类型声明
+func (self *Analyser) analyseTypeDecl(asts linkedlist.LinkedList[ast.Global]) {
+	for iter := asts.Iterator(); iter.Next(); {
+		switch node := iter.Value().(type) {
+		case *ast.Trait:
+			self.declTrait(node)
+		case *ast.TypeDef:
+			self.declTypeDef(node)
 		case *ast.TypeAlias:
 			self.declTypeAlias(node)
 		}
-		return true
-	})
-	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		switch node := v.(type) {
-		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				meanNodes.PushBack(self.defStructDef(node))
-			}else{
-				meanNodes.PushBack(self.defGenericStructDef(node))
-			}
-		case *ast.TypeAlias:
-			meanNodes.PushBack(self.defTypeAlias(node))
-		}
-		return true
-	})
-	// 类型循环检测
-	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		trace := hashset.NewHashSet[hir.Type]()
-		var circle bool
-		var name token.Token
-		switch node := v.(type) {
-		case *ast.StructDef:
-			if node.Name.Params.IsNone(){
-				st, _ := self.pkgScope.getLocalTypeDef(node.Name.Name.Source())
-				circle, name = self.checkTypeCircle(&trace, st), node.Name.Name
-			}
-		case *ast.TypeAlias:
-			tad, _ := self.pkgScope.getLocalTypeDef(node.Name.Source())
-			circle, name = self.checkTypeCircle(&trace, tad), node.Name
-		}
-		if circle{
-			errors.ThrowCircularReference(name.Position, name)
-		}
-		return true
-	})
+	}
+}
 
-	// 值
-	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		self.analyseGlobalDecl(v)
-		return true
-	})
-	stliter.Foreach[ast.Global](self.asts, func(v ast.Global) bool {
-		if global := self.analyseGlobalDef(v); global != nil {
-			meanNodes.PushBack(global)
+// 类型定义
+func (self *Analyser) analyseTypeDef(asts linkedlist.LinkedList[ast.Global]) {
+	typedefs := linkedhashmap.StdWith[types.TypeDef, token.Token]()
+	for iter := asts.Iterator(); iter.Next(); {
+		switch node := iter.Value().(type) {
+		case *ast.Trait:
+			self.defTrait(node)
+		case *ast.TypeDef:
+			typedefs.Set(self.defTypeDef(node), node.Name)
+		case *ast.TypeAlias:
+			typedefs.Set(self.defTypeAlias(node), node.Name)
 		}
-		return true
-	})
-	return meanNodes
+	}
+	trace := set.AnyHashSetWith[hir.Type]()
+	for iter := typedefs.Iterator(); iter.Next(); {
+		trace.Clear()
+		circle := self.checkTypeCircle(trace, iter.Value().E1())
+		if circle {
+			errors.ThrowCircularReference(iter.Value().E2().Position, iter.Value().E2())
+		}
+	}
+}
+
+// 值声明
+func (self *Analyser) analyseValueDecl(asts linkedlist.LinkedList[ast.Global]) {
+	for iter := asts.Iterator(); iter.Next(); {
+		switch node := iter.Value().(type) {
+		case *ast.FuncDef:
+			if node.SelfType.IsNone() {
+				self.declFuncDef(node)
+			} else {
+				self.declMethodDef(node)
+			}
+		case *ast.SingleVariableDef:
+			self.declSingleGlobalVariable(node)
+		case *ast.MultipleVariableDef:
+			self.declMultiGlobalVariable(node)
+		}
+	}
+}
+
+// 值定义
+func (self *Analyser) analyseValueDef(asts linkedlist.LinkedList[ast.Global]) {
+	for iter := asts.Iterator(); iter.Next(); {
+		switch node := iter.Value().(type) {
+		case *ast.FuncDef:
+			if node.SelfType.IsNone() {
+				self.defFuncDef(node)
+			} else {
+				self.defMethodDef(node)
+			}
+		case *ast.SingleVariableDef:
+			self.defSingleGlobalVariable(node)
+		case *ast.MultipleVariableDef:
+			self.defMultiGlobalVariable(node)
+		}
+	}
 }

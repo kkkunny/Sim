@@ -1,0 +1,14 @@
+import std::os
+
+type A enum{
+	A1,
+	A2
+}
+
+func main(){
+	let a = A.A1
+	let b = A.A2
+	if a == b{
+		os::exit(1)
+	}
+}

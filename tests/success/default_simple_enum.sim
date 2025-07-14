@@ -1,0 +1,11 @@
+import std::os
+
+type A enum{
+	A1,
+	A2
+}
+
+func main(){
+	let a: A
+	os::exit(a as u8)
+}

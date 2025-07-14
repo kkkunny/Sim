@@ -1,5 +1,0 @@
-// sim语言str类型的定义
-pub struct string {
-    pub ptr: *byte,
-    pub len: usize
-}

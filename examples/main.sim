@@ -1,0 +1,19 @@
+import std::os
+import std::io
+
+@extern("sim_runtime_gc_gc")
+func gc()
+
+let mut i: usize
+
+func get_exit_code()&u8{
+	let code: u8 = 10
+	i = &code as usize
+	return &code
+}
+
+func main(){
+	let code = get_exit_code()
+	gc()
+	os::exit(10)
+}

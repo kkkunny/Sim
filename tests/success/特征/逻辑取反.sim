@@ -1,0 +1,13 @@
+import std::os
+
+type A i32
+
+func (A) not(self: Self)Self{
+	return 0
+}
+
+func main(){
+	let mut v: A = 1
+	v = !v
+	os::exit(v as u8)
+}

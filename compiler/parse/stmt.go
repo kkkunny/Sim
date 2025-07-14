@@ -2,11 +2,11 @@ package parse
 
 import (
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 
-	"github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/compiler/ast"
 
-	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 func (self *Parser) parseStmt() ast.Stmt {
@@ -19,34 +19,40 @@ func (self *Parser) parseStmt() ast.Stmt {
 		return self.parseBlock()
 	case token.IF:
 		return self.parseIfElse()
-	case token.LOOP:
-		return self.parseLoop()
 	case token.BREAK:
 		return self.parseBreak()
 	case token.CONTINUE:
 		return self.parseContinue()
 	case token.FOR:
 		return self.parseFor()
+	case token.MATCH:
+		return self.parseMatch()
+	case token.WHILE:
+		return self.parseWhile()
 	default:
 		return self.mustExpr(self.parseOptionExpr(true))
 	}
 }
 
-func (self *Parser) parseBlock() *ast.Block {
-	begin := self.expectNextIs(token.LBR).Position
-	stmts := linkedlist.NewLinkedList[ast.Stmt]()
+func (self *Parser) parseStmtList(end ...token.Kind) (stmts linkedlist.LinkedList[ast.Stmt]) {
 	for {
 		self.skipSEM()
-		if self.nextIs(token.RBR) {
+		if self.nextIn(end...) {
 			break
 		}
 
 		stmts.PushBack(self.parseStmt())
 
-		if !self.nextIs(token.RBR) {
+		if !self.nextIn(end...) {
 			self.expectNextIs(token.SEM)
 		}
 	}
+	return stmts
+}
+
+func (self *Parser) parseBlock() *ast.Block {
+	begin := self.expectNextIs(token.LBR).Position
+	stmts := self.parseStmtList(token.RBR)
 	end := self.expectNextIs(token.RBR).Position
 	return &ast.Block{
 		Begin: begin,
@@ -68,13 +74,13 @@ func (self *Parser) parseIfElse() *ast.IfElse {
 	begin := self.expectNextIs(token.IF).Position
 	cond := self.mustExpr(self.parseOptionExpr(false))
 	body := self.parseBlock()
-	var next util.Option[*ast.IfElse]
+	var next optional.Optional[*ast.IfElse]
 	if self.skipNextIs(token.ELSE) {
 		nextBegin := self.curTok.Position
 		if self.nextIs(token.IF) {
-			next = util.Some(self.parseIfElse())
+			next = optional.Some(self.parseIfElse())
 		} else {
-			next = util.Some(&ast.IfElse{
+			next = optional.Some(&ast.IfElse{
 				Begin: nextBegin,
 				Body:  self.parseBlock(),
 			})
@@ -82,17 +88,19 @@ func (self *Parser) parseIfElse() *ast.IfElse {
 	}
 	return &ast.IfElse{
 		Begin: begin,
-		Cond:  util.Some(cond),
+		Cond:  optional.Some(cond),
 		Body:  body,
 		Next:  next,
 	}
 }
 
-func (self *Parser) parseLoop() *ast.Loop {
-	begin := self.expectNextIs(token.LOOP).Position
+func (self *Parser) parseWhile() *ast.While {
+	begin := self.expectNextIs(token.WHILE).Position
+	cond := self.mustExpr(self.parseOptionExpr(false))
 	body := self.parseBlock()
-	return &ast.Loop{
+	return &ast.While{
 		Begin: begin,
+		Cond:  cond,
 		Body:  body,
 	}
 }
@@ -118,5 +126,58 @@ func (self *Parser) parseFor() *ast.For {
 		Cursor:    cursor,
 		Iterator:  iter,
 		Body:      body,
+	}
+}
+
+func (self *Parser) parseMatch() *ast.Match {
+	begin := self.expectNextIs(token.MATCH).Position
+	value := self.mustExpr(self.parseOptionExpr(false))
+	self.expectNextIs(token.LBR)
+	var cases []ast.MatchCase
+	other := optional.None[*ast.Block]()
+	for self.skipSEM(); !self.nextIs(token.RBR) && (self.skipNextIs(token.CASE) || self.expectNextIs(token.OTHER).Is(token.OTHER)); self.skipSEM() {
+		caseBeginTok := self.curTok
+		if caseBeginTok.Is(token.CASE) {
+			name := self.expectNextIs(token.IDENT)
+			var elem optional.Optional[ast.MatchCaseElem]
+			if self.skipNextIs(token.LPA) {
+				elem = optional.Some(ast.MatchCaseElem{
+					Mutable: self.skipNextIs(token.MUT),
+					Name:    self.expectNextIs(token.IDENT),
+				})
+				self.expectNextIs(token.RPA)
+			}
+			elemEnd := self.curTok.Position
+			self.expectNextIs(token.COL)
+			body := &ast.Block{
+				Begin: caseBeginTok.Position,
+				Stmts: self.parseStmtList(token.CASE, token.OTHER, token.RBR),
+				End:   self.curTok.Position,
+			}
+			cases = append(cases, ast.MatchCase{
+				Name:    name,
+				Elem:    elem,
+				ElemEnd: elemEnd,
+				Body:    body,
+			})
+		} else {
+			self.expectNextIs(token.COL)
+			body := &ast.Block{
+				Begin: caseBeginTok.Position,
+				Stmts: self.parseStmtList(token.CASE, token.OTHER, token.RBR),
+				End:   self.curTok.Position,
+			}
+			other = optional.Some(body)
+			break
+		}
+	}
+	self.skipSEM()
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.Match{
+		Begin: begin,
+		Value: value,
+		Cases: cases,
+		Other: other,
+		End:   end,
 	}
 }

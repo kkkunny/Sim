@@ -5,13 +5,16 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kkkunny/stl/container/dynarray"
-	stliter "github.com/kkkunny/stl/container/iter"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlos "github.com/kkkunny/stl/os"
+	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/ast"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
+	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 // ThrowError 抛出异常
@@ -48,14 +51,19 @@ func ThrowUnknownIdentifierError(pos reader.Position, ident token.Token) {
 	ThrowError(pos, "identifier `%s` could not be found", ident.Source())
 }
 
+// ThrowExprTemporaryError 值必须不是临时的
+func ThrowExprTemporaryError(pos reader.Position) {
+	ThrowError(pos, "the value must not be temporary")
+}
+
 // ThrowNotMutableError 值必须是可变的
 func ThrowNotMutableError(pos reader.Position) {
 	ThrowError(pos, "the value must be mutable")
 }
 
 // ThrowIllegalBinaryError 非法的二元运算
-func ThrowIllegalBinaryError(pos reader.Position, op token.Token, left, right hir.Expr) {
-	ThrowError(pos, "illegal binary operation with type `%s` `%s` `%s`", left.GetType(), op.Source(), right.GetType())
+func ThrowIllegalBinaryError(pos reader.Position, op token.Token, left, right hir.Value) {
+	ThrowError(pos, "illegal binary operation with type `%s` `%s` `%s`", left.Type(), op.Source(), right.Type())
 }
 
 // ThrowIllegalUnaryError 非法的一元运算
@@ -73,11 +81,6 @@ func ThrowIllegalCovertError(pos reader.Position, from, to hir.Type) {
 	ThrowError(pos, "type `%s` can not covert to `%s`", from, to)
 }
 
-// ThrowExpectPointerTypeError 期待指针类型
-func ThrowExpectPointerTypeError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a pointer type but there is type `%s`", t)
-}
-
 // ThrowExpectStructTypeError 期待结构体类型
 func ThrowExpectStructTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a struct type but there is type `%s`", t)
@@ -88,14 +91,19 @@ func ThrowExpectArrayTypeError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a array type but there is type `%s`", t)
 }
 
-// ThrowExpectFunctionError 期待一个函数
-func ThrowExpectFunctionError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a function but there is type `%s`", t)
+// ThrowExpectEnumTypeError 期待枚举类型
+func ThrowExpectEnumTypeError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a enum type but there is type `%s`", t)
 }
 
-// ThrowExpectPointerError 期待一个指针
-func ThrowExpectPointerError(pos reader.Position, t hir.Type) {
-	ThrowError(pos, "expect a pointer but there is type `%s`", t)
+// ThrowExpectTraitError 期待Trait
+func ThrowExpectTraitError(pos reader.Position) {
+	ThrowError(pos, "expect a trait")
+}
+
+// ThrowExpectCallableError 期待一个可调用的
+func ThrowExpectCallableError(pos reader.Position, t hir.Type) {
+	ThrowError(pos, "expect a callable but there is type `%s`", t)
 }
 
 // ThrowExpectReferenceError 期待一个引用
@@ -116,6 +124,16 @@ func ThrowExpectTupleError(pos reader.Position, t hir.Type) {
 // ThrowExpectStructError 期待一个结构体
 func ThrowExpectStructError(pos reader.Position, t hir.Type) {
 	ThrowError(pos, "expect a struct but there is type `%s`", t)
+}
+
+// ThrowUnknownFieldOrMethodError 未知的字段或者方法
+func ThrowUnknownFieldOrMethodError(pos reader.Position, t hir.Type, field token.Token) {
+	ThrowError(pos, "type `%s` not have field or method named `%s`", t, field.Source())
+}
+
+// ThrowTheTraitMethodMustBeCalled trait的方法必须被调用
+func ThrowTheTraitMethodMustBeCalled(pos reader.Position) {
+	ThrowError(pos, "trait method must be called")
 }
 
 // ThrowInvalidIndexError 超出下标
@@ -168,20 +186,38 @@ func ThrowIllegalType(pos reader.Position) {
 	ThrowError(pos, "illegal type")
 }
 
-// ThrowInvalidPackage 无效包
-func ThrowInvalidPackage(pos reader.Position, paths dynarray.DynArray[token.Token]) {
-	pathStrs := stliter.Map[token.Token, string, dynarray.DynArray[string]](paths, func(v token.Token) string {
-		return v.Source()
-	})
-	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs.ToSlice(), "."))
+// ThrowNotImplTrait 没有实现trait
+func ThrowNotImplTrait(pos reader.Position, t hir.Type, trait *global.Trait) {
+	ThrowError(pos, "type `%s` not impl trait `%s`", t.String(), stlval.IgnoreWith(trait.GetName()))
 }
 
-// ThrowCanNotGetPointer 不能取指针
-func ThrowCanNotGetPointer(pos reader.Position) {
-	ThrowError(pos, "can not get the pointer of this expression")
+// ThrowInvalidPackage 无效包
+func ThrowInvalidPackage(pos reader.Position, paths []token.Token) {
+	pathStrs := stlslices.Map(paths, func(_ int, v token.Token) string {
+		return v.Source()
+	})
+	ThrowError(pos, "package `%s` is invalid", strings.Join(pathStrs, "::"))
 }
 
 // ThrowCircularReference 循环引用
 func ThrowCircularReference(pos reader.Position, path token.Token) {
 	ThrowError(pos, "circular reference `%s`", path.Source())
+}
+
+// ThrowIndexOutOfRange 超出下标
+func ThrowIndexOutOfRange(pos reader.Position) {
+	ThrowError(pos, "index out of range")
+}
+
+// ThrowExpectMoreCase 期待更多case
+func ThrowExpectMoreCase(pos reader.Position, et hir.Type, now, expect uint) {
+	ThrowError(pos, "type `%s` has `%d` case but there is `%d`", et, expect, now)
+}
+
+// ThrowPackageCircularReference 包循环引用
+func ThrowPackageCircularReference(pos reader.Position, pkgChain []stlos.FilePath) {
+	pkgChain = append(pkgChain, pkgChain[0])
+	ThrowError(pos, "package circular reference: %s->", pkgChain[len(pkgChain)-1], strings.Join(stlslices.Map(pkgChain, func(_ int, pkg stlos.FilePath) string {
+		return string(pkg)
+	}), "->"))
 }

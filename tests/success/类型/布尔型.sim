@@ -1,0 +1,9 @@
+import std::os
+
+func main(){
+    let v: bool
+    if v == false{
+        os::exit(0)
+    }
+    os::exit(1)
+}

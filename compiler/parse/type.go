@@ -1,33 +1,29 @@
 package parse
 
 import (
-	"github.com/kkkunny/stl/container/dynarray"
+	"github.com/kkkunny/stl/container/optional"
 
-	"github.com/kkkunny/Sim/ast"
+	"github.com/kkkunny/Sim/compiler/ast"
 
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
+	errors "github.com/kkkunny/Sim/compiler/error"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
-func (self *Parser) parseOptionType() util.Option[ast.Type] {
+func (self *Parser) parseOptionType() optional.Optional[ast.Type] {
 	switch self.nextTok.Kind {
 	case token.IDENT:
-		return util.Some[ast.Type]((*ast.IdentType)(self.parseIdent()))
+		return optional.Some[ast.Type]((*ast.IdentType)(self.parseIdent()))
 	case token.FUNC:
-		return util.Some[ast.Type](self.parseFuncType())
+		return optional.Some[ast.Type](self.parseFuncType())
 	case token.LBA:
-		return util.Some[ast.Type](self.parseArrayType())
+		return optional.Some[ast.Type](self.parseArrayType())
 	case token.LPA:
-		return util.Some[ast.Type](self.parseTupleType())
-	case token.LT:
-		return util.Some[ast.Type](self.parseUnionType())
-	case token.MUL:
-		return util.Some[ast.Type](self.parsePtrOrRefType())
-	case token.SELFTYPE:
-		return util.Some[ast.Type](self.parseSelfType())
+		return optional.Some[ast.Type](self.parseTupleOrLambdaType())
+	case token.AND, token.LAND:
+		return optional.Some[ast.Type](self.parseRefType())
 	default:
-		return util.None[ast.Type]()
+		return optional.None[ast.Type]()
 	}
 }
 
@@ -37,6 +33,15 @@ func (self *Parser) parseType() ast.Type {
 		errors.ThrowIllegalType(self.nextTok.Position)
 	}
 	return t
+}
+
+func (self *Parser) parseTypeInTypedef() ast.Type {
+	if self.nextIs(token.STRUCT) {
+		return self.parseStructType()
+	} else if self.nextIs(token.ENUM) {
+		return self.parseEnumType()
+	}
+	return self.parseType()
 }
 
 func (self *Parser) parseFuncType() *ast.FuncType {
@@ -68,44 +73,65 @@ func (self *Parser) parseArrayType() *ast.ArrayType {
 	}
 }
 
-func (self *Parser) parseTupleType() *ast.TupleType {
+func (self *Parser) parseTupleOrLambdaType() ast.Type {
 	begin := self.expectNextIs(token.LPA).Position
 	elems := self.parseTypeList(token.RPA)
 	end := self.expectNextIs(token.RPA).Position
-	return &ast.TupleType{
-		Begin: begin,
-		Elems: elems,
-		End:   end,
-	}
-}
-
-func (self *Parser) parseUnionType() *ast.UnionType {
-	begin := self.expectNextIs(token.LT).Position
-	elems := dynarray.NewDynArrayWith[ast.Type](self.parseTypeList(token.GT, true)...)
-	end := self.expectNextIs(token.GT).Position
-	return &ast.UnionType{
-		Begin: begin,
-		Elems: elems,
-		End:   end,
-	}
-}
-
-func (self *Parser) parsePtrOrRefType() ast.Type {
-	begin := self.expectNextIs(token.MUL).Position
-	if self.skipNextIs(token.QUE){
-		elem := self.parseType()
-		return &ast.PtrType{
+	if !self.skipNextIs(token.ARROW) {
+		return &ast.TupleType{
 			Begin: begin,
-			Elem:  elem,
-		}
-	}else{
-		return &ast.RefType{
-			Begin: begin,
-			Elem:  self.parseType(),
+			Elems: elems,
+			End:   end,
 		}
 	}
+	ret := self.parseType()
+	return &ast.LambdaType{
+		Begin:  begin,
+		Params: elems,
+		Ret:    ret,
+	}
 }
 
-func (self *Parser) parseSelfType()*ast.SelfType{
-	return &ast.SelfType{Token: self.expectNextIs(token.SELFTYPE)}
+func (self *Parser) parseRefType() ast.Type {
+	begin := self.expectNextIs(token.AND).Position
+	mut := self.skipNextIs(token.MUT)
+	return &ast.RefType{
+		Begin: begin,
+		Mut:   mut,
+		Elem:  self.parseType(),
+	}
+}
+
+func (self *Parser) parseStructType() *ast.StructType {
+	begin := self.expectNextIs(token.STRUCT).Position
+	self.expectNextIs(token.LBR)
+	fields := self.parseFieldList(token.RBR)
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.StructType{
+		Begin:  begin,
+		Fields: fields,
+		End:    end,
+	}
+}
+
+func (self *Parser) parseEnumType() *ast.EnumType {
+	begin := self.expectNextIs(token.ENUM).Position
+	self.expectNextIs(token.LBR)
+	fields := loopParseWithUtil(self, token.COM, token.RBR, func() ast.EnumField {
+		name := self.expectNextIs(token.IDENT)
+		var elem optional.Optional[ast.Type]
+		if self.skipNextIs(token.COL) {
+			elem = optional.Some(self.parseType())
+		}
+		return ast.EnumField{
+			Name: name,
+			Elem: elem,
+		}
+	})
+	end := self.expectNextIs(token.RBR).Position
+	return &ast.EnumType{
+		Begin:  begin,
+		Fields: fields,
+		End:    end,
+	}
 }

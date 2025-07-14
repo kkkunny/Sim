@@ -1,0 +1,12 @@
+import std::os
+
+type A struct{}
+
+func (A) get()u8{
+    return 0
+}
+
+func main(){
+    let i: A
+    os::exit(A.get() + i.get())
+}

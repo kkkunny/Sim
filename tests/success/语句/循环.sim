@@ -1,0 +1,9 @@
+import std::os
+
+func main(){
+    let mut i: u8 = 10
+    while i > 0{
+        i = i - 2
+    }
+    os::exit(i)
+}

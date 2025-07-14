@@ -1,0 +1,15 @@
+import std::os
+
+type A i32
+
+func (A) lt(self: Self, dst: Self)bool{
+	return false
+}
+
+func main(){
+	let mut v: A
+	if v < 1{
+		os::exit(1)
+	}
+	os::exit(0)
+}

@@ -1,0 +1,15 @@
+import std::os
+
+type Object enum {
+	value: u8,
+}
+
+func main(){
+	let v = Object.value(1)
+	match v{
+	case value:
+		os::exit(value - 1)
+	other:
+		os::exit(1)
+	}
+}

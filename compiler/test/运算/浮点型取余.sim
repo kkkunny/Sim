@@ -1,7 +1,0 @@
-import std::os
-
-func main(){
-    let v: f32 = 2.2
-    os::exit((2.2 % 0.2) as u8)
-    return
-}

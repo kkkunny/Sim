@@ -1,0 +1,9 @@
+import std::os
+
+func a()i32{
+    return os::exit(0)
+}
+
+func main(){
+    a()
+}

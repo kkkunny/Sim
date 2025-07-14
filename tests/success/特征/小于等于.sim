@@ -1,0 +1,19 @@
+import std::os
+
+type A i32
+
+func (A) lt(self: Self, dst: Self)bool{
+	return true
+}
+
+func (A) eq(self: Self, dst: Self)bool{
+	return true
+}
+
+func main(){
+	let mut v: A = 2
+	if v <= 1{
+		os::exit(0)
+	}
+	os::exit(1)
+}

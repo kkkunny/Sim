@@ -17,17 +17,30 @@ const (
 	ASS
 
 	AND
+	AND_WITH_MUT
 	OR
 	XOR
 	NOT
 	SHL
 	SHR
 
+	ANDASS
+	ORASS
+	XORASS
+	SHLASS
+	SHRASS
+
 	ADD
 	SUB
 	MUL
 	DIV
 	REM
+
+	ADDASS
+	SUBASS
+	MULASS
+	DIVASS
+	REMASS
 
 	EQ
 	NE
@@ -38,6 +51,9 @@ const (
 
 	LAND
 	LOR
+
+	LANDASS
+	LORASS
 
 	LPA
 	RPA
@@ -53,6 +69,7 @@ const (
 	SCOPE
 	AT
 	QUE
+	ARROW
 
 	_KeywordBegin
 	FUNC
@@ -63,7 +80,7 @@ const (
 	IF
 	ELSE
 	MUT
-	LOOP
+	WHILE
 	BREAK
 	CONTINUE
 	FOR
@@ -71,75 +88,93 @@ const (
 	IMPORT
 	IS
 	PUBLIC
-	NULL
 	TYPE
-	SELFVALUE
-	SELFTYPE
+	OTHER
+	MATCH
+	TRAIT
+	ENUM
+	CASE
 	_KeywordEnd
 )
 
 var kindNames = [...]string{
-	ILLEGAL:  "illegal",
-	EOF:      "eof",
-	IDENT:    "ident",
-	INTEGER:  "integer",
-	FLOAT:    "float",
-	CHAR:     "char",
-	STRING:   "string",
-	COMMENT: "comment",
-	ASS:      "ass",
-	AND:      "and",
-	OR:       "or",
-	XOR:      "xor",
-	NOT:      "not",
-	SHL:      "shl",
-	SHR:      "shr",
-	ADD:      "add",
-	SUB:      "sub",
-	MUL:      "mul",
-	DIV:      "div",
-	REM:      "rem",
-	EQ:       "eq",
-	NE:       "ne",
-	LT:       "lt",
-	GT:       "gt",
-	LE:       "le",
-	GE:       "ge",
-	LAND:     "logic and",
-	LOR:      "logic or",
-	LPA:      "lpa",
-	RPA:      "rpa",
-	LBA:      "lba",
-	RBA:      "rba",
-	LBR:      "lbr",
-	RBR:      "rbr",
-	SEM:      "sem",
-	COM:      "com",
-	DOT:      "dot",
-	COL:      "col",
-	SCOPE:    "scope",
-	AT:       "at",
-	QUE:      "que",
-	FUNC:     "func",
-	RETURN:   "return",
-	AS:       "as",
-	STRUCT:   "struct",
-	LET:      "let",
-	ELSE:     "else",
-	IF:        "if",
-	MUT:       "mut",
-	BREAK:     "break",
-	CONTINUE:  "continue",
-	LOOP:      "loop",
-	FOR:       "for",
-	IN:        "in",
-	IMPORT:    "import",
-	IS:        "is",
-	PUBLIC:    "pub",
-	NULL:      "null",
-	TYPE:     "type",
-	SELFVALUE: "self",
-	SELFTYPE:  "Self",
+	ILLEGAL:      "illegal",
+	EOF:          "eof",
+	IDENT:        "ident",
+	INTEGER:      "integer",
+	FLOAT:        "float",
+	CHAR:         "char",
+	STRING:       "string",
+	COMMENT:      "comment",
+	ASS:          "ass",
+	AND:          "and",
+	AND_WITH_MUT: "and",
+	OR:           "or",
+	XOR:          "xor",
+	NOT:          "not",
+	SHL:          "shl",
+	SHR:          "shr",
+	ANDASS:       "and ass",
+	ORASS:        "or ass",
+	XORASS:       "xor ass",
+	SHLASS:       "shl ass",
+	SHRASS:       "shr ass",
+	ADD:          "add",
+	SUB:          "sub",
+	MUL:          "mul",
+	DIV:          "div",
+	REM:          "rem",
+	ADDASS:       "and ass",
+	SUBASS:       "sub ass",
+	MULASS:       "mul ass",
+	DIVASS:       "div ass",
+	REMASS:       "rem ass",
+	EQ:           "eq",
+	NE:           "ne",
+	LT:           "lt",
+	GT:           "gt",
+	LE:           "le",
+	GE:           "ge",
+	LAND:         "logic and",
+	LOR:          "logic or",
+	LANDASS:      "land ass",
+	LORASS:       "lor ass",
+	LPA:          "lpa",
+	RPA:          "rpa",
+	LBA:          "lba",
+	RBA:          "rba",
+	LBR:          "lbr",
+	RBR:          "rbr",
+	SEM:          "sem",
+	COM:          "com",
+	DOT:          "dot",
+	COL:          "col",
+	SCOPE:        "scope",
+	AT:           "at",
+	QUE:          "que",
+	ARROW:        "arrow",
+	FUNC:         "func",
+	RETURN:       "return",
+	AS:           "as",
+	STRUCT:       "struct",
+	LET:          "let",
+	ELSE:         "else",
+	IF:           "if",
+	MUT:          "mut",
+	BREAK:        "break",
+	CONTINUE:     "continue",
+	WHILE:        "while",
+	FOR:          "for",
+	IN:           "in",
+	IMPORT:       "import",
+	IS:           "is",
+	PUBLIC:       "pub",
+	TYPE:         "type",
+	OTHER:        "other",
+	MATCH:        "match",
+	TRAIT:        "trait",
+	ENUM:         "enum",
+	CASE:         "case",
 }
 
 // Lookup 区分标识符和关键字
@@ -172,7 +207,7 @@ func (self Kind) Priority() uint8 {
 		return 8
 	case EQ, NE:
 		return 7
-	case AND:
+	case AND, AND_WITH_MUT:
 		return 6
 	case XOR:
 		return 5
@@ -182,7 +217,7 @@ func (self Kind) Priority() uint8 {
 		return 3
 	case LOR:
 		return 2
-	case ASS:
+	case ASS, ANDASS, ORASS, XORASS, SHLASS, SHRASS, ADDASS, SUBASS, MULASS, DIVASS, REMASS, LANDASS, LORASS:
 		return 1
 	default:
 		return 0

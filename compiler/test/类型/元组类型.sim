@@ -1,5 +1,0 @@
-func main(){
-    let v1: (u8, u8) = (1, 2)
-    let v2: () = ()
-    return
-}

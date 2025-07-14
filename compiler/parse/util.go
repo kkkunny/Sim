@@ -6,16 +6,20 @@ import (
 	"reflect"
 
 	"github.com/kkkunny/stl/container/linkedlist"
+	"github.com/kkkunny/stl/container/optional"
 	stlerror "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
 
-	"github.com/kkkunny/Sim/ast"
-	errors "github.com/kkkunny/Sim/error"
-	"github.com/kkkunny/Sim/lex"
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
-	"github.com/kkkunny/Sim/util"
+	"github.com/kkkunny/Sim/compiler/ast"
+
+	"github.com/kkkunny/Sim/compiler/lex"
+
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	errors "github.com/kkkunny/Sim/compiler/error"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T, atLeastOne ...bool) (res []T) {
@@ -44,16 +48,34 @@ func (self *Parser) parseTypeList(end token.Kind, atLeastOne ...bool) (res []ast
 
 func (self *Parser) parseParamList(end token.Kind) (res []ast.Param) {
 	return loopParseWithUtil(self, token.COM, end, func() ast.Param {
-		mut := self.skipNextIs(token.MUT)
-		pn := self.expectNextIs(token.IDENT)
-		self.expectNextIs(token.COL)
-		pt := self.parseType()
-		return ast.Param{
-			Mutable: mut,
-			Name:    pn,
-			Type:    pt,
-		}
+		return self.parseParam()
 	})
+}
+
+func (self *Parser) parseParam() ast.Param {
+	if self.skipNextIs(token.MUT) {
+		mut := self.curTok
+		name := self.expectNextIs(token.IDENT)
+		self.expectNextIs(token.COL)
+		typ := self.parseType()
+		return ast.Param{
+			Mutable: optional.Some(mut),
+			Name:    optional.Some(name),
+			Type:    typ,
+		}
+	} else {
+		var name optional.Optional[token.Token]
+		typ := self.parseType()
+		if ident, ok := typ.(*ast.IdentType); ok && ident.Pkg.IsNone() && ident.GenericArgs.IsNone() && self.skipNextIs(token.COL) {
+			name = optional.Some(ident.Name)
+			typ = self.parseType()
+		}
+		return ast.Param{
+			Mutable: optional.None[token.Token](),
+			Name:    name,
+			Type:    typ,
+		}
+	}
 }
 
 func (self *Parser) parseFieldList(end token.Kind) (res []ast.Field) {
@@ -64,7 +86,7 @@ func (self *Parser) parseFieldList(end token.Kind) (res []ast.Field) {
 		self.expectNextIs(token.COL)
 		pt := self.parseType()
 		return ast.Field{
-			Public: pub,
+			Public:  pub,
 			Mutable: mut,
 			Name:    pn,
 			Type:    pt,
@@ -91,61 +113,93 @@ loop:
 	}
 }
 
-func (self *Parser) parseGenericNameDef(name token.Token)ast.GenericNameDef{
-	if !self.skipNextIs(token.LT){
-		return ast.GenericNameDef{Name: name}
-	}
-	begin := self.curTok.Position
-	params := loopParseWithUtil(self, token.COM, token.GT, func() token.Token {return self.expectNextIs(token.IDENT)}, true)
-	end := self.expectNextIs(token.GT).Position
-	return ast.GenericNameDef{
-		Name: name,
-		Params: util.Some(ast.List[token.Token]{
-			Begin: begin,
-			Data: params,
-			End: end,
-		}),
-	}
-}
-
-func (self *Parser) parseGenericName(name token.Token, expectScope ...bool)ast.GenericName{
-	if len(expectScope) > 0 && expectScope[0] && !self.skipNextIs(token.SCOPE){
-		return ast.GenericName{Name: name}
-	}else if (len(expectScope) == 0 || !expectScope[0]) && !self.nextIs(token.LT){
-		return ast.GenericName{Name: name}
-	}
-	begin := self.expectNextIs(token.LT).Position
-	params := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {return self.parseType()}, true)
-	end := self.expectNextIs(token.GT).Position
-	return ast.GenericName{
-		Name: name,
-		Params: util.Some(ast.List[ast.Type]{
-			Begin: begin,
-			Data: params,
-			End: end,
-		}),
-	}
-}
-
 func (self *Parser) parseIdent() *ast.Ident {
-	var pkg util.Option[token.Token]
-	var name ast.GenericName
+	var pkg optional.Optional[token.Token]
+	var name token.Token
+	var genericArgs optional.Optional[*ast.GenericArgList]
+
 	pkgOrName := self.expectNextIs(token.IDENT)
 	if !self.skipNextIs(token.SCOPE) {
-		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName, true)
-	} else if !self.nextIs(token.LT){
-		pkg, name = util.Some(pkgOrName), self.parseGenericName(self.expectNextIs(token.IDENT))
+		name = pkgOrName
 	} else {
-		pkg, name = util.None[token.Token](), self.parseGenericName(pkgOrName)
+		if !self.nextIs(token.LT) {
+			pkg, name = optional.Some(pkgOrName), self.expectNextIs(token.IDENT)
+			if self.skipNextIs(token.SCOPE) {
+				genericArgs = optional.Some(self.parseGenericArgList())
+			}
+		} else {
+			name = pkgOrName
+			genericArgs = optional.Some(self.parseGenericArgList())
+		}
 	}
 	return &ast.Ident{
-		Pkg:  pkg,
-		Name: name,
+		Pkg:         pkg,
+		Name:        name,
+		GenericArgs: genericArgs,
+	}
+}
+
+func (self *Parser) parseGenericParamList() optional.Optional[*ast.GenericParamList] {
+	if !self.skipNextIs(token.LT) {
+		return optional.None[*ast.GenericParamList]()
+	}
+	begin := self.curTok.Position
+	params := loopParseWithUtil(self, token.COM, token.GT, func() *ast.GenericParam {
+		name := self.expectNextIs(token.IDENT)
+		var restraint optional.Optional[*ast.IdentType]
+		if self.skipNextIs(token.COL) {
+			restraint = optional.Some((*ast.IdentType)(self.parseIdent()))
+		}
+		return &ast.GenericParam{
+			Name:      name,
+			Restraint: restraint,
+		}
+	}, true)
+	end := self.expectNextIs(token.GT).Position
+	return optional.Some(&ast.GenericParamList{
+		Begin:  begin,
+		Params: params,
+		End:    end,
+	})
+}
+
+func (self *Parser) parseGenericArgList() *ast.GenericArgList {
+	begin := self.expectNextIs(token.LT).Position
+	args := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {
+		return self.parseType()
+	}, true)
+	end := self.expectNextIs(token.GT).Position
+	return &ast.GenericArgList{
+		Begin: begin,
+		Args:  args,
+		End:   end,
+	}
+}
+
+func (self *Parser) parseFuncDecl(beforeName, afterName func()) ast.FuncDecl {
+	begin := self.expectNextIs(token.FUNC).Position
+	if beforeName != nil {
+		beforeName()
+	}
+	name := self.expectNextIs(token.IDENT)
+	if afterName != nil {
+		afterName()
+	}
+	self.expectNextIs(token.LPA)
+	params := self.parseParamList(token.RPA)
+	self.expectNextIs(token.RPA)
+	ret := self.parseOptionType()
+	return ast.FuncDecl{
+		Begin:  begin,
+		Name:   name,
+		Params: params,
+		Ret:    ret,
+		End:    self.curTok.Position,
 	}
 }
 
 // 语法解析目标文件
-func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
+func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
 	_, r, err := reader.NewReaderFromFile(path)
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
@@ -154,34 +208,38 @@ func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror
 }
 
 // 语法解析目标目录
-func parseDir(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
-	entries, err := stlerror.ErrorWith(os.ReadDir(path.String()))
+func parseDir(path stlos.FilePath) ([]linkedlist.LinkedList[ast.Global], error) {
+	entries, err := stlerror.ErrorWith(os.ReadDir(string(path)))
 	if err != nil {
-		return linkedlist.LinkedList[ast.Global]{}, err
+		return nil, err
 	}
-	var asts linkedlist.LinkedList[ast.Global]
+	var astsList []linkedlist.LinkedList[ast.Global]
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sim" {
 			continue
 		}
 		fileAst, err := parseFile(path.Join(entry.Name()))
 		if err != nil {
-			return linkedlist.LinkedList[ast.Global]{}, err
+			return nil, err
 		}
-		asts.Append(fileAst)
+		astsList = append(astsList, fileAst)
 	}
-	return asts, nil
+	return astsList, nil
 }
 
 // Parse 语法解析
-func Parse(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], stlerror.Error) {
-	fs, err := stlerror.ErrorWith(os.Stat(path.String()))
-	if err != nil{
-		return linkedlist.LinkedList[ast.Global]{}, err
+func Parse(path stlos.FilePath) ([]linkedlist.LinkedList[ast.Global], error) {
+	fs, err := stlerror.ErrorWith(os.Stat(string(path)))
+	if err != nil {
+		return nil, err
 	}
-	if fs.IsDir(){
+	if fs.IsDir() {
 		return parseDir(path)
-	}else{
-		return parseFile(path)
+	} else {
+		asts, err := parseFile(path)
+		if err != nil {
+			return nil, err
+		}
+		return []linkedlist.LinkedList[ast.Global]{asts}, nil
 	}
 }

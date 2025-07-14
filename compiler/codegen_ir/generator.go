@@ -1,79 +1,83 @@
 package codegen_ir
 
 import (
+	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/stl/container/hashmap"
-	stliter "github.com/kkkunny/stl/container/iter"
-	"github.com/kkkunny/stl/container/linkedlist"
-	"github.com/kkkunny/stl/container/pair"
-	"github.com/kkkunny/stl/container/stack"
+	"github.com/kkkunny/stl/container/queue"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/mir"
-	"github.com/kkkunny/Sim/runtime/types"
+	llvmUtil "github.com/kkkunny/Sim/compiler/codegen_ir/llvm"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
 // CodeGenerator 代码生成器
 type CodeGenerator struct {
-	irs linkedlist.LinkedList[hir.Global]
+	builder *llvmUtil.Builder
+	pkg     *hir.Package
 
-	target  mir.Target
-	ctx     *mir.Context
-	module  *mir.Module
-	builder *mir.Builder
+	values hashmap.HashMap[hir.Value, llvm.Value]
 
-	values  hashmap.HashMap[hir.Expr, mir.Value]
-	loops   hashmap.HashMap[hir.Loop, loop]
-	strings hashmap.HashMap[string, *mir.Constant]
-	structs hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
-	funcCache hashmap.HashMap[string, *mir.Function]
-	genericIdentMapStack stack.Stack[hashmap.HashMap[*hir.GenericIdentType, pair.Pair[mir.Type, types.Type]]]
-	structCache hashmap.HashMap[string, pair.Pair[mir.StructType, *types.StructType]]
+	funcCache        hashmap.HashMap[string, llvm.Function]
+	loops            hashmap.HashMap[local.Loop, loop]
+	lambdaCaptureMap queue.Queue[hashmap.HashMap[values.Ident, llvm.Value]]
+	virtualTypes     hashmap.HashMap[types.VirtualType, hir.Type]
 }
 
-func New(target mir.Target, irs linkedlist.LinkedList[hir.Global]) *CodeGenerator {
-	ctx := mir.NewContext(target)
+func New(target llvm.Target, pkg *hir.Package) *CodeGenerator {
 	return &CodeGenerator{
-		irs:     irs,
-		target:  target,
-		ctx:     ctx,
-		module:  ctx.NewModule(),
-		builder: ctx.NewBuilder(),
+		builder:          llvmUtil.NewBuilder(llvm.GlobalContext, target),
+		pkg:              pkg,
+		values:           hashmap.StdWith[hir.Value, llvm.Value](),
+		funcCache:        hashmap.StdWith[string, llvm.Function](),
+		loops:            hashmap.StdWith[local.Loop, loop](),
+		lambdaCaptureMap: queue.New[hashmap.HashMap[values.Ident, llvm.Value]](),
+		virtualTypes:     hashmap.AnyWith[types.VirtualType, hir.Type](),
 	}
 }
 
 // Codegen 代码生成
-func (self *CodeGenerator) Codegen() *mir.Module {
-	// 类型声明
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
-		st, ok := v.(*hir.StructDef)
-		if ok {
-			self.declStructDef(st)
-		}
-		return true
-	})
-	// 值声明
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
-		self.codegenGlobalDecl(v)
-		return true
-	})
-	// 值定义
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
-		self.codegenGlobalDef(v)
-		return true
-	})
+func (self *CodeGenerator) Codegen() llvm.Module {
+	defer self.builder.Builder.Free()
+
+	self.codegenPkg(self.pkg)
+
 	// 初始化函数
-	self.builder.MoveTo(self.getInitFunction().Blocks().Front().Value)
-	self.builder.BuildReturn()
-	// 主函数
-	stliter.Foreach[hir.Global](self.irs, func(v hir.Global) bool {
-		if funcNode, ok := v.(*hir.FuncDef); ok && funcNode.Name == "main" {
-			f := self.values.Get(funcNode).(*mir.Function)
-			self.builder.MoveTo(self.getMainFunction().Blocks().Front().Value)
-			self.builder.BuildCall(f)
-			self.builder.BuildReturn(mir.NewUint(self.ctx.U8(), 0))
-			return false
+	if _, ok := self.builder.GetFunction("sim_runtime_init"); ok {
+		for _, b := range self.builder.GetInitFunction().Blocks() {
+			if !b.IsTerminating() {
+				self.builder.MoveToAfter(b)
+				self.builder.CreateRet(nil)
+			}
 		}
-		return true
-	})
-	return self.module
+	}
+	// 主函数
+	for iter := self.pkg.Globals().Iterator(); iter.Next(); {
+		fIr, ok := iter.Value().(*global.FuncDef)
+		if !ok || stlval.IgnoreWith(fIr.GetName()) != "main" {
+			continue
+		}
+		f := self.values.Get(fIr).(llvm.Function)
+		self.builder.MoveToAfter(stlslices.First(self.builder.GetMainFunction().Blocks()))
+		// 初始化gc
+		stackStartVar := self.builder.CreateAlloca("", self.builder.BooleanType())
+		fn := self.builder.GetExternFunction("sim_runtime_gc_init", self.builder.FunctionType(false, self.builder.VoidType(), self.builder.Isize()))
+		self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.CreatePtrToInt("", stackStartVar, self.builder.Isize()))
+		// 调用用户main函数
+		self.builder.CreateCall("", f.FunctionType(), f)
+		self.builder.CreateRet(self.builder.ConstInteger(self.builder.IntegerType(8), 0))
+		break
+	}
+	return self.builder.Module
+}
+
+func (self *CodeGenerator) codegenPkg(pkg *hir.Package) {
+	// 变量声明
+	self.codegenGlobalVarDecl(pkg)
+	// 变量定义
+	self.codegenGlobalVarDef(pkg)
 }

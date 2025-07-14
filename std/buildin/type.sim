@@ -1,24 +1,22 @@
-pub type i8 = i8
-pub type i16 = i16
-pub type i32 = i32
-pub type i64 = i64
-pub type isize = isize
+pub type i8 = __buildin_i8
+pub type i16 = __buildin_i16
+pub type i32 = __buildin_i32
+pub type i64 = __buildin_i64
+pub type isize = __buildin_isize
 
-pub type u8 = u8
-pub type u16 = u16
-pub type u32 = u32
-pub type u64 = u64
-pub type usize = usize
+pub type u8 = __buildin_u8
+pub type u16 = __buildin_u16
+pub type u32 = __buildin_u32
+pub type u64 = __buildin_u64
+pub type usize = __buildin_usize
 
-pub type f32 = f32
-pub type f64 = f64
+pub type f32 = __buildin_f32
+pub type f64 = __buildin_f64
 
-pub type bool = bool
-pub let true: bool = 1 == 1
+pub type bool = __buildin_bool
 pub let false: bool = 1 != 1
+pub let true: bool = 1 == 1
 
-pub type str = str
+pub type str = __buildin_str
 
 pub type byte = u8
-
-pub type ptr = *?u8

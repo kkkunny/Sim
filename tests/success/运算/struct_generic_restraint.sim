@@ -1,0 +1,18 @@
+import std::os
+
+type Value<T: Add> struct{
+	v: T
+}
+
+func (Value) add(self: Self, v: T)T{
+	return self.v + v
+}
+
+func main(){
+	let v = Value::<u8>{v: 1}
+	if v.add(1) == 2{
+		os::exit(0)
+		return
+	}
+	os::exit(1)
+}

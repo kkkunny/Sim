@@ -1,8 +1,11 @@
 package ast
 
 import (
-	"github.com/kkkunny/Sim/reader"
-	"github.com/kkkunny/Sim/token"
+	"io"
+
+	"github.com/kkkunny/Sim/compiler/reader"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 // Attr 属性
@@ -25,17 +28,8 @@ func (self *Extern) AttrName() string {
 	return "extern"
 }
 
-type NoReturn struct {
-	Begin reader.Position
-	End   reader.Position
-}
-
-func (self *NoReturn) Position() reader.Position {
-	return reader.MixPosition(self.Begin, self.End)
-}
-
-func (self *NoReturn) AttrName() string {
-	return "noreturn"
+func (self *Extern) Output(w io.Writer, depth uint) (err error) {
+	return outputf(w, "@extern(\"%s\")", self.Name.Source())
 }
 
 type Inline struct {
@@ -51,6 +45,10 @@ func (self *Inline) AttrName() string {
 	return "inline"
 }
 
+func (self *Inline) Output(w io.Writer, depth uint) (err error) {
+	return outputf(w, "@inline")
+}
+
 type NoInline struct {
 	Begin reader.Position
 	End   reader.Position
@@ -62,4 +60,25 @@ func (self *NoInline) Position() reader.Position {
 
 func (self *NoInline) AttrName() string {
 	return "noinline"
+}
+
+func (self *NoInline) Output(w io.Writer, depth uint) (err error) {
+	return outputf(w, "@noinline")
+}
+
+type VarArg struct {
+	Begin reader.Position
+	End   reader.Position
+}
+
+func (self *VarArg) Position() reader.Position {
+	return reader.MixPosition(self.Begin, self.End)
+}
+
+func (self *VarArg) AttrName() string {
+	return "var_arg"
+}
+
+func (self *VarArg) Output(w io.Writer, depth uint) (err error) {
+	return outputf(w, "@var_arg")
 }

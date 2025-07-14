@@ -3,7 +3,7 @@ package token
 import (
 	"fmt"
 
-	"github.com/kkkunny/Sim/reader"
+	"github.com/kkkunny/Sim/compiler/reader"
 )
 
 // Token token

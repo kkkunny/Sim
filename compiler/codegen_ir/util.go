@@ -1,331 +1,839 @@
 package codegen_ir
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 
-	stlbasic "github.com/kkkunny/stl/basic"
-	"github.com/kkkunny/stl/container/dynarray"
-	"github.com/kkkunny/stl/container/pair"
-	stlerror "github.com/kkkunny/stl/error"
+	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/stl/container/hashmap"
+	"github.com/kkkunny/stl/container/queue"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/tuple"
+	stlerr "github.com/kkkunny/stl/error"
+	stlmath "github.com/kkkunny/stl/math"
 	stlos "github.com/kkkunny/stl/os"
+	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/analyse"
-	"github.com/kkkunny/Sim/hir"
-	"github.com/kkkunny/Sim/mir"
-	module2 "github.com/kkkunny/Sim/mir/pass/module"
-	"github.com/kkkunny/Sim/runtime/types"
+	"github.com/heimdalr/dag"
+
+	"github.com/kkkunny/Sim/compiler/analyse"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/global"
+	"github.com/kkkunny/Sim/compiler/hir/local"
+	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
-func (self *CodeGenerator) getExternFunction(name string, t mir.FuncType)*mir.Function{
-	fn, ok := self.module.NamedFunction(name)
-	if !ok {
-		fn = self.module.NewFunction(name, t)
+// buildin包
+func (self *CodeGenerator) buildinPkg() *hir.Package {
+	if self.pkg.IsBuildIn() {
+		return self.pkg
 	}
-	return fn
+	return stlval.IgnoreWith(stlslices.FindFirst(self.pkg.GetDependencyPackages(), func(_ int, pkg *hir.Package) bool {
+		return pkg.IsBuildIn()
+	}))
 }
 
-func (self *CodeGenerator) buildEqual(t hir.Type, l, r mir.Value, not bool) mir.Value {
-	switch irType := hir.FlattenType(t).(type) {
-	case *hir.SintType, *hir.UintType, *hir.FloatType, *hir.BoolType:
-		return self.builder.BuildCmp(stlbasic.Ternary(!not, mir.CmpKindEQ, mir.CmpKindNE), l, r)
-	case *hir.FuncType, *hir.PtrType, *hir.RefType:
-		return self.builder.BuildPtrEqual(stlbasic.Ternary(!not, mir.PtrEqualKindEQ, mir.PtrEqualKindNE), l, r)
-	case *hir.ArrayType:
-		res := self.buildArrayEqual(irType, l, r)
-		if not {
-			res = self.builder.BuildNot(res)
+func (self *CodeGenerator) getIdentName(ir values.Ident) string {
+	switch ident := ir.(type) {
+	case *global.FuncDef:
+		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
+			nameAttr, ok := attr.(*global.FuncAttrLinkName)
+			if !ok {
+				return nil
+			}
+			return []string{nameAttr.Name()}
+		}))
+		if name != "" {
+			return name
 		}
-		return res
-	case *hir.TupleType, *hir.StructType:
-		res := self.buildStructEqual(irType, l, r)
-		if not {
-			res = self.builder.BuildNot(res)
+		return ident.TotalName(self.virtualTypes)
+	case global.MethodDef:
+		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.FuncAttr) []string {
+			nameAttr, ok := attr.(*global.FuncAttrLinkName)
+			if !ok {
+				return nil
+			}
+			return []string{nameAttr.Name()}
+		}))
+		if name != "" {
+			return name
 		}
-		return res
-	case *hir.StringType:
-		name := "sim_runtime_str_eq_str"
-		ft := self.ctx.NewFuncType(self.ctx.Bool(), l.Type(), r.Type())
-		var f *mir.Function
-		var ok bool
-		if f, ok = self.module.NamedFunction(name); !ok {
-			f = self.module.NewFunction(name, ft)
+		return ident.TotalName(self.virtualTypes)
+	case *global.VarDef:
+		name := stlslices.First(stlslices.FlatMap(ident.Attrs(), func(_ int, attr global.VarAttr) []string {
+			nameAttr, ok := attr.(*global.VarAttrLinkName)
+			if !ok {
+				return nil
+			}
+			return []string{nameAttr.Name()}
+		}))
+		if name != "" {
+			return name
 		}
-		var res mir.Value = self.builder.BuildCall(f, l, r)
-		if not {
-			res = self.builder.BuildNot(res)
-		}
-		return res
-	case *hir.UnionType:
-		res := self.buildUnionEqual(irType, l, r)
-		if not {
-			res = self.builder.BuildNot(res)
-		}
-		return res
+		return fmt.Sprintf("%s::%s", ident.Package().String(), stlval.IgnoreWith(ident.GetName()))
+	case *local.SingleVarDef, values.VarDecl, *local.Param:
+		return ""
 	default:
 		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) buildArrayEqual(irType *hir.ArrayType, l, r mir.Value) mir.Value {
-	t := self.codegenTypeOnly(irType).(mir.ArrayType)
-	if t.Length() == 0 {
-		return mir.Bool(self.ctx, true)
+func (self *CodeGenerator) typeIsStruct(t hir.Type) bool {
+	switch t := t.(type) {
+	case types.NoThingType, types.NoReturnType, types.NumType, types.BoolType, types.RefType, types.ArrayType, types.FuncType:
+		return false
+	case types.StrType, types.TupleType, types.LambdaType, types.StructType:
+		return true
+	case types.EnumType:
+		return !t.Simple()
+	case types.TypeDef:
+		return self.typeIsStruct(t.Target())
+	default:
+		panic("unreachable")
 	}
-
-	indexPtr := self.builder.BuildAllocFromStack(self.ctx.Usize())
-	self.builder.BuildStore(mir.NewZero(indexPtr.ElemType()), indexPtr)
-	condBlock := self.builder.Current().Belong().NewBlock()
-	self.builder.BuildUnCondJump(condBlock)
-
-	// cond
-	self.builder.MoveTo(condBlock)
-	index := self.builder.BuildLoad(indexPtr)
-	cond := self.builder.BuildCmp(mir.CmpKindLT, index, mir.NewUint(self.ctx.Usize(), uint64(t.Length())))
-	bodyBlock, outBlock := self.builder.Current().Belong().NewBlock(), self.builder.Current().Belong().NewBlock()
-	self.builder.BuildCondJump(cond, bodyBlock, outBlock)
-
-	// body
-	self.builder.MoveTo(bodyBlock)
-	cond = self.buildEqual(irType.Elem, self.buildArrayIndex(l, index, false), self.buildArrayIndex(r, index, false), false)
-	bodyEndBlock := self.builder.Current()
-	actionBlock := bodyEndBlock.Belong().NewBlock()
-	self.builder.BuildCondJump(cond, actionBlock, outBlock)
-
-	// action
-	self.builder.MoveTo(actionBlock)
-	self.builder.BuildStore(self.builder.BuildAdd(index, mir.NewUint(self.ctx.Usize(), 1)), indexPtr)
-	self.builder.BuildUnCondJump(condBlock)
-
-	// out
-	self.builder.MoveTo(outBlock)
-	return self.builder.BuildPhi(
-		self.ctx.Bool(),
-		pair.NewPair[*mir.Block, mir.Value](condBlock, mir.Bool(self.ctx, true)),
-		pair.NewPair[*mir.Block, mir.Value](bodyEndBlock, mir.Bool(self.ctx, false)),
-	)
 }
 
-func (self *CodeGenerator) buildStructEqual(irType hir.Type, l, r mir.Value) mir.Value {
-	_, isTuple := irType.(*hir.TupleType)
-	t := stlbasic.TernaryAction(isTuple, func() mir.StructType {
-		return self.codegenTypeOnly(irType).(mir.StructType)
-	}, func() mir.StructType {
-		return self.codegenTypeOnly(irType).(mir.StructType)
-	})
-	fields := stlbasic.TernaryAction(isTuple, func() dynarray.DynArray[hir.Type] {
-		return dynarray.NewDynArrayWith(irType.(*hir.TupleType).Elems...)
-	}, func() dynarray.DynArray[hir.Type] {
-		values := irType.(*hir.StructType).Fields.Values()
-		res := dynarray.NewDynArrayWithLength[hir.Type](values.Length())
-		var i uint
-		for iter:=values.Iterator(); iter.Next(); {
-			res.Set(i, iter.Value().Type)
-			i++
+func (self *CodeGenerator) buildCopy(tIr hir.Type, v llvm.Value) llvm.Value {
+	switch tIr := tIr.(type) {
+	case types.NoThingType, types.NoReturnType:
+		panic("unreachable")
+	case types.RefType, types.CallableType, types.NumType:
+		return v
+	case types.ArrayType:
+		t := self.codegenType(tIr).(llvm.ArrayType)
+		if t.Capacity() == 0 {
+			return v
 		}
-		return res
-	})
 
-	if len(t.Elems()) == 0 {
-		return mir.Bool(self.ctx, true)
-	}
+		newArrayPtr := self.builder.CreateAlloca("", t)
+		indexPtr := self.builder.CreateAlloca("", self.builder.Isize())
+		self.builder.CreateStore(self.builder.ConstZero(self.builder.Isize()), indexPtr)
+		condBlock := self.builder.CurrentFunction().NewBlock("")
+		self.builder.CreateBr(condBlock)
 
-	beginBlock := self.builder.Current()
-	nextBlocks := dynarray.NewDynArrayWithLength[pair.Pair[mir.Value, *mir.Block]](uint(len(t.Elems())))
-	srcBlocks := dynarray.NewDynArrayWithLength[*mir.Block](uint(len(t.Elems())))
-	for i := uint32(0); i < uint32(len(t.Elems())); i++ {
-		cond := self.buildEqual(fields.Get(uint(i)), self.buildStructIndex(l, uint64(i), false), self.buildStructIndex(r, uint64(i), false), false)
-		nextBlock := beginBlock.Belong().NewBlock()
-		nextBlocks.Set(uint(i), pair.NewPair(cond, nextBlock))
-		srcBlocks.Set(uint(i), self.builder.Current())
-		self.builder.MoveTo(nextBlock)
-	}
-	self.builder.MoveTo(beginBlock)
+		// cond
+		self.builder.MoveToAfter(condBlock)
+		index := self.builder.CreateLoad("", self.builder.Isize(), indexPtr)
+		var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIsize(int64(t.Capacity())))
+		bodyBlock, outBlock := self.builder.CurrentFunction().NewBlock(""), self.builder.CurrentFunction().NewBlock("")
+		self.builder.CreateCondBr(cond, bodyBlock, outBlock)
 
-	endBlock := nextBlocks.Back().Second
-	for iter := nextBlocks.Iterator(); iter.Next(); {
-		item := iter.Value()
-		if iter.HasNext() {
-			self.builder.BuildCondJump(item.First, item.Second, endBlock)
+		// body
+		self.builder.MoveToAfter(bodyBlock)
+		self.builder.CreateStore(self.buildCopy(tIr.Elem(), self.builder.CreateArrayIndex(t, v, index, false)), self.builder.CreateArrayIndex(t, newArrayPtr, index, true))
+		actionBlock := self.builder.CurrentFunction().NewBlock("")
+		self.builder.CreateBr(actionBlock)
+
+		// action
+		self.builder.MoveToAfter(actionBlock)
+		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIsize(1)), indexPtr)
+		self.builder.CreateBr(condBlock)
+
+		// out
+		self.builder.MoveToAfter(outBlock)
+		return self.builder.CreateLoad("", t, newArrayPtr)
+	case types.TupleType, types.StructType:
+		st := self.codegenType(tIr).(llvm.StructType)
+		if len(st.Elems()) == 0 {
+			return v
+		}
+
+		var fields []hir.Type
+		if ttIr, ok := types.As[types.TupleType](tIr); ok {
+			fields = ttIr.Elems()
 		} else {
-			self.builder.BuildUnCondJump(endBlock)
+			fields = stlslices.Map(stlval.IgnoreWith(types.As[types.StructType](tIr)).Fields().Values(), func(_ int, field *types.Field) hir.Type {
+				return field.Type()
+			})
 		}
-		self.builder.MoveTo(item.Second)
-	}
 
-	phi := self.builder.BuildPhi(self.ctx.Bool())
-	for iter := srcBlocks.Iterator(); iter.Next(); {
-		phi.AddFroms(pair.NewPair[*mir.Block, mir.Value](iter.Value(), stlbasic.Ternary[mir.Value](iter.HasNext(), mir.Bool(self.ctx, false), nextBlocks.Back().First)))
+		newStructPtr := self.builder.CreateAlloca("", st)
+		for i := range st.Elems() {
+			self.builder.CreateStore(self.buildCopy(fields[i], self.builder.CreateStructIndex(st, v, uint(i), false)), self.builder.CreateStructIndex(st, newStructPtr, uint(i), true))
+		}
+		return self.builder.CreateLoad("", st, newStructPtr)
+	case types.EnumType:
+		if tIr.Simple() {
+			return v
+		}
+
+		t := self.codegenType(tIr).(llvm.StructType)
+		beginBlock := self.builder.CurrentBlock()
+		index := self.builder.CreateStructIndex(t, v, 1, false)
+
+		values := make([]llvm.Value, tIr.EnumFields().Length())
+		indexBlockPairs := stlslices.Map(tIr.EnumFields().Values(), func(i int, field *types.EnumField) struct {
+			Value llvm.Value
+			Block llvm.Block
+		} {
+			if _, ok := field.Elem(); !ok {
+				return struct {
+					Value llvm.Value
+					Block llvm.Block
+				}{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: beginBlock}
+			}
+
+			filedBlock := beginBlock.Belong().NewBlock("")
+			self.builder.MoveToAfter(filedBlock)
+
+			data := self.builder.CreateStructIndex(t, v, 0, false)
+			ptr := self.builder.CreateAlloca("", t)
+			self.builder.CreateStore(self.buildCopy(stlval.IgnoreWith(field.Elem()), data), self.builder.CreateStructIndex(t, ptr, 0, true))
+			self.builder.CreateStore(index, self.builder.CreateStructIndex(t, ptr, 1, true))
+			values[i] = self.builder.CreateLoad("", t, ptr)
+			return struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(i)), Block: filedBlock}
+		})
+
+		endBlock := beginBlock.Belong().NewBlock("")
+		for i, p := range indexBlockPairs {
+			if p.Block != beginBlock {
+				continue
+			}
+			p.Block = endBlock
+			indexBlockPairs[i] = p
+		}
+		self.builder.MoveToAfter(beginBlock)
+		self.builder.CreateSwitch(index, endBlock, indexBlockPairs...)
+		self.builder.MoveToAfter(endBlock)
+
+		phi := self.builder.CreatePHI("", v.Type())
+		phi.AddIncomings(struct {
+			Value llvm.Value
+			Block llvm.Block
+		}{Value: v, Block: beginBlock})
+		for i, p := range indexBlockPairs {
+			if p.Block == endBlock {
+				continue
+			}
+			self.builder.MoveToAfter(p.Block)
+			self.builder.CreateBr(endBlock)
+			phi.AddIncomings(struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: values[i], Block: p.Block})
+			self.builder.MoveToAfter(endBlock)
+		}
+		return phi
+	case types.TypeDef:
+		return self.buildCopy(tIr.Target(), v)
+	default:
+		panic("unreachable")
 	}
-	return phi
 }
 
-func (self *CodeGenerator) buildUnionEqual(irType *hir.UnionType, l, r mir.Value) mir.Value {
-	key := fmt.Sprintf("equal:%s", irType.String())
+func (self *CodeGenerator) buildCheckZero(v llvm.Value) {
+	var cond llvm.Value
+	if stlval.Is[llvm.FloatType](v.Type()) {
+		cond = self.builder.CreateFloatCmp("", llvm.FloatOEQ, v, self.builder.ConstZero(v.Type()))
+	} else {
+		cond = self.builder.CreateIntCmp("", llvm.IntEQ, v, self.builder.ConstZero(v.Type()))
+	}
+	f := self.builder.CurrentFunction()
+	panicBlock, endBlock := f.NewBlock(""), f.NewBlock("")
+	self.builder.CreateCondBr(cond, panicBlock, endBlock)
 
-	var f *mir.Function
-	if !self.funcCache.ContainKey(key){
-		curBlock := self.builder.Current()
-		f = self.module.NewFunction("", self.ctx.NewFuncType(self.ctx.Bool(), l.Type(), r.Type()))
-		lp, rp := f.Params()[0], f.Params()[1]
+	self.builder.MoveToAfter(panicBlock)
+	self.buildPanic("zero exception")
 
-		self.builder.MoveTo(f.NewBlock())
-		lk, rk := self.buildStructIndex(lp, 1, false), self.buildStructIndex(rp, 1, false)
-		falseBlock, nextBlock := f.NewBlock(), f.NewBlock()
-		self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindNE, lk, rk), falseBlock, nextBlock)
+	self.builder.MoveToAfter(endBlock)
+}
 
-		self.builder.MoveTo(falseBlock)
-		self.builder.BuildReturn(mir.Bool(self.ctx, false))
+func (self *CodeGenerator) buildPanic(s string) {
+	fn := self.builder.GetExternFunction("sim_runtime_panic", self.builder.FunctionType(false, self.builder.VoidType(), self.builder.Str()))
+	self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.ConstString(s))
+	self.builder.CreateUnreachable()
+}
 
-		self.builder.MoveTo(nextBlock)
-		lvp, rvp := self.buildStructIndex(lp, 0, true), self.buildStructIndex(rp, 0, true)
-		for i, elemIr := range irType.Elems{
-			if i < len(irType.Elems) - 1 {
-				var equalBlock *mir.Block
-				equalBlock, nextBlock = f.NewBlock(), f.NewBlock()
-				self.builder.BuildCondJump(self.builder.BuildCmp(mir.CmpKindEQ, lk, mir.NewInt(lk.Type().(mir.IntType), int64(i))), equalBlock, nextBlock)
-				self.builder.MoveTo(equalBlock)
+func (self *CodeGenerator) buildCheckIndex(index llvm.Value, rangev uint64) {
+	cond := self.builder.CreateIntCmp("", llvm.IntUGE, index, self.builder.ConstInteger(index.Type().(llvm.IntegerType), int64(rangev)))
+	f := self.builder.CurrentFunction()
+	panicBlock, endBlock := f.NewBlock(""), f.NewBlock("")
+	self.builder.CreateCondBr(cond, panicBlock, endBlock)
+
+	self.builder.MoveToAfter(panicBlock)
+	self.buildPanic("index out of range")
+
+	self.builder.MoveToAfter(endBlock)
+}
+
+func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
+	fn := self.builder.GetExternFunction("sim_runtime_gc_alloc", self.builder.FunctionType(false, self.builder.OpaquePointerType(), self.builder.Isize()))
+	size := stlmath.RoundTo(self.builder.GetStoreSizeOfType(t), self.builder.GetABIAlignOfType(t))
+	return self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.ConstIsize(int64(size)))
+}
+
+func (self *CodeGenerator) buildEqual(tIr hir.Type, l, r llvm.Value, not bool) llvm.Value {
+	switch tIr := tIr.(type) {
+	case types.IntType, types.RefType, types.BoolType:
+		return self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
+	case types.FloatType:
+		return self.builder.CreateFloatCmp("", stlval.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
+	case types.ArrayType:
+		t := self.codegenType(tIr).(llvm.ArrayType)
+		if t.Capacity() == 0 {
+			return self.builder.ConstBoolean(true)
+		}
+
+		indexPtr := self.builder.CreateAlloca("", self.builder.Isize())
+		self.builder.CreateStore(self.builder.ConstZero(self.builder.Isize()), indexPtr)
+		condBlock := self.builder.CurrentFunction().NewBlock("")
+		self.builder.CreateBr(condBlock)
+
+		// cond
+		self.builder.MoveToAfter(condBlock)
+		index := self.builder.CreateLoad("", self.builder.Isize(), indexPtr)
+		var cond llvm.Value = self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIsize(int64(t.Capacity())))
+		bodyBlock, outBlock := self.builder.CurrentFunction().NewBlock(""), self.builder.CurrentFunction().NewBlock("")
+		self.builder.CreateCondBr(cond, bodyBlock, outBlock)
+
+		// body
+		self.builder.MoveToAfter(bodyBlock)
+		cond = self.buildEqual(tIr.Elem(), self.builder.CreateArrayIndex(t, l, index, false), self.builder.CreateArrayIndex(t, r, index, false), false)
+		bodyEndBlock := self.builder.CurrentBlock()
+		actionBlock := bodyEndBlock.Belong().NewBlock("")
+		self.builder.CreateCondBr(cond, actionBlock, outBlock)
+
+		// action
+		self.builder.MoveToAfter(actionBlock)
+		self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIsize(1)), indexPtr)
+		self.builder.CreateBr(condBlock)
+
+		// out
+		self.builder.MoveToAfter(outBlock)
+		phi := self.builder.CreatePHI(
+			"",
+			self.builder.BooleanType(),
+			struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.builder.ConstBoolean(true), Block: condBlock},
+			struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.builder.ConstBoolean(false), Block: bodyEndBlock},
+		)
+		if not {
+			return self.builder.CreateNot("", phi)
+		}
+		return phi
+	case types.TupleType, types.StructType:
+		st := self.codegenType(tIr).(llvm.StructType)
+		if len(st.Elems()) == 0 {
+			return self.builder.ConstBoolean(true)
+		}
+
+		var fields []hir.Type
+		if ttIr, ok := types.As[types.TupleType](tIr); ok {
+			fields = ttIr.Elems()
+		} else {
+			fields = stlslices.Map(stlval.IgnoreWith(types.As[types.StructType](tIr)).Fields().Values(), func(_ int, field *types.Field) hir.Type {
+				return field.Type()
+			})
+		}
+
+		beginBlock := self.builder.CurrentBlock()
+		nextBlocks := make([]tuple.Tuple2[llvm.Value, llvm.Block], uint(len(st.Elems())))
+		srcBlocks := make([]llvm.Block, uint(len(st.Elems())))
+		for i := uint(0); i < uint(len(st.Elems())); i++ {
+			cond := self.buildEqual(fields[i], self.builder.CreateStructIndex(st, l, i, false), self.builder.CreateStructIndex(st, r, i, false), false)
+			nextBlock := beginBlock.Belong().NewBlock("")
+			nextBlocks[i] = tuple.Pack2(cond, nextBlock)
+			srcBlocks[i] = self.builder.CurrentBlock()
+			self.builder.MoveToAfter(nextBlock)
+		}
+		self.builder.MoveToAfter(beginBlock)
+
+		endBlock := stlslices.Last(nextBlocks).E2()
+		for i, p := range nextBlocks {
+			if i != len(nextBlocks)-1 {
+				self.builder.CreateCondBr(p.E1(), p.E2(), endBlock)
+			} else {
+				self.builder.CreateBr(endBlock)
 			}
-			lv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(lvp, self.ctx.NewPtrType(self.codegenTypeOnly(elemIr))))
-			rv := self.builder.BuildLoad(self.builder.BuildPtrToPtr(rvp, self.ctx.NewPtrType(self.codegenTypeOnly(elemIr))))
-			self.builder.BuildReturn(self.buildEqual(elemIr, lv, rv, false))
-			if i < len(irType.Elems) - 1 {
-				self.builder.MoveTo(nextBlock)
+			self.builder.MoveToAfter(p.E2())
+		}
+
+		phi := self.builder.CreatePHI("", self.builder.BooleanType())
+		for i, b := range srcBlocks {
+			phi.AddIncomings(struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: stlval.Ternary[llvm.Value](i != len(srcBlocks)-1, self.builder.ConstBoolean(false), stlslices.Last(nextBlocks).E1()), Block: b})
+		}
+		if not {
+			return self.builder.CreateNot("", phi)
+		}
+		return phi
+	case types.LambdaType:
+		st := self.codegenType(tIr).(llvm.StructType)
+		f1p := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 0, false), self.builder.CreateStructIndex(st, r, 0, false))
+		f2p := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 1, false), self.builder.CreateStructIndex(st, r, 1, false))
+		pp := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 2, false), self.builder.CreateStructIndex(st, r, 2, false))
+		return stlval.TernaryAction(!not, func() llvm.Value {
+			return self.builder.CreateAnd("", self.builder.CreateAnd("", f1p, f2p), pp)
+		}, func() llvm.Value {
+			return self.builder.CreateOr("", self.builder.CreateOr("", f1p, f2p), pp)
+		})
+	case types.EnumType:
+		if tIr.Simple() {
+			return self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
+		}
+
+		t := self.codegenType(tIr).(llvm.StructType)
+		beginBlock := self.builder.CurrentBlock()
+		li, ri := self.builder.CreateStructIndex(t, l, 1, false), self.builder.CreateStructIndex(t, r, 1, false)
+		indexEq := self.builder.CreateIntCmp("", llvm.IntEQ, li, ri)
+		bodyBlock := beginBlock.Belong().NewBlock("")
+		self.builder.MoveToAfter(bodyBlock)
+
+		values := make([]llvm.Value, tIr.EnumFields().Length())
+		indexBlockPairs := stlslices.Map(tIr.EnumFields().Values(), func(i int, field *types.EnumField) struct {
+			Value llvm.Value
+			Block llvm.Block
+		} {
+			if _, ok := field.Elem(); !ok {
+				return struct {
+					Value llvm.Value
+					Block llvm.Block
+				}{Value: self.builder.ConstInteger(li.Type().(llvm.IntegerType), int64(i)), Block: bodyBlock}
+			}
+
+			filedBlock := beginBlock.Belong().NewBlock("")
+			self.builder.MoveToAfter(filedBlock)
+
+			ldp, rdp := self.builder.CreateStructIndex(t, l, 0, true), self.builder.CreateStructIndex(t, r, 0, true)
+			ftIr := stlval.IgnoreWith(field.Elem())
+			ft := self.codegenType(ftIr)
+			values[i] = self.buildEqual(ftIr, self.builder.CreateLoad("", ft, ldp), self.builder.CreateLoad("", ft, rdp), false)
+			return struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: self.builder.ConstInteger(li.Type().(llvm.IntegerType), int64(i)), Block: filedBlock}
+		})
+
+		endBlock := beginBlock.Belong().NewBlock("")
+		for i, p := range indexBlockPairs {
+			if p.Block != bodyBlock {
+				continue
+			}
+			p.Block = endBlock
+			indexBlockPairs[i] = p
+		}
+		self.builder.MoveToAfter(beginBlock)
+		self.builder.CreateCondBr(indexEq, bodyBlock, endBlock)
+
+		self.builder.MoveToAfter(bodyBlock)
+		self.builder.CreateSwitch(li, endBlock, indexBlockPairs...)
+		self.builder.MoveToAfter(endBlock)
+
+		phi := self.builder.CreatePHI("", self.builder.BooleanType())
+		phi.AddIncomings(struct {
+			Value llvm.Value
+			Block llvm.Block
+		}{Value: self.builder.ConstBoolean(false), Block: beginBlock})
+		phi.AddIncomings(struct {
+			Value llvm.Value
+			Block llvm.Block
+		}{Value: self.builder.ConstBoolean(true), Block: bodyBlock})
+		for i, p := range indexBlockPairs {
+			if p.Block == endBlock {
+				continue
+			}
+			self.builder.MoveToAfter(p.Block)
+			self.builder.CreateBr(endBlock)
+			phi.AddIncomings(struct {
+				Value llvm.Value
+				Block llvm.Block
+			}{Value: values[i], Block: p.Block})
+			self.builder.MoveToAfter(endBlock)
+		}
+		if not {
+			return self.builder.CreateNot("", phi)
+		}
+		return phi
+	case types.CustomType:
+		return self.buildEqual(tIr.Target(), l, r, not)
+	case types.AliasType:
+		return self.buildEqual(tIr.Target(), l, r, not)
+	default:
+		panic("unreachable")
+	}
+}
+
+func (self *CodeGenerator) codegenDefault(ir hir.Type) llvm.Value {
+	switch ir := ir.(type) {
+	case types.RefType:
+		if ir.Pointer().Equal(types.Str) {
+			return self.builder.ConstString("")
+		}
+		panic("unreachable")
+	case types.NumType:
+		return self.builder.ConstZero(self.codegenType(ir))
+	case types.BoolType:
+		return self.builder.ConstBoolean(false)
+	case types.ArrayType:
+		at := self.codegenArrayType(ir)
+		if ir.Size() == 0 {
+			return self.builder.ConstZero(at)
+		}
+
+		key := fmt.Sprintf("default:%s", ir.String())
+		var fn llvm.Function
+		if !self.funcCache.Contain(key) {
+			curBlock := self.builder.CurrentBlock()
+			ft := self.builder.FunctionType(false, at)
+			fn = self.builder.NewFunction("", ft)
+			self.funcCache.Set(key, fn)
+			self.builder.MoveToAfter(fn.NewBlock(""))
+
+			arrayPtr := self.builder.CreateAlloca("", at)
+			indexPtr := self.builder.CreateAlloca("", self.builder.Isize())
+			self.builder.CreateStore(self.builder.ConstZero(self.builder.Isize()), indexPtr)
+			condBlock := fn.NewBlock("")
+			self.builder.CreateBr(condBlock)
+
+			self.builder.MoveToAfter(condBlock)
+			index := self.builder.CreateLoad("", self.builder.Isize(), indexPtr)
+			cond := self.builder.CreateIntCmp("", llvm.IntULT, index, self.builder.ConstIsize(int64(ir.Size())))
+			loopBlock, endBlock := fn.NewBlock(""), fn.NewBlock("")
+			self.builder.CreateCondBr(cond, loopBlock, endBlock)
+
+			self.builder.MoveToAfter(loopBlock)
+			elemPtr := self.builder.CreateArrayIndex(at, arrayPtr, index, true)
+			self.builder.CreateStore(self.codegenDefault(ir.Elem()), elemPtr)
+			self.builder.CreateStore(self.builder.CreateUAdd("", index, self.builder.ConstIsize(1)), indexPtr)
+			self.builder.CreateBr(condBlock)
+
+			self.builder.MoveToAfter(endBlock)
+			self.builder.CreateRet(self.builder.CreateLoad("", at, arrayPtr))
+
+			self.builder.MoveToAfter(curBlock)
+		} else {
+			fn = self.funcCache.Get(key)
+		}
+		return self.builder.CreateCall("", fn.FunctionType(), fn)
+	case types.TupleType:
+		elems := stlslices.Map(ir.Elems(), func(_ int, elem hir.Type) llvm.Value {
+			return self.codegenDefault(elem)
+		})
+		return self.builder.CreateStruct(self.codegenTupleType(ir), elems...)
+	case types.StructType:
+		fields := stlslices.Map(ir.Fields().Values(), func(_ int, field *types.Field) llvm.Value {
+			return self.codegenDefault(field.Type())
+		})
+		return self.builder.CreateStruct(self.codegenStructType(ir), fields...)
+	case types.FuncType:
+		ft := self.codegenFuncType(ir)
+		key := fmt.Sprintf("default:%s", ir.String())
+		var fn llvm.Function
+		if !self.funcCache.Contain(key) {
+			curBlock := self.builder.CurrentBlock()
+			fn = self.builder.NewFunction("", ft)
+			self.funcCache.Set(key, fn)
+			self.builder.MoveToAfter(fn.NewBlock(""))
+			if ft.ReturnType().Equal(self.builder.VoidType()) {
+				self.builder.CreateRet(nil)
+			} else {
+				self.builder.CreateRet(self.buildCopy(ir.Ret(), self.codegenDefault(ir.Ret())))
+			}
+			self.builder.MoveToAfter(curBlock)
+		} else {
+			fn = self.funcCache.Get(key)
+		}
+		return fn
+	case types.LambdaType:
+		lts := self.codegenLambdaType()
+		fn := self.codegenDefault(ir.ToFunc())
+		return self.builder.CreateStruct(lts, fn, self.builder.ConstZero(lts.Elems()[1]))
+	case types.EnumType:
+		if ir.Simple() {
+			return self.builder.ConstInteger(self.codegenType(ir).(llvm.IntegerType), 0)
+		}
+
+		f := func(elem hir.Type, hasElem bool) (v llvm.Value, ok bool) {
+			defer func() {
+				if err := recover(); err != nil {
+					ok = false
+				}
+			}()
+			if !hasElem {
+				return nil, true
+			}
+			return self.codegenDefault(elem), true
+		}
+		var index int
+		var data llvm.Value
+		var ok bool
+		for i, elem := range ir.EnumFields().Values() {
+			data, ok = f(elem.Elem())
+			if ok {
+				index = i
+				break
 			}
 		}
-		self.builder.MoveTo(curBlock)
-	}else{
-		f = self.funcCache.Get(key)
-	}
+		if !ok {
+			panic("unreachable")
+		}
 
-	return self.builder.BuildCall(f, l, r)
-}
-
-func (self *CodeGenerator) buildArrayIndex(array, i mir.Value, expectPtr ...bool)mir.Value{
-	var expectType mir.PtrType
-	if ft := array.Type(); stlbasic.Is[mir.PtrType](ft){
-		expectType = self.ctx.NewPtrType(ft.(mir.PtrType).Elem().(mir.ArrayType).Elem())
-	}else{
-		expectType = self.ctx.NewPtrType(ft.(mir.ArrayType).Elem())
-	}
-	value := self.builder.BuildArrayIndex(array, i)
-	if len(expectPtr) != 0 && expectPtr[0] && !value.Type().Equal(expectType){
-		ptr := self.builder.BuildAllocFromStack(expectType.Elem())
-		self.builder.BuildStore(value, ptr)
-		return ptr
-	}else if len(expectPtr) != 0 && !expectPtr[0] && value.Type().Equal(expectType){
-		return self.builder.BuildLoad(value)
-	}else {
-		return value
+		ut := self.codegenType(ir).(llvm.StructType)
+		ptr := self.builder.CreateAlloca("", ut)
+		if data != nil {
+			self.builder.CreateStore(data, self.builder.CreateStructIndex(ut, ptr, 0, true))
+		}
+		self.builder.CreateStore(
+			self.builder.ConstInteger(ut.GetElem(1).(llvm.IntegerType), int64(index)),
+			self.builder.CreateStructIndex(ut, ptr, 1, true),
+		)
+		return self.builder.CreateLoad("", ut, ptr)
+	case types.TypeDef:
+		return self.codegenDefault(ir.Target())
+	default:
+		panic("unreachable")
 	}
 }
 
-func (self *CodeGenerator) buildStructIndex(st mir.Value, i uint64, expectPtr ...bool)mir.Value{
-	var expectType mir.PtrType
-	if ft := st.Type(); stlbasic.Is[mir.PtrType](ft){
-		expectType = self.ctx.NewPtrType(ft.(mir.PtrType).Elem().(mir.StructType).Elems()[i])
-	}else{
-		expectType = self.ctx.NewPtrType(ft.(mir.StructType).Elems()[i])
+func (self *CodeGenerator) declFunc(name string, ftIr types.FuncType, attrs ...global.FuncAttr) llvm.Function {
+	var inline *bool
+	var vararg, link bool
+	for _, attr := range attrs {
+		switch attr := attr.(type) {
+		case *global.FuncAttrLinkName:
+			link = true
+		case *global.FuncAttrInline:
+			inline = stlval.Ptr(attr.Inline())
+		case *global.FuncAttrVararg:
+			vararg = true
+		}
 	}
-	value := self.builder.BuildStructIndex(st, i)
-	if len(expectPtr) != 0 && expectPtr[0] && !value.Type().Equal(expectType){
-		ptr := self.builder.BuildAllocFromStack(expectType.Elem())
-		self.builder.BuildStore(value, ptr)
-		return ptr
-	}else if len(expectPtr) != 0 && !expectPtr[0] && value.Type().Equal(expectType){
-		return self.builder.BuildLoad(value)
-	}else {
-		return value
+
+	ft := self.codegenFuncType(ftIr)
+	if vararg {
+		ft = self.builder.FunctionType(true, ft.ReturnType(), ft.Params()...)
+	}
+
+	f := self.builder.NewFunction(name, ft)
+	f.SetLinkage(stlval.Ternary(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
+	if !link {
+		f.SetDSOLocal(true)
+	}
+	if types.Is[types.NoReturnType](ftIr.Ret(), true) {
+		f.AddAttribute(llvm.FuncAttributeNoReturn)
+	}
+	if inline != nil {
+		f.AddAttribute(stlval.Ternary(*inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
+	}
+	return f
+}
+
+func (self *CodeGenerator) defFunc(f llvm.Function, params []*local.Param, body *local.Block) {
+	defer self.removeUnreachableInst(f)
+
+	preBlock := self.builder.CurrentBlock()
+	defer func() {
+		self.builder.MoveToAfter(preBlock)
+	}()
+	self.builder.MoveToAfter(f.NewBlock(""))
+	for i, pIr := range params {
+		p := self.builder.CreateAlloca("", self.codegenType(pIr.Type()))
+		self.builder.CreateStore(f.Params()[i], p)
+		self.values.Set(pIr, p)
+	}
+
+	block, _ := self.codegenBlock(body, nil)
+	self.builder.CreateBr(block)
+}
+
+// 删除不可达语句
+func (self *CodeGenerator) removeUnreachableInst(f llvm.Function) {
+	delBlockQueue := queue.New[llvm.Block]()
+	delInstQueue := queue.New[llvm.Instruction]()
+	f.ForeachBlock(func(block llvm.Block) {
+		delInstQueue.Clear()
+		var terminator bool
+		block.ForeachInst(func(inst llvm.Instruction) {
+			if !terminator {
+				if stlval.Is[llvm.Terminator](inst) {
+					terminator = true
+				}
+			} else {
+				delInstQueue.Push(inst)
+			}
+		})
+		for !delInstQueue.Empty() {
+			inst := delInstQueue.Pop()
+			inst.RemoveFromBlock()
+		}
+		if block.Empty() {
+			delBlockQueue.Push(block)
+		}
+	})
+	for !delBlockQueue.Empty() {
+		block := delBlockQueue.Pop()
+		block.RemoveFromBelong()
 	}
 }
 
-func (self *CodeGenerator) getMainFunction() *mir.Function {
-	mainFn, ok := self.module.NamedFunction("main")
-	if !ok {
-		mainFn = self.module.NewFunction("main", self.ctx.NewFuncType(self.ctx.U8()))
-		mainFn.NewBlock()
+// 存储泛型参数映射
+func (self *CodeGenerator) storeGenericParamMap(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) hashmap.HashMap[types.VirtualType, hir.Type] {
+	for iter := genericParamMap.Iterator(); iter.Next(); {
+		genericParamMap.Set(iter.Value().E1(), types.ReplaceVirtualType(self.virtualTypes, iter.Value().E2()))
 	}
-	return mainFn
-}
-
-func (self *CodeGenerator) getInitFunction() *mir.Function {
-	initFn, ok := self.module.NamedFunction("sim_runtime_init")
-	if !ok {
-		initFn = self.module.NewFunction("sim_runtime_init", self.ctx.NewFuncType(self.ctx.Void()))
-		initFn.SetAttribute(mir.FunctionAttributeInit)
-		initFn.NewBlock()
+	preMap := hashmap.AnyWithCap[types.VirtualType, hir.Type](genericParamMap.Length())
+	for _, kvs := range genericParamMap.KeyValues() {
+		preMap.Set(kvs.E1(), self.virtualTypes.Get(kvs.E1()))
+		self.virtualTypes.Set(kvs.E1(), kvs.E2())
 	}
-	return initFn
+	return preMap
 }
 
-func (self *CodeGenerator) constString(s string) mir.Const {
-	st, _ := self.codegenStringType()
-	if !self.strings.ContainKey(s) {
-		self.strings.Set(s, self.module.NewConstant("", mir.NewString(self.ctx, s)))
+// 释放泛型参数映射
+func (self *CodeGenerator) releaseGenericParamMap(preMap hashmap.HashMap[types.VirtualType, hir.Type]) {
+	for _, kvs := range preMap.KeyValues() {
+		if kvs.E2() == nil {
+			self.virtualTypes.Remove(kvs.E1())
+		} else {
+			self.virtualTypes.Set(kvs.E1(), kvs.E2())
+		}
 	}
-	return mir.NewStruct(
-		st,
-		mir.NewArrayIndex(self.strings.Get(s), mir.NewInt(self.ctx.Usize(), 0)),
-		mir.NewInt(self.ctx.Usize(), int64(len(s))),
-	)
 }
 
-func (self *CodeGenerator) buildCovertUnionIndex(src, dst *types.UnionType, index mir.Value)mir.Value{
-	strType, _ := self.codegenStringType()
-	fn := self.getExternFunction("sim_runtime_covert_union_index", self.ctx.NewFuncType(self.ctx.U8(), strType, strType, self.ctx.U8()))
+// 泛型函数/方法实例化
+func (self *CodeGenerator) instGenericFunc(def local.CallableDef, ir hir.Value) llvm.Function {
+	type genericArgsGetter interface {
+		GenericArgs() []hir.Type
+		GenericParamMap() hashmap.HashMap[types.VirtualType, hir.Type]
+	}
+	type attrsGetter interface {
+		Attrs() []global.FuncAttr
+	}
 
-	gob.Register(new(types.EmptyType))
-	gob.Register(new(types.BoolType))
-	gob.Register(new(types.StringType))
-	gob.Register(new(types.SintType))
-	gob.Register(new(types.UintType))
-	gob.Register(new(types.FloatType))
-	gob.Register(new(types.PtrType))
-	gob.Register(new(types.RefType))
-	gob.Register(new(types.FuncType))
-	gob.Register(new(types.ArrayType))
-	gob.Register(new(types.TupleType))
-	gob.Register(new(types.UnionType))
-	gob.Register(new(types.StructType))
+	defer self.releaseGenericParamMap(self.storeGenericParamMap(ir.(genericArgsGetter).GenericParamMap()))
 
-	var srcStr, dstStr bytes.Buffer
-	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src))
-	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst))
-	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
-}
+	name := self.getIdentName(def.(values.Ident))
+	f, ok := self.builder.GetFunction(name)
+	if ok {
+		return f
+	}
 
-func (self *CodeGenerator) buildCheckUnionType(src, dst *types.UnionType, index mir.Value)mir.Value{
-	strType, _ := self.codegenStringType()
-	fn := self.getExternFunction("sim_runtime_check_union_type", self.ctx.NewFuncType(self.ctx.Bool(), strType, strType, self.ctx.U8()))
+	var ft types.FuncType
+	ct := ir.Type().(types.CallableType)
+	if methodIr, ok := ir.(*local.MethodExpr); ok {
+		ft = types.NewFuncType(ct.Ret(), append([]hir.Type{methodIr.GetLeft().Type()}, ct.Params()...)...)
+	} else {
+		ft = ct.(types.FuncType)
+	}
 
-	gob.Register(new(types.EmptyType))
-	gob.Register(new(types.BoolType))
-	gob.Register(new(types.StringType))
-	gob.Register(new(types.SintType))
-	gob.Register(new(types.UintType))
-	gob.Register(new(types.FloatType))
-	gob.Register(new(types.PtrType))
-	gob.Register(new(types.RefType))
-	gob.Register(new(types.FuncType))
-	gob.Register(new(types.ArrayType))
-	gob.Register(new(types.TupleType))
-	gob.Register(new(types.UnionType))
-	gob.Register(new(types.StructType))
-
-	var srcStr, dstStr bytes.Buffer
-	stlerror.Must(gob.NewEncoder(&srcStr).Encode(src))
-	stlerror.Must(gob.NewEncoder(&dstStr).Encode(dst))
-	return self.builder.BuildCall(fn, self.constString(srcStr.String()), self.constString(dstStr.String()), index)
+	f = self.declFunc(name, ft, def.(attrsGetter).Attrs()...)
+	self.defFunc(f, def.Params(), stlval.IgnoreWith(def.Body()))
+	return f
 }
 
 // CodegenIr 中间代码生成
-func CodegenIr(target mir.Target, path stlos.FilePath) (*mir.Module, stlerror.Error) {
-	means, err := analyse.Analyse(path)
-	if err != nil{
-		return nil, err
+func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
+	entryPkg, err := analyse.Analyse(path)
+	if err != nil {
+		return llvm.Module{}, err
 	}
-	module := New(target, means).Codegen()
-	module2.Run(module, module2.DeadCodeElimination)
+
+	var buildinPkgTaskID string
+	existPkgs := hashmap.AnyWith[*hir.Package, string]()
+	pkgs := queue.New[*hir.Package](entryPkg)
+	dager := dag.NewDAG()
+	for !pkgs.Empty() {
+		pkg := pkgs.Pop()
+
+		var pkgTaskID string
+		if existPkgs.Contain(pkg) {
+			pkgTaskID = existPkgs.Get(pkg)
+		} else {
+			pkgTaskID, err = stlerr.ErrorWith(dager.AddVertex(pkg))
+			if err != nil {
+				return llvm.Module{}, err
+			}
+			existPkgs.Set(pkg, pkgTaskID)
+		}
+
+		if pkg.IsBuildIn() {
+			buildinPkgTaskID = pkgTaskID
+		}
+
+		for _, depPkg := range pkg.GetDependencyPackages() {
+			var depTaskID string
+			if existPkgs.Contain(depPkg) {
+				depTaskID = existPkgs.Get(depPkg)
+			} else {
+				pkgs.Push(depPkg)
+				depTaskID, err = stlerr.ErrorWith(dager.AddVertex(depPkg))
+				if err != nil {
+					return llvm.Module{}, err
+				}
+				existPkgs.Set(depPkg, depTaskID)
+			}
+			if err = stlerr.ErrorWrap(dager.AddEdge(depTaskID, pkgTaskID)); err != nil {
+				return llvm.Module{}, err
+			}
+		}
+	}
+
+	moduleCh := make(chan llvm.Module, 1)
+	go func() {
+		defer close(moduleCh)
+		var resList []dag.FlowResult
+		resList, err = stlerr.ErrorWith(dager.DescendantsFlow(buildinPkgTaskID, nil, func(d *dag.DAG, id string, depResults []dag.FlowResult) (interface{}, error) {
+			_, err := stlslices.MapError(depResults, func(_ int, res dag.FlowResult) (any, error) {
+				if res.Error != nil {
+					return nil, stlerr.ErrorWrap(res.Error)
+				}
+				return nil, nil
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			pkgObj, err := stlerr.ErrorWith(d.GetVertex(id))
+			if err != nil {
+				return nil, err
+			}
+			pkg := pkgObj.(*hir.Package)
+			module := New(target, pkg).Codegen()
+			moduleCh <- module
+
+			return nil, nil
+		}))
+		if err == nil {
+			_, err = stlslices.MapError(resList, func(_ int, res dag.FlowResult) (any, error) {
+				if res.Error != nil {
+					return nil, stlerr.ErrorWrap(res.Error)
+				}
+				return nil, nil
+			})
+		}
+	}()
+	if err != nil {
+		return llvm.Module{}, err
+	}
+
+	var module llvm.Module
+	var existBaseModule bool
+	for backModule := range moduleCh {
+		if !existBaseModule {
+			module, existBaseModule = backModule, true
+		} else {
+			err = stlerr.ErrorWrap(backModule.Link(module))
+			if err != nil {
+				return llvm.Module{}, err
+			}
+			module = backModule
+		}
+	}
+
+	err = stlerr.ErrorWrap(module.Verify())
+	if err != nil {
+		return llvm.Module{}, err
+	}
+
 	return module, nil
 }

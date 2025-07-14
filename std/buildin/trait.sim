@@ -1,0 +1,54 @@
+pub trait Add{
+	func add(self: Self, dst: Self)Self
+}
+pub trait Sub{
+	func sub(self: Self, dst: Self)Self
+}
+pub trait Mul{
+	func mul(self: Self, dst: Self)Self
+}
+pub trait Div{
+	func div(self: Self, dst: Self)Self
+}
+pub trait Rem{
+	func rem(self: Self, dst: Self)Self
+}
+
+pub trait And{
+	func and(self: Self, dst: Self)Self
+}
+pub trait Or{
+	func or(self: Self, dst: Self)Self
+}
+pub trait Xor{
+	func xor(self: Self, dst: Self)Self
+}
+pub trait Shl{
+	func shl(self: Self, dst: Self)Self
+}
+pub trait Shr{
+	func shr(self: Self, dst: Self)Self
+}
+
+pub trait Eq{
+	func eq(self: Self, dst: Self)bool
+}
+pub trait Lt{
+	func lt(self: Self, dst: Self)bool
+}
+pub trait Gt{
+	func gt(self: Self, dst: Self)bool
+}
+pub trait Land{
+	func logic_and(self: Self, dst: Self)Self
+}
+pub trait Lor{
+	func logic_or(self: Self, dst: Self)Self
+}
+
+pub trait Neg{
+	func neg(self: Self)Self
+}
+pub trait Not{
+	func not(self: Self)Self
+}

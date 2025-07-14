@@ -1,0 +1,9 @@
+import std::os
+
+func add(x: u8, y: u8)u8{
+    return x + y
+}
+
+func main(){
+    os::exit(add(1, 1) - 2)
+}
