@@ -1,8 +1,8 @@
 package interpret
 
 import (
-	"reflect"
 	"strings"
+	"unsafe"
 
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
@@ -34,18 +34,16 @@ func NewExecutionEngine(module llvm.Module) (*Engine, error) {
 }
 
 // MapFunction 映射函数 interpreter
-func (self *Engine) MapFunction(name string, to any) error {
-	toVal := reflect.ValueOf(to)
-	toFt := toVal.Type()
-	if toFt.Kind() != reflect.Func {
-		return stlerror.Errorf("expect a function")
+func (self *Engine) MapFunction(name string, c bool, to any) error {
+	if c {
+		return stlerror.ErrorWrap(self.jiter.MapGlobalToC(name, to.(unsafe.Pointer)))
+	} else {
+		return stlerror.ErrorWrap(self.jiter.MapFunctionToGo(name, to))
 	}
-
-	return stlerror.ErrorWrap(self.jiter.MapFunctionToGo(name, to))
 }
 
-func (self *Engine) MapFunctionIgnoreNotFind(name string, to any) error {
-	err := self.MapFunction(name, to)
+func (self *Engine) MapFunctionIgnoreNotFind(name string, c bool, to any) error {
+	err := self.MapFunction(name, c, to)
 	if err != nil && !strings.Contains(err.Error(), "unknown function") {
 		return err
 	}

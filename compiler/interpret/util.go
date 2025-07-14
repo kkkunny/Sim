@@ -13,7 +13,7 @@ func Interpret(module llvm.Module) (uint8, error) {
 		return 1, err
 	}
 	for _, runtimeFn := range runtime.FuncList {
-		err = engine.MapFunctionIgnoreNotFind(runtimeFn.Name, runtimeFn.To)
+		err = engine.MapFunctionIgnoreNotFind(runtimeFn.Name, runtimeFn.C, runtimeFn.To)
 		if err != nil {
 			return 1, err
 		}

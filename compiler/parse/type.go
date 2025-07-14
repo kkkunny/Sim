@@ -20,7 +20,7 @@ func (self *Parser) parseOptionType() optional.Optional[ast.Type] {
 		return optional.Some[ast.Type](self.parseArrayType())
 	case token.LPA:
 		return optional.Some[ast.Type](self.parseTupleOrLambdaType())
-	case token.AND:
+	case token.AND, token.LAND:
 		return optional.Some[ast.Type](self.parseRefType())
 	default:
 		return optional.None[ast.Type]()

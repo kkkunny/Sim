@@ -103,6 +103,34 @@ func (self *Parser) expectNextIs(k token.Kind) token.Token {
 		self.tokenCaches.Push(right)
 		self.next()
 		return self.curTok
+	} else if k == token.AND && self.nextIs(token.LAND) {
+		left, right := token.Token{
+			Position: reader.Position{
+				Reader:      self.nextTok.Position.Reader,
+				BeginOffset: self.nextTok.Position.BeginOffset,
+				EndOffset:   self.nextTok.Position.EndOffset - 1,
+				BeginRow:    self.nextTok.Position.BeginRow,
+				BeginCol:    self.nextTok.Position.BeginCol,
+				EndRow:      self.nextTok.Position.EndRow,
+				EndCol:      self.nextTok.Position.EndCol - 1,
+			},
+			Kind: token.AND,
+		}, token.Token{
+			Position: reader.Position{
+				Reader:      self.nextTok.Position.Reader,
+				BeginOffset: self.nextTok.Position.BeginOffset + 1,
+				EndOffset:   self.nextTok.Position.EndOffset,
+				BeginRow:    self.nextTok.Position.BeginRow,
+				BeginCol:    self.nextTok.Position.BeginCol + 1,
+				EndRow:      self.nextTok.Position.EndRow,
+				EndCol:      self.nextTok.Position.EndCol,
+			},
+			Kind: token.AND,
+		}
+		self.nextTok = left
+		self.tokenCaches.Push(right)
+		self.next()
+		return self.curTok
 	}
 	errors.ThrowNotExpectToken(self.nextTok.Position, k, self.nextTok)
 	return token.Token{}

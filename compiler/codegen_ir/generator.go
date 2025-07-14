@@ -63,6 +63,11 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 		}
 		f := self.values.Get(fIr).(llvm.Function)
 		self.builder.MoveToAfter(stlslices.First(self.builder.GetMainFunction().Blocks()))
+		// 初始化gc
+		stackStartVar := self.builder.CreateAlloca("", self.builder.BooleanType())
+		fn := self.builder.GetExternFunction("sim_runtime_gc_init", self.builder.FunctionType(false, self.builder.VoidType(), self.builder.Isize()))
+		self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.CreatePtrToInt("", stackStartVar, self.builder.Isize()))
+		// 调用用户main函数
 		self.builder.CreateCall("", f.FunctionType(), f)
 		self.builder.CreateRet(self.builder.ConstInteger(self.builder.IntegerType(8), 0))
 		break
