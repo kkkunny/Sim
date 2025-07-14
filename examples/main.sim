@@ -1,18 +1,19 @@
 import std::os
+import std::io
 
-type Value<T: Add> struct{
-	v: T
-}
+@extern("sim_runtime_gc_gc")
+func gc()
 
-func (Value) add(self: Self, v: T)T{
-	return self.v + v
+let mut i: usize
+
+func get_exit_code()&u8{
+	let code: u8 = 10
+	i = &code as usize
+	return &code
 }
 
 func main(){
-	let v = Value::<u8>{v: 1}
-	if v.add(1) == 2{
-		os::exit(0)
-		return
-	}
-	os::exit(1)
+	let code = get_exit_code()
+	gc()
+	os::exit(10)
 }

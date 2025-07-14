@@ -260,7 +260,7 @@ func (self *CodeGenerator) buildCheckIndex(index llvm.Value, rangev uint64) {
 }
 
 func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
-	fn := self.builder.GetExternFunction("sim_runtime_malloc", self.builder.FunctionType(false, self.builder.OpaquePointerType(), self.builder.Isize()))
+	fn := self.builder.GetExternFunction("sim_runtime_gc_alloc", self.builder.FunctionType(false, self.builder.OpaquePointerType(), self.builder.Isize()))
 	size := stlmath.RoundTo(self.builder.GetStoreSizeOfType(t), self.builder.GetABIAlignOfType(t))
 	return self.builder.CreateCall("", fn.FunctionType(), fn, self.builder.ConstIsize(int64(size)))
 }
