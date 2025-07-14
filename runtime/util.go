@@ -8,6 +8,7 @@ import "C"
 import (
 	"fmt"
 	"os"
+	"unsafe"
 
 	"github.com/kkkunny/Sim/runtime/gc"
 )
@@ -16,9 +17,9 @@ import (
 
 // sim_runtime_gc_init 初始化gc
 //
-//export sim_runtime_gc_init
-func sim_runtime_gc_init(stackPos C.size_t) {
-	err := gc.Init(uintptr(stackPos))
+//export sim_runtime_gc__init
+func sim_runtime_gc__init(stackBegin, dataBegin, dataEnd *C.void) {
+	err := gc.Init(uintptr(unsafe.Pointer(stackBegin)), uintptr(unsafe.Pointer(dataBegin)), uintptr(unsafe.Pointer(dataEnd)))
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "panic: %s\n", err)
 		os.Exit(1)

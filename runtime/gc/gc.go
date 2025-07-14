@@ -12,17 +12,23 @@ const initSize = 1024
 
 type GarbageCollector struct {
 	stackBegin uintptr
-	areas      []*memoryArea
+	dataBegin  uintptr
+	dataEnd    uintptr
+
+	areas []*memoryArea
 }
 
-func newGarbageCollector(stackBegin uintptr) (*GarbageCollector, error) {
+func newGarbageCollector(stackBegin, dataBegin, dataEnd uintptr) (*GarbageCollector, error) {
 	area, err := newMemoryArea(initSize)
 	if err != nil {
 		return nil, err
 	}
 	return &GarbageCollector{
 		stackBegin: stackBegin,
-		areas:      []*memoryArea{area},
+		dataBegin:  dataBegin,
+		dataEnd:    dataEnd,
+
+		areas: []*memoryArea{area},
 	}, nil
 }
 
@@ -141,6 +147,14 @@ func (c *GarbageCollector) gc(stackPos uintptr) error {
 		scanAddressFn(c.stackBegin, stackPos)
 	} else {
 		scanAddressFn(stackPos, c.stackBegin)
+	}
+
+	// data段
+	// TODO: win下data段地址貌似不正确
+	if c.dataEnd >= c.dataBegin {
+		scanAddressFn(c.dataBegin, c.dataEnd)
+	} else {
+		scanAddressFn(c.dataEnd, c.dataBegin)
 	}
 
 	// 清除

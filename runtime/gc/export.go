@@ -5,8 +5,8 @@ import "unsafe"
 var globalGC *GarbageCollector
 
 // Init 初始化gc
-func Init(stackBegin uintptr) (err error) {
-	globalGC, err = newGarbageCollector(stackBegin)
+func Init(stackBegin, dataBegin, dataEnd uintptr) (err error) {
+	globalGC, err = newGarbageCollector(stackBegin, dataBegin, dataEnd)
 	if err != nil {
 		return err
 	}

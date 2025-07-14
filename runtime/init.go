@@ -24,7 +24,8 @@ var FuncList = [...]Function{
 	},
 	{
 		Name: "sim_runtime_gc_init",
-		To:   sim_runtime_gc_init,
+		C:    true,
+		To:   C.sim_runtime_gc_init,
 	},
 	{
 		Name: "sim_runtime_gc_alloc",
