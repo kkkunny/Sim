@@ -9,6 +9,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 )
 
 // GenericCustomTypeDef 泛型类型定义
@@ -48,8 +49,15 @@ func (self *_GenericCustomTypeDef_) Equal(dst hir.Type) bool {
 	})
 }
 
-func (self *_GenericCustomTypeDef_) GetName() (string, bool) {
-	return self.String(), true
+func (self *_GenericCustomTypeDef_) GetName() (utils.Name, bool) {
+	name, ok := self.CustomTypeDef.GetName()
+	if !ok {
+		return utils.Name{}, false
+	}
+	return utils.Name{
+		Value:    self.String(),
+		Position: name.Position,
+	}, true
 }
 
 func (self *_GenericCustomTypeDef_) TotalName(genericParamMap hashmap.HashMap[types.VirtualType, hir.Type]) string {

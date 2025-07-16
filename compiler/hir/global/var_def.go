@@ -2,6 +2,7 @@ package global
 
 import (
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -13,7 +14,7 @@ type VarDef struct {
 	value hir.Value
 }
 
-func NewVarDef(mut bool, name string, t hir.Type, attrs ...VarAttr) *VarDef {
+func NewVarDef(mut bool, name utils.Name, t hir.Type, attrs ...VarAttr) *VarDef {
 	return &VarDef{
 		VarDecl: values.NewVarDecl(mut, name, t),
 		attrs:   attrs,

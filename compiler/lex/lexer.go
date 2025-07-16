@@ -61,7 +61,7 @@ func (self *Lexer) skipWhite() {
 func (self *Lexer) scanIdent(b byte) token.Kind {
 	var buf strings.Builder
 	buf.WriteByte(b)
-	for b = self.peek(); b == '_' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9'); b = self.peek() {
+	for b = self.peek(); ByteIsIdent(b); b = self.peek() {
 		buf.WriteByte(self.next())
 	}
 	return token.Lookup(buf.String())

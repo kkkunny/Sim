@@ -8,6 +8,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -181,29 +182,29 @@ var traitCovertMap = map[string]traitCovertInfo{
 type Trait struct {
 	pkgGlobalAttr
 	hir.GenericRestraint
-	name    string
+	name    utils.Name
 	methods hashmap.HashMap[string, *FuncDecl]
 }
 
-func NewTrait(name string) *Trait {
+func NewTrait(name utils.Name) *Trait {
 	return &Trait{
 		name:    name,
 		methods: hashmap.StdWith[string, *FuncDecl](),
 	}
 }
 
-func (self *Trait) GetName() (string, bool) {
-	return self.name, self.name != "_"
+func (self *Trait) GetName() (utils.Name, bool) {
+	return self.name, self.name.Value != "_"
 }
 
 func (self *Trait) AddMethod(m *FuncDecl) bool {
 	mn, ok := m.GetName()
 	if !ok {
 		return true
-	} else if self.methods.Contain(mn) {
+	} else if self.methods.Contain(mn.Value) {
 		return false
 	}
-	self.methods.Set(mn, m)
+	self.methods.Set(mn.Value, m)
 	return true
 }
 
@@ -233,7 +234,7 @@ func (self *Trait) ContainMethod(name string) bool {
 }
 
 func (self *Trait) GetCovertValue(selfValue hir.Value, args ...hir.Value) (hir.Value, bool) {
-	info, ok := traitCovertMap[self.name]
+	info, ok := traitCovertMap[self.name.Value]
 	if !self.Package().IsBuildIn() || !ok {
 		return nil, false
 	}
@@ -244,7 +245,7 @@ func (self *Trait) HasBeImpled(t hir.Type, noBuildin ...bool) (ok bool) {
 	defer func() {
 		if !ok && self.Package().IsBuildIn() && !stlslices.Last(noBuildin) {
 			for traitName, covertInfo := range traitCovertMap {
-				if traitName != self.name {
+				if traitName != self.name.Value {
 					continue
 				}
 				ok = covertInfo.checkFn(t)
@@ -257,7 +258,7 @@ func (self *Trait) HasBeImpled(t hir.Type, noBuildin ...bool) (ok bool) {
 
 	if ct, ok := types.As[CustomTypeDef](t, true); ok {
 		return stlslices.All(self.Methods(), func(_ int, dstF *FuncDecl) bool {
-			method, ok := ct.GetMethod(stlval.IgnoreWith(dstF.GetName()))
+			method, ok := ct.GetMethod(stlval.IgnoreWith(dstF.GetName()).Value)
 			if !ok {
 				return false
 			}

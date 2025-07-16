@@ -6,6 +6,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 )
 
 // AliasTypeDef 类型别名定义
@@ -15,11 +16,11 @@ type AliasTypeDef interface {
 
 type _AliasTypeDef_ struct {
 	pkgGlobalAttr
-	name   string
+	name   utils.Name
 	target hir.Type
 }
 
-func NewAliasTypeDef(name string, target hir.Type) AliasTypeDef {
+func NewAliasTypeDef(name utils.Name, target hir.Type) AliasTypeDef {
 	return &_AliasTypeDef_{
 		name:   name,
 		target: target,
@@ -28,7 +29,7 @@ func NewAliasTypeDef(name string, target hir.Type) AliasTypeDef {
 
 func (self *_AliasTypeDef_) String() string {
 	if self.Package().IsBuildIn() {
-		return self.name
+		return self.name.Value
 	}
 	return fmt.Sprintf("%s::%s", self.Package().String(), self.name)
 }
@@ -46,8 +47,8 @@ func (self *_AliasTypeDef_) Equal(dst hir.Type) bool {
 	}
 }
 
-func (self *_AliasTypeDef_) GetName() (string, bool) {
-	return self.name, self.name != "_"
+func (self *_AliasTypeDef_) GetName() (utils.Name, bool) {
+	return self.name, self.name.Value != "_"
 }
 
 func (self *_AliasTypeDef_) Target() hir.Type {

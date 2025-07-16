@@ -12,6 +12,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 	"github.com/kkkunny/Sim/compiler/reader"
 )
@@ -52,7 +53,7 @@ func (self *Analyser) analyseFuncBody(f local.CallableDef, params []ast.Param, n
 
 	paramNameSet := set.StdHashSetWithCap[string](uint(len(params)))
 	for i, p := range f.Params() {
-		if name, ok := p.GetName(); ok && (!paramNameSet.Add(name) || !self.scope.SetIdent(name, p)) {
+		if name, ok := p.GetName(); ok && (!paramNameSet.Add(name.Value) || !self.scope.SetIdent(name.Value, p)) {
 			errors.ThrowIdentifierDuplicationError(params[i].Name.MustValue().Position, params[i].Name.MustValue())
 		}
 	}
@@ -130,7 +131,7 @@ func (self *Analyser) analyseSingleLocalVariable(node *ast.SingleVariableDef) *l
 		t = v.Type()
 	}
 
-	ident := local.NewSingleVarDef(node.Var.Mutable, name, t, v)
+	ident := local.NewSingleVarDef(node.Var.Mutable, utils.NewNameFromToken(node.Var.Name), t, v)
 	if !self.scope.SetIdent(name, ident) {
 		errors.ThrowIdentifierDuplicationError(node.Var.Name.Position, node.Var.Name)
 	}
@@ -191,7 +192,7 @@ func (self *Analyser) analyseLocalMultiVariable(node *ast.MultipleVariableDef) *
 
 	vars := stlslices.Map(node.Vars, func(i int, vNode ast.VarDef) values.VarDecl {
 		name := vNode.Name.Source()
-		v := values.NewVarDecl(vNode.Mutable, name, varTypes[i])
+		v := values.NewVarDecl(vNode.Mutable, utils.NewNameFromToken(vNode.Name), varTypes[i])
 		if !self.scope.SetIdent(name, v) {
 			errors.ThrowIdentifierDuplicationError(vNode.Name.Position, vNode.Name)
 		}
@@ -263,7 +264,7 @@ func (self *Analyser) analyseFor(node *ast.For) *local.For {
 	}
 
 	cursorName := node.Cursor.Source()
-	cursor := values.NewVarDecl(node.CursorMut, cursorName, at.Elem())
+	cursor := values.NewVarDecl(node.CursorMut, utils.NewNameFromToken(node.Cursor), at.Elem())
 	var loop *local.For
 	self.analyseBlock(node.Body, func(block *local.Block) {
 		if !block.SetIdent(cursorName, cursor) {
@@ -304,7 +305,7 @@ func (self *Analyser) analyseMatch(node *ast.Match) *local.Match {
 		var caseBodyFn func(block *local.Block)
 		if caseVarNode, ok := caseNode.Elem.Value(); ok {
 			caseVarName := caseVarNode.Name.Source()
-			caseVar = values.NewVarDecl(caseVarNode.Mutable, caseVarName, fieldElem)
+			caseVar = values.NewVarDecl(caseVarNode.Mutable, utils.NewNameFromToken(caseVarNode.Name), fieldElem)
 			caseBodyFn = func(block *local.Block) {
 				if !block.SetIdent(caseVarName, caseVar) {
 					errors.ThrowIdentifierDuplicationError(caseVarNode.Name.Position, caseVarNode.Name)

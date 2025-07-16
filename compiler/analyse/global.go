@@ -12,6 +12,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/util"
 
@@ -62,7 +63,7 @@ func (self *Analyser) declTrait(node *ast.Trait) *global.Trait {
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
-	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewTrait(name)).(*global.Trait)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewTrait(utils.NewNameFromToken(node.Name))).(*global.Trait)
 }
 
 func (self *Analyser) declTypeDef(node *ast.TypeDef) global.CustomTypeDef {
@@ -73,7 +74,7 @@ func (self *Analyser) declTypeDef(node *ast.TypeDef) global.CustomTypeDef {
 	}
 
 	genericParams := self.analyseGenericParamsList(node.GenericParams)
-	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewCustomTypeDef(name, genericParams.Values(), types.NoThing)).(global.CustomTypeDef)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewCustomTypeDef(utils.NewNameFromToken(node.Name), genericParams.Values(), types.NoThing)).(global.CustomTypeDef)
 }
 
 func (self *Analyser) declTypeAlias(node *ast.TypeAlias) global.AliasTypeDef {
@@ -82,7 +83,7 @@ func (self *Analyser) declTypeAlias(node *ast.TypeAlias) global.AliasTypeDef {
 	if exist {
 		errors.ThrowIdentifierDuplicationError(node.Name.Position, node.Name)
 	}
-	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewAliasTypeDef(name, types.NoThing)).(global.AliasTypeDef)
+	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, global.NewAliasTypeDef(utils.NewNameFromToken(node.Name), types.NoThing)).(global.AliasTypeDef)
 }
 
 func (self *Analyser) defTrait(node *ast.Trait) *global.Trait {
@@ -148,7 +149,7 @@ func (self *Analyser) declFuncDef(node *ast.FuncDef) *global.FuncDef {
 	})
 
 	f := global.NewFuncDef(self.analyseFuncDecl(node.FuncDecl, fnDeclGenericParamAnalyser...), genericParams.Values(), attrs...)
-	if stlval.IgnoreWith(f.GetName()) == "main" {
+	if stlval.IgnoreWith(f.GetName()).Value == "main" {
 		mainType := types.NewFuncType(types.NoThing)
 		if !f.Type().Equal(types.NewFuncType(types.NoThing)) {
 			errors.ThrowTypeMismatchError(node.Position(), f.Type(), mainType)
@@ -251,7 +252,7 @@ func (self *Analyser) declSingleGlobalVariable(node *ast.SingleVariableDef) *glo
 		}
 	}
 
-	v := global.NewVarDef(node.Var.Mutable, name, self.analyseType(node.Var.Type.MustValue()), attrs...)
+	v := global.NewVarDef(node.Var.Mutable, utils.NewNameFromToken(node.Var.Name), self.analyseType(node.Var.Type.MustValue()), attrs...)
 	return self.getFileByPath(node.Position()).AppendGlobal(node.Public, v).(*global.VarDef)
 }
 
@@ -327,7 +328,7 @@ func (self *Analyser) defMultiGlobalVariable(node *ast.MultipleVariableDef) []*g
 		return decls
 	}
 
-	v := global.NewVarDef(false, "", value.Type())
+	v := global.NewVarDef(false, utils.Name{}, value.Type())
 	v.SetValue(value)
 	for i, decl := range decls {
 		decl.SetValue(local.NewExtractExpr(v, uint(i)))

@@ -15,6 +15,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/global"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 	"github.com/kkkunny/Sim/compiler/reader"
 )
 
@@ -30,22 +31,20 @@ func (self *Analyser) buildinPkg() *hir.Package {
 
 func (self *Analyser) analyseParam(node ast.Param, analysers ...typeAnalyser) *local.Param {
 	mut := !node.Mutable.IsNone()
-	name := stlval.TernaryAction(node.Name.IsSome(), func() string {
-		return node.Name.MustValue().Source()
-	}, func() string {
-		return ""
+	name := stlval.TernaryAction(node.Name.IsSome(), func() utils.Name {
+		return utils.NewNameFromToken(node.Name.MustValue())
+	}, func() utils.Name {
+		return utils.Name{}
 	})
 	typ := self.analyseType(node.Type, analysers...)
 	return local.NewParam(mut, name, typ)
 }
 
 func (self *Analyser) analyseFuncDecl(node ast.FuncDecl, analysers ...typeAnalyser) *global.FuncDecl {
-	name := node.Name.Source()
-
 	paramNameSet := set.StdHashSetWith[string]()
 	params := stlslices.Map(node.Params, func(_ int, e ast.Param) *local.Param {
 		param := self.analyseParam(e, analysers...)
-		if paramName, ok := param.GetName(); ok && !paramNameSet.Add(paramName) {
+		if paramName, ok := param.GetName(); ok && !paramNameSet.Add(paramName.Value) {
 			errors.ThrowIdentifierDuplicationError(e.Name.MustValue().Position, e.Name.MustValue())
 		}
 		return param
@@ -58,7 +57,7 @@ func (self *Analyser) analyseFuncDecl(node ast.FuncDecl, analysers ...typeAnalys
 	if retNode, ok := node.Ret.Value(); ok {
 		ret = self.analyseType(retNode, append(analysers, self.noReturnTypeAnalyser())...)
 	}
-	return global.NewFuncDecl(types.NewFuncType(ret, paramTypes...), name, params...)
+	return global.NewFuncDecl(types.NewFuncType(ret, paramTypes...), utils.NewNameFromToken(node.Name), params...)
 }
 
 // 检查类型是否循环（是否不能确定size）

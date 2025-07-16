@@ -2,6 +2,7 @@ package local
 
 import (
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -11,7 +12,7 @@ type SingleVarDef struct {
 	value hir.Value
 }
 
-func NewSingleVarDef(mut bool, name string, t hir.Type, v hir.Value) *SingleVarDef {
+func NewSingleVarDef(mut bool, name utils.Name, t hir.Type, v hir.Value) *SingleVarDef {
 	return &SingleVarDef{
 		VarDecl: values.NewVarDecl(mut, name, t),
 		value:   v,

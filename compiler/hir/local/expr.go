@@ -9,6 +9,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
@@ -121,7 +122,7 @@ func (self *LambdaExpr) Body() (*Block, bool) { return self.body, true }
 func (self *LambdaExpr) Parent() Scope {
 	return self.parent
 }
-func (self *LambdaExpr) GetName() (string, bool)        { return "", false }
+func (self *LambdaExpr) GetName() (utils.Name, bool)    { return utils.Name{}, false }
 func (self *LambdaExpr) SetContext(ctx ...values.Ident) { self.context = ctx }
 func (self *LambdaExpr) Context() []values.Ident        { return self.context }
 
@@ -462,7 +463,7 @@ func (self *MethodExpr) Mutable() bool      { return false }
 func (self *MethodExpr) Storable() bool     { return false }
 func (self *MethodExpr) GetLeft() hir.Value { return self.self }
 func (self *MethodExpr) GetRight() hir.Value {
-	return values.NewString(types.Str, stlval.IgnoreWith(self.method.GetName()))
+	return values.NewString(types.Str, stlval.IgnoreWith(self.method.GetName()).Value)
 }
 func (self *MethodExpr) Method() CallableDef { return self.method }
 func (self *MethodExpr) GenericArgs() []hir.Type {

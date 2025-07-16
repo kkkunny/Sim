@@ -1,6 +1,9 @@
 package types
 
-import "github.com/kkkunny/Sim/compiler/hir"
+import (
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
+)
 
 // NumType 数字型
 type NumType interface {
@@ -45,7 +48,7 @@ type TypeDef interface {
 	hir.Type
 	Target() hir.Type
 	SetTarget(t hir.Type)
-	GetName() (string, bool)
+	GetName() (utils.Name, bool)
 	Wrap(inner hir.Type) hir.BuildInType
 }
 

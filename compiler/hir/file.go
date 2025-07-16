@@ -6,6 +6,7 @@ import (
 	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
@@ -86,21 +87,13 @@ func (self *File) Path() stlos.FilePath {
 	return self.path
 }
 
-type named interface {
-	GetName() (string, bool)
-}
-
-type notGlobalNamed interface {
-	NotGlobalNamed()
-}
-
 func (self *File) AppendGlobal(pub bool, g Global) Global {
 	g.SetFile(self)
 	g.SetPublic(pub)
 	self.Package().globals.PushBack(g)
-	if namedGlobal, ok := g.(named); ok && !stlval.Is[notGlobalNamed](namedGlobal) {
+	if namedGlobal, ok := g.(utils.Named); ok && !stlval.Is[utils.NotGlobalNamed](namedGlobal) {
 		if name, ok := namedGlobal.GetName(); ok {
-			self.Package().idents.Set(name, g)
+			self.Package().idents.Set(name.Value, g)
 		}
 	}
 	return g

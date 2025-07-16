@@ -7,16 +7,17 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/local"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 )
 
 // FuncDecl 函数声明
 type FuncDecl struct {
 	typ    types.FuncType
-	name   string
+	name   utils.Name
 	params []*local.Param
 }
 
-func NewFuncDecl(typ types.FuncType, name string, params ...*local.Param) *FuncDecl {
+func NewFuncDecl(typ types.FuncType, name utils.Name, params ...*local.Param) *FuncDecl {
 	return &FuncDecl{typ: typ, name: name, params: params}
 }
 
@@ -24,8 +25,8 @@ func (self *FuncDecl) CallableType() types.CallableType {
 	return self.typ
 }
 
-func (self *FuncDecl) GetName() (string, bool) {
-	return self.name, self.name != "_"
+func (self *FuncDecl) GetName() (utils.Name, bool) {
+	return self.name, self.name.Value != "_"
 }
 
 func (self *FuncDecl) Params() []*local.Param {

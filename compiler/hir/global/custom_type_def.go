@@ -10,6 +10,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/hir/utils"
 )
 
 // CustomTypeDef 自定义类型定义
@@ -23,13 +24,13 @@ type CustomTypeDef interface {
 
 type _CustomTypeDef_ struct {
 	pkgGlobalAttr
-	name          string
+	name          utils.Name
 	genericParams []types.GenericParamType
 	target        hir.Type
 	methods       hashmap.HashMap[string, MethodDef]
 }
 
-func NewCustomTypeDef(name string, compileParams []types.GenericParamType, target hir.Type) CustomTypeDef {
+func NewCustomTypeDef(name utils.Name, compileParams []types.GenericParamType, target hir.Type) CustomTypeDef {
 	return &_CustomTypeDef_{
 		name:          name,
 		genericParams: compileParams,
@@ -40,7 +41,7 @@ func NewCustomTypeDef(name string, compileParams []types.GenericParamType, targe
 
 func (self *_CustomTypeDef_) String() string {
 	if self.Package().IsBuildIn() {
-		return self.name
+		return self.name.Value
 	}
 	return fmt.Sprintf("%s::%s", self.Package().String(), self.name)
 }
@@ -49,8 +50,8 @@ func (self *_CustomTypeDef_) Equal(dst hir.Type) bool {
 	return self.Hash() == dst.Hash()
 }
 
-func (self *_CustomTypeDef_) GetName() (string, bool) {
-	return self.name, self.name != "_"
+func (self *_CustomTypeDef_) GetName() (utils.Name, bool) {
+	return self.name, self.name.Value != "_"
 }
 
 func (self *_CustomTypeDef_) Target() hir.Type {
@@ -70,13 +71,13 @@ func (self *_CustomTypeDef_) AddMethod(m MethodDef) bool {
 	if !ok {
 		return true
 	}
-	if types.Is[types.StructType](self.target) && stlval.IgnoreWith(types.As[types.StructType](self.target)).Fields().Contain(mn) {
+	if types.Is[types.StructType](self.target) && stlval.IgnoreWith(types.As[types.StructType](self.target)).Fields().Contain(mn.Value) {
 		return false
 	}
-	if self.methods.Contain(mn) {
+	if self.methods.Contain(mn.Value) {
 		return false
 	}
-	self.methods.Set(mn, m)
+	self.methods.Set(mn.Value, m)
 	return true
 }
 
@@ -87,7 +88,7 @@ func (self *_CustomTypeDef_) GetMethod(name string) (MethodDef, bool) {
 
 func (self *_CustomTypeDef_) HasImpl(trait *Trait) bool {
 	return stlslices.All(trait.Methods(), func(_ int, dstF *FuncDecl) bool {
-		method, ok := self.GetMethod(stlval.IgnoreWith(dstF.GetName()))
+		method, ok := self.GetMethod(stlval.IgnoreWith(dstF.GetName()).Value)
 		if !ok {
 			return false
 		}
