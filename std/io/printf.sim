@@ -2,7 +2,7 @@ import std::c
 import std::unsafe::ptr
 
 type stringHeader struct{
-	data: ptr::Ptr::<c::char>,
+	data: ptr::Ptr::<c::char>
 	len: usize
 }
 

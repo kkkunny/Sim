@@ -117,7 +117,7 @@ func (self *Parser) parseStructType() *ast.StructType {
 func (self *Parser) parseEnumType() *ast.EnumType {
 	begin := self.expectNextIs(token.ENUM).Position
 	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.COM, token.RBR, func() ast.EnumField {
+	fields := loopParseWithUtil(self, []token.Kind{token.COM}, token.RBR, func() ast.EnumField {
 		name := self.expectNextIs(token.IDENT)
 		var elem optional.Optional[ast.Type]
 		if self.skipNextIs(token.COL) {

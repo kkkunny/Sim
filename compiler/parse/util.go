@@ -22,32 +22,36 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
-func loopParseWithUtil[T any](self *Parser, sem, end token.Kind, f func() T, atLeastOne ...bool) (res []T) {
+func loopParseWithUtil[T any](self *Parser, sems []token.Kind, end token.Kind, f func() T, atLeastOne ...bool) (res []T) {
 	atLeastOneVal := len(atLeastOne) > 0 && atLeastOne[0]
+loop:
 	for self.skipSEM(); (len(res) == 0 && atLeastOneVal) || !self.nextIs(end); self.skipSEM() {
 		res = append(res, f())
-		if !self.skipNextIs(sem) {
-			break
+		for _, sem := range sems {
+			if self.skipNextIs(sem) {
+				continue loop
+			}
 		}
+		break
 	}
 	self.skipSEM()
 	return res
 }
 
 func (self *Parser) parseExprList(end token.Kind, atLeaseOne ...bool) (res []ast.Expr) {
-	return loopParseWithUtil(self, token.COM, end, func() ast.Expr {
+	return loopParseWithUtil(self, []token.Kind{token.COM}, end, func() ast.Expr {
 		return self.mustExpr(self.parseOptionExpr(true))
 	}, atLeaseOne...)
 }
 
 func (self *Parser) parseTypeList(end token.Kind, atLeastOne ...bool) (res []ast.Type) {
-	return loopParseWithUtil(self, token.COM, end, func() ast.Type {
+	return loopParseWithUtil(self, []token.Kind{token.COM}, end, func() ast.Type {
 		return self.parseType()
 	}, atLeastOne...)
 }
 
 func (self *Parser) parseParamList(end token.Kind) (res []ast.Param) {
-	return loopParseWithUtil(self, token.COM, end, func() ast.Param {
+	return loopParseWithUtil(self, []token.Kind{token.COM}, end, func() ast.Param {
 		return self.parseParam()
 	})
 }
@@ -79,7 +83,7 @@ func (self *Parser) parseParam() ast.Param {
 }
 
 func (self *Parser) parseFieldList(end token.Kind) (res []ast.Field) {
-	return loopParseWithUtil(self, token.COM, end, func() ast.Field {
+	return loopParseWithUtil(self, []token.Kind{token.COM, token.SEM}, end, func() ast.Field {
 		pub := self.skipNextIs(token.PUBLIC)
 		mut := self.skipNextIs(token.MUT)
 		pn := self.expectNextIs(token.IDENT)
@@ -144,7 +148,7 @@ func (self *Parser) parseGenericParamList() optional.Optional[*ast.GenericParamL
 		return optional.None[*ast.GenericParamList]()
 	}
 	begin := self.curTok.Position
-	params := loopParseWithUtil(self, token.COM, token.GT, func() *ast.GenericParam {
+	params := loopParseWithUtil(self, []token.Kind{token.COM}, token.GT, func() *ast.GenericParam {
 		name := self.expectNextIs(token.IDENT)
 		var restraint optional.Optional[*ast.IdentType]
 		if self.skipNextIs(token.COL) {
@@ -165,7 +169,7 @@ func (self *Parser) parseGenericParamList() optional.Optional[*ast.GenericParamL
 
 func (self *Parser) parseGenericArgList() *ast.GenericArgList {
 	begin := self.expectNextIs(token.LT).Position
-	args := loopParseWithUtil(self, token.COM, token.GT, func() ast.Type {
+	args := loopParseWithUtil(self, []token.Kind{token.COM}, token.GT, func() ast.Type {
 		return self.parseType()
 	}, true)
 	end := self.expectNextIs(token.GT).Position

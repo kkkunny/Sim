@@ -44,7 +44,7 @@ func (self *Engine) MapFunction(name string, c bool, to any) error {
 
 func (self *Engine) MapFunctionIgnoreNotFind(name string, c bool, to any) error {
 	err := self.MapFunction(name, c, to)
-	if err != nil && !strings.Contains(err.Error(), "unknown function") {
+	if err != nil && !strings.Contains(err.Error(), "unknown") && !strings.Contains(err.Error(), "named") {
 		return err
 	}
 	return nil

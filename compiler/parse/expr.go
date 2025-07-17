@@ -70,7 +70,7 @@ func (self *Parser) parseTupleOrLambda() ast.Expr {
 	begin := self.expectNextIs(token.LPA).Position
 	first := true
 	var isLambda bool
-	elems := loopParseWithUtil(self, token.COM, token.RPA, func() any {
+	elems := loopParseWithUtil(self, []token.Kind{token.COM}, token.RPA, func() any {
 		if first {
 			first = false
 
@@ -272,7 +272,7 @@ func (self *Parser) parseArray() *ast.Array {
 
 func (self *Parser) parseStruct(st ast.Type) *ast.Struct {
 	self.expectNextIs(token.LBR)
-	fields := loopParseWithUtil(self, token.COM, token.RBR, func() tuple.Tuple2[token.Token, ast.Expr] {
+	fields := loopParseWithUtil(self, []token.Kind{token.COM}, token.RBR, func() tuple.Tuple2[token.Token, ast.Expr] {
 		fn := self.expectNextIs(token.IDENT)
 		self.expectNextIs(token.COL)
 		fv := self.mustExpr(self.parseOptionExpr(true))

@@ -58,7 +58,7 @@ func (self *CodeGenerator) Codegen() llvm.Module {
 	// 主函数
 	for iter := self.pkg.Globals().Iterator(); iter.Next(); {
 		fIr, ok := iter.Value().(*global.FuncDef)
-		if !ok || stlval.IgnoreWith(fIr.GetName()) != "main" {
+		if !ok || stlval.IgnoreWith(fIr.GetName()).Value != "main" {
 			continue
 		}
 		f := self.values.Get(fIr).(llvm.Function)

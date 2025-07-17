@@ -129,7 +129,7 @@ func (self *Parser) parseMultipleVariable(begin reader.Position, attrs []ast.Att
 
 	self.expectNextIs(token.LPA)
 	var anyNoType bool
-	varDefs := loopParseWithUtil(self, token.COM, token.RPA, func() ast.VarDef {
+	varDefs := loopParseWithUtil(self, []token.Kind{token.COM}, token.RPA, func() ast.VarDef {
 		varDef := self.parseVarDef(global)
 		anyNoType = anyNoType || varDef.Type.IsNone()
 		return varDef
@@ -218,7 +218,7 @@ func (self *Parser) parseTrait(attrs []ast.Attr, pub *token.Token) *ast.Trait {
 
 	name := self.expectNextIs(token.IDENT)
 	self.expectNextIs(token.LBR)
-	methods := loopParseWithUtil(self, token.COM, token.RBR, func() *ast.FuncDecl {
+	methods := loopParseWithUtil(self, []token.Kind{token.COM}, token.RBR, func() *ast.FuncDecl {
 		return stlval.Ptr(self.parseFuncDecl(nil, nil))
 	})
 	end := self.expectNextIs(token.RBR).Position

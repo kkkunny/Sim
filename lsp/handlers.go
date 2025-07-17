@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
+	stlval "github.com/kkkunny/stl/value"
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 	"go.uber.org/zap"
@@ -48,10 +49,20 @@ func (h *Handler) Initialize(ctx context.Context, params *protocol.InitializePar
 }
 
 func (h *Handler) Hover(ctx context.Context, params *protocol.HoverParams) (result *protocol.Hover, err error) {
+	queryWord, err := getQueryWord(params.TextDocumentPositionParams)
+	if err != nil {
+		return nil, err
+	}
+
+	obj, ok := h.buildinPkg.GetIdent(queryWord)
+	if !ok {
+		return nil, nil
+	}
+	namedObj := obj.(utils.Named)
 	return &protocol.Hover{
 		Contents: protocol.MarkupContent{
 			Kind:  protocol.PlainText,
-			Value: "hello world",
+			Value: stlval.IgnoreWith(namedObj.GetName()).Value,
 		},
 	}, nil
 }
