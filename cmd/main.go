@@ -53,11 +53,11 @@ var buildCmd = &cobra.Command{
 		defer os.Remove(string(oOutputPath))
 
 		binOutputPath := stlval.TernaryAction(outputPath == "", func() stlos.FilePath {
-			return oOutputPath.Dir().Join(strings.ReplaceAll(oOutputPath.Base(), oOutputPath.Ext(), ".exe"))
+			return oOutputPath.Dir().Join(strings.ReplaceAll(oOutputPath.Base(), oOutputPath.Ext(), ".out"))
 		}, func() stlos.FilePath {
 			return stlerr.MustWith(stlos.NewFilePath(outputPath).Abs())
 		})
-		cmder := exec.Command("clang", "-L.", "-lsim", "-o", string(binOutputPath), string(oOutputPath))
+		cmder := exec.Command("clang", string(oOutputPath), "-L.", "-lsim", "-o", string(binOutputPath))
 		cmder.Stdout = os.Stdout
 		cmder.Stderr = os.Stderr
 		stlval.Ignore(cmder.Run())

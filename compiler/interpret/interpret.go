@@ -44,18 +44,14 @@ func (self *Engine) MapFunction(name string, c bool, to any) error {
 
 func (self *Engine) MapFunctionIgnoreNotFind(name string, c bool, to any) error {
 	err := self.MapFunction(name, c, to)
-	if err != nil && !strings.Contains(err.Error(), "unknown function") {
+	if err != nil && !strings.Contains(err.Error(), "unknown") {
 		return err
 	}
 	return nil
 }
 
 func (self *Engine) RunMain() (uint8, error) {
-	initFn, ok := self.module.GetFunction("sim_runtime_init")
-	if ok {
-		_ = self.jiter.RunFunction(initFn)
-	}
-	mainFn, ok := self.module.GetFunction("main")
+	mainFn, ok := self.module.GetFunction("interpret_main")
 	if !ok {
 		return 1, stlerror.Errorf("can not find the main function")
 	}
