@@ -52,3 +52,7 @@ pub trait Neg{
 pub trait Not{
 	func not(self: Self)Self
 }
+
+pub trait Drop{
+	func drop(self: &mut Self)
+}

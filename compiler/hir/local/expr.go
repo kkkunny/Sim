@@ -12,6 +12,11 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/values"
 )
 
+type Ident interface {
+	hir.Local
+	values.Ident
+}
+
 // Expr 表达式
 type Expr struct {
 	value hir.Value
@@ -898,4 +903,19 @@ func (self *TraitMethodExpr) CallableType() types.CallableType {
 	ft := stlval.IgnoreWith(trait.GetMethodType(self.method)).(types.CallableType)
 	ft = types.NewLambdaType(ft.Ret(), ft.Params()[1:]...)
 	return types.ReplaceVirtualType(hashmap.AnyWith[types.VirtualType, hir.Type](types.Self, self.self.Type()), ft).(types.CallableType)
+}
+
+// DropExpr 释放内存
+type DropExpr struct {
+	value hir.Value
+}
+
+func NewDropExpr(value hir.Value) *DropExpr {
+	return &DropExpr{value: value}
+}
+func (self *DropExpr) Type() hir.Type { return types.NoReturn }
+func (self *DropExpr) Mutable() bool  { return false }
+func (self *DropExpr) Storable() bool { return false }
+func (self *DropExpr) Value() hir.Value {
+	return self.value
 }

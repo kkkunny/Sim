@@ -57,6 +57,8 @@ func (self *CodeGenerator) codegenValue(ir hir.Value, load bool) llvm.Value {
 		return self.codegenTraitStaticMethod(ir)
 	case *local.TraitMethodExpr:
 		return self.codegenValue(self.covertTraitMethodToMethod(ir), load)
+	case *local.DropExpr:
+		return self.codegenDropExpr(ir)
 	default:
 		panic("unreachable")
 	}
@@ -840,4 +842,15 @@ func (self *CodeGenerator) covertTraitMethodToMethod(ir *local.TraitMethodExpr) 
 	}
 
 	panic("unreachable")
+}
+
+func (self *CodeGenerator) codegenDropExpr(ir *local.DropExpr) llvm.Value {
+	vt := ir.Value().Type()
+	trait := stlval.IgnoreWith(self.buildinPkg().GetIdent("Drop")).(*global.Trait)
+	ctd, ok := types.As[global.CustomTypeDef](vt, true)
+	if !ok || !trait.HasBeImpled(vt, true) {
+		return nil
+	}
+	method := stlval.IgnoreWith(ctd.GetMethod(stlval.IgnoreWith(stlval.IgnoreWith(trait.FirstMethod()).GetName())))
+	return self.codegenCall(local.NewCallExpr(local.NewMethodExpr(ir.Value(), method, nil)))
 }

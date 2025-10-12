@@ -176,6 +176,14 @@ var traitCovertMap = map[string]traitCovertInfo{
 			return local.NewNotExpr(self)
 		},
 	},
+	"Drop": {
+		checkFn: func(t hir.Type) bool {
+			return true
+		},
+		covertFn: func(self hir.Value, args ...hir.Value) hir.Value {
+			return local.NewDropExpr(self)
+		},
+	},
 }
 
 type Trait struct {
@@ -243,15 +251,11 @@ func (self *Trait) GetCovertValue(selfValue hir.Value, args ...hir.Value) (hir.V
 func (self *Trait) HasBeImpled(t hir.Type, noBuildin ...bool) (ok bool) {
 	defer func() {
 		if !ok && self.Package().IsBuildIn() && !stlslices.Last(noBuildin) {
-			for traitName, covertInfo := range traitCovertMap {
-				if traitName != self.name {
-					continue
-				}
-				ok = covertInfo.checkFn(t)
-				if ok {
-					return
-				}
+			info, exist := traitCovertMap[self.name]
+			if !exist {
+				return
 			}
+			ok = info.checkFn(t)
 		}
 	}()
 
