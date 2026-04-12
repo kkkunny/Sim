@@ -32,7 +32,7 @@ func NewLambdaType(ret hir.Type, ps ...hir.Type) LambdaType {
 
 func (self *_LambdaType_) String() string {
 	params := stlslices.Map(self.params, func(i int, p hir.Type) string { return p.String() })
-	ret := stlval.Ternary(Is[NoThingType](self.ret, true), "void", self.ret.String())
+	ret := stlval.If(Is[NoThingType](self.ret, true), "void", self.ret.String())
 	return fmt.Sprintf("(%s)->%s", strings.Join(params, ", "), ret)
 }
 

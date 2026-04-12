@@ -79,12 +79,12 @@ type Ident struct {
 }
 
 func (self *Ident) Position() reader.Position {
-	begin := stlval.TernaryAction(self.Pkg.IsNone(), func() reader.Position {
+	begin := stlval.IfLazy(self.Pkg.IsNone(), func() reader.Position {
 		return self.Name.Position
 	}, func() reader.Position {
 		return self.Pkg.MustValue().Position
 	})
-	end := stlval.TernaryAction(self.GenericArgs.IsNone(), func() reader.Position {
+	end := stlval.IfLazy(self.GenericArgs.IsNone(), func() reader.Position {
 		return self.Name.Position
 	}, func() reader.Position {
 		return self.GenericArgs.MustValue().End

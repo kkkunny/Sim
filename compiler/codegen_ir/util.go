@@ -10,7 +10,6 @@ import (
 	"github.com/kkkunny/stl/container/tuple"
 	stlerr "github.com/kkkunny/stl/error"
 	stlmath "github.com/kkkunny/stl/math"
-	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/heimdalr/dag"
@@ -268,9 +267,9 @@ func (self *CodeGenerator) buildMalloc(t llvm.Type) llvm.Value {
 func (self *CodeGenerator) buildEqual(tIr hir.Type, l, r llvm.Value, not bool) llvm.Value {
 	switch tIr := tIr.(type) {
 	case types.IntType, types.RefType, types.BoolType:
-		return self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
+		return self.builder.CreateIntCmp("", stlval.If(!not, llvm.IntEQ, llvm.IntNE), l, r)
 	case types.FloatType:
-		return self.builder.CreateFloatCmp("", stlval.Ternary(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
+		return self.builder.CreateFloatCmp("", stlval.If(!not, llvm.FloatOEQ, llvm.FloatUNE), l, r)
 	case types.ArrayType:
 		t := self.codegenType(tIr).(llvm.ArrayType)
 		if t.Capacity() == 0 {
@@ -361,7 +360,7 @@ func (self *CodeGenerator) buildEqual(tIr hir.Type, l, r llvm.Value, not bool) l
 			phi.AddIncomings(struct {
 				Value llvm.Value
 				Block llvm.Block
-			}{Value: stlval.Ternary[llvm.Value](i != len(srcBlocks)-1, self.builder.ConstBoolean(false), stlslices.Last(nextBlocks).E1()), Block: b})
+			}{Value: stlval.If[llvm.Value](i != len(srcBlocks)-1, self.builder.ConstBoolean(false), stlslices.Last(nextBlocks).E1()), Block: b})
 		}
 		if not {
 			return self.builder.CreateNot("", phi)
@@ -369,17 +368,17 @@ func (self *CodeGenerator) buildEqual(tIr hir.Type, l, r llvm.Value, not bool) l
 		return phi
 	case types.LambdaType:
 		st := self.codegenType(tIr).(llvm.StructType)
-		f1p := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 0, false), self.builder.CreateStructIndex(st, r, 0, false))
-		f2p := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 1, false), self.builder.CreateStructIndex(st, r, 1, false))
-		pp := self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 2, false), self.builder.CreateStructIndex(st, r, 2, false))
-		return stlval.TernaryAction(!not, func() llvm.Value {
+		f1p := self.builder.CreateIntCmp("", stlval.If(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 0, false), self.builder.CreateStructIndex(st, r, 0, false))
+		f2p := self.builder.CreateIntCmp("", stlval.If(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 1, false), self.builder.CreateStructIndex(st, r, 1, false))
+		pp := self.builder.CreateIntCmp("", stlval.If(!not, llvm.IntEQ, llvm.IntNE), self.builder.CreateStructIndex(st, l, 2, false), self.builder.CreateStructIndex(st, r, 2, false))
+		return stlval.IfLazy(!not, func() llvm.Value {
 			return self.builder.CreateAnd("", self.builder.CreateAnd("", f1p, f2p), pp)
 		}, func() llvm.Value {
 			return self.builder.CreateOr("", self.builder.CreateOr("", f1p, f2p), pp)
 		})
 	case types.EnumType:
 		if tIr.Simple() {
-			return self.builder.CreateIntCmp("", stlval.Ternary(!not, llvm.IntEQ, llvm.IntNE), l, r)
+			return self.builder.CreateIntCmp("", stlval.If(!not, llvm.IntEQ, llvm.IntNE), l, r)
 		}
 
 		t := self.codegenType(tIr).(llvm.StructType)
@@ -615,7 +614,7 @@ func (self *CodeGenerator) declFunc(name string, ftIr types.FuncType, attrs ...g
 	}
 
 	f := self.builder.NewFunction(name, ft)
-	f.SetLinkage(stlval.Ternary(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
+	f.SetLinkage(stlval.If(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
 	if !link {
 		f.SetDSOLocal(true)
 	}
@@ -623,7 +622,7 @@ func (self *CodeGenerator) declFunc(name string, ftIr types.FuncType, attrs ...g
 		f.AddAttribute(llvm.FuncAttributeNoReturn)
 	}
 	if inline != nil {
-		f.AddAttribute(stlval.Ternary(*inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
+		f.AddAttribute(stlval.If(*inline, llvm.FuncAttributeAlwaysInline, llvm.FuncAttributeNoInline))
 	}
 	return f
 }
@@ -732,7 +731,7 @@ func (self *CodeGenerator) instGenericFunc(def local.CallableDef, ir hir.Value) 
 }
 
 // CodegenIr 中间代码生成
-func CodegenIr(target llvm.Target, path stlos.FilePath) (llvm.Module, error) {
+func CodegenIr(target llvm.Target, path string) (llvm.Module, error) {
 	entryPkg, err := analyse.Analyse(path)
 	if err != nil {
 		return llvm.Module{}, err

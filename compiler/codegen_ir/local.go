@@ -289,7 +289,7 @@ func (self *CodeGenerator) codegenMatch(ir *local.Match) {
 	etIr := stlval.IgnoreWith(types.As[types.EnumType](ir.Cond().Type()))
 	t := self.codegenType(ir.Cond().Type())
 	value := self.codegenValue(ir.Cond(), false)
-	index := stlval.TernaryAction(etIr.Simple(), func() llvm.Value {
+	index := stlval.IfLazy(etIr.Simple(), func() llvm.Value {
 		if value.Type().Equal(t) {
 			return value
 		} else {

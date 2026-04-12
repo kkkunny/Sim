@@ -408,7 +408,7 @@ func (self *CodeGenerator) codegenIdent(ir values.Ident, load bool) llvm.Value {
 		}
 		return self.values.Get(identIr)
 	case *global.VarDef:
-		p := stlval.TernaryAction(!self.pkg.Equal(identIr.Package()), func() llvm.Value {
+		p := stlval.IfLazy(!self.pkg.Equal(identIr.Package()), func() llvm.Value {
 			name := self.getIdentName(identIr)
 			v, ok := self.builder.GetGlobal(name)
 			if ok {
@@ -686,7 +686,7 @@ func (self *CodeGenerator) codegenLambda(ir *local.LambdaExpr) llvm.Value {
 	ft := self.codegenFuncType(ir.CallableType().ToFunc())
 	lt := self.builder.FunctionType(ft.IsVarArg(), ft.ReturnType(), append([]llvm.Type{self.builder.OpaquePointerType()}, ft.Params()...)...)
 	isSimpleFunc := len(ir.Context()) == 0
-	vft := stlval.Ternary(isSimpleFunc, ft, lt)
+	vft := stlval.If(isSimpleFunc, ft, lt)
 	f := self.builder.NewFunction("", vft)
 	defer self.removeUnreachableInst(f)
 	if types.Is[types.NoReturnType](ir.CallableType().Ret()) {

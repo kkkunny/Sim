@@ -51,7 +51,7 @@ func (self *FuncDecl) GetSelfParam(selfType hir.Type) (*local.Param, bool) {
 		)
 	}
 	firstParam := stlslices.First(self.params)
-	firstParamType := stlval.TernaryAction(types.Is[types.RefType](firstParam.Type(), true), func() hir.Type {
+	firstParamType := stlval.IfLazy(types.Is[types.RefType](firstParam.Type(), true), func() hir.Type {
 		rt, ok := types.As[types.RefType](firstParam.Type(), true)
 		if !ok {
 			panic("unreachable")

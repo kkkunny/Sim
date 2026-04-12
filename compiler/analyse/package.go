@@ -3,9 +3,9 @@ package analyse
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/kkkunny/stl/container/tuple"
-	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -39,7 +39,7 @@ func (err *importPackageCircularError) Error() string {
 func (err *importPackageCircularError) importPackage() {}
 
 type importPackageInvalidError struct {
-	path stlos.FilePath
+	path string
 }
 
 func (err *importPackageInvalidError) Error() string {
@@ -49,8 +49,8 @@ func (err *importPackageInvalidError) Error() string {
 func (err *importPackageInvalidError) importPackage() {}
 
 // importPackage 导入包
-func (self *Analyser) importPackage(pos reader.Position, pkgPath stlos.FilePath, name string, importAll bool) (dstPkg *hir.Package, err importPackageError) {
-	name = stlval.Ternary(name != "", name, pkgPath.Base())
+func (self *Analyser) importPackage(pos reader.Position, pkgPath string, name string, importAll bool) (dstPkg *hir.Package, err importPackageError) {
+	name = stlval.If(name != "", name, filepath.Base(pkgPath))
 
 	curFile := self.getFileByPath(pos)
 	defer func() {
@@ -106,7 +106,7 @@ func (self *Analyser) importPackage(pos reader.Position, pkgPath stlos.FilePath,
 }
 
 // Analyse 语义分析
-func Analyse(path stlos.FilePath) (*hir.Package, error) {
+func Analyse(path string) (*hir.Package, error) {
 	astsList, err := parse.Parse(path)
 	if err != nil {
 		return nil, err

@@ -6,7 +6,6 @@ import (
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/container/tuple"
-	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -109,7 +108,7 @@ func (self *Analyser) analyseIdentType(node *ast.IdentType, analysers ...typeAna
 	if !ok || t.IsRight() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlval.IgnoreWith(t.Left())
+	return t.Left()
 }
 
 func (self *Analyser) analyseFuncType(node *ast.FuncType, analysers ...typeAnalyser) types.FuncType {

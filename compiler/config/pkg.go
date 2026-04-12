@@ -1,23 +1,25 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+
 	stlerror "github.com/kkkunny/stl/error"
-	stlos "github.com/kkkunny/stl/os"
 )
 
 var (
 	// RootPath 语言根目录
-	RootPath = func() stlos.FilePath {
-		workdir := stlerror.MustWith(stlos.GetWorkDirectory())
-		if workdir.Base() == "compiler" {
-			workdir = workdir.Dir()
+	RootPath = func() string {
+		workdir := stlerror.MustWith(os.Getwd())
+		if filepath.Base(workdir) == "compiler" {
+			workdir = filepath.Dir(workdir)
 		}
-		return stlerror.MustWith(workdir.Abs())
+		return stlerror.MustWith(filepath.Abs(workdir))
 	}()
 	// OfficialPkgPath 官方包目录
 	OfficialPkgPath = RootPath
 	// StdPkgPath 标准库目录
-	StdPkgPath = OfficialPkgPath.Join("std")
+	StdPkgPath = filepath.Join(OfficialPkgPath, "std")
 	// BuildInPkgPath buildin库目录
-	BuildInPkgPath = StdPkgPath.Join("buildin")
+	BuildInPkgPath = filepath.Join(StdPkgPath, "buildin")
 )

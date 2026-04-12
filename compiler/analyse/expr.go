@@ -323,7 +323,7 @@ func (self *Analyser) analyseIdentExpr(node *ast.IdentExpr) hir.Value {
 	if !ok || v.IsLeft() {
 		errors.ThrowUnknownIdentifierError(node.Name.Position, node.Name)
 	}
-	return stlval.IgnoreWith(v.Right())
+	return v.Right()
 }
 
 func (self *Analyser) tryAnalyseEnum(node *ast.Call) (*local.EnumExpr, bool) {
@@ -339,7 +339,7 @@ func (self *Analyser) tryAnalyseEnum(node *ast.Call) (*local.EnumExpr, bool) {
 	if !ok {
 		return nil, false
 	}
-	t, ok := ident.Left()
+	t, ok := ident.TryLeft()
 	if !ok {
 		return nil, false
 	}
@@ -370,7 +370,7 @@ func (self *Analyser) analyseCall(expect hir.Type, node *ast.Call) hir.Value {
 	if expect != nil {
 		expect = types.NewFuncType(expect)
 	}
-	f := stlval.TernaryAction(stlval.Is[*ast.Dot](node.Func), func() hir.Value {
+	f := stlval.IfLazy(stlval.Is[*ast.Dot](node.Func), func() hir.Value {
 		return self.analyseDot(node.Func.(*ast.Dot), true)
 	}, func() hir.Value {
 		return self.analyseExpr(expect, node.Func)
@@ -501,7 +501,7 @@ func (self *Analyser) analyseArray(expect hir.Type, node *ast.Array) *local.Arra
 
 	elems := make([]hir.Value, len(node.Elems))
 	for i, elemNode := range node.Elems {
-		elems[i] = stlval.TernaryAction(i == 0, func() hir.Value {
+		elems[i] = stlval.IfLazy(i == 0, func() hir.Value {
 			var expectElem hir.Type
 			if expectAt != nil {
 				expectElem = expectAt.Elem()
@@ -593,7 +593,7 @@ func (self *Analyser) analyseDot(node *ast.Dot, call bool) hir.Value {
 
 	if identNode, ok := node.From.(*ast.IdentExpr); ok {
 		if identRes, ok := self.tryAnalyseIdent((*ast.Ident)(identNode)); ok {
-			if identType, ok := identRes.Left(); ok {
+			if identType, ok := identRes.TryLeft(); ok {
 				// 静态方法
 				if ctd, ok := types.As[global.CustomTypeDef](identType, true); ok {
 					method, ok := ctd.GetMethod(fieldName)
@@ -686,7 +686,7 @@ func (self *Analyser) analyseMethod(must bool, node *ast.Dot, call bool) (values
 		return nil, false
 	}
 
-	if fromCtd, ok := fromType.Left(); ok {
+	if fromCtd, ok := fromType.TryLeft(); ok {
 		method, ok := fromCtd.GetMethod(fieldName)
 		if !ok || (!method.Public() && !self.scope.Package().Equal(method.Package())) {
 			if must {
@@ -717,7 +717,7 @@ func (self *Analyser) analyseMethod(must bool, node *ast.Dot, call bool) (values
 
 		genericArgs := self.analyseOptionalGenericArgList(method.GenericParams(), node.Position(), node.GenericArgs)
 		return local.NewMethodExpr(selfVal, method, genericArgs), true
-	} else if fromGpt, ok := fromType.Right(); ok {
+	} else if fromGpt, ok := fromType.TryRight(); ok {
 		if !call {
 			errors.ThrowTheTraitMethodMustBeCalled(node.Position())
 		}

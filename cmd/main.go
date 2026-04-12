@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/kkkunny/go-llvm"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlerr "github.com/kkkunny/stl/error"
-	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 	"github.com/spf13/cobra"
 
@@ -42,20 +42,20 @@ var buildCmd = &cobra.Command{
 	Short:            "compile the sim file",
 	TraverseChildren: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		input := stlos.NewFilePath(stlslices.First(args))
-		input = stlerr.MustWith(input.Abs())
-		oOutputPath := input.Dir().Join(strings.ReplaceAll(input.Base(), input.Ext(), ".obj"))
+		input := stlslices.First(args)
+		input = stlerr.MustWith(filepath.Abs(input))
+		oOutputPath := filepath.Join(filepath.Dir(input), strings.ReplaceAll(filepath.Base(input), filepath.Ext(input), ".obj"))
 
 		llvm.EnablePrettyStackTrace()
 		target := stlerr.MustWith(util.GetLLVMTarget())
 		module := stlerr.MustWith(codegen_ir.CodegenIr(target, input))
 		stlerr.Must(stlerr.ErrorWrap(target.WriteOBJToFile(module, string(oOutputPath), llvm.CodeOptLevelDefault, llvm.RelocModePIC, llvm.CodeModelDefault)))
-		defer os.Remove(string(oOutputPath))
+		defer os.Remove(oOutputPath)
 
-		binOutputPath := stlval.TernaryAction(outputPath == "", func() stlos.FilePath {
-			return oOutputPath.Dir().Join(strings.ReplaceAll(oOutputPath.Base(), oOutputPath.Ext(), ".out"))
-		}, func() stlos.FilePath {
-			return stlerr.MustWith(stlos.NewFilePath(outputPath).Abs())
+		binOutputPath := stlval.IfLazy(outputPath == "", func() string {
+			return filepath.Join(filepath.Dir(oOutputPath), strings.ReplaceAll(filepath.Base(oOutputPath), filepath.Ext(oOutputPath), ".out"))
+		}, func() string {
+			return stlerr.MustWith(filepath.Abs(outputPath))
 		})
 		cmder := exec.Command("clang", string(oOutputPath), "-L.", "-lsim", "-o", string(binOutputPath))
 		cmder.Stdout = os.Stdout
@@ -69,8 +69,8 @@ var runCmd = &cobra.Command{
 	Short:            "run the sim file",
 	TraverseChildren: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		input := stlos.NewFilePath(stlslices.First(args))
-		input = stlerr.MustWith(input.Abs())
+		input := stlslices.First(args)
+		input = stlerr.MustWith(filepath.Abs(input))
 		llvm.EnablePrettyStackTrace()
 		target := stlerr.MustWith(util.GetLLVMTarget())
 		module := stlerr.MustWith(codegen_ir.CodegenIr(target, input))

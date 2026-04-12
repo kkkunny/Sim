@@ -1,9 +1,10 @@
 package analyse
 
 import (
+	"path/filepath"
+
 	"github.com/kkkunny/stl/container/linkedhashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -35,14 +36,14 @@ func (self *Analyser) analyseImport(node *ast.Import) *hir.Package {
 	paths := stlslices.Map(node.Paths, func(_ int, v token.Token) string {
 		return v.Source()
 	})
-	pkgPath := config.OfficialPkgPath.Join(paths...)
+	pkgPath := filepath.Join(append([]string{config.OfficialPkgPath}, paths...)...)
 
 	// 导入包
 	pkg, err := self.importPackage(node.Position(), pkgPath, pkgName, importAll)
 	if err != nil {
 		switch e := err.(type) {
 		case *importPackageCircularError:
-			errors.ThrowPackageCircularReference(stlslices.Last(node.Paths).Position, stlslices.Map(e.chain, func(i int, pkg *hir.Package) stlos.FilePath {
+			errors.ThrowPackageCircularReference(stlslices.Last(node.Paths).Position, stlslices.Map(e.chain, func(i int, pkg *hir.Package) string {
 				return pkg.Path()
 			}))
 		case *importPackageDuplicationError:
@@ -207,7 +208,7 @@ func (self *Analyser) declMethodDef(node *ast.FuncDef) global.MethodDef {
 
 	typeAnalysers := append(
 		[]typeAnalyser{self.selfTypeAnalyserWith(
-			stlval.TernaryAction(len(customType.GenericParams()) > 0, func() hir.Type {
+			stlval.IfLazy(len(customType.GenericParams()) > 0, func() hir.Type {
 				return global.NewGenericCustomTypeDef(
 					customType,
 					stlslices.Map(customType.GenericParams(), func(_ int, gp types.GenericParamType) hir.Type {

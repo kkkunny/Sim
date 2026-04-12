@@ -51,7 +51,7 @@ func (self *CodeGenerator) declGlobalVarDef(ir *global.VarDef) {
 	name := self.getIdentName(ir)
 	t := self.codegenType(ir.Type())
 	v := self.builder.NewGlobal(name, t, nil)
-	v.SetLinkage(stlval.Ternary(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
+	v.SetLinkage(stlval.If(link, llvm.ExternalLinkage, llvm.LinkOnceODRAutoHideLinkage))
 	if !link {
 		v.SetInitializer(self.builder.ConstZero(t))
 	}

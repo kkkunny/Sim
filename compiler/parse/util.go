@@ -8,7 +8,6 @@ import (
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/optional"
 	stlerror "github.com/kkkunny/stl/error"
-	stlos "github.com/kkkunny/stl/os"
 	"github.com/samber/lo"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -199,7 +198,7 @@ func (self *Parser) parseFuncDecl(beforeName, afterName func()) ast.FuncDecl {
 }
 
 // 语法解析目标文件
-func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
+func parseFile(path string) (linkedlist.LinkedList[ast.Global], error) {
 	_, r, err := reader.NewReaderFromFile(path)
 	if err != nil {
 		return linkedlist.LinkedList[ast.Global]{}, err
@@ -208,8 +207,8 @@ func parseFile(path stlos.FilePath) (linkedlist.LinkedList[ast.Global], error) {
 }
 
 // 语法解析目标目录
-func parseDir(path stlos.FilePath) ([]linkedlist.LinkedList[ast.Global], error) {
-	entries, err := stlerror.ErrorWith(os.ReadDir(string(path)))
+func parseDir(path string) ([]linkedlist.LinkedList[ast.Global], error) {
+	entries, err := stlerror.ErrorWith(os.ReadDir(path))
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +217,7 @@ func parseDir(path stlos.FilePath) ([]linkedlist.LinkedList[ast.Global], error) 
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sim" {
 			continue
 		}
-		fileAst, err := parseFile(path.Join(entry.Name()))
+		fileAst, err := parseFile(filepath.Join(path, entry.Name()))
 		if err != nil {
 			return nil, err
 		}
@@ -228,8 +227,8 @@ func parseDir(path stlos.FilePath) ([]linkedlist.LinkedList[ast.Global], error) 
 }
 
 // Parse 语法解析
-func Parse(path stlos.FilePath) ([]linkedlist.LinkedList[ast.Global], error) {
-	fs, err := stlerror.ErrorWith(os.Stat(string(path)))
+func Parse(path string) ([]linkedlist.LinkedList[ast.Global], error) {
+	fs, err := stlerror.ErrorWith(os.Stat(path))
 	if err != nil {
 		return nil, err
 	}

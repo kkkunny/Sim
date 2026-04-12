@@ -38,11 +38,11 @@ func (self *Block) Parent() either.Either[CallableDef, *Block] {
 }
 
 func (self *Block) CallableDef() CallableDef {
-	parentFunc, ok := self.parent.Left()
+	parentFunc, ok := self.parent.TryLeft()
 	if ok {
 		return parentFunc
 	}
-	return stlval.IgnoreWith(self.parent.Right()).CallableDef()
+	return self.parent.Right().CallableDef()
 }
 
 func (self *Block) Stmts() linkedlist.LinkedList[hir.Local] {
@@ -99,17 +99,17 @@ func (self *Block) GetIdent(name string, allowLinkedPkgs ...bool) (any, bool) {
 	if v != nil {
 		return v, true
 	}
-	parent := stlval.TernaryAction(self.parent.IsLeft(), func() Scope {
-		return stlval.IgnoreWith(self.parent.Left()).Parent()
+	parent := stlval.IfLazy(self.parent.IsLeft(), func() Scope {
+		return self.parent.Left().Parent()
 	}, func() Scope {
-		return stlval.IgnoreWith(self.parent.Right())
+		return self.parent.Right()
 	})
 	v, ok := parent.GetIdent(name, allowLinkedPkgs...)
 	if !ok {
 		return nil, false
 	}
 
-	if f, ok := self.parent.Left(); ok {
+	if f, ok := self.parent.TryLeft(); ok {
 		lambda, ok := f.(*LambdaExpr)
 		if ok && lambda.onCapture != nil {
 			lambda.onCapture(v)
@@ -119,11 +119,11 @@ func (self *Block) GetIdent(name string, allowLinkedPkgs ...bool) (any, bool) {
 }
 
 func (self *Block) Belong() CallableDef {
-	f, ok := self.parent.Left()
+	f, ok := self.parent.TryLeft()
 	if ok {
 		return f
 	}
-	return stlval.IgnoreWith(self.parent.Right()).Belong()
+	return self.parent.Right().Belong()
 }
 
 func (self *Block) SetLoop(loop Loop) {
@@ -134,7 +134,7 @@ func (self *Block) Loop() (Loop, bool) {
 	if self.loop != nil {
 		return self.loop, true
 	}
-	parent, ok := self.parent.Right()
+	parent, ok := self.parent.TryRight()
 	if !ok {
 		return nil, false
 	}

@@ -30,7 +30,7 @@ func (self *Analyser) buildinPkg() *hir.Package {
 
 func (self *Analyser) analyseParam(node ast.Param, analysers ...typeAnalyser) *local.Param {
 	mut := !node.Mutable.IsNone()
-	name := stlval.TernaryAction(node.Name.IsSome(), func() string {
+	name := stlval.IfLazy(node.Name.IsSome(), func() string {
 		return node.Name.MustValue().Source()
 	}, func() string {
 		return ""

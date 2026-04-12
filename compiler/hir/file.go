@@ -3,20 +3,19 @@ package hir
 import (
 	"github.com/kkkunny/stl/container/hashmap"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
 type File struct {
-	path stlos.FilePath
+	path string
 	pkg  *Package
 
 	externs hashmap.HashMap[string, []*Package]
 }
 
-func NewFile(path stlos.FilePath, pkg *Package) *File {
+func NewFile(path string, pkg *Package) *File {
 	return &File{
 		path:    path,
 		pkg:     pkg,
@@ -82,7 +81,7 @@ func (self *File) GetIdent(name string, allowLinkedPkgs ...bool) (any, bool) {
 	return nil, false
 }
 
-func (self *File) Path() stlos.FilePath {
+func (self *File) Path() string {
 	return self.path
 }
 

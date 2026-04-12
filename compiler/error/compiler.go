@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlos "github.com/kkkunny/stl/os"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -215,9 +214,7 @@ func ThrowExpectMoreCase(pos reader.Position, et hir.Type, now, expect uint) {
 }
 
 // ThrowPackageCircularReference 包循环引用
-func ThrowPackageCircularReference(pos reader.Position, pkgChain []stlos.FilePath) {
+func ThrowPackageCircularReference(pos reader.Position, pkgChain []string) {
 	pkgChain = append(pkgChain, pkgChain[0])
-	ThrowError(pos, "package circular reference: %s->", pkgChain[len(pkgChain)-1], strings.Join(stlslices.Map(pkgChain, func(_ int, pkg stlos.FilePath) string {
-		return string(pkg)
-	}), "->"))
+	ThrowError(pos, "package circular reference: %s->", pkgChain[len(pkgChain)-1], strings.Join(pkgChain, "->"))
 }

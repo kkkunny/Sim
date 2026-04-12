@@ -58,12 +58,12 @@ func (self *Parser) parseFuncDef(attrs []ast.Attr, pub *token.Token) ast.Global 
 	}
 	decl := self.parseFuncDecl(beforeNameFn, afterNameFn)
 
-	begin := stlval.TernaryAction(pub == nil, func() reader.Position {
+	begin := stlval.IfLazy(pub == nil, func() reader.Position {
 		return decl.Begin
 	}, func() reader.Position {
 		return pub.Position
 	})
-	body := stlval.TernaryAction(self.nextIs(token.LBR) || (genericParams.IsSome() && len(stlval.IgnoreWith(genericParams.Value()).Params) > 0), func() optional.Optional[*ast.Block] {
+	body := stlval.IfLazy(self.nextIs(token.LBR) || (genericParams.IsSome() && len(stlval.IgnoreWith(genericParams.Value()).Params) > 0), func() optional.Optional[*ast.Block] {
 		return optional.Some(self.parseBlock())
 	}, func() optional.Optional[*ast.Block] {
 		return optional.None[*ast.Block]()

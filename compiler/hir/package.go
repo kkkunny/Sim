@@ -7,21 +7,20 @@ import (
 	"github.com/kkkunny/stl/container/hashmap"
 	"github.com/kkkunny/stl/container/linkedlist"
 	"github.com/kkkunny/stl/container/set"
-	stlos "github.com/kkkunny/stl/os"
 
 	"github.com/kkkunny/Sim/compiler/config"
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
 type Package struct {
-	path    stlos.FilePath
+	path    string
 	globals linkedlist.LinkedList[Global]
 	files   set.Set[*File]
 
 	idents hashmap.HashMap[string, any]
 }
 
-func NewPackage(path stlos.FilePath) *Package {
+func NewPackage(path string) *Package {
 	return &Package{
 		path:    path,
 		globals: linkedlist.NewLinkedList[Global](),
@@ -77,7 +76,7 @@ func (self *Package) AddFile(file *File) {
 
 // IsIn 是否处于目标包下
 func (self *Package) IsIn(dst *Package) bool {
-	rel, err := self.path.Rel(dst.path)
+	rel, err := filepath.Rel(self.path, dst.path)
 	if err != nil {
 		return false
 	}
@@ -89,7 +88,7 @@ func (self *Package) IsBuildIn() bool {
 	return self.path == config.BuildInPkgPath
 }
 
-func (self *Package) Path() stlos.FilePath {
+func (self *Package) Path() string {
 	return self.path
 }
 

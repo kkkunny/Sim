@@ -11,7 +11,7 @@ func (self *Builder) ConstIsize(v int64) llvm.ConstInteger {
 
 func (self *Builder) ConstString(v string) llvm.Constant {
 	if !self.stringMap.Contain(v) {
-		dataPtr := stlval.TernaryAction(v == "", func() llvm.Constant {
+		dataPtr := stlval.IfLazy(v == "", func() llvm.Constant {
 			return self.ConstZero(self.Str().Elems()[0])
 		}, func() llvm.Constant {
 			data := self.NewConstant("", self.Context.ConstString(v))

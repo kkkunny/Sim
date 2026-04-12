@@ -3,11 +3,11 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/kkkunny/go-llvm"
 	stlerror "github.com/kkkunny/stl/error"
-	stlos "github.com/kkkunny/stl/os"
 	stltest "github.com/kkkunny/stl/test"
 
 	"github.com/kkkunny/Sim/compiler/codegen_ir"
@@ -18,7 +18,7 @@ import (
 func TestDebug(t *testing.T) {
 	llvm.EnablePrettyStackTrace()
 	target := stlerror.MustWith(util.GetLLVMTarget())
-	path := stlerror.MustWith(stlos.NewFilePath("examples/main.sim").Abs())
+	path := stlerror.MustWith(filepath.Abs("examples/main.sim"))
 	module := stlerror.MustWith(codegen_ir.CodegenIr(target, path))
 	ret := stlerror.MustWith(interpret.Interpret(module))
 	stltest.AssertEq(t, ret, 0)
