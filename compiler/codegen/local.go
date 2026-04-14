@@ -25,6 +25,11 @@ func (c *CodeGenerator) genBlock(b *ast.Block) {
 	c.buf.WriteString("}")
 }
 
-func (c *CodeGenerator) genReturn(_ *ast.Return) {
-	c.buf.WriteString("return;")
+func (c *CodeGenerator) genReturn(r *ast.Return) {
+	c.buf.WriteString("return")
+	if value, ok := r.Value.Value(); ok {
+		c.buf.WriteString(" ")
+		c.genExpr(value)
+	}
+	c.buf.WriteString(";")
 }
