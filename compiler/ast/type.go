@@ -1,6 +1,10 @@
 package ast
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/kkkunny/Sim/compiler/token"
+)
 
 type Type interface {
 	typ()
@@ -8,11 +12,11 @@ type Type interface {
 }
 
 type IdentType struct {
-	Name string
+	Name token.Token
 }
 
 func (t *IdentType) typ() {}
 
 func (t *IdentType) String() string {
-	return t.Name
+	return t.Name.OriginText
 }

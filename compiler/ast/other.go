@@ -2,6 +2,8 @@ package ast
 
 import (
 	"strings"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 type Program struct {
@@ -20,10 +22,10 @@ func (p *Program) String() string {
 }
 
 type ParamDecl struct {
-	Name string
+	Name token.Token
 	Type Type
 }
 
 func (p *ParamDecl) String() string {
-	return p.Name + ": " + p.Type.String()
+	return p.Name.OriginText + ": " + p.Type.String()
 }
