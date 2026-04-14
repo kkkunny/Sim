@@ -14,9 +14,14 @@ var KindEnum = enum.New[struct {
 	Illegal Kind `text:"illegal"`
 	Eof     Kind `text:"eof"`
 
-	Ident Kind `text:"ident"`
+	Ident   Kind `text:"ident"`
+	Integer Kind `text:"integer"`
 
 	Assign Kind `text:"="`
+	Add    Kind `text:"+"`
+	Sub    Kind `text:"-"`
+	Mul    Kind `text:"*"`
+	Quo    Kind `text:"/"`
 
 	Lpa   Kind `text:"("`
 	Rpa   Kind `text:")"`
@@ -67,4 +72,15 @@ func Lookup(s string) Kind {
 
 func (k Kind) String() string {
 	return kind2Text[k]
+}
+
+func (k Kind) Priority() int {
+	switch k {
+	case KindEnum.Add, KindEnum.Sub:
+		return 1
+	case KindEnum.Mul, KindEnum.Quo:
+		return 2
+	default:
+		return -1
+	}
 }
