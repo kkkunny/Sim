@@ -42,26 +42,6 @@ find_test_files:
 lex: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags lex $(WORK_PATH) $(TEST_FILE)
 
-.PHONY: parse
-parse: $(WORK_PATH)/ $(TEST_FILE)
-	@go run -tags parse $(WORK_PATH) $(TEST_FILE)
-
-.PHONY: analyse
-analyse: $(WORK_PATH)/ $(TEST_FILE)
-	@go run -tags analyse $(WORK_PATH) $(TEST_FILE)
-
-.PHONY: codegenir
-codegenir: $(WORK_PATH)/ $(TEST_FILE)
-	@go run -tags codegenir $(WORK_PATH) $(TEST_FILE)
-
-.PHONY: opt
-opt: $(WORK_PATH)/ $(TEST_FILE)
-	@go run -tags optimize $(WORK_PATH) $(TEST_FILE)
-
-.PHONY: run
-run: $(WORK_PATH)/ $(TEST_FILE)
-	@go run $(WORK_PATH) $(TEST_FILE)
-
 .PHONY: build
 build: clean $(WORK_PATH)/
 	go build -buildmode=c-archive -o $(OUTPUT_PATH)/$(STATIC_LIB_FILE) $(RUNTIME_PATH)

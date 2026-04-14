@@ -2,31 +2,25 @@ package token
 
 import (
 	"fmt"
-
-	"github.com/kkkunny/Sim/compiler/reader"
 )
 
 // Token token
 type Token struct {
-	Position reader.Position // 位置
-	Kind     Kind            // 种类
+	Position   Position // 位置
+	Kind       Kind     // 种类
+	OriginText string   // 原始文本
 }
 
 // Is 种类是否是
-func (self Token) Is(k Kind) bool {
-	return self.Kind == k
+func (t Token) Is(k Kind) bool {
+	return t.Kind == k
 }
 
-// Source 源码
-func (self Token) Source() string {
-	return self.Position.Text()
-}
-
-func (self Token) String() string {
-	switch self.Kind {
-	case ILLEGAL, IDENT, INTEGER, FLOAT, CHAR, STRING, COMMENT:
-		return fmt.Sprintf("%s(`%s`)", self.Kind, self.Source())
+func (t Token) String() string {
+	switch t.Kind {
+	case KindEnum.Illegal, KindEnum.Ident:
+		return fmt.Sprintf("%s\t[%s]%s", t.Position.String(), t.Kind, t.OriginText)
 	default:
-		return self.Kind.String()
+		return fmt.Sprintf("%s\t%s", t.Position.String(), t.Kind.String())
 	}
 }
