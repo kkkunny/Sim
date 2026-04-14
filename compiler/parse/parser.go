@@ -30,22 +30,14 @@ func (p *Parser) expect(k token.Kind) {
 	p.nextToken()
 }
 
-func (p *Parser) Parse() ast.Ast {
-	return p.parseFuncDecl()
-}
-
-func (p *Parser) parseFuncDecl() *ast.FuncDecl {
-	p.expect(token.KindEnum.Func)
-	name := p.cur.OriginText
-	p.expect(token.KindEnum.Ident)
-	p.expect(token.KindEnum.Lpa)
-	p.expect(token.KindEnum.Rpa)
-	p.expect(token.KindEnum.Lbr)
-
-	for p.cur.Kind != token.KindEnum.Rbr && p.cur.Kind != token.KindEnum.Eof {
-		p.nextToken()
+func (p *Parser) Parse() *ast.Program {
+	var funcs []*ast.FuncDecl
+	for p.cur.Kind != token.KindEnum.Eof {
+		if p.cur.Kind == token.KindEnum.Func {
+			funcs = append(funcs, p.parseFuncDecl())
+		} else {
+			p.nextToken()
+		}
 	}
-
-	p.expect(token.KindEnum.Rbr)
-	return &ast.FuncDecl{Name: name}
+	return &ast.Program{Functions: funcs}
 }
