@@ -17,6 +17,7 @@ type FuncDecl struct {
 	Name       token.Token
 	Params     []*ParamDecl
 	ReturnType optional.Optional[Type]
+	Body       optional.Optional[*Block]
 }
 
 func (f *FuncDecl) global() {}
@@ -37,7 +38,10 @@ func (f *FuncDecl) String() string {
 		b.WriteString(" -> ")
 		b.WriteString(rt.String())
 	}
-	b.WriteString(" {\n")
-	b.WriteString("}")
+
+	if body, ok := f.Body.Value(); ok {
+		b.WriteString(" ")
+		b.WriteString(body.String())
+	}
 	return b.String()
 }

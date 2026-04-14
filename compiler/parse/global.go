@@ -28,11 +28,11 @@ func (p *Parser) parseFuncDecl() *ast.FuncDecl {
 		returnType = optional.Some(p.parseType())
 	}
 
-	p.expect(token.KindEnum.Lbr)
-	for p.cur.Kind != token.KindEnum.Rbr && p.cur.Kind != token.KindEnum.Eof {
-		p.next()
+	var body optional.Optional[*ast.Block]
+	p.skip(token.KindEnum.Sem)
+	if p.cur.Kind == token.KindEnum.Lbr {
+		body = optional.Some(p.parseBlock())
 	}
-	p.expect(token.KindEnum.Rbr)
 
-	return &ast.FuncDecl{Name: name, Params: params, ReturnType: returnType}
+	return &ast.FuncDecl{Name: name, Params: params, ReturnType: returnType, Body: body}
 }
