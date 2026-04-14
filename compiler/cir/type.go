@@ -28,16 +28,16 @@ var (
 type IntTypeKind string
 
 var IntTypeKindEnum = enum.New[struct {
-	SChar  IntTypeKind
-	SShort IntTypeKind
-	SInt   IntTypeKind
-	SLong  IntTypeKind
-	SLLong IntTypeKind
-	UChar  IntTypeKind
-	UShort IntTypeKind
-	UInt   IntTypeKind
-	ULong  IntTypeKind
-	ULLong IntTypeKind
+	SChar  IntTypeKind `enum:"signed char"`
+	SShort IntTypeKind `enum:"signed short"`
+	SInt   IntTypeKind `enum:"signed int"`
+	SLong  IntTypeKind `enum:"signed long"`
+	SLLong IntTypeKind `enum:"signed long long"`
+	UChar  IntTypeKind `enum:"unsigned char"`
+	UShort IntTypeKind `enum:"unsigned short"`
+	UInt   IntTypeKind `enum:"unsigned int"`
+	ULong  IntTypeKind `enum:"unsigned long"`
+	ULLong IntTypeKind `enum:"unsigned long long"`
 }]()
 
 type IntType struct {
@@ -55,9 +55,9 @@ var (
 type FloatTypeKind string
 
 var FloatTypeKindEnum = enum.New[struct {
-	Float   FloatTypeKind
-	Double  FloatTypeKind
-	LDouble FloatTypeKind
+	Float   FloatTypeKind `enum:"float"`
+	Double  FloatTypeKind `enum:"double"`
+	LDouble FloatTypeKind `enum:"long double"`
 }]()
 
 type FloatType struct {

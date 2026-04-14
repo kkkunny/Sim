@@ -45,6 +45,8 @@ func (c *CodeGenerator) buildBinaryOp(op token.Token) cir.BinaryOp {
 		return cir.BinaryOpEnum.Mul
 	case token.KindEnum.Quo:
 		return cir.BinaryOpEnum.Quo
+	case token.KindEnum.Rem:
+		return cir.BinaryOpEnum.Rem
 	default:
 		panic("unreachable")
 	}
