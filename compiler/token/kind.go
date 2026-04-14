@@ -1,0 +1,63 @@
+package token
+
+import (
+	"reflect"
+
+	stlmaps "github.com/kkkunny/stl/container/maps"
+	"github.com/kkkunny/stl/enum"
+)
+
+// Kind token类型
+type Kind uint8
+
+var KindEnum = enum.New[struct {
+	Illegal Kind `text:"illegal"`
+	Eof     Kind `text:"eof"`
+
+	Ident Kind `text:"ident"`
+
+	Sem Kind `text:";"`
+
+	Lpa Kind `text:"("`
+	Rpa Kind `text:")"`
+	Lbr Kind `text:"{"`
+	Rbr Kind `text:"}"`
+
+	Func Kind `text:"func"`
+}]()
+
+var kind2Text = func() map[Kind]string {
+	v := reflect.ValueOf(KindEnum)
+	t := v.Type()
+	res := make(map[Kind]string, v.NumField())
+	for i := 0; i < v.NumField(); i++ {
+		value := v.Field(i).Interface().(Kind)
+		text, _ := t.Field(i).Tag.Lookup("text")
+		res[value] = text
+	}
+	return res
+}()
+
+var keyword2Kind = func() map[string]Kind {
+	res := make(map[string]Kind, len(kind2Text))
+	keywordKey2Text := stlmaps.Filter(kind2Text, func(k Kind, v string) bool {
+		return k >= KindEnum.Func && k <= KindEnum.Func
+	})
+	for k, v := range keywordKey2Text {
+		res[v] = k
+	}
+	return res
+}()
+
+// Lookup 区分标识符和关键字
+func Lookup(s string) Kind {
+	keyword, ok := keyword2Kind[s]
+	if ok {
+		return keyword
+	}
+	return KindEnum.Ident
+}
+
+func (k Kind) String() string {
+	return kind2Text[k]
+}
