@@ -6,6 +6,8 @@ func (c *CodeGenerator) genType(t ast.Type) string {
 	switch t := t.(type) {
 	case *ast.IdentType:
 		switch t.Name.OriginText {
+		case "unit":
+			return "void"
 		case "i32":
 			return "int"
 		default:

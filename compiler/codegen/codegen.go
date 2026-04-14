@@ -24,8 +24,8 @@ func (c *CodeGenerator) Generate(program *ast.Program) string {
 }
 
 func (c *CodeGenerator) genFunc(fn *ast.FuncDecl) {
-	if fn.ReturnType != nil {
-		c.buf.WriteString(c.genType(fn.ReturnType))
+	if rt, ok := fn.ReturnType.Value(); ok {
+		c.buf.WriteString(c.genType(rt))
 	} else {
 		c.buf.WriteString("void")
 	}

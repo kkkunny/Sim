@@ -3,6 +3,8 @@ package ast
 import (
 	"strings"
 
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
@@ -14,7 +16,7 @@ type Global interface {
 type FuncDecl struct {
 	Name       token.Token
 	Params     []*ParamDecl
-	ReturnType Type
+	ReturnType optional.Optional[Type]
 }
 
 func (f *FuncDecl) global() {}
@@ -31,8 +33,10 @@ func (f *FuncDecl) String() string {
 		b.WriteString(p.String())
 	}
 	b.WriteString(")")
-	b.WriteString(" -> ")
-	b.WriteString(f.ReturnType.String())
+	if rt, ok := f.ReturnType.Value(); ok {
+		b.WriteString(" -> ")
+		b.WriteString(rt.String())
+	}
 	b.WriteString(" {\n")
 	b.WriteString("}")
 	return b.String()
