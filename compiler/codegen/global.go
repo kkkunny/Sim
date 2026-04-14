@@ -1,32 +1,33 @@
 package codegen
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/cir"
 )
 
-func (c *CodeGenerator) genFunc(fn *ast.FuncDecl) {
-	if rt, ok := fn.ReturnType.Value(); ok {
-		c.buf.WriteString(c.genType(rt))
-	} else {
-		c.buf.WriteString("void")
-	}
-	c.buf.WriteString(" ")
-
-	c.buf.WriteString(fn.Name.OriginText + "(")
+func (c *CodeGenerator) buildFunc(fn *ast.FuncDecl) *cir.FuncDecl {
+	params := make([]*cir.ParamDecl, len(fn.Params))
 	for i, p := range fn.Params {
-		if i > 0 {
-			c.buf.WriteString(", ")
+		params[i] = &cir.ParamDecl{
+			Name: p.Name.OriginText,
+			Type: c.buildType(p.Type),
 		}
-		c.buf.WriteString(fmt.Sprintf("%s %s", c.genType(p.Type), p.Name.OriginText))
 	}
-	c.buf.WriteString(")")
 
-	if body, ok := fn.Body.Value(); ok {
-		c.buf.WriteString(" ")
-		c.genBlock(body)
-	} else {
-		c.buf.WriteString(";")
+	var returnType cir.Type = &cir.VoidType{}
+	if rt, ok := fn.ReturnType.Value(); ok {
+		returnType = c.buildType(rt)
+	}
+
+	var body *cir.Block
+	if b, ok := fn.Body.Value(); ok {
+		body = c.buildBlock(b)
+	}
+
+	return &cir.FuncDecl{
+		Name:       fn.Name.OriginText,
+		Params:     params,
+		ReturnType: returnType,
+		Body:       body,
 	}
 }
