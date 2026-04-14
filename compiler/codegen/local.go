@@ -2,34 +2,34 @@ package codegen
 
 import (
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/cir"
 )
 
-func (c *CodeGenerator) genLocal(local ast.Local) {
+func (c *CodeGenerator) buildLocal(local ast.Local) cir.Local {
 	switch local := local.(type) {
 	case *ast.Block:
-		c.genBlock(local)
+		return c.buildBlock(local)
 	case *ast.Return:
-		c.genReturn(local)
+		return c.buildReturn(local)
+	case ast.Expr:
+		return c.buildExpr(local)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) genBlock(b *ast.Block) {
-	c.buf.WriteString("{\n")
-	for _, stmt := range b.Stmts {
-		c.buf.WriteString("    ")
-		c.genLocal(stmt)
-		c.buf.WriteString("\n")
+func (c *CodeGenerator) buildBlock(b *ast.Block) *cir.Block {
+	stmts := make([]cir.Local, len(b.Stmts))
+	for i, s := range b.Stmts {
+		stmts[i] = c.buildLocal(s)
 	}
-	c.buf.WriteString("}")
+	return &cir.Block{Stmts: stmts}
 }
 
-func (c *CodeGenerator) genReturn(r *ast.Return) {
-	c.buf.WriteString("return")
-	if value, ok := r.Value.Value(); ok {
-		c.buf.WriteString(" ")
-		c.genExpr(value)
+func (c *CodeGenerator) buildReturn(r *ast.Return) *cir.Return {
+	var value cir.Expr
+	if v, ok := r.Value.Value(); ok {
+		value = c.buildExpr(v)
 	}
-	c.buf.WriteString(";")
+	return &cir.Return{Value: value}
 }

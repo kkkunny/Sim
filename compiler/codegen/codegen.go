@@ -1,23 +1,25 @@
 package codegen
 
 import (
-	"strings"
-
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/cir"
 )
 
-type CodeGenerator struct {
-	buf strings.Builder
-}
+type CodeGenerator struct{}
 
 func New() *CodeGenerator {
 	return &CodeGenerator{}
 }
 
 func (c *CodeGenerator) Generate(program *ast.Program) string {
-	c.buf.Reset()
-	for _, fn := range program.Functions {
-		c.genFunc(fn)
+	ir := c.buildProgram(program)
+	return cir.NewEmitter().Emit(ir)
+}
+
+func (c *CodeGenerator) buildProgram(program *ast.Program) *cir.Program {
+	globals := make([]cir.Global, len(program.Functions))
+	for i, fn := range program.Functions {
+		globals[i] = c.buildFunc(fn)
 	}
-	return c.buf.String()
+	return &cir.Program{Globals: globals}
 }
