@@ -27,8 +27,9 @@ var KindEnum = enum.New[struct {
 	Sem   Kind `text:";"`
 	Arrow Kind `text:"->"`
 
-	Let Kind `text:"let"`
-	I32 Kind `text:"i32"`
+	Let  Kind `text:"let"`
+	Unit Kind `text:"unit"`
+	I32  Kind `text:"i32"`
 }]()
 
 var kind2Text = func() map[Kind]string {
