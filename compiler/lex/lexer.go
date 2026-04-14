@@ -103,6 +103,15 @@ func (l *Lexer) scanIdent(c rune) token.Kind {
 	return token.Lookup(buf.String())
 }
 
+func (l *Lexer) scanInteger(c rune) token.Kind {
+	var buf strings.Builder
+	buf.WriteRune(c)
+	for c = l.peek(); c >= '0' && c <= '9'; c = l.peek() {
+		buf.WriteRune(l.next())
+	}
+	return token.KindEnum.Integer
+}
+
 func (l *Lexer) Scan() token.Token {
 	l.skipWhite()
 	l.cache.Reset()
@@ -114,6 +123,8 @@ func (l *Lexer) Scan() token.Token {
 	switch {
 	case c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
 		kind = l.scanIdent(c)
+	case c >= '0' && c <= '9':
+		kind = l.scanInteger(c)
 	default:
 		switch c {
 		case 0:
@@ -138,7 +149,15 @@ func (l *Lexer) Scan() token.Token {
 			if l.peek() == '>' {
 				l.next()
 				kind = token.KindEnum.Arrow
+			} else {
+				kind = token.KindEnum.Sub
 			}
+		case '+':
+			kind = token.KindEnum.Add
+		case '*':
+			kind = token.KindEnum.Mul
+		case '/':
+			kind = token.KindEnum.Quo
 		}
 	}
 
