@@ -18,12 +18,15 @@ var KindEnum = enum.New[struct {
 
 	Sem Kind `text:";"`
 
-	Lpa Kind `text:"("`
-	Rpa Kind `text:")"`
-	Lbr Kind `text:"{"`
-	Rbr Kind `text:"}"`
+	Lpa   Kind `text:"("`
+	Rpa   Kind `text:")"`
+	Lbr   Kind `text:"{"`
+	Rbr   Kind `text:"}"`
+	Col   Kind `text:":"`
+	Comma Kind `text:","`
 
 	Func Kind `text:"func"`
+	I32  Kind `text:"i32"`
 }]()
 
 var kind2Text = func() map[Kind]string {
