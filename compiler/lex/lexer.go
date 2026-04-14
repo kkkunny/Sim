@@ -110,7 +110,7 @@ func (l *Lexer) Scan() token.Token {
 	begin := l.Position()
 	c := l.next()
 
-	kind := token.KindEnum.Illegal
+	var kind token.Kind
 	switch {
 	case c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
 		kind = l.scanIdent(c)
@@ -126,8 +126,14 @@ func (l *Lexer) Scan() token.Token {
 			kind = token.KindEnum.Lbr
 		case '}':
 			kind = token.KindEnum.Rbr
+		case ',':
+			kind = token.KindEnum.Comma
+		case ':':
+			kind = token.KindEnum.Col
 		case ';', '\n':
 			kind = token.KindEnum.Sem
+		default:
+			kind = token.KindEnum.Illegal
 		}
 	}
 
