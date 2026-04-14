@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"strings"
-
 	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/token"
@@ -10,7 +8,7 @@ import (
 
 type Global interface {
 	global()
-	String() string
+	printWriter
 }
 
 type FuncDecl struct {
@@ -22,26 +20,23 @@ type FuncDecl struct {
 
 func (f *FuncDecl) global() {}
 
-func (f *FuncDecl) String() string {
-	var b strings.Builder
-	b.WriteString("let ")
-	b.WriteString(f.Name.OriginText)
-	b.WriteString(" = (")
-	for i, p := range f.Params {
+func (f *FuncDecl) print(p *printer) {
+	p.WriteString("let ")
+	p.WriteToken(f.Name)
+	p.WriteString(" = (")
+	for i, param := range f.Params {
 		if i > 0 {
-			b.WriteString(", ")
+			p.WriteString(", ")
 		}
-		b.WriteString(p.String())
+		p.WriteBy(param)
 	}
-	b.WriteString(")")
+	p.WriteString(")")
 	if rt, ok := f.ReturnType.Value(); ok {
-		b.WriteString(" -> ")
-		b.WriteString(rt.String())
+		p.WriteString(" -> ")
+		p.WriteBy(rt)
 	}
-
 	if body, ok := f.Body.Value(); ok {
-		b.WriteString(" ")
-		b.WriteString(body.String())
+		p.WriteString(" ")
+		p.WriteBy(body)
 	}
-	return b.String()
 }

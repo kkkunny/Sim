@@ -1,14 +1,12 @@
 package ast
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
 type Type interface {
 	typ()
-	fmt.Stringer
+	printWriter
 }
 
 type IdentType struct {
@@ -17,6 +15,6 @@ type IdentType struct {
 
 func (t *IdentType) typ() {}
 
-func (t *IdentType) String() string {
-	return t.Name.OriginText
+func (t *IdentType) print(p *printer) {
+	p.WriteToken(t.Name)
 }
