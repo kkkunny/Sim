@@ -158,6 +158,8 @@ func (l *Lexer) Scan() token.Token {
 			kind = token.KindEnum.Mul
 		case '/':
 			kind = token.KindEnum.Quo
+		case '%':
+			kind = token.KindEnum.Rem
 		}
 	}
 

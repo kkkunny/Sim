@@ -9,6 +9,7 @@ var BinaryOpEnum = enum.New[struct {
 	Sub BinaryOp `enum:"-"`
 	Mul BinaryOp `enum:"*"`
 	Quo BinaryOp `enum:"/"`
+	Rem BinaryOp `enum:"%"`
 }]()
 
 type Expr interface {

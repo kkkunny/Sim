@@ -33,41 +33,9 @@ func (e *Emitter) emitType(t Type) string {
 	case *VoidType:
 		return "void"
 	case *IntType:
-		switch t.Kind {
-		case IntTypeKindEnum.SChar:
-			return "signed char"
-		case IntTypeKindEnum.SShort:
-			return "signed short"
-		case IntTypeKindEnum.SInt:
-			return "signed int"
-		case IntTypeKindEnum.SLong:
-			return "signed long"
-		case IntTypeKindEnum.SLLong:
-			return "signed long long"
-		case IntTypeKindEnum.UChar:
-			return "unsigned char"
-		case IntTypeKindEnum.UShort:
-			return "unsigned short"
-		case IntTypeKindEnum.UInt:
-			return "unsigned int"
-		case IntTypeKindEnum.ULong:
-			return "unsigned long"
-		case IntTypeKindEnum.ULLong:
-			return "unsigned long long"
-		default:
-			panic("unreachable")
-		}
+		return string(t.Kind)
 	case *FloatType:
-		switch t.Kind {
-		case FloatTypeKindEnum.Float:
-			return "float"
-		case FloatTypeKindEnum.Double:
-			return "double"
-		case FloatTypeKindEnum.LDouble:
-			return "long double"
-		default:
-			panic("unreachable")
-		}
+		return string(t.Kind)
 	default:
 		panic("unreachable")
 	}
