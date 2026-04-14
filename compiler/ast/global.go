@@ -1,10 +1,12 @@
 package ast
 
-import "fmt"
+import (
+	"strings"
+)
 
 type Global interface {
 	global()
-	fmt.Stringer
+	String() string
 }
 
 type FuncDecl struct {
@@ -16,16 +18,22 @@ type FuncDecl struct {
 func (f *FuncDecl) global() {}
 
 func (f *FuncDecl) String() string {
-	params := ""
+	var b strings.Builder
+	b.WriteString("func ")
+	b.WriteString(f.Name)
+	b.WriteString("(")
 	for i, p := range f.Params {
 		if i > 0 {
-			params += ", "
+			b.WriteString(", ")
 		}
-		params += p.String()
+		b.WriteString(p.String())
 	}
-	ret := ""
+	b.WriteString(")")
 	if f.ReturnType != nil {
-		ret = ": " + f.ReturnType.String()
+		b.WriteString(": ")
+		b.WriteString(f.ReturnType.String())
 	}
-	return fmt.Sprintf("FuncDecl(Name: %s, Params: [%s]%s)", f.Name, params, ret)
+	b.WriteString(" {\n")
+	b.WriteString("}")
+	return b.String()
 }
