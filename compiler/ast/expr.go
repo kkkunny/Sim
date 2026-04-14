@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
@@ -19,8 +17,8 @@ func (e *IdentExpr) local() {}
 
 func (e *IdentExpr) expr() {}
 
-func (e *IdentExpr) String() string {
-	return e.Name.OriginText
+func (e *IdentExpr) print(p *printer) {
+	p.WriteToken(e.Name)
 }
 
 type IntegerExpr struct {
@@ -31,8 +29,8 @@ func (e *IntegerExpr) local() {}
 
 func (e *IntegerExpr) expr() {}
 
-func (e *IntegerExpr) String() string {
-	return e.Value.OriginText
+func (e *IntegerExpr) print(p *printer) {
+	p.WriteToken(e.Value)
 }
 
 type BinaryExpr struct {
@@ -45,6 +43,10 @@ func (e *BinaryExpr) local() {}
 
 func (e *BinaryExpr) expr() {}
 
-func (e *BinaryExpr) String() string {
-	return fmt.Sprintf("%s %s %s", e.Left.String(), e.Op.OriginText, e.Right.String())
+func (e *BinaryExpr) print(p *printer) {
+	p.WriteBy(e.Left)
+	p.WriteString(" ")
+	p.WriteToken(e.Op)
+	p.WriteString(" ")
+	p.WriteBy(e.Right)
 }
