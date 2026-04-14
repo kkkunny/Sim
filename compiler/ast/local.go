@@ -1,6 +1,11 @@
 package ast
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/kkkunny/stl/container/optional"
+)
 
 type Local interface {
 	local()
@@ -25,10 +30,15 @@ func (b *Block) String() string {
 	return buf.String()
 }
 
-type Return struct{}
+type Return struct {
+	Value optional.Optional[Expr]
+}
 
 func (r *Return) local() {}
 
 func (r *Return) String() string {
+	if value, ok := r.Value.Value(); ok {
+		return fmt.Sprintf("return %s", value.String())
+	}
 	return "return"
 }
