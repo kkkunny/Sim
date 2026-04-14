@@ -3,6 +3,8 @@ package parse
 import (
 	"fmt"
 
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/token"
 )
@@ -35,5 +37,13 @@ func (p *Parser) parseBlock() *ast.Block {
 
 func (p *Parser) parseReturn() *ast.Return {
 	p.expect(token.KindEnum.Return)
-	return &ast.Return{}
+
+	var value optional.Optional[ast.Expr]
+	if p.cur.Kind != token.KindEnum.Sem && p.cur.Kind != token.KindEnum.Rbr {
+		value = optional.Some(p.parseExpr())
+	}
+
+	return &ast.Return{
+		Value: value,
+	}
 }
