@@ -42,6 +42,14 @@ find_test_files:
 lex: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags lex $(WORK_PATH) $(TEST_FILE)
 
+.PHONY: parse
+parse: $(WORK_PATH)/ $(TEST_FILE)
+	@go run -tags parse $(WORK_PATH) $(TEST_FILE)
+
+.PHONY: codegen
+codegen: $(WORK_PATH)/ $(TEST_FILE)
+	@go run -tags codegen $(WORK_PATH) $(TEST_FILE)
+
 .PHONY: build
 build: clean $(WORK_PATH)/
 	go build -buildmode=c-archive -o $(OUTPUT_PATH)/$(STATIC_LIB_FILE) $(RUNTIME_PATH)

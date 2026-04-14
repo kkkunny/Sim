@@ -7,15 +7,15 @@ import (
 	"github.com/kkkunny/Sim/compiler/ast"
 )
 
-type CodeGen struct {
+type CodeGenerator struct {
 	buf strings.Builder
 }
 
-func New() *CodeGen {
-	return &CodeGen{}
+func New() *CodeGenerator {
+	return &CodeGenerator{}
 }
 
-func (c *CodeGen) Generate(a ast.Ast) string {
+func (c *CodeGenerator) Generate(a ast.Ast) string {
 	c.buf.Reset()
 	switch node := a.(type) {
 	case *ast.FuncDecl:

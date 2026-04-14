@@ -1,11 +1,18 @@
 package ast
 
+import "fmt"
+
 type Ast interface {
-	ast()
+	Ast()
+	String() string
 }
 
 type FuncDecl struct {
 	Name string
 }
 
-func (f FuncDecl) ast() {}
+func (f *FuncDecl) Ast() {}
+
+func (f *FuncDecl) String() string {
+	return fmt.Sprintf("FuncDecl(Name: %s)", f.Name)
+}
