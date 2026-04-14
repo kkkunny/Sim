@@ -16,7 +16,7 @@ var KindEnum = enum.New[struct {
 
 	Ident Kind `text:"ident"`
 
-	Sem Kind `text:";"`
+	Assign Kind `text:"="`
 
 	Lpa   Kind `text:"("`
 	Rpa   Kind `text:")"`
@@ -24,9 +24,11 @@ var KindEnum = enum.New[struct {
 	Rbr   Kind `text:"}"`
 	Col   Kind `text:":"`
 	Comma Kind `text:","`
+	Sem   Kind `text:";"`
+	Arrow Kind `text:"->"`
 
-	Func Kind `text:"func"`
-	I32  Kind `text:"i32"`
+	Let Kind `text:"let"`
+	I32 Kind `text:"i32"`
 }]()
 
 var kind2Text = func() map[Kind]string {
@@ -44,7 +46,7 @@ var kind2Text = func() map[Kind]string {
 var keyword2Kind = func() map[string]Kind {
 	res := make(map[string]Kind, len(kind2Text))
 	keywordKey2Text := stlmaps.Filter(kind2Text, func(k Kind, v string) bool {
-		return k >= KindEnum.Func && k <= KindEnum.Func
+		return k >= KindEnum.Let && k <= KindEnum.Let
 	})
 	for k, v := range keywordKey2Text {
 		res[v] = k

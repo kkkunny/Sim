@@ -18,12 +18,12 @@ func New() *CodeGenerator {
 func (c *CodeGenerator) Generate(program *ast.Program) string {
 	c.buf.Reset()
 	for _, fn := range program.Functions {
-		c.generateFunc(fn)
+		c.genFunc(fn)
 	}
 	return c.buf.String()
 }
 
-func (c *CodeGenerator) generateFunc(fn *ast.FuncDecl) {
+func (c *CodeGenerator) genFunc(fn *ast.FuncDecl) {
 	if fn.ReturnType != nil {
 		c.buf.WriteString(c.genType(fn.ReturnType))
 	} else {
@@ -31,12 +31,12 @@ func (c *CodeGenerator) generateFunc(fn *ast.FuncDecl) {
 	}
 	c.buf.WriteString(" ")
 
-	c.buf.WriteString(fn.Name + "(")
+	c.buf.WriteString(fn.Name.OriginText + "(")
 	for i, p := range fn.Params {
 		if i > 0 {
 			c.buf.WriteString(", ")
 		}
-		c.buf.WriteString(fmt.Sprintf("%s %s", c.genType(p.Type), p.Name))
+		c.buf.WriteString(fmt.Sprintf("%s %s", c.genType(p.Type), p.Name.OriginText))
 	}
 	c.buf.WriteString(") {\n")
 	c.buf.WriteString("}\n\n")
