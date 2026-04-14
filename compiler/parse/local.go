@@ -1,8 +1,6 @@
 package parse
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -16,7 +14,7 @@ func (p *Parser) parseLocal() ast.Local {
 	case token.KindEnum.Return:
 		return p.parseReturn()
 	default:
-		panic(fmt.Sprintf("invalid local: %s", p.cur.Kind))
+		return p.parseExpr()
 	}
 }
 

@@ -141,6 +141,16 @@ func (e *Emitter) emitExpr(expr Expr) {
 	switch expr := expr.(type) {
 	case *IdentExpr:
 		e.buf.WriteString(expr.Name)
+	case *IntegerExpr:
+		e.buf.WriteString(expr.Value)
+	case *BinaryExpr:
+		e.buf.WriteString("(")
+		e.emitExpr(expr.Left)
+		e.buf.WriteString(" ")
+		e.buf.WriteString(string(expr.Op))
+		e.buf.WriteString(" ")
+		e.emitExpr(expr.Right)
+		e.buf.WriteString(")")
 	default:
 		panic("unreachable")
 	}
