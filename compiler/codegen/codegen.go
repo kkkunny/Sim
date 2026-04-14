@@ -39,10 +39,5 @@ func (c *CodeGenerator) generateFunc(fn *ast.FuncDecl) {
 		c.buf.WriteString(fmt.Sprintf("%s %s", c.genType(p.Type), p.Name))
 	}
 	c.buf.WriteString(") {\n")
-
-	if fn.ReturnType != nil {
-		c.buf.WriteString("    return 0;\n")
-	}
-
 	c.buf.WriteString("}\n\n")
 }

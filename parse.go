@@ -17,5 +17,5 @@ func main() {
 	data := stlerror.MustWith(os.ReadFile(os.Args[1]))
 	lexer := lex.New(bytes.NewReader(data))
 	p := parse.New(lexer)
-	fmt.Print(p.Parse())
+	fmt.Println(p.Parse())
 }

@@ -1,17 +1,22 @@
 package ast
 
-import "fmt"
+import (
+	"strings"
+)
 
 type Program struct {
 	Functions []*FuncDecl
 }
 
 func (p *Program) String() string {
-	s := "Program:\n"
-	for _, f := range p.Functions {
-		s += "  " + f.String() + "\n"
+	var b strings.Builder
+	for i, f := range p.Functions {
+		b.WriteString(f.String())
+		if i < len(p.Functions)-1 {
+			b.WriteString("\n\n")
+		}
 	}
-	return s
+	return b.String()
 }
 
 type ParamDecl struct {
@@ -20,5 +25,5 @@ type ParamDecl struct {
 }
 
 func (p *ParamDecl) String() string {
-	return fmt.Sprintf("%s: %s", p.Name, p.Type.String())
+	return p.Name + ": " + p.Type.String()
 }
