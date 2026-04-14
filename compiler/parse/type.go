@@ -6,12 +6,9 @@ import (
 )
 
 func (p *Parser) parseType() ast.Type {
-	if p.cur.Kind == token.KindEnum.I32 {
-		p.nextToken()
-		return &ast.IdentType{Name: "i32"}
+	if tok, ok := p.IfSkip(token.KindEnum.I32); ok {
+		return &ast.IdentType{Name: tok}
 	}
-
-	name := p.cur.OriginText
-	p.expect(token.KindEnum.Ident)
+	name := p.expect(token.KindEnum.Ident)
 	return &ast.IdentType{Name: name}
 }

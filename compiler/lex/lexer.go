@@ -118,6 +118,8 @@ func (l *Lexer) Scan() token.Token {
 		switch c {
 		case 0:
 			kind = token.KindEnum.Eof
+		case '=':
+			kind = token.KindEnum.Assign
 		case '(':
 			kind = token.KindEnum.Lpa
 		case ')':
@@ -132,8 +134,11 @@ func (l *Lexer) Scan() token.Token {
 			kind = token.KindEnum.Col
 		case ';', '\n':
 			kind = token.KindEnum.Sem
-		default:
-			kind = token.KindEnum.Illegal
+		case '-':
+			if l.peek() == '>' {
+				l.next()
+				kind = token.KindEnum.Arrow
+			}
 		}
 	}
 

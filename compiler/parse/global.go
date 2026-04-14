@@ -6,30 +6,27 @@ import (
 )
 
 func (p *Parser) parseFuncDecl() *ast.FuncDecl {
-	p.expect(token.KindEnum.Func)
-	name := p.cur.OriginText
-	p.expect(token.KindEnum.Ident)
+	p.expect(token.KindEnum.Let)
+	name := p.expect(token.KindEnum.Ident)
+	p.expect(token.KindEnum.Assign)
 	p.expect(token.KindEnum.Lpa)
 
 	var params []*ast.ParamDecl
 	if p.cur.Kind != token.KindEnum.Rpa {
 		params = append(params, p.parseParamDecl())
 		for p.cur.Kind == token.KindEnum.Comma {
-			p.nextToken()
+			p.next()
 			params = append(params, p.parseParamDecl())
 		}
 	}
 	p.expect(token.KindEnum.Rpa)
 
-	var returnType ast.Type
-	if p.cur.Kind == token.KindEnum.Col {
-		p.nextToken()
-		returnType = p.parseType()
-	}
+	p.expect(token.KindEnum.Arrow)
+	returnType := p.parseType()
 
 	p.expect(token.KindEnum.Lbr)
 	for p.cur.Kind != token.KindEnum.Rbr && p.cur.Kind != token.KindEnum.Eof {
-		p.nextToken()
+		p.next()
 	}
 	p.expect(token.KindEnum.Rbr)
 

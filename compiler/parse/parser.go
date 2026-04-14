@@ -14,29 +14,38 @@ type Parser struct {
 }
 
 func New(l *lex.Lexer) *Parser {
-	p := &Parser{lexer: l}
-	p.nextToken()
-	return p
+	return &Parser{lexer: l}
 }
 
-func (p *Parser) nextToken() {
+func (p *Parser) next() {
 	p.cur = p.lexer.Scan()
 }
 
-func (p *Parser) expect(k token.Kind) {
+func (p *Parser) IfSkip(k token.Kind) (token.Token, bool) {
 	if p.cur.Kind != k {
+		return token.Token{}, false
+	}
+	tok := p.cur
+	p.next()
+	return tok, true
+}
+
+func (p *Parser) expect(k token.Kind) token.Token {
+	tok, ok := p.IfSkip(k)
+	if !ok {
 		panic(fmt.Sprintf("expected %s but got %s at %s", k.String(), p.cur.Kind.String(), p.cur.Position.String()))
 	}
-	p.nextToken()
+	return tok
 }
 
 func (p *Parser) Parse() *ast.Program {
+	p.next()
 	var funcs []*ast.FuncDecl
 	for p.cur.Kind != token.KindEnum.Eof {
-		if p.cur.Kind == token.KindEnum.Func {
+		if p.cur.Kind == token.KindEnum.Let {
 			funcs = append(funcs, p.parseFuncDecl())
 		} else {
-			p.nextToken()
+			p.next()
 		}
 	}
 	return &ast.Program{Functions: funcs}
