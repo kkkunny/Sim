@@ -1,9 +1,11 @@
-package analyse
+package analyze
 
 import (
 	"fmt"
 	"math/big"
 	"strconv"
+
+	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -67,6 +69,34 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
 			Op:    op,
 			Left:  left,
 			Right: right,
+		}
+	case *ast.FuncExpr:
+		a.scope = &Scope{parent: a.scope, types: make(map[string]hir.Type)}
+
+		var params []*hir.ParamDecl
+		for _, p := range expr.Params {
+			paramType := a.analyzeType(p.Type)
+			params = append(params, &hir.ParamDecl{
+				Name: p.Name.OriginText,
+				Type: paramType,
+			})
+			a.scope.types[p.Name.OriginText] = paramType
+		}
+
+		var returnType hir.Type = hir.Unit
+		if rtAst, ok := expr.ReturnType.Value(); ok {
+			returnType = a.analyzeType(rtAst)
+		}
+
+		var body optional.Optional[*hir.Block]
+		if b, ok := expr.Body.Value(); ok {
+			body = optional.Some(a.analyzeBlock(b))
+		}
+
+		return &hir.FuncExpr{
+			Params:     params,
+			ReturnType: returnType,
+			Body:       body,
 		}
 	default:
 		panic("unreachable")

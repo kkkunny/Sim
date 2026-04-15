@@ -1,4 +1,4 @@
-package analyse
+package analyze
 
 import (
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -25,8 +25,8 @@ func NewAnalyzer() *Analyzer {
 
 func (a *Analyzer) Analyze(program *ast.Program) *hir.Program {
 	hirProg := &hir.Program{}
-	for _, fn := range program.Functions {
-		hirProg.Functions = append(hirProg.Functions, a.analyzeFunc(fn))
+	for _, g := range program.Globals {
+		hirProg.Globals = append(hirProg.Globals, a.analyzeGlobal(g))
 	}
 	return hirProg
 }

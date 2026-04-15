@@ -47,3 +47,18 @@ func (r *Return) print(p *printer) {
 		p.WriteString("return")
 	}
 }
+
+type Let struct {
+	Name  string
+	Value Expr
+}
+
+func (*Let) local()  {}
+func (*Let) global() {}
+
+func (l *Let) print(p *printer) {
+	p.WriteString("let ")
+	p.WriteString(l.Name)
+	p.WriteString(" = ")
+	p.WriteBy(l.Value)
+}

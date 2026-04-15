@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir"
 )
@@ -21,15 +23,27 @@ func (c *CodeGenerator) buildLocal(local hir.Local) cir.Local {
 		return c.buildReturn(local)
 	case hir.Expr:
 		return c.buildExpr(local)
+	case *hir.Let:
+		return c.buildLocalLet(local)
 	default:
 		panic("unreachable")
 	}
 }
 
 func (c *CodeGenerator) buildReturn(r *hir.Return) *cir.Return {
-	var value cir.Expr
+	var value optional.Optional[cir.Expr]
 	if v, ok := r.Value.Value(); ok {
-		value = c.buildExpr(v)
+		value = optional.Some(c.buildExpr(v))
 	}
 	return &cir.Return{Value: value}
+}
+
+func (c *CodeGenerator) buildLocalLet(l *hir.Let) *cir.VarDecl {
+	typ := c.buildType(l.Value.GetType())
+	value := c.buildExpr(l.Value)
+	return &cir.VarDecl{
+		Type:  typ,
+		Name:  l.Name,
+		Value: optional.Some(value),
+	}
 }

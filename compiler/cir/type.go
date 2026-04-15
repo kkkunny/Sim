@@ -65,3 +65,10 @@ type FloatType struct {
 }
 
 func (*FloatType) typ() {}
+
+type FuncType struct {
+	Return Type
+	Params []Type
+}
+
+func (*FuncType) typ() {}

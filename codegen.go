@@ -9,7 +9,7 @@ import (
 
 	stlerror "github.com/kkkunny/stl/error"
 
-	"github.com/kkkunny/Sim/compiler/analyse"
+	"github.com/kkkunny/Sim/compiler/analyze"
 	"github.com/kkkunny/Sim/compiler/codegen"
 	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
@@ -18,6 +18,6 @@ import (
 func main() {
 	data := stlerror.MustWith(os.ReadFile(os.Args[1]))
 	lexer := lex.New(bytes.NewReader(data))
-	code := codegen.New().Generate(analyse.NewAnalyzer().Analyze(parse.New(lexer).Parse()))
+	code := codegen.New().Generate(analyze.NewAnalyzer().Analyze(parse.New(lexer).Parse()))
 	fmt.Println(code)
 }
