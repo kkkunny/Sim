@@ -111,6 +111,11 @@ func (e *Emitter) emitExpr(expr Expr) {
 		e.buf.WriteString(expr.Name)
 	case *IntegerExpr:
 		e.buf.WriteString(expr.Value)
+	case *UnaryExpr:
+		e.buf.WriteString("(")
+		e.buf.WriteString(string(expr.Op))
+		e.emitExpr(expr.Expr)
+		e.buf.WriteString(")")
 	case *BinaryExpr:
 		e.buf.WriteString("(")
 		e.emitExpr(expr.Left)
