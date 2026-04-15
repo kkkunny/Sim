@@ -33,6 +33,22 @@ func (e *IntegerExpr) print(p *printer) {
 	p.WriteToken(e.Value)
 }
 
+type UnaryExpr struct {
+	Op   token.Token
+	Expr Expr
+}
+
+func (e *UnaryExpr) local() {}
+
+func (e *UnaryExpr) expr() {}
+
+func (e *UnaryExpr) print(p *printer) {
+	p.WriteString("(")
+	p.WriteToken(e.Op)
+	p.WriteBy(e.Expr)
+	p.WriteString(")")
+}
+
 type BinaryExpr struct {
 	Op    token.Token
 	Left  Expr

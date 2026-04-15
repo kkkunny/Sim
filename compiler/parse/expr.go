@@ -30,6 +30,11 @@ func (p *Parser) parseBinaryExpr(minPrec int) ast.Expr {
 
 func (p *Parser) parsePrimaryExpr() ast.Expr {
 	switch p.cur.Kind {
+	case token.KindEnum.Not:
+		op := p.cur
+		p.next()
+		expr := p.parsePrimaryExpr()
+		return &ast.UnaryExpr{Op: op, Expr: expr}
 	case token.KindEnum.Ident:
 		expr := &ast.IdentExpr{Name: p.cur}
 		p.next()

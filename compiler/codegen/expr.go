@@ -12,6 +12,8 @@ func (c *CodeGenerator) buildExpr(expr ast.Expr) cir.Expr {
 		return c.buildIdentExpr(expr)
 	case *ast.IntegerExpr:
 		return c.buildIntegerExpr(expr)
+	case *ast.UnaryExpr:
+		return c.buildUnaryExpr(expr)
 	case *ast.BinaryExpr:
 		return c.buildBinaryExpr(expr)
 	default:
@@ -27,33 +29,47 @@ func (c *CodeGenerator) buildIntegerExpr(expr *ast.IntegerExpr) *cir.IntegerExpr
 	return &cir.IntegerExpr{Value: expr.Value.OriginText}
 }
 
-func (c *CodeGenerator) buildBinaryExpr(expr *ast.BinaryExpr) *cir.BinaryExpr {
-	return &cir.BinaryExpr{
-		Op:    c.buildBinaryOp(expr.Op),
-		Left:  c.buildExpr(expr.Left),
-		Right: c.buildExpr(expr.Right),
+func (c *CodeGenerator) buildUnaryExpr(expr *ast.UnaryExpr) *cir.UnaryExpr {
+	var op cir.UnaryOp
+	switch expr.Op.Kind {
+	case token.KindEnum.Not:
+		op = cir.UnaryOpEnum.Not
+	default:
+		panic("unreachable")
+	}
+
+	return &cir.UnaryExpr{
+		Op:   op,
+		Expr: c.buildExpr(expr.Expr),
 	}
 }
 
-func (c *CodeGenerator) buildBinaryOp(op token.Token) cir.BinaryOp {
-	switch op.Kind {
+func (c *CodeGenerator) buildBinaryExpr(expr *ast.BinaryExpr) *cir.BinaryExpr {
+	var op cir.BinaryOp
+	switch expr.Op.Kind {
 	case token.KindEnum.Add:
-		return cir.BinaryOpEnum.Add
+		op = cir.BinaryOpEnum.Add
 	case token.KindEnum.Sub:
-		return cir.BinaryOpEnum.Sub
+		op = cir.BinaryOpEnum.Sub
 	case token.KindEnum.Mul:
-		return cir.BinaryOpEnum.Mul
+		op = cir.BinaryOpEnum.Mul
 	case token.KindEnum.Quo:
-		return cir.BinaryOpEnum.Quo
+		op = cir.BinaryOpEnum.Quo
 	case token.KindEnum.Rem:
-		return cir.BinaryOpEnum.Rem
+		op = cir.BinaryOpEnum.Rem
 	case token.KindEnum.And:
-		return cir.BinaryOpEnum.And
+		op = cir.BinaryOpEnum.And
 	case token.KindEnum.Or:
-		return cir.BinaryOpEnum.Or
+		op = cir.BinaryOpEnum.Or
 	case token.KindEnum.Xor:
-		return cir.BinaryOpEnum.Xor
+		op = cir.BinaryOpEnum.Xor
 	default:
 		panic("unreachable")
+	}
+
+	return &cir.BinaryExpr{
+		Op:    op,
+		Left:  c.buildExpr(expr.Left),
+		Right: c.buildExpr(expr.Right),
 	}
 }
