@@ -16,15 +16,20 @@ func (t *UnitType) print(p *printer) {
 }
 
 var (
-	I32 = &IntType{}
+	I8  = &IntType{Bits: 8}
+	I16 = &IntType{Bits: 16}
+	I32 = &IntType{Bits: 32}
+	I64 = &IntType{Bits: 64}
 )
 
-type IntType struct{}
+type IntType struct {
+	Bits uint8
+}
 
 func (*IntType) typ() {}
 
 func (t *IntType) print(p *printer) {
-	p.WriteString("i32")
+	p.WriteFormat("i%d", t.Bits)
 }
 
 type FuncType struct {

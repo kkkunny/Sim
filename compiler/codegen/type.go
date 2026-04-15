@@ -10,7 +10,18 @@ import (
 func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 	switch t := t.(type) {
 	case *hir.IntType:
-		return cir.SInt
+		switch t.Bits {
+		case 8:
+			return cir.SChar
+		case 16:
+			return cir.SShort
+		case 32:
+			return cir.SInt
+		case 64:
+			return cir.SLLong
+		default:
+			panic("unreachable")
+		}
 	case *hir.UnitType:
 		return cir.Void
 	case *hir.FuncType:
