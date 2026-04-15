@@ -160,6 +160,14 @@ func (l *Lexer) Scan() token.Token {
 			kind = token.KindEnum.Quo
 		case '%':
 			kind = token.KindEnum.Rem
+		case '&':
+			kind = token.KindEnum.And
+		case '|':
+			kind = token.KindEnum.Or
+		case '^':
+			kind = token.KindEnum.Xor
+		case '!':
+			kind = token.KindEnum.Not
 		}
 	}
 

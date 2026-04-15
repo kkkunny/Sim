@@ -10,6 +10,9 @@ var BinaryOpEnum = enum.New[struct {
 	Mul BinaryOp `enum:"*"`
 	Quo BinaryOp `enum:"/"`
 	Rem BinaryOp `enum:"%"`
+	And BinaryOp `enum:"&"`
+	Or  BinaryOp `enum:"|"`
+	Xor BinaryOp `enum:"^"`
 }]()
 
 type Expr interface {
