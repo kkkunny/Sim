@@ -44,9 +44,11 @@ func (e *BinaryExpr) local() {}
 func (e *BinaryExpr) expr() {}
 
 func (e *BinaryExpr) print(p *printer) {
+	p.WriteString("(")
 	p.WriteBy(e.Left)
 	p.WriteString(" ")
 	p.WriteToken(e.Op)
 	p.WriteString(" ")
 	p.WriteBy(e.Right)
+	p.WriteString(")")
 }
