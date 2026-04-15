@@ -13,6 +13,8 @@ func (p *Parser) parseLocal() ast.Local {
 		return p.parseBlock()
 	case token.KindEnum.Return:
 		return p.parseReturn()
+	case token.KindEnum.Let:
+		return p.parseLet()
 	default:
 		return p.parseExpr()
 	}
@@ -24,7 +26,7 @@ func (p *Parser) parseBlock() *ast.Block {
 	var stmts []ast.Local
 	for p.cur.Kind != token.KindEnum.Rbr {
 		stmts = append(stmts, p.parseLocal())
-		if _, ok := p.IfSkip(token.KindEnum.Sem); ok {
+		if _, ok := p.IfSkip(token.KindEnum.Sem); !ok {
 			break
 		}
 		p.skip(token.KindEnum.Sem)
@@ -44,4 +46,12 @@ func (p *Parser) parseReturn() *ast.Return {
 	return &ast.Return{
 		Value: value,
 	}
+}
+
+func (p *Parser) parseLet() *ast.Let {
+	p.expect(token.KindEnum.Let)
+	name := p.expect(token.KindEnum.Ident)
+	p.expect(token.KindEnum.Assign)
+	value := p.parseExpr()
+	return &ast.Let{Name: name, Value: value}
 }

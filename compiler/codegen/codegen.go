@@ -17,9 +17,9 @@ func (c *CodeGenerator) Generate(program *hir.Program) string {
 }
 
 func (c *CodeGenerator) buildProgram(program *hir.Program) *cir.Program {
-	globals := make([]cir.Global, len(program.Functions))
-	for i, fn := range program.Functions {
-		globals[i] = c.buildFunc(fn)
+	globals := make([]cir.Global, len(program.Globals))
+	for i, fn := range program.Globals {
+		globals[i] = c.buildGlobal(fn)
 	}
 	return &cir.Program{Globals: globals}
 }

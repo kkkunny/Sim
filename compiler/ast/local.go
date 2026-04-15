@@ -2,6 +2,8 @@ package ast
 
 import (
 	"github.com/kkkunny/stl/container/optional"
+
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 type Local interface {
@@ -13,7 +15,7 @@ type Block struct {
 	Stmts []Local
 }
 
-func (b *Block) local() {}
+func (*Block) local() {}
 
 func (b *Block) print(p *printer) {
 	p.WriteString("{")
@@ -37,7 +39,7 @@ type Return struct {
 	Value optional.Optional[Expr]
 }
 
-func (r *Return) local() {}
+func (*Return) local() {}
 
 func (r *Return) print(p *printer) {
 	if value, ok := r.Value.Value(); ok {
@@ -46,4 +48,19 @@ func (r *Return) print(p *printer) {
 	} else {
 		p.WriteString("return")
 	}
+}
+
+type Let struct {
+	Name  token.Token
+	Value Expr
+}
+
+func (*Let) local()  {}
+func (*Let) global() {}
+
+func (l *Let) print(p *printer) {
+	p.WriteString("let ")
+	p.WriteToken(l.Name)
+	p.WriteString(" = ")
+	p.WriteBy(l.Value)
 }

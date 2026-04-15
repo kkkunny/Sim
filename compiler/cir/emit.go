@@ -41,6 +41,15 @@ func (e *Emitter) emitType(t Type) string {
 	}
 }
 
+func (e *Emitter) emitTypeWithName(t Type, name string) {
+	switch t := t.(type) {
+	case *FuncType:
+		e.buf.WriteString(fmt.Sprintf("%s(%s)", e.emitType(t.Return), name))
+	default:
+		e.buf.WriteString(fmt.Sprintf("%s %s", e.emitType(t), name))
+	}
+}
+
 func (e *Emitter) emitGlobal(g Global) {
 	switch g := g.(type) {
 	case *FuncDecl:
@@ -75,9 +84,19 @@ func (e *Emitter) emitLocal(local Local) {
 	case *Block:
 		e.emitBlock(local)
 	case *Return:
-		e.emitReturn(local)
+		e.buf.WriteString("return")
+		if value, ok := local.Value.Value(); ok {
+			e.buf.WriteString(" ")
+			e.emitExpr(value)
+		}
+		e.buf.WriteString(";")
 	case Expr:
 		e.emitExpr(local)
+	case *VarDecl:
+		e.emitTypeWithName(local.Type, local.Name)
+		e.buf.WriteString(" = ")
+		e.emitExpr(local.Value.MustValue())
+		e.buf.WriteString(";")
 	default:
 		panic("unreachable")
 	}
@@ -94,15 +113,6 @@ func (e *Emitter) emitBlock(b *Block) {
 	e.depth--
 	e.writeIndent()
 	e.buf.WriteString("}")
-}
-
-func (e *Emitter) emitReturn(r *Return) {
-	e.buf.WriteString("return")
-	if r.Value != nil {
-		e.buf.WriteString(" ")
-		e.emitExpr(r.Value)
-	}
-	e.buf.WriteString(";")
 }
 
 func (e *Emitter) emitExpr(expr Expr) {

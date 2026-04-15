@@ -49,13 +49,13 @@ func (p *Parser) expect(k token.Kind, skip ...token.Kind) token.Token {
 
 func (p *Parser) Parse() *ast.Program {
 	p.next()
-	var funcs []*ast.FuncDecl
+	var globals []ast.Global
 	for p.cur.Kind != token.KindEnum.Eof {
 		if p.cur.Kind == token.KindEnum.Let {
-			funcs = append(funcs, p.parseFuncDecl())
+			globals = append(globals, p.parseGlobal())
 		} else {
 			p.next()
 		}
 	}
-	return &ast.Program{Functions: funcs}
+	return &ast.Program{Globals: globals}
 }

@@ -1,4 +1,4 @@
-package analyse
+package analyze
 
 import (
 	"github.com/kkkunny/stl/container/optional"
@@ -23,6 +23,8 @@ func (a *Analyzer) analyzeLocal(local ast.Local) hir.Local {
 		return a.analyzeReturn(local)
 	case ast.Expr:
 		return a.analyzeExpr(local)
+	case *ast.Let:
+		return a.analyzeLet(local)
 	default:
 		panic("unreachable")
 	}
@@ -34,6 +36,15 @@ func (a *Analyzer) analyzeReturn(ret *ast.Return) *hir.Return {
 		value = optional.Some(a.analyzeExpr(v))
 	}
 	return &hir.Return{
+		Value: value,
+	}
+}
+
+func (a *Analyzer) analyzeLet(l *ast.Let) *hir.Let {
+	value := a.analyzeExpr(l.Value)
+	a.scope.types[l.Name.OriginText] = value.GetType()
+	return &hir.Let{
+		Name:  l.Name.OriginText,
 		Value: value,
 	}
 }
