@@ -1,14 +1,14 @@
 package hir
 
 type Program struct {
-	Functions []*FuncDecl
+	Globals []Global
 }
 
 func (p *Program) print(pr *printer) {
-	for i, f := range p.Functions {
+	for i, f := range p.Globals {
 		pr.WriteBy(f)
 		pr.NextLine()
-		if i < len(p.Functions)-1 {
+		if i < len(p.Globals)-1 {
 			pr.NextLine()
 		}
 	}

@@ -3,6 +3,8 @@ package parse
 import (
 	"fmt"
 
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/token"
 )
@@ -31,21 +33,39 @@ func (p *Parser) parseBinaryExpr(minPrec int) ast.Expr {
 func (p *Parser) parsePrimaryExpr() ast.Expr {
 	switch p.cur.Kind {
 	case token.KindEnum.Not:
-		op := p.cur
-		p.next()
+		op := p.expect(token.KindEnum.Not)
 		expr := p.parsePrimaryExpr()
 		return &ast.UnaryExpr{Op: op, Expr: expr}
 	case token.KindEnum.Ident:
-		expr := &ast.IdentExpr{Name: p.cur}
-		p.next()
-		return expr
+		return &ast.IdentExpr{Name: p.expect(token.KindEnum.Ident)}
 	case token.KindEnum.Integer:
-		expr := &ast.IntegerExpr{Value: p.cur}
-		p.next()
-		return expr
+		return &ast.IntegerExpr{Value: p.expect(token.KindEnum.Integer)}
 	case token.KindEnum.Lpa:
-		p.next()
+		p.expect(token.KindEnum.Lpa)
 		expr := p.parseExpr()
+		if identExpr, ok := expr.(*ast.IdentExpr); ok && p.cur.Kind == token.KindEnum.Col {
+			p.expect(token.KindEnum.Col)
+			typ := p.parseType()
+			params := []*ast.ParamDecl{{Name: identExpr.Name, Type: typ}}
+			for p.cur.Kind == token.KindEnum.Comma {
+				p.next()
+				params = append(params, p.parseParamDecl())
+			}
+			p.expect(token.KindEnum.Rpa)
+
+			var returnType optional.Optional[ast.Type]
+			if _, ok := p.IfSkip(token.KindEnum.Arrow); ok {
+				returnType = optional.Some(p.parseType())
+			}
+
+			var body optional.Optional[*ast.Block]
+			p.skip(token.KindEnum.Sem)
+			if p.cur.Kind == token.KindEnum.Lbr {
+				body = optional.Some(p.parseBlock())
+			}
+
+			return &ast.FuncExpr{Params: params, ReturnType: returnType, Body: body}
+		}
 		p.expect(token.KindEnum.Rpa)
 		return expr
 	default:

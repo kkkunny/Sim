@@ -1,4 +1,4 @@
-package analyse
+package analyze
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (a *Analyzer) analyseType(t ast.Type) hir.Type {
+func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 	switch t := t.(type) {
 	case *ast.IdentType:
 		switch t.Name.OriginText {
