@@ -14,8 +14,7 @@ type IdentExpr struct {
 }
 
 func (e *IdentExpr) local() {}
-
-func (e *IdentExpr) expr() {}
+func (e *IdentExpr) expr()  {}
 
 func (e *IdentExpr) print(p *printer) {
 	p.WriteToken(e.Name)
@@ -26,8 +25,7 @@ type IntegerExpr struct {
 }
 
 func (e *IntegerExpr) local() {}
-
-func (e *IntegerExpr) expr() {}
+func (e *IntegerExpr) expr()  {}
 
 func (e *IntegerExpr) print(p *printer) {
 	p.WriteToken(e.Value)
@@ -39,8 +37,7 @@ type UnaryExpr struct {
 }
 
 func (e *UnaryExpr) local() {}
-
-func (e *UnaryExpr) expr() {}
+func (e *UnaryExpr) expr()  {}
 
 func (e *UnaryExpr) print(p *printer) {
 	p.WriteString("(")
@@ -56,8 +53,7 @@ type BinaryExpr struct {
 }
 
 func (e *BinaryExpr) local() {}
-
-func (e *BinaryExpr) expr() {}
+func (e *BinaryExpr) expr()  {}
 
 func (e *BinaryExpr) print(p *printer) {
 	p.WriteString("(")
