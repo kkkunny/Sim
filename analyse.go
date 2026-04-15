@@ -1,16 +1,15 @@
-//go:build codegen
+//go:build analyse
 
 package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 
 	stlerror "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/analyse"
-	"github.com/kkkunny/Sim/compiler/codegen"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
 )
@@ -18,6 +17,6 @@ import (
 func main() {
 	data := stlerror.MustWith(os.ReadFile(os.Args[1]))
 	lexer := lex.New(bytes.NewReader(data))
-	code := codegen.New().Generate(analyse.NewAnalyzer().Analyze(parse.New(lexer).Parse()))
-	fmt.Println(code)
+	ast := parse.New(lexer).Parse()
+	hir.Print(os.Stdout, analyse.NewAnalyzer().Analyze(ast))
 }

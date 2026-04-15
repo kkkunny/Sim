@@ -1,22 +1,22 @@
 package codegen
 
 import (
-	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/cir"
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (c *CodeGenerator) buildFunc(fn *ast.FuncDecl) *cir.FuncDecl {
+func (c *CodeGenerator) buildFunc(fn *hir.FuncDecl) *cir.FuncDecl {
 	params := make([]*cir.ParamDecl, len(fn.Params))
 	for i, p := range fn.Params {
 		params[i] = &cir.ParamDecl{
-			Name: p.Name.OriginText,
+			Name: p.Name,
 			Type: c.buildType(p.Type),
 		}
 	}
 
 	var returnType cir.Type = &cir.VoidType{}
-	if rt, ok := fn.ReturnType.Value(); ok {
-		returnType = c.buildType(rt)
+	if fn.ReturnType != nil {
+		returnType = c.buildType(fn.ReturnType)
 	}
 
 	var body *cir.Block
@@ -25,7 +25,7 @@ func (c *CodeGenerator) buildFunc(fn *ast.FuncDecl) *cir.FuncDecl {
 	}
 
 	return &cir.FuncDecl{
-		Name:       fn.Name.OriginText,
+		Name:       fn.Name,
 		Params:     params,
 		ReturnType: returnType,
 		Body:       body,
