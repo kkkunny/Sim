@@ -24,6 +24,11 @@ var KindEnum = enum.New[struct {
 	Quo    Kind `text:"/"`
 	Rem    Kind `text:"%"`
 
+	And Kind `text:"&"`
+	Or  Kind `text:"|"`
+	Xor Kind `text:"^"`
+	Not Kind `text:"!"`
+
 	Lpa   Kind `text:"("`
 	Rpa   Kind `text:")"`
 	Lbr   Kind `text:"{"`
@@ -78,8 +83,14 @@ func (k Kind) String() string {
 func (k Kind) Priority() int {
 	switch k {
 	case KindEnum.Mul, KindEnum.Quo, KindEnum.Rem:
-		return 2
+		return 5
 	case KindEnum.Add, KindEnum.Sub:
+		return 4
+	case KindEnum.And:
+		return 3
+	case KindEnum.Xor:
+		return 2
+	case KindEnum.Or:
 		return 1
 	default:
 		return -1
