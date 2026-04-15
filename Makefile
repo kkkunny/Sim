@@ -46,6 +46,10 @@ lex: $(WORK_PATH)/ $(TEST_FILE)
 parse: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags parse $(WORK_PATH) $(TEST_FILE)
 
+.PHONY: analyse
+analyse: $(WORK_PATH)/ $(TEST_FILE)
+	@go run -tags analyse $(WORK_PATH) $(TEST_FILE)
+
 .PHONY: codegen
 codegen: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags codegen $(WORK_PATH) $(TEST_FILE)

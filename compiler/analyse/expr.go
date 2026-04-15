@@ -1,0 +1,74 @@
+package analyse
+
+import (
+	"fmt"
+	"math/big"
+	"strconv"
+
+	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/hir"
+)
+
+func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
+	switch expr := expr.(type) {
+	case *ast.IdentExpr:
+		typ, ok := a.scope.types[expr.Name.OriginText]
+		if !ok {
+			panic(fmt.Sprintf("undefined variable: %s", expr.Name.OriginText))
+		}
+		return &hir.IdentExpr{
+			Name: expr.Name.OriginText,
+			Type: typ,
+		}
+	case *ast.IntegerExpr:
+		v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
+		return &hir.IntegerExpr{
+			Value: big.NewInt(v),
+			Type:  hir.I32,
+		}
+	case *ast.UnaryExpr:
+		subExpr := a.analyzeExpr(expr.Expr)
+		var op hir.UnaryOp
+		switch expr.Op.OriginText {
+		case "!":
+			op = hir.UnaryOpEnum.Not
+		default:
+			panic(fmt.Sprintf("unsupported unary operator: %s", expr.Op.OriginText))
+		}
+		return &hir.UnaryExpr{
+			Op:   op,
+			Expr: subExpr,
+		}
+	case *ast.BinaryExpr:
+		left := a.analyzeExpr(expr.Left)
+		right := a.analyzeExpr(expr.Right)
+		var op hir.BinaryOp
+		switch expr.Op.OriginText {
+		case "+":
+			op = hir.BinaryOpEnum.Add
+		case "-":
+			op = hir.BinaryOpEnum.Sub
+		case "*":
+			op = hir.BinaryOpEnum.Mul
+		case "/":
+			op = hir.BinaryOpEnum.Quo
+		case "%":
+			op = hir.BinaryOpEnum.Rem
+		case "&":
+			op = hir.BinaryOpEnum.And
+		case "|":
+			op = hir.BinaryOpEnum.Or
+		case "^":
+			op = hir.BinaryOpEnum.Xor
+		default:
+			panic(fmt.Sprintf("unsupported binary operator: %s", expr.Op.OriginText))
+		}
+		return &hir.BinaryExpr{
+			Op:    op,
+			Left:  left,
+			Right: right,
+		}
+	default:
+		panic("unreachable")
+	}
+}
