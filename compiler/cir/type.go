@@ -13,31 +13,19 @@ type VoidType struct{}
 func (*VoidType) typ() {}
 
 var (
-	SChar  = &IntType{Kind: IntTypeKindEnum.SChar}
-	SShort = &IntType{Kind: IntTypeKindEnum.SShort}
-	SInt   = &IntType{Kind: IntTypeKindEnum.SInt}
-	SLong  = &IntType{Kind: IntTypeKindEnum.SLong}
-	SLLong = &IntType{Kind: IntTypeKindEnum.SLLong}
-	UChar  = &IntType{Kind: IntTypeKindEnum.UChar}
-	UShort = &IntType{Kind: IntTypeKindEnum.UShort}
-	UInt   = &IntType{Kind: IntTypeKindEnum.UInt}
-	ULong  = &IntType{Kind: IntTypeKindEnum.ULong}
-	ULLong = &IntType{Kind: IntTypeKindEnum.ULLong}
+	I8  = &IntType{Kind: IntTypeKindEnum.I8}
+	I16 = &IntType{Kind: IntTypeKindEnum.I16}
+	I32 = &IntType{Kind: IntTypeKindEnum.I32}
+	I64 = &IntType{Kind: IntTypeKindEnum.I64}
 )
 
 type IntTypeKind string
 
 var IntTypeKindEnum = enum.New[struct {
-	SChar  IntTypeKind `enum:"signed char"`
-	SShort IntTypeKind `enum:"signed short"`
-	SInt   IntTypeKind `enum:"signed int"`
-	SLong  IntTypeKind `enum:"signed long"`
-	SLLong IntTypeKind `enum:"signed long long"`
-	UChar  IntTypeKind `enum:"unsigned char"`
-	UShort IntTypeKind `enum:"unsigned short"`
-	UInt   IntTypeKind `enum:"unsigned int"`
-	ULong  IntTypeKind `enum:"unsigned long"`
-	ULLong IntTypeKind `enum:"unsigned long long"`
+	I8  IntTypeKind `enum:"i8"`
+	I16 IntTypeKind `enum:"i16"`
+	I32 IntTypeKind `enum:"i32"`
+	I64 IntTypeKind `enum:"i64"`
 }]()
 
 type IntType struct {
@@ -47,17 +35,15 @@ type IntType struct {
 func (*IntType) typ() {}
 
 var (
-	Float   = &FloatType{Kind: FloatTypeKindEnum.Float}
-	Double  = &FloatType{Kind: FloatTypeKindEnum.Double}
-	LDouble = &FloatType{Kind: FloatTypeKindEnum.LDouble}
+	F32 = &FloatType{Kind: FloatTypeKindEnum.F32}
+	F64 = &FloatType{Kind: FloatTypeKindEnum.F64}
 )
 
 type FloatTypeKind string
 
 var FloatTypeKindEnum = enum.New[struct {
-	Float   FloatTypeKind `enum:"float"`
-	Double  FloatTypeKind `enum:"double"`
-	LDouble FloatTypeKind `enum:"long double"`
+	F32 FloatTypeKind `enum:"f32"`
+	F64 FloatTypeKind `enum:"f64"`
 }]()
 
 type FloatType struct {

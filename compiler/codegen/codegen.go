@@ -5,21 +5,23 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-type CodeGenerator struct{}
+type CodeGenerator struct {
+	builder *cir.Builder
+}
 
 func New() *CodeGenerator {
-	return &CodeGenerator{}
+	return &CodeGenerator{
+		builder: cir.NewBuilder(),
+	}
 }
 
 func (c *CodeGenerator) Generate(program *hir.Program) string {
-	ir := c.buildProgram(program)
-	return cir.NewEmitter().Emit(ir)
+	c.buildProgram(program)
+	return cir.NewEmitter().Emit(c.builder)
 }
 
-func (c *CodeGenerator) buildProgram(program *hir.Program) *cir.Program {
-	globals := make([]cir.Global, len(program.Globals))
-	for i, fn := range program.Globals {
-		globals[i] = c.buildGlobal(fn)
+func (c *CodeGenerator) buildProgram(program *hir.Program) {
+	for _, g := range program.Globals {
+		c.buildGlobal(g)
 	}
-	return &cir.Program{Globals: globals}
 }
