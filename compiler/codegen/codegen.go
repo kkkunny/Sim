@@ -15,9 +15,9 @@ func New() *CodeGenerator {
 	}
 }
 
-func (c *CodeGenerator) Generate(program *hir.Program) string {
+func (c *CodeGenerator) Generate(program *hir.Program) *cir.Builder {
 	c.buildProgram(program)
-	return cir.NewEmitter().Emit(c.builder)
+	return c.builder
 }
 
 func (c *CodeGenerator) buildProgram(program *hir.Program) {

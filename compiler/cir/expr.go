@@ -1,6 +1,10 @@
 package cir
 
-import "github.com/kkkunny/stl/enum"
+import (
+	"math/big"
+
+	"github.com/kkkunny/stl/enum"
+)
 
 type Expr interface {
 	Local
@@ -14,12 +18,20 @@ type IdentExpr struct {
 func (*IdentExpr) local() {}
 func (*IdentExpr) expr()  {}
 
+func (e *IdentExpr) print(p *printer) {
+	p.WriteString(e.Name)
+}
+
 type IntegerExpr struct {
-	Value string
+	Value *big.Int
 }
 
 func (*IntegerExpr) local() {}
 func (*IntegerExpr) expr()  {}
+
+func (e *IntegerExpr) print(p *printer) {
+	p.WriteString(e.Value.String())
+}
 
 type UnaryOp string
 
@@ -34,6 +46,13 @@ type UnaryExpr struct {
 
 func (*UnaryExpr) local() {}
 func (*UnaryExpr) expr()  {}
+
+func (e *UnaryExpr) print(p *printer) {
+	p.WriteString(string(e.Op))
+	p.WriteString("(")
+	p.WriteBy(e.Expr)
+	p.WriteString(")")
+}
 
 type BinaryOp string
 
@@ -56,3 +75,12 @@ type BinaryExpr struct {
 
 func (*BinaryExpr) local() {}
 func (*BinaryExpr) expr()  {}
+
+func (e *BinaryExpr) print(p *printer) {
+	p.WriteString(string(e.Op))
+	p.WriteString("(")
+	p.WriteBy(e.Left)
+	p.WriteString(", ")
+	p.WriteBy(e.Right)
+	p.WriteString(")")
+}
