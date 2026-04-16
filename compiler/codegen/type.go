@@ -12,13 +12,13 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 	case *hir.IntType:
 		switch t.Bits {
 		case 8:
-			return cir.SChar
+			return cir.I8
 		case 16:
-			return cir.SShort
+			return cir.I16
 		case 32:
-			return cir.SInt
+			return cir.I32
 		case 64:
-			return cir.SLLong
+			return cir.I64
 		default:
 			panic("unreachable")
 		}

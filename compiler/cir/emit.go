@@ -14,7 +14,7 @@ func NewEmitter() *Emitter {
 	return &Emitter{}
 }
 
-func (e *Emitter) Emit(program *Program) string {
+func (e *Emitter) Emit(program *Builder) string {
 	e.buf.Reset()
 	for _, g := range program.Globals {
 		e.emitGlobal(g)
@@ -71,9 +71,9 @@ func (e *Emitter) emitFunc(fn *FuncDecl) {
 	}
 	e.buf.WriteString(")")
 
-	if fn.Body != nil {
+	if body, ok := fn.Body.Value(); ok {
 		e.buf.WriteString(" ")
-		e.emitBlock(fn.Body)
+		e.emitBlock(body)
 	} else {
 		e.buf.WriteString(";")
 	}
@@ -122,16 +122,15 @@ func (e *Emitter) emitExpr(expr Expr) {
 	case *IntegerExpr:
 		e.buf.WriteString(expr.Value)
 	case *UnaryExpr:
-		e.buf.WriteString("(")
 		e.buf.WriteString(string(expr.Op))
+		e.buf.WriteString("(")
 		e.emitExpr(expr.Expr)
 		e.buf.WriteString(")")
 	case *BinaryExpr:
+		e.buf.WriteString(string(expr.Op))
 		e.buf.WriteString("(")
 		e.emitExpr(expr.Left)
-		e.buf.WriteString(" ")
-		e.buf.WriteString(string(expr.Op))
-		e.buf.WriteString(" ")
+		e.buf.WriteString(", ")
 		e.emitExpr(expr.Right)
 		e.buf.WriteString(")")
 	default:

@@ -1,20 +1,22 @@
 package codegen
 
 import (
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (c *CodeGenerator) buildGlobal(global hir.Global) cir.Global {
+func (c *CodeGenerator) buildGlobal(global hir.Global) {
 	switch global := global.(type) {
 	case *hir.Let:
-		return c.buildGlobalLet(global)
+		c.buildGlobalLet(global)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildGlobalLet(l *hir.Let) *cir.FuncDecl {
+func (c *CodeGenerator) buildGlobalLet(l *hir.Let) {
 	funcExpr := l.Value.(*hir.FuncExpr)
 
 	returnType := c.buildType(funcExpr.ReturnType)
@@ -27,15 +29,9 @@ func (c *CodeGenerator) buildGlobalLet(l *hir.Let) *cir.FuncDecl {
 		}
 	}
 
-	var body *cir.Block
-	if b, ok := funcExpr.Body.Value(); ok {
-		body = c.buildBlock(b)
-	}
+	f := c.builder.BuildFuncDecl(l.Name, returnType, params)
 
-	return &cir.FuncDecl{
-		Name:       l.Name,
-		Params:     params,
-		ReturnType: returnType,
-		Body:       body,
+	if b, ok := funcExpr.Body.Value(); ok {
+		f.Body = optional.Some(c.buildBlock(b))
 	}
 }
