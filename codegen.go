@@ -18,6 +18,6 @@ import (
 func main() {
 	data := stlerror.MustWith(os.ReadFile(os.Args[1]))
 	lexer := lex.New(bytes.NewReader(data))
-	code := codegen.New().Generate(analyze.NewAnalyzer().Analyze(parse.New(lexer).Parse()))
-	fmt.Println(code)
+	builder := codegen.New().Generate(analyze.NewAnalyzer().Analyze(parse.New(lexer).Parse()))
+	fmt.Println(builder)
 }

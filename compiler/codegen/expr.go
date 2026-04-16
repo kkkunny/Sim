@@ -10,7 +10,7 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 	case *hir.IdentExpr:
 		return &cir.IdentExpr{Name: expr.Name}
 	case *hir.IntegerExpr:
-		return &cir.IntegerExpr{Value: expr.Value.String()}
+		return &cir.IntegerExpr{Value: expr.Value}
 	case *hir.UnaryExpr:
 		return &cir.UnaryExpr{
 			Op:   c.buildUnaryOp(expr.Op),
