@@ -1,8 +1,18 @@
 package hir
 
+import (
+	"fmt"
+	"strings"
+
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
+)
+
 type Type interface {
 	printWriter
+	fmt.Stringer
 	typ()
+	Equal(Type) bool
 }
 
 var Unit = &UnitType{}
@@ -12,7 +22,15 @@ type UnitType struct{}
 func (*UnitType) typ() {}
 
 func (t *UnitType) print(p *printer) {
-	p.WriteString("unit")
+	p.WriteString(t.String())
+}
+
+func (t *UnitType) String() string {
+	return "unit"
+}
+
+func (t *UnitType) Equal(p Type) bool {
+	return stlval.Is[*UnitType](p)
 }
 
 var (
@@ -29,7 +47,19 @@ type IntType struct {
 func (*IntType) typ() {}
 
 func (t *IntType) print(p *printer) {
-	p.WriteFormat("i%d", t.Bits)
+	p.WriteFormat(t.String())
+}
+
+func (t *IntType) String() string {
+	return fmt.Sprintf("i%d", t.Bits)
+}
+
+func (t *IntType) Equal(p Type) bool {
+	dst, ok := p.(*IntType)
+	if !ok {
+		return false
+	}
+	return t.Bits == dst.Bits
 }
 
 type FuncType struct {
@@ -59,4 +89,23 @@ func (t *FuncType) print(p *printer) {
 		p.WriteString(" -> ")
 		p.WriteBy(t.Return)
 	}
+}
+
+func (t *FuncType) String() string {
+	var buf strings.Builder
+	t.print(newPrint(&buf))
+	return buf.String()
+}
+
+func (t *FuncType) Equal(p Type) bool {
+	dst, ok := p.(*FuncType)
+	if !ok {
+		return false
+	}
+	if !t.Return.Equal(dst.Return) || len(t.Params) != len(dst.Params) {
+		return false
+	}
+	return stlslices.All(t.Params, func(i int, p Type) bool {
+		return p.Equal(dst.Params[i])
+	})
 }

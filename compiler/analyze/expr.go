@@ -11,7 +11,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/report"
 )
 
-func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
+func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 	switch expr := expr.(type) {
 	case *ast.IdentExpr:
 		typ, ok := a.scope.Types[expr.Name.OriginText]
@@ -106,4 +106,17 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
 	default:
 		panic("unreachable")
 	}
+}
+
+// 期待类型，两个类型必须完全相同
+func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) hir.Expr {
+	v := a.analyzeExpr(expr, expect)
+	if vt := v.GetType(); vt.Equal(expect) {
+		a.reporter.Fatalf(
+			expr.Position(),
+			report.Errors.UnexpectedType,
+			expect, vt,
+		)
+	}
+	return v
 }

@@ -32,3 +32,16 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 		panic("unreachable")
 	}
 }
+
+// 期待类型，两个类型必须完全相同
+func (a *Analyzer) expectType(t ast.Type, expect hir.Type) hir.Type {
+	get := a.analyzeType(t)
+	if !get.Equal(expect) {
+		a.reporter.Errorf(
+			t.Position(),
+			report.Errors.UnexpectedType,
+			expect, get,
+		)
+	}
+	return get
+}
