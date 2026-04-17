@@ -36,6 +36,12 @@ func newReport(level level, title, message string, pos reader.Position) *report 
 
 // Format 格式化错误报告为字符串
 func (r *report) Format() string {
+	if r.Position.BeginRow != r.Position.EndRow {
+		// TODO: 多行
+		panic("todo")
+		return ""
+	}
+
 	var buf strings.Builder
 
 	// 错误级别和标题
@@ -57,18 +63,21 @@ func (r *report) Format() string {
 	// 代码
 	beginOffset := r.Position.BeginOffset - (r.Position.BeginCol - 1)
 	endOffset := r.Position.EndOffset
-	code, _ := ReadFromTo(r.Position.Reader, beginOffset, endOffset)
-	code = strings.ReplaceAll(strings.ReplaceAll(code, "\t", "    "), "\n", " ")
+	code, _ := ReadFromTo(r.Position.Reader, beginOffset, endOffset+1)
+	// code = strings.ReplaceAll(strings.ReplaceAll(code, "\t", "    "), "\n", " ")
 	buf.WriteString(fmt.Sprintf("%2d | %s\n", r.Position.BeginRow, code))
 
 	// 箭头
-	arrowPos := int(r.Position.BeginCol) - 1
+	arrowPos := int(r.Position.BeginCol)
 	if arrowPos > len(code) {
 		arrowPos = len(code)
 	}
 	buf.WriteString("   |")
 	buf.WriteString(strings.Repeat(" ", arrowPos))
 	buf.WriteString("^")
+	if r.Position.EndCol > r.Position.BeginCol {
+		buf.WriteString(strings.Repeat("~", int(r.Position.EndCol-r.Position.BeginCol)))
+	}
 	buf.WriteString("\n")
 
 	return buf.String()

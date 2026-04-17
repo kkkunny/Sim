@@ -25,8 +25,8 @@ type Lexer struct {
 func New(r reader.Reader) *Lexer {
 	return &Lexer{
 		reader: r,
+		offset: -1,
 		row:    1,
-		col:    1,
 	}
 }
 
@@ -42,7 +42,7 @@ func (l *Lexer) next() rune {
 		l.col++
 		if c == '\n' {
 			l.row++
-			l.col = 1
+			l.col = 0
 		}
 	}
 	return c
