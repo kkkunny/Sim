@@ -31,7 +31,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 		}
 	case *ast.IntegerExpr:
 		var t hir.Type
-		it, ok := stlslices.Last(expect).(*hir.IntType)
+		it, ok := stlslices.Last(expect).(hir.IntegerType)
 		if ok {
 			t = it
 		} else {
@@ -43,7 +43,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 			}
 		}
 		v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
-		if stlval.Is[hir.IntType](t) {
+		if stlval.Is[hir.IntegerType](t) {
 			return &hir.IntegerExpr{
 				Type:  t,
 				Value: big.NewInt(v),

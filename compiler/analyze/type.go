@@ -20,6 +20,14 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			return hir.I32
 		case "i64":
 			return hir.I64
+		case "u8":
+			return hir.U8
+		case "u16":
+			return hir.U16
+		case "u32":
+			return hir.U32
+		case "u64":
+			return hir.U64
 		case "f32":
 			return hir.F32
 		case "f64":

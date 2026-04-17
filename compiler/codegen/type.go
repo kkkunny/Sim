@@ -11,7 +11,7 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 	switch t := t.(type) {
 	case *hir.UnitType:
 		return cir.Void
-	case *hir.IntType:
+	case *hir.SintType:
 		switch t.Bits {
 		case 8:
 			return cir.I8
@@ -21,6 +21,19 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 			return cir.I32
 		case 64:
 			return cir.I64
+		default:
+			panic("unreachable")
+		}
+	case *hir.UintType:
+		switch t.Bits {
+		case 8:
+			return cir.U8
+		case 16:
+			return cir.U16
+		case 32:
+			return cir.U32
+		case 64:
+			return cir.U64
 		default:
 			panic("unreachable")
 		}
