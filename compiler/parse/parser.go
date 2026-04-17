@@ -11,8 +11,9 @@ import (
 
 type Parser struct {
 	lexer    *lex.Lexer
-	cur      token.Token
 	reporter *report.Reporter
+
+	curToken, nextToken token.Token
 }
 
 func New(l *lex.Lexer, reporter *report.Reporter) *Parser {
@@ -23,35 +24,34 @@ func New(l *lex.Lexer, reporter *report.Reporter) *Parser {
 }
 
 func (p *Parser) next() {
-	p.cur = p.lexer.Scan()
+	p.curToken, p.nextToken = p.nextToken, p.lexer.Scan()
 }
 
 func (p *Parser) skip(skips ...token.Kind) {
-	for stlslices.Contain(skips, p.cur.Kind) {
+	for stlslices.Contain(skips, p.nextToken.Kind) {
 		p.next()
 	}
 }
 
-func (p *Parser) IfSkip(k token.Kind, skips ...token.Kind) (token.Token, bool) {
+func (p *Parser) ifSkip(k token.Kind, skips ...token.Kind) bool {
 	p.skip(skips...)
-	if p.cur.Kind != k {
-		return token.Token{}, false
+	if p.nextToken.Kind != k {
+		return false
 	}
-	tok := p.cur
 	p.next()
-	return tok, true
+	return true
 }
 
 func (p *Parser) expect(k token.Kind, skip ...token.Kind) token.Token {
-	tok, ok := p.IfSkip(k, skip...)
+	ok := p.ifSkip(k, skip...)
 	if !ok {
 		p.reporter.Fatalf(
-			p.cur.Position,
+			p.nextToken.Position,
 			report.Errors.ExpectedToken,
-			k, p.cur.Kind,
+			k, p.nextToken.Kind,
 		)
 	}
-	return tok
+	return p.curToken
 }
 
 func (p *Parser) Parse() *ast.Program {
@@ -60,7 +60,7 @@ func (p *Parser) Parse() *ast.Program {
 	for {
 		p.skip(token.KindEnum.Sem, token.KindEnum.Br)
 		globals = append(globals, p.parseGlobal())
-		if p.cur.Kind == token.KindEnum.Eof {
+		if p.nextToken.Kind == token.KindEnum.Eof {
 			break
 		}
 		p.expect(token.KindEnum.Sem)

@@ -7,14 +7,14 @@ import (
 )
 
 func (p *Parser) parseGlobal() ast.Global {
-	switch p.cur.Kind {
+	switch p.nextToken.Kind {
 	case token.KindEnum.Let:
 		return p.parseLet()
 	default:
 		p.reporter.Fatalf(
-			p.cur.Position,
+			p.nextToken.Position,
 			report.Errors.UnexpectedToken,
-			p.cur.Kind,
+			p.nextToken.Kind,
 		)
 		return nil
 	}

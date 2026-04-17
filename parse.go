@@ -7,6 +7,7 @@ import (
 
 	stlerror "github.com/kkkunny/stl/error"
 
+	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
 	"github.com/kkkunny/Sim/compiler/reader"
