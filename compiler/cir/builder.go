@@ -4,6 +4,8 @@ import "strings"
 
 type Builder struct {
 	Globals []Global
+
+	typedefCount int
 }
 
 func NewBuilder() *Builder {

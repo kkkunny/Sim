@@ -7,11 +7,14 @@ import (
 
 type CodeGenerator struct {
 	builder *cir.Builder
+
+	typeCache map[string]*cir.AliasType
 }
 
 func New() *CodeGenerator {
 	return &CodeGenerator{
-		builder: cir.NewBuilder(),
+		builder:   cir.NewBuilder(),
+		typeCache: make(map[string]*cir.AliasType),
 	}
 }
 

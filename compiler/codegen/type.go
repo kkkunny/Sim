@@ -47,14 +47,28 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 			panic("unreachable")
 		}
 	case *hir.FuncType:
+		key := t.String()
+		at, ok := c.typeCache[key]
+		if ok {
+			return at
+		}
+
 		r := c.buildType(t.Return)
 		ps := stlslices.Map(t.Params, func(i int, e hir.Type) cir.Type {
 			return c.buildType(e)
 		})
-		return &cir.FuncType{
-			Return: r,
-			Params: ps,
+		ft := &cir.PointerType{
+			Elem: &cir.FuncType{
+				Return: r,
+				Params: ps,
+			},
 		}
+
+		at = &cir.AliasType{
+			Define: c.builder.BuildTypedef(ft, ""),
+		}
+		c.typeCache[key] = at
+		return at
 	default:
 		panic("unreachable")
 	}
