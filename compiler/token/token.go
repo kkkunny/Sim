@@ -2,13 +2,15 @@ package token
 
 import (
 	"fmt"
+
+	"github.com/kkkunny/Sim/compiler/reader"
 )
 
 // Token token
 type Token struct {
-	Position   Position // 位置
-	Kind       Kind     // 种类
-	OriginText string   // 原始文本
+	Position   reader.Position // 位置
+	Kind       Kind            // 种类
+	OriginText string          // 原始文本
 }
 
 // Is 种类是否是

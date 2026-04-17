@@ -1,10 +1,9 @@
 package analyze
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/report"
 )
 
 func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
@@ -22,9 +21,14 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 		case "unit":
 			return hir.Unit
 		default:
-			panic(fmt.Sprintf("unknown type: %s", t.Name.OriginText))
+			a.reporter.Fatalf(
+				t.Name.Position,
+				report.Errors.UnknownIdentifier,
+				t.Name.OriginText,
+			)
+			return nil
 		}
 	default:
-		panic("unsupported type")
+		panic("unreachable")
 	}
 }
