@@ -1,6 +1,8 @@
 package analyze
 
 import (
+	stlslices "github.com/kkkunny/stl/container/slices"
+
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/report"
@@ -40,6 +42,15 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			)
 			return nil
 		}
+	case *ast.FuncType:
+		params := stlslices.Map(t.Params, func(_ int, p ast.Type) hir.Type {
+			return a.analyzeType(p)
+		})
+		var rt hir.Type = hir.Unit
+		if returnType, ok := t.ReturnType.Value(); ok {
+			rt = a.analyzeType(returnType)
+		}
+		return hir.NewFuncType(rt, params...)
 	default:
 		panic("unreachable")
 	}
