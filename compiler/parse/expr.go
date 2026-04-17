@@ -51,7 +51,7 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 		value := p.expect(token.KindEnum.Integer)
 		return &ast.IntegerExpr{Value: value}
 	case token.KindEnum.Lpa:
-		p.expect(token.KindEnum.Lpa)
+		begin := p.expect(token.KindEnum.Lpa).Position
 		p.skip(token.KindEnum.Br)
 		expr := p.parseExpr()
 		if identExpr, ok := expr.(*ast.IdentExpr); ok && p.cur.Kind == token.KindEnum.Col {
@@ -71,19 +71,21 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 					p.skip(token.KindEnum.Br)
 				}
 			}
-			p.expect(token.KindEnum.Rpa)
+			end := p.expect(token.KindEnum.Rpa).Position
 
 			var returnType optional.Optional[ast.Type]
 			if _, ok := p.IfSkip(token.KindEnum.Arrow); ok {
 				returnType = optional.Some(p.parseType())
+				end = returnType.MustValue().Position()
 			}
 
 			var body optional.Optional[*ast.Block]
 			if p.cur.Kind == token.KindEnum.Lbr {
 				body = optional.Some(p.parseBlock())
+				end = body.MustValue().Position()
 			}
 
-			return &ast.FuncExpr{Params: params, ReturnType: returnType, Body: body}
+			return &ast.FuncExpr{BeginPosition: begin, Params: params, ReturnType: returnType, Body: body, EndPosition: end}
 		}
 		p.expect(token.KindEnum.Rpa)
 		return expr

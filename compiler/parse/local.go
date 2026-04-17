@@ -22,7 +22,7 @@ func (p *Parser) parseLocal() ast.Local {
 }
 
 func (p *Parser) parseBlock() *ast.Block {
-	p.expect(token.KindEnum.Lbr)
+	begin := p.expect(token.KindEnum.Lbr).Position
 	p.skip(token.KindEnum.Sem, token.KindEnum.Br)
 	var stmts []ast.Local
 	for p.cur.Kind != token.KindEnum.Rbr {
@@ -32,8 +32,8 @@ func (p *Parser) parseBlock() *ast.Block {
 		}
 		p.skip(token.KindEnum.Sem, token.KindEnum.Br)
 	}
-	p.expect(token.KindEnum.Rbr)
-	return &ast.Block{Stmts: stmts}
+	end := p.expect(token.KindEnum.Rbr).Position
+	return &ast.Block{BeginPosition: begin, Stmts: stmts, EndPosition: end}
 }
 
 func (p *Parser) parseReturn() *ast.Return {

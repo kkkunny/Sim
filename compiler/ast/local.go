@@ -3,6 +3,7 @@ package ast
 import (
 	"github.com/kkkunny/stl/container/optional"
 
+	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
@@ -12,7 +13,9 @@ type Local interface {
 }
 
 type Block struct {
-	Stmts []Local
+	BeginPosition reader.Position
+	Stmts         []Local
+	EndPosition   reader.Position
 }
 
 func (*Block) local() {}
@@ -33,6 +36,10 @@ func (b *Block) print(p *printer) {
 		}
 	}
 	p.WriteString("}")
+}
+
+func (b *Block) Position() reader.Position {
+	return reader.MixPosition(b.BeginPosition, b.EndPosition)
 }
 
 type Return struct {

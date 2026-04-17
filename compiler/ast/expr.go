@@ -3,12 +3,14 @@ package ast
 import (
 	"github.com/kkkunny/stl/container/optional"
 
+	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
 type Expr interface {
 	Local
 	expr()
+	Position() reader.Position
 }
 
 type IdentExpr struct {
@@ -22,6 +24,10 @@ func (e *IdentExpr) print(p *printer) {
 	p.WriteToken(e.Name)
 }
 
+func (e *IdentExpr) Position() reader.Position {
+	return e.Name.Position
+}
+
 type IntegerExpr struct {
 	Value token.Token
 }
@@ -31,6 +37,10 @@ func (e *IntegerExpr) expr()  {}
 
 func (e *IntegerExpr) print(p *printer) {
 	p.WriteToken(e.Value)
+}
+
+func (e *IntegerExpr) Position() reader.Position {
+	return e.Value.Position
 }
 
 type UnaryExpr struct {
@@ -46,6 +56,10 @@ func (e *UnaryExpr) print(p *printer) {
 	p.WriteToken(e.Op)
 	p.WriteBy(e.Expr)
 	p.WriteString(")")
+}
+
+func (e *UnaryExpr) Position() reader.Position {
+	return reader.MixPosition(e.Op.Position, e.Expr.Position())
 }
 
 type BinaryExpr struct {
@@ -67,10 +81,16 @@ func (e *BinaryExpr) print(p *printer) {
 	p.WriteString(")")
 }
 
+func (e *BinaryExpr) Position() reader.Position {
+	return reader.MixPosition(e.Left.Position(), e.Right.Position())
+}
+
 type FuncExpr struct {
-	Params     []*ParamDecl
-	ReturnType optional.Optional[Type]
-	Body       optional.Optional[*Block]
+	BeginPosition reader.Position
+	Params        []*ParamDecl
+	ReturnType    optional.Optional[Type]
+	Body          optional.Optional[*Block]
+	EndPosition   reader.Position
 }
 
 func (e *FuncExpr) local() {}
@@ -93,4 +113,8 @@ func (e *FuncExpr) print(p *printer) {
 		p.WriteString(" ")
 		p.WriteBy(body)
 	}
+}
+
+func (e *FuncExpr) Position() reader.Position {
+	return reader.MixPosition(e.BeginPosition, e.EndPosition)
 }

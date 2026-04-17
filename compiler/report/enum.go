@@ -12,6 +12,7 @@ var Errors = enum.New[struct {
 	ExpectedToken     Error `enum:"expected token" format:"expected '%s' but got '%s'"`
 	UnexpectedToken   Error `enum:"unexpected token" format:"unexpected token '%s'"`
 	UnknownIdentifier Error `enum:"unknown identifier" format:"unknown identifier '%s'"`
+	UnexpectedType    Error `enum:"unexpected type" format:"expected type '%s' but got '%s'"`
 }]()
 
 var errorFormats = func() map[Error]string {

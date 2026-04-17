@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 
@@ -13,11 +12,28 @@ import (
 	"github.com/kkkunny/Sim/compiler/codegen"
 	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
+	"github.com/kkkunny/Sim/compiler/reader"
+	simerr "github.com/kkkunny/Sim/compiler/report"
 )
 
 func main() {
-	data := stlerror.MustWith(os.ReadFile(os.Args[1]))
-	lexer := lex.New(bytes.NewReader(data))
-	builder := codegen.New().Generate(analyze.NewAnalyzer().Analyze(parse.New(lexer).Parse()))
+	file := stlerror.MustWith(os.Open(os.Args[1]))
+	defer file.Close()
+	lexer := lex.New(reader.NewFile(os.Args[1], file))
+
+	reporter := simerr.NewReporter()
+	ast := parse.New(lexer, reporter).Parse()
+	if reporter.HasErrors() {
+		reporter.Print()
+		os.Exit(1)
+	}
+
+	node := analyze.NewAnalyzer(reporter).Analyze(ast)
+	if reporter.HasErrors() {
+		reporter.Print()
+		os.Exit(1)
+	}
+
+	builder := codegen.New().Generate(node)
 	fmt.Println(builder)
 }
