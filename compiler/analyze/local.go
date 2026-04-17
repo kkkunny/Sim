@@ -31,9 +31,11 @@ func (a *Analyzer) analyzeLocal(local ast.Local) hir.Local {
 }
 
 func (a *Analyzer) analyzeReturn(ret *ast.Return) *hir.Return {
+	ls := a.scope.(hir.LocalScope)
+
 	var value optional.Optional[hir.Expr]
 	if v, ok := ret.Value.Value(); ok {
-		value = optional.Some(a.analyzeExpr(v))
+		value = optional.Some(a.expectTypeExpr(v, ls.FuncType().Return))
 	}
 	return &hir.Return{
 		Value: value,
@@ -42,9 +44,10 @@ func (a *Analyzer) analyzeReturn(ret *ast.Return) *hir.Return {
 
 func (a *Analyzer) analyzeLet(l *ast.Let) *hir.Let {
 	value := a.analyzeExpr(l.Value)
-	a.scope.Types[l.Name.OriginText] = value.GetType()
-	return &hir.Let{
+	let := &hir.Let{
 		Name:  l.Name.OriginText,
 		Value: value,
 	}
+	a.scope.AddValue(let)
+	return let
 }
