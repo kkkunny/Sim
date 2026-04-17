@@ -27,10 +27,14 @@ func (t *VoidType) printWithName(p *printer, name string) {
 }
 
 var (
-	I8  = &IntType{Kind: IntTypeKindEnum.I8}
-	I16 = &IntType{Kind: IntTypeKindEnum.I16}
-	I32 = &IntType{Kind: IntTypeKindEnum.I32}
-	I64 = &IntType{Kind: IntTypeKindEnum.I64}
+	I8  = &IntegerType{Kind: IntTypeKindEnum.I8}
+	I16 = &IntegerType{Kind: IntTypeKindEnum.I16}
+	I32 = &IntegerType{Kind: IntTypeKindEnum.I32}
+	I64 = &IntegerType{Kind: IntTypeKindEnum.I64}
+	U8  = &IntegerType{Kind: IntTypeKindEnum.U8}
+	U16 = &IntegerType{Kind: IntTypeKindEnum.U16}
+	U32 = &IntegerType{Kind: IntTypeKindEnum.U32}
+	U64 = &IntegerType{Kind: IntTypeKindEnum.U64}
 )
 
 type IntTypeKind string
@@ -40,19 +44,23 @@ var IntTypeKindEnum = enum.New[struct {
 	I16 IntTypeKind `enum:"i16"`
 	I32 IntTypeKind `enum:"i32"`
 	I64 IntTypeKind `enum:"i64"`
+	U8  IntTypeKind `enum:"u8"`
+	U16 IntTypeKind `enum:"u16"`
+	U32 IntTypeKind `enum:"u32"`
+	U64 IntTypeKind `enum:"u64"`
 }]()
 
-type IntType struct {
+type IntegerType struct {
 	Kind IntTypeKind
 }
 
-func (*IntType) typ() {}
+func (*IntegerType) typ() {}
 
-func (t *IntType) print(p *printer) {
+func (t *IntegerType) print(p *printer) {
 	p.WriteString(string(t.Kind))
 }
 
-func (t *IntType) printWithName(p *printer, name string) {
+func (t *IntegerType) printWithName(p *printer, name string) {
 	p.WriteBy(t)
 	p.WriteString(" ")
 	p.WriteString(name)

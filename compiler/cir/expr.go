@@ -47,7 +47,7 @@ func (e *FloatExpr) print(p *printer) {
 type UnaryOp string
 
 var UnaryOpEnum = enum.New[struct {
-	Not UnaryOp `enum:"~"`
+	Not UnaryOp `enum:"NOT"`
 }]()
 
 type UnaryExpr struct {
@@ -59,8 +59,8 @@ func (*UnaryExpr) local() {}
 func (*UnaryExpr) expr()  {}
 
 func (e *UnaryExpr) print(p *printer) {
-	p.WriteString("(")
 	p.WriteString(string(e.Op))
+	p.WriteString("(")
 	p.WriteBy(e.Expr)
 	p.WriteString(")")
 }
@@ -68,14 +68,14 @@ func (e *UnaryExpr) print(p *printer) {
 type BinaryOp string
 
 var BinaryOpEnum = enum.New[struct {
-	Add BinaryOp `enum:"+"`
-	Sub BinaryOp `enum:"-"`
-	Mul BinaryOp `enum:"*"`
-	Quo BinaryOp `enum:"/"`
-	Rem BinaryOp `enum:"%"`
-	And BinaryOp `enum:"&"`
-	Or  BinaryOp `enum:"|"`
-	Xor BinaryOp `enum:"^"`
+	Add BinaryOp `enum:"ADD"`
+	Sub BinaryOp `enum:"SUB"`
+	Mul BinaryOp `enum:"MUL"`
+	Quo BinaryOp `enum:"QUO"`
+	Rem BinaryOp `enum:"REM"`
+	And BinaryOp `enum:"AND"`
+	Or  BinaryOp `enum:"OR"`
+	Xor BinaryOp `enum:"XOR"`
 }]()
 
 type BinaryExpr struct {
@@ -88,11 +88,10 @@ func (*BinaryExpr) local() {}
 func (*BinaryExpr) expr()  {}
 
 func (e *BinaryExpr) print(p *printer) {
+	p.WriteString(string(e.Op))
 	p.WriteString("(")
 	p.WriteBy(e.Left)
-	p.WriteString(" ")
-	p.WriteString(string(e.Op))
-	p.WriteString(" ")
+	p.WriteString(", ")
 	p.WriteBy(e.Right)
 	p.WriteString(")")
 }
