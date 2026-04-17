@@ -42,7 +42,7 @@ func (a *Analyzer) analyzeReturn(ret *ast.Return) *hir.Return {
 
 func (a *Analyzer) analyzeLet(l *ast.Let) *hir.Let {
 	value := a.analyzeExpr(l.Value)
-	a.scope.types[l.Name.OriginText] = value.GetType()
+	a.scope.Types[l.Name.OriginText] = value.GetType()
 	return &hir.Let{
 		Name:  l.Name.OriginText,
 		Value: value,

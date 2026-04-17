@@ -8,25 +8,21 @@ import (
 
 	stlerror "github.com/kkkunny/stl/error"
 
+	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
-type Reader interface {
-	io.RuneReader
-	io.Seeker
-}
-
 // Lexer 词法分析器
 type Lexer struct {
-	reader Reader
+	reader reader.Reader
 
-	offset   uint
-	row, col uint
+	offset   int64
+	row, col int64
 
 	cache bytes.Buffer
 }
 
-func New(r Reader) *Lexer {
+func New(r reader.Reader) *Lexer {
 	return &Lexer{
 		reader: r,
 		row:    1,
@@ -75,8 +71,9 @@ func (l *Lexer) peek(skip ...uint) rune {
 	return c
 }
 
-func (l *Lexer) Position() token.Position {
-	return token.Position{
+func (l *Lexer) Position() reader.Position {
+	return reader.Position{
+		Reader:      l.reader,
 		BeginOffset: l.offset,
 		EndOffset:   l.offset,
 		BeginRow:    l.row,
@@ -116,8 +113,8 @@ func (l *Lexer) Scan() token.Token {
 	l.skipWhite()
 	l.cache.Reset()
 
-	begin := l.Position()
 	c := l.next()
+	begin := l.Position()
 
 	var kind token.Kind
 	switch {
@@ -143,8 +140,10 @@ func (l *Lexer) Scan() token.Token {
 			kind = token.KindEnum.Comma
 		case ':':
 			kind = token.KindEnum.Col
-		case ';', '\n':
+		case ';':
 			kind = token.KindEnum.Sem
+		case '\n':
+			kind = token.KindEnum.Br
 		case '-':
 			if l.peek() == '>' {
 				l.next()
@@ -173,7 +172,7 @@ func (l *Lexer) Scan() token.Token {
 
 	end := l.Position()
 	return token.Token{
-		Position:   token.MixPosition(begin, end),
+		Position:   reader.MixPosition(begin, end),
 		Kind:       kind,
 		OriginText: l.cache.String(),
 	}

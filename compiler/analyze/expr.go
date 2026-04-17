@@ -1,7 +1,6 @@
 package analyze
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
 
@@ -9,14 +8,20 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/report"
 )
 
 func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
 	switch expr := expr.(type) {
 	case *ast.IdentExpr:
-		typ, ok := a.scope.types[expr.Name.OriginText]
+		typ, ok := a.scope.Types[expr.Name.OriginText]
 		if !ok {
-			panic(fmt.Sprintf("undefined variable: %s", expr.Name.OriginText))
+			a.reporter.Fatalf(
+				expr.Name.Position,
+				report.Errors.UnknownIdentifier,
+				expr.Name.OriginText,
+			)
+			return nil
 		}
 		return &hir.IdentExpr{
 			Name: expr.Name.OriginText,
@@ -35,7 +40,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
 		case "!":
 			op = hir.UnaryOpEnum.Not
 		default:
-			panic(fmt.Sprintf("unsupported unary operator: %s", expr.Op.OriginText))
+			panic("unreachable")
 		}
 		return &hir.UnaryExpr{
 			Op:   op,
@@ -63,7 +68,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
 		case "^":
 			op = hir.BinaryOpEnum.Xor
 		default:
-			panic(fmt.Sprintf("unsupported binary operator: %s", expr.Op.OriginText))
+			panic("unreachable")
 		}
 		return &hir.BinaryExpr{
 			Op:    op,
@@ -71,7 +76,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
 			Right: right,
 		}
 	case *ast.FuncExpr:
-		a.scope = &Scope{parent: a.scope, types: make(map[string]hir.Type)}
+		a.scope = &hir.Scope{Parent: a.scope, Types: make(map[string]hir.Type)}
 
 		var params []*hir.ParamDecl
 		for _, p := range expr.Params {
@@ -80,7 +85,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr) hir.Expr {
 				Name: p.Name.OriginText,
 				Type: paramType,
 			})
-			a.scope.types[p.Name.OriginText] = paramType
+			a.scope.Types[p.Name.OriginText] = paramType
 		}
 
 		var returnType hir.Type = hir.Unit
