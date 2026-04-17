@@ -94,6 +94,21 @@ func (t *FloatType) printWithName(p *printer, name string) {
 	p.WriteString(name)
 }
 
+type PointerType struct {
+	Elem Type
+}
+
+func (*PointerType) typ() {}
+
+func (t *PointerType) print(p *printer) {
+	p.WriteBy(t.Elem)
+	p.WriteString("*")
+}
+
+func (t *PointerType) printWithName(p *printer, name string) {
+	t.Elem.printWithName(p, "*"+name)
+}
+
 type FuncType struct {
 	Return Type
 	Params []Type
@@ -108,4 +123,28 @@ func (t *FuncType) printWithName(p *printer, name string) {
 	p.WriteString("(")
 	p.WriteFormat(name)
 	p.WriteString(")")
+	p.WriteString("(")
+	for i, param := range t.Params {
+		p.WriteBy(param)
+		if i < len(t.Params)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}
+
+type AliasType struct {
+	Define *Typedef
+}
+
+func (*AliasType) typ() {}
+
+func (t *AliasType) print(p *printer) {
+	p.WriteString(t.Define.Name)
+}
+
+func (t *AliasType) printWithName(p *printer, name string) {
+	p.WriteString(t.Define.Name)
+	p.WriteString(" ")
+	p.WriteFormat(name)
 }

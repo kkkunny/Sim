@@ -1,6 +1,8 @@
 package cir
 
 import (
+	"fmt"
+
 	"github.com/kkkunny/stl/container/optional"
 )
 
@@ -46,4 +48,30 @@ func (g *FuncDecl) print(p *printer) {
 	} else {
 		p.WriteString(";")
 	}
+}
+
+type Typedef struct {
+	Type Type
+	Name string
+}
+
+func (b *Builder) BuildTypedef(t Type, name string) *Typedef {
+	b.typedefCount++
+	if name == "" {
+		name = fmt.Sprintf("_t%d", b.typedefCount)
+	}
+	g := &Typedef{
+		Type: t,
+		Name: name,
+	}
+	b.Globals = append(b.Globals, g)
+	return g
+}
+
+func (*Typedef) global() {}
+
+func (g *Typedef) print(p *printer) {
+	p.WriteString("typedef ")
+	g.Type.printWithName(p, g.Name)
+	p.WriteString(";")
 }
