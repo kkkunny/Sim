@@ -16,11 +16,11 @@ func (p *Parser) parseBinaryExpr(minPrec int) ast.Expr {
 	left := p.parseUnaryExpr()
 
 	for {
-		prec := p.cur.Kind.Priority()
+		prec := p.nextToken.Kind.Priority()
 		if prec < minPrec {
 			break
 		}
-		op := p.cur
+		op := p.nextToken
 		p.next()
 		p.skip(token.KindEnum.Br)
 		right := p.parseBinaryExpr(prec + 1)
@@ -31,7 +31,7 @@ func (p *Parser) parseBinaryExpr(minPrec int) ast.Expr {
 }
 
 func (p *Parser) parseUnaryExpr() ast.Expr {
-	switch p.cur.Kind {
+	switch p.nextToken.Kind {
 	case token.KindEnum.Not:
 		op := p.expect(token.KindEnum.Not)
 		p.skip(token.KindEnum.Br)
@@ -43,7 +43,7 @@ func (p *Parser) parseUnaryExpr() ast.Expr {
 }
 
 func (p *Parser) parsePrimaryExpr() ast.Expr {
-	switch p.cur.Kind {
+	switch p.nextToken.Kind {
 	case token.KindEnum.Ident:
 		name := p.expect(token.KindEnum.Ident)
 		return &ast.IdentExpr{Name: name}
@@ -54,46 +54,44 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 		begin := p.expect(token.KindEnum.Lpa).Position
 		p.skip(token.KindEnum.Br)
 		expr := p.parseExpr()
-		if identExpr, ok := expr.(*ast.IdentExpr); ok && p.cur.Kind == token.KindEnum.Col {
+		if identExpr, ok := expr.(*ast.IdentExpr); ok && p.nextToken.Kind == token.KindEnum.Col {
 			p.expect(token.KindEnum.Col)
 			typ := p.parseType()
 			params := []*ast.ParamDecl{{Name: identExpr.Name, Type: typ}}
-			if _, ok = p.IfSkip(token.KindEnum.Comma); ok {
+			if p.ifSkip(token.KindEnum.Comma) {
 				p.skip(token.KindEnum.Br)
 				for {
-					if p.cur.Kind != token.KindEnum.Ident {
+					if p.nextToken.Kind != token.KindEnum.Ident {
 						break
 					}
 					params = append(params, p.parseParamDecl())
-					if _, ok = p.IfSkip(token.KindEnum.Comma); !ok {
+					if !p.ifSkip(token.KindEnum.Comma) {
 						break
 					}
 					p.skip(token.KindEnum.Br)
 				}
 			}
-			end := p.expect(token.KindEnum.Rpa).Position
+			p.expect(token.KindEnum.Rpa)
 
 			var returnType optional.Optional[ast.Type]
-			if _, ok := p.IfSkip(token.KindEnum.Arrow); ok {
+			if p.ifSkip(token.KindEnum.Arrow) {
 				returnType = optional.Some(p.parseType())
-				end = returnType.MustValue().Position()
 			}
 
 			var body optional.Optional[*ast.Block]
-			if p.cur.Kind == token.KindEnum.Lbr {
+			if p.nextToken.Kind == token.KindEnum.Lbr {
 				body = optional.Some(p.parseBlock())
-				end = body.MustValue().Position()
 			}
 
-			return &ast.FuncExpr{BeginPosition: begin, Params: params, ReturnType: returnType, Body: body, EndPosition: end}
+			return &ast.FuncExpr{BeginPosition: begin, Params: params, ReturnType: returnType, Body: body, EndPosition: p.curToken.Position}
 		}
 		p.expect(token.KindEnum.Rpa)
 		return expr
 	default:
 		p.reporter.Fatalf(
-			p.cur.Position,
+			p.nextToken.Position,
 			report.Errors.UnexpectedToken,
-			p.cur.Kind,
+			p.nextToken.Kind,
 		)
 		return nil
 	}
