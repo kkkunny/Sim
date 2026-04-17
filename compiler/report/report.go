@@ -1,7 +1,9 @@
 package report
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,6 +66,15 @@ func (r *report) Format() string {
 	beginOffset := r.Position.BeginOffset - (r.Position.BeginCol - 1)
 	endOffset := r.Position.EndOffset
 	code, _ := ReadFromTo(r.Position.Reader, beginOffset, endOffset+1)
+	for {
+		c, _, err := r.Position.Reader.ReadRune()
+		if err != nil && !errors.Is(err, io.EOF) {
+			panic(err)
+		} else if err != nil || c == '\n' {
+			break
+		}
+		code += string(c)
+	}
 	// code = strings.ReplaceAll(strings.ReplaceAll(code, "\t", "    "), "\n", " ")
 	buf.WriteString(fmt.Sprintf("%2d | %s\n", r.Position.BeginRow, code))
 
