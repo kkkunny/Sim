@@ -62,6 +62,33 @@ func (t *IntType) Equal(p Type) bool {
 	return t.Bits == dst.Bits
 }
 
+var (
+	F32 = &FloatType{Bits: 32}
+	F64 = &FloatType{Bits: 64}
+)
+
+type FloatType struct {
+	Bits uint8
+}
+
+func (*FloatType) typ() {}
+
+func (t *FloatType) print(p *printer) {
+	p.WriteFormat(t.String())
+}
+
+func (t *FloatType) String() string {
+	return fmt.Sprintf("f%d", t.Bits)
+}
+
+func (t *FloatType) Equal(p Type) bool {
+	dst, ok := p.(*FloatType)
+	if !ok {
+		return false
+	}
+	return t.Bits == dst.Bits
+}
+
 type FuncType struct {
 	Return Type
 	Params []Type

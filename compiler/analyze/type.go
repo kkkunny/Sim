@@ -10,6 +10,8 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 	switch t := t.(type) {
 	case *ast.IdentType:
 		switch t.Name.OriginText {
+		case "unit":
+			return hir.Unit
 		case "i8":
 			return hir.I8
 		case "i16":
@@ -18,8 +20,10 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			return hir.I32
 		case "i64":
 			return hir.I64
-		case "unit":
-			return hir.Unit
+		case "f32":
+			return hir.F32
+		case "f64":
+			return hir.F64
 		default:
 			a.reporter.Fatalf(
 				t.Name.Position,

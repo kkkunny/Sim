@@ -9,6 +9,8 @@ import (
 
 func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 	switch t := t.(type) {
+	case *hir.UnitType:
+		return cir.Void
 	case *hir.IntType:
 		switch t.Bits {
 		case 8:
@@ -22,8 +24,15 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 		default:
 			panic("unreachable")
 		}
-	case *hir.UnitType:
-		return cir.Void
+	case *hir.FloatType:
+		switch t.Bits {
+		case 32:
+			return cir.F32
+		case 64:
+			return cir.F64
+		default:
+			panic("unreachable")
+		}
 	case *hir.FuncType:
 		r := c.buildType(t.Return)
 		ps := stlslices.Map(t.Params, func(i int, e hir.Type) cir.Type {

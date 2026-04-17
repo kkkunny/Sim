@@ -46,6 +46,22 @@ func (e *IntegerExpr) GetType() Type {
 	return e.Type
 }
 
+type FloatExpr struct {
+	Type  Type
+	Value *big.Float
+}
+
+func (*FloatExpr) expr()  {}
+func (*FloatExpr) local() {}
+
+func (e *FloatExpr) print(p *printer) {
+	p.WriteString(e.Value.String())
+}
+
+func (e *FloatExpr) GetType() Type {
+	return e.Type
+}
+
 type UnaryOp string
 
 var UnaryOpEnum = enum.New[struct {

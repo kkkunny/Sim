@@ -30,14 +30,29 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 			Type: v.GetType(),
 		}
 	case *ast.IntegerExpr:
+		var t hir.Type
 		it, ok := stlslices.Last(expect).(*hir.IntType)
-		if !ok {
-			it = hir.I32
+		if ok {
+			t = it
+		} else {
+			ft, ok := stlslices.Last(expect).(*hir.FloatType)
+			if ok {
+				t = ft
+			} else {
+				t = hir.I32
+			}
 		}
 		v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
-		return &hir.IntegerExpr{
-			Type:  it,
-			Value: big.NewInt(v),
+		if stlval.Is[hir.IntType](t) {
+			return &hir.IntegerExpr{
+				Type:  t,
+				Value: big.NewInt(v),
+			}
+		} else {
+			return &hir.FloatExpr{
+				Type:  t,
+				Value: big.NewFloat(float64(v)),
+			}
 		}
 	case *ast.UnaryExpr:
 		subExpr := a.analyzeExpr(expr.Expr)

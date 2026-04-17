@@ -11,6 +11,8 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return &cir.IdentExpr{Name: expr.Name}
 	case *hir.IntegerExpr:
 		return &cir.IntegerExpr{Value: expr.Value}
+	case *hir.FloatExpr:
+		return &cir.FloatExpr{Value: expr.Value}
 	case *hir.UnaryExpr:
 		return &cir.UnaryExpr{
 			Op:   c.buildUnaryOp(expr.Op),
