@@ -31,8 +31,8 @@ func (e *IdentExpr) GetType() Type {
 }
 
 type IntegerExpr struct {
-	Value *big.Int
 	Type  Type
+	Value *big.Int
 }
 
 func (*IntegerExpr) expr()  {}
@@ -43,7 +43,7 @@ func (e *IntegerExpr) print(p *printer) {
 }
 
 func (e *IntegerExpr) GetType() Type {
-	return I32
+	return e.Type
 }
 
 type UnaryOp string
@@ -108,7 +108,7 @@ func (e *BinaryExpr) GetType() Type {
 }
 
 type FuncExpr struct {
-	Params     []*ParamDecl
+	Params     []*Param
 	ReturnType Type
 	Body       optional.Optional[*Block]
 }
@@ -134,7 +134,7 @@ func (e *FuncExpr) print(p *printer) {
 }
 
 func (e *FuncExpr) GetType() Type {
-	params := stlslices.Map(e.Params, func(_ int, param *ParamDecl) Type {
+	params := stlslices.Map(e.Params, func(_ int, param *Param) Type {
 		return param.Type
 	})
 	return NewFuncType(e.ReturnType, params...)

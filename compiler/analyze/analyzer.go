@@ -8,15 +8,14 @@ import (
 
 type Analyzer struct {
 	reporter *report.Reporter
-	scope    *hir.Scope
+
+	scope hir.Scope
 }
 
 func NewAnalyzer(reporter *report.Reporter) *Analyzer {
 	return &Analyzer{
 		reporter: reporter,
-		scope: &hir.Scope{
-			Types: make(map[string]hir.Type),
-		},
+		scope:    hir.NewPkgScope(),
 	}
 }
 

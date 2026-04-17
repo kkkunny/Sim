@@ -5,6 +5,8 @@ import (
 	"strconv"
 
 	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -14,7 +16,7 @@ import (
 func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 	switch expr := expr.(type) {
 	case *ast.IdentExpr:
-		typ, ok := a.scope.Types[expr.Name.OriginText]
+		v, ok := a.scope.Lookup(expr.Name.OriginText)
 		if !ok {
 			a.reporter.Fatalf(
 				expr.Name.Position,
@@ -25,13 +27,17 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 		}
 		return &hir.IdentExpr{
 			Name: expr.Name.OriginText,
-			Type: typ,
+			Type: v.GetType(),
 		}
 	case *ast.IntegerExpr:
+		it, ok := stlslices.Last(expect).(*hir.IntType)
+		if !ok {
+			it = hir.I32
+		}
 		v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
 		return &hir.IntegerExpr{
+			Type:  it,
 			Value: big.NewInt(v),
-			Type:  hir.I32,
 		}
 	case *ast.UnaryExpr:
 		subExpr := a.analyzeExpr(expr.Expr)
@@ -47,8 +53,8 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 			Expr: subExpr,
 		}
 	case *ast.BinaryExpr:
-		left := a.analyzeExpr(expr.Left)
-		right := a.analyzeExpr(expr.Right)
+		left := a.analyzeExpr(expr.Left, expect...)
+		right := a.expectTypeExpr(expr.Right, left.GetType())
 		var op hir.BinaryOp
 		switch expr.Op.OriginText {
 		case "+":
@@ -76,16 +82,16 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 			Right: right,
 		}
 	case *ast.FuncExpr:
-		a.scope = &hir.Scope{Parent: a.scope, Types: make(map[string]hir.Type)}
+		scope := hir.NewBlockScope(a.scope)
+		a.scope = scope
 
-		var params []*hir.ParamDecl
+		var params []*hir.Param
 		for _, p := range expr.Params {
 			paramType := a.analyzeType(p.Type)
-			params = append(params, &hir.ParamDecl{
+			params = append(params, &hir.Param{
 				Name: p.Name.OriginText,
 				Type: paramType,
 			})
-			a.scope.Types[p.Name.OriginText] = paramType
 		}
 
 		var returnType hir.Type = hir.Unit
@@ -93,10 +99,21 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 			returnType = a.analyzeType(rtAst)
 		}
 
+		ft := hir.NewFuncType(returnType, stlslices.Map(params, func(i int, p *hir.Param) hir.Type {
+			return p.Type
+		})...)
+		scope.SetFuncType(ft)
+
+		for _, p := range params {
+			a.scope.AddValue(p)
+		}
+
 		var body optional.Optional[*hir.Block]
 		if b, ok := expr.Body.Value(); ok {
 			body = optional.Some(a.analyzeBlock(b))
 		}
+
+		a.scope = stlval.IgnoreWith(a.scope.Parent())
 
 		return &hir.FuncExpr{
 			Params:     params,
@@ -111,7 +128,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 // 期待类型，两个类型必须完全相同
 func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) hir.Expr {
 	v := a.analyzeExpr(expr, expect)
-	if vt := v.GetType(); vt.Equal(expect) {
+	if vt := v.GetType(); !vt.Equal(expect) {
 		a.reporter.Fatalf(
 			expr.Position(),
 			report.Errors.UnexpectedType,

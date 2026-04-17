@@ -62,3 +62,11 @@ func (l *Let) print(p *printer) {
 	p.WriteString(" = ")
 	p.WriteBy(l.Value)
 }
+
+func (l *Let) GetName() string {
+	return l.Name
+}
+
+func (l *Let) GetType() Type {
+	return l.Value.GetType()
+}

@@ -14,13 +14,21 @@ func (p *Program) print(pr *printer) {
 	}
 }
 
-type ParamDecl struct {
+type Param struct {
 	Name string
 	Type Type
 }
 
-func (p *ParamDecl) print(pr *printer) {
+func (p *Param) print(pr *printer) {
 	pr.WriteString(p.Name)
 	pr.WriteString(": ")
 	pr.WriteBy(p.Type)
+}
+
+func (p *Param) GetName() string {
+	return p.Name
+}
+
+func (p *Param) GetType() Type {
+	return p.Type
 }
