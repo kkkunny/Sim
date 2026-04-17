@@ -1,4 +1,4 @@
-package token
+package reader
 
 import (
 	"fmt"
@@ -6,13 +6,15 @@ import (
 
 // Position 位置
 type Position struct {
-	BeginOffset, EndOffset             uint
-	BeginRow, BeginCol, EndRow, EndCol uint
+	Reader                             Reader
+	BeginOffset, EndOffset             int64
+	BeginRow, BeginCol, EndRow, EndCol int64
 }
 
 // MixPosition 混合两个位置
 func MixPosition(begin, end Position) Position {
 	return Position{
+		Reader:      begin.Reader,
 		BeginOffset: begin.BeginOffset,
 		EndOffset:   end.EndOffset,
 		BeginRow:    begin.BeginRow,

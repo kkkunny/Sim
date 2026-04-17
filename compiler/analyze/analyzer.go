@@ -3,22 +3,19 @@ package analyze
 import (
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/report"
 )
 
 type Analyzer struct {
-	scope *Scope
+	reporter *report.Reporter
+	scope    *hir.Scope
 }
 
-type Scope struct {
-	parent *Scope
-	types  map[string]hir.Type
-}
-
-func NewAnalyzer() *Analyzer {
+func NewAnalyzer(reporter *report.Reporter) *Analyzer {
 	return &Analyzer{
-		scope: &Scope{
-			parent: nil,
-			types:  make(map[string]hir.Type),
+		reporter: reporter,
+		scope: &hir.Scope{
+			Types: make(map[string]hir.Type),
 		},
 	}
 }

@@ -13,6 +13,7 @@ type Kind uint8
 var KindEnum = enum.New[struct {
 	Illegal Kind `text:"illegal"`
 	Eof     Kind `text:"eof"`
+	Br      Kind `text:"br"`
 
 	Ident   Kind `text:"ident"`
 	Integer Kind `text:"integer"`
