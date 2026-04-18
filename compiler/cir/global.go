@@ -19,6 +19,10 @@ type FuncDecl struct {
 }
 
 func (b *Builder) BuildFuncDecl(name string, rt Type, params []*ParamDecl) *FuncDecl {
+	b.varCount++
+	if name == "" {
+		name = fmt.Sprintf("_v%d", b.varCount)
+	}
 	g := &FuncDecl{
 		Name:       name,
 		Params:     params,

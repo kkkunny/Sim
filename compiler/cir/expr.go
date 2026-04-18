@@ -95,3 +95,14 @@ func (e *BinaryExpr) print(p *printer) {
 	p.WriteBy(e.Right)
 	p.WriteString(")")
 }
+
+type FuncExpr struct {
+	Decl *FuncDecl
+}
+
+func (*FuncExpr) local() {}
+func (*FuncExpr) expr()  {}
+
+func (e *FuncExpr) print(p *printer) {
+	p.WriteString(e.Decl.Name)
+}

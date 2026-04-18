@@ -3,6 +3,7 @@ package hir
 import "github.com/kkkunny/stl/container/optional"
 
 type Scope interface {
+	Package() *PkgScope
 	Parent() (Scope, bool)
 	AddValue(v Ident)
 	Lookup(name string) (Ident, bool)
@@ -20,6 +21,10 @@ type PkgScope struct {
 
 func NewPkgScope() *PkgScope {
 	return &PkgScope{values: make(map[string]Ident)}
+}
+
+func (s *PkgScope) Package() *PkgScope {
+	return s
 }
 
 func (s *PkgScope) Parent() (Scope, bool) {
@@ -43,6 +48,10 @@ type BlockScope struct {
 
 func NewBlockScope(p Scope) *BlockScope {
 	return &BlockScope{parent: p, values: make(map[string]Ident)}
+}
+
+func (s *BlockScope) Package() *PkgScope {
+	return s.parent.Package()
 }
 
 func (s *BlockScope) Parent() (Scope, bool) {

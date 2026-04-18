@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir"
 )
@@ -14,49 +16,73 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 	case *hir.FloatExpr:
 		return &cir.FloatExpr{Value: expr.Value}
 	case *hir.UnaryExpr:
-		return &cir.UnaryExpr{
-			Op:   c.buildUnaryOp(expr.Op),
-			Expr: c.buildExpr(expr.Expr),
-		}
+		return c.buildUnaryOp(expr)
 	case *hir.BinaryExpr:
-		return &cir.BinaryExpr{
-			Op:    c.buildBinaryOp(expr.Op),
-			Left:  c.buildExpr(expr.Left),
-			Right: c.buildExpr(expr.Right),
-		}
+		return c.buildBinaryExpr(expr)
+	case *hir.FuncExpr:
+		return c.buildFuncExpr(expr)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildUnaryOp(op hir.UnaryOp) cir.UnaryOp {
-	switch op {
+func (c *CodeGenerator) buildUnaryOp(expr *hir.UnaryExpr) *cir.UnaryExpr {
+	var op cir.UnaryOp
+	switch expr.Op {
 	case hir.UnaryOpEnum.Not:
-		return cir.UnaryOpEnum.Not
+		op = cir.UnaryOpEnum.Not
 	default:
 		panic("unreachable")
+	}
+	return &cir.UnaryExpr{
+		Op:   op,
+		Expr: c.buildExpr(expr.Expr),
 	}
 }
 
-func (c *CodeGenerator) buildBinaryOp(op hir.BinaryOp) cir.BinaryOp {
-	switch op {
+func (c *CodeGenerator) buildBinaryExpr(expr *hir.BinaryExpr) *cir.BinaryExpr {
+	var op cir.BinaryOp
+	switch expr.Op {
 	case hir.BinaryOpEnum.Add:
-		return cir.BinaryOpEnum.Add
+		op = cir.BinaryOpEnum.Add
 	case hir.BinaryOpEnum.Sub:
-		return cir.BinaryOpEnum.Sub
+		op = cir.BinaryOpEnum.Sub
 	case hir.BinaryOpEnum.Mul:
-		return cir.BinaryOpEnum.Mul
+		op = cir.BinaryOpEnum.Mul
 	case hir.BinaryOpEnum.Quo:
-		return cir.BinaryOpEnum.Quo
+		op = cir.BinaryOpEnum.Quo
 	case hir.BinaryOpEnum.Rem:
-		return cir.BinaryOpEnum.Rem
+		op = cir.BinaryOpEnum.Rem
 	case hir.BinaryOpEnum.And:
-		return cir.BinaryOpEnum.And
+		op = cir.BinaryOpEnum.And
 	case hir.BinaryOpEnum.Or:
-		return cir.BinaryOpEnum.Or
+		op = cir.BinaryOpEnum.Or
 	case hir.BinaryOpEnum.Xor:
-		return cir.BinaryOpEnum.Xor
+		op = cir.BinaryOpEnum.Xor
 	default:
 		panic("unreachable")
 	}
+	return &cir.BinaryExpr{
+		Op:    op,
+		Left:  c.buildExpr(expr.Left),
+		Right: c.buildExpr(expr.Right),
+	}
+}
+
+func (c *CodeGenerator) buildFuncExpr(expr *hir.FuncExpr) *cir.FuncExpr {
+	var body optional.Optional[*cir.Block]
+	if b, ok := expr.Body.Value(); ok {
+		body = optional.Some(c.buildBlock(b))
+	}
+	returnType := c.buildType(expr.ReturnType)
+	params := make([]*cir.ParamDecl, len(expr.Params))
+	for i, p := range expr.Params {
+		params[i] = &cir.ParamDecl{
+			Name: p.Name,
+			Type: c.buildType(p.Type),
+		}
+	}
+	decl := c.builder.BuildFuncDecl("", returnType, params)
+	decl.Body = body
+	return &cir.FuncExpr{Decl: decl}
 }
