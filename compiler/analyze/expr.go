@@ -97,7 +97,8 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 			Right: right,
 		}
 	case *ast.FuncExpr:
-		scope := hir.NewBlockScope(a.scope)
+		ps := a.scope
+		scope := hir.NewBlockScope(a.scope.Package())
 		a.scope = scope
 
 		var params []*hir.Param
@@ -128,7 +129,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 			body = optional.Some(a.analyzeBlock(b))
 		}
 
-		a.scope = stlval.IgnoreWith(a.scope.Parent())
+		a.scope = ps
 
 		return &hir.FuncExpr{
 			Params:     params,
