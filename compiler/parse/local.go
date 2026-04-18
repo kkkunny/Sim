@@ -50,7 +50,6 @@ func (p *Parser) parseLet() *ast.Let {
 	p.expect(token.KindEnum.Let)
 	name := p.expect(token.KindEnum.Ident)
 	p.expect(token.KindEnum.Assign)
-	p.skip(token.KindEnum.Br)
 	value := p.parseExpr()
 	return &ast.Let{Name: name, Value: value}
 }

@@ -59,11 +59,10 @@ func (p *Parser) Parse() *ast.Program {
 	var globals []ast.Global
 	for {
 		p.skip(token.KindEnum.Sem, token.KindEnum.Br)
-		globals = append(globals, p.parseGlobal())
 		if p.nextToken.Kind == token.KindEnum.Eof {
 			break
 		}
-		p.expect(token.KindEnum.Sem)
+		globals = append(globals, p.parseGlobal())
 	}
 	return &ast.Program{Globals: globals}
 }

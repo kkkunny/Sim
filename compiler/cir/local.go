@@ -53,7 +53,7 @@ func (*VarDecl) local() {}
 func (l *VarDecl) print(p *printer) {
 	l.Type.printWithName(p, l.Name)
 	if value, ok := l.Value.Value(); ok {
-		p.WriteString(" ")
+		p.WriteString(" = ")
 		p.WriteBy(value)
 	}
 	p.WriteString(";")
