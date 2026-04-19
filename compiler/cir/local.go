@@ -73,21 +73,33 @@ type VarDecl struct {
 	Value optional.Optional[Expr]
 }
 
-func (c *Builder) BuildLocalVarDecl(t Type, name string, value ...Expr) *VarDecl {
-	c.at.varCount++
-	if name == "" {
-		name = fmt.Sprintf("_v%d", c.at.varCount)
+func (c *Builder) BuildVarDecl(t Type, name string, value ...Expr) *VarDecl {
+	if c.at != nil {
+		c.at.varCount++
+		if name == "" {
+			name = fmt.Sprintf("_v%d", c.at.varCount)
+		}
+	} else {
+		c.globalVarCount++
+		if name == "" {
+			name = fmt.Sprintf("_g%d", c.globalVarCount)
+		}
 	}
-	local := &VarDecl{
+	decl := &VarDecl{
 		Type:  t,
 		Name:  name,
 		Value: optional.UnEmpty(stlslices.Last(value)),
 	}
-	c.at.Stmts = append(c.at.Stmts, local)
-	return local
+	if c.at != nil {
+		c.at.Stmts = append(c.at.Stmts, decl)
+	} else {
+		c.Globals = append(c.Globals, decl)
+	}
+	return decl
 }
 
-func (*VarDecl) local() {}
+func (*VarDecl) global() {}
+func (*VarDecl) local()  {}
 
 func (l *VarDecl) print(p *printer) {
 	l.Type.printWithName(p, l.Name)
