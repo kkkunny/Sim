@@ -163,10 +163,8 @@ func (t *FuncType) print(p *printer) {
 		}
 	}
 	p.WriteString(")")
-	if t.Return != Unit {
-		p.WriteString(" -> ")
-		p.WriteBy(t.Return)
-	}
+	p.WriteString(" -> ")
+	p.WriteBy(t.Return)
 }
 
 func (t *FuncType) String() string {
