@@ -31,6 +31,8 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 		return a.analyseCall(expr)
 	case *ast.Tuple:
 		return a.analyzeTuple(expr, expect...)
+	case *ast.Index:
+		return a.analyzeIndex(expr)
 	default:
 		panic("unreachable")
 	}
@@ -236,4 +238,17 @@ func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) hir.Expr {
 	}
 
 	return hir.NewTuple(elems...)
+}
+
+func (a *Analyzer) analyzeIndex(expr *ast.Index) *hir.Index {
+	from := expectTypeExpr[*hir.TupleType](a, expr.From)
+	index := expectTypeExpr[hir.IntegerType](a, expr.Index)
+	indexValue, ok := index.(*hir.Integer)
+	if !ok {
+		a.reporter.Fatalf(
+			expr.Index.Position(),
+			report.Errors.ExpectedIntegerConstant,
+		)
+	}
+	return hir.NewIndex(from, indexValue.Value)
 }

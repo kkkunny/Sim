@@ -167,3 +167,23 @@ func (e *Tuple) print(p *printer) {
 func (e *Tuple) Position() reader.Position {
 	return reader.MixPosition(e.BeginPosition, e.EndPosition)
 }
+
+type Index struct {
+	From        Expr
+	Index       Expr
+	EndPosition reader.Position
+}
+
+func (e *Index) local() {}
+func (e *Index) expr()  {}
+
+func (e *Index) print(p *printer) {
+	p.WriteBy(e.From)
+	p.WriteString("[")
+	p.WriteBy(e.Index)
+	p.WriteString("]")
+}
+
+func (e *Index) Position() reader.Position {
+	return reader.MixPosition(e.From.Position(), e.EndPosition)
+}

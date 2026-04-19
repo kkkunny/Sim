@@ -193,3 +193,30 @@ func (e *Tuple) GetType() Type {
 		return e.GetType()
 	})...)
 }
+
+type Index struct {
+	From  Expr
+	Index *big.Int
+}
+
+func NewIndex(from Expr, index *big.Int) *Index {
+	return &Index{
+		From:  from,
+		Index: index,
+	}
+}
+
+func (*Index) expr()  {}
+func (*Index) local() {}
+
+func (e *Index) print(p *printer) {
+	p.WriteBy(e.From)
+	p.WriteString("[")
+	p.WriteString(e.Index.String())
+	p.WriteString("]")
+}
+
+func (e *Index) GetType() Type {
+	elems := e.From.GetType().(*TupleType).Elems
+	return elems[e.Index.Int64()]
+}

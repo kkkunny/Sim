@@ -30,6 +30,8 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildCall(expr)
 	case *hir.Tuple:
 		return c.buildTuple(expr)
+	case *hir.Index:
+		return c.buildIndex(expr)
 	default:
 		panic("unreachable")
 	}
@@ -200,4 +202,9 @@ func (c *CodeGenerator) buildTuple(expr *hir.Tuple) *cir.Struct {
 		fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(e)
 	}
 	return cir.NewStruct(fields)
+}
+
+func (c *CodeGenerator) buildIndex(expr *hir.Index) *cir.Member {
+	from := c.buildExpr(expr.From)
+	return cir.NewMember(from, fmt.Sprintf("_f%d", expr.Index.Int64()+1))
 }

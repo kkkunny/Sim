@@ -15,6 +15,7 @@ var Errors = enum.New[struct {
 	UnexpectedExpression     Error `enum:"unexpected expression" format:"expected expression type '%s' but got '%s'"`
 	UnexpectedExpressionType Error `enum:"unexpected expression type" format:"expected a '%s' expression but got '%s'"`
 	InsufficientArguments    Error `enum:"insufficient arguments" format:"expected %d arguments but got %d"`
+	ExpectedIntegerConstant  Error `enum:"expected integer constant" format:"expected a integer constant"`
 }]()
 
 var errorFormats = func() map[Error]string {

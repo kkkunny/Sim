@@ -1,9 +1,12 @@
 #ifndef _SIM_BUILDIN
 #define _SIM_BUILDIN	1
 
+// 工具
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
+typedef struct{} ZERO_TYPE;
+#define ZERO_TYPE_VALUE (ZERO_TYPE){}
 
 // 基础类型
 #define i8 signed char
@@ -132,5 +135,12 @@
 #define FUNCEXPR_F(expr) {.func.f=expr, .ctx=NULL}
 #define FUNCEXPR_C(expr, ctxv) {.func.c=expr, .ctx=ctxv}
 #define FUNCCALL(expr, ...) expr.ctx==NULL?expr.func.f(__VA_ARGS__):expr.func.c(expr.ctx, __VA_ARGS__)
+
+// 主函数
+static void sim_main();
+int main(){
+    sim_main();
+    return 0;
+}
 
 #endif
