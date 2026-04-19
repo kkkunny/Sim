@@ -194,29 +194,29 @@ func (e *Tuple) GetType() Type {
 	})...)
 }
 
-type Index struct {
+type TupleIndex struct {
 	From  Expr
 	Index *big.Int
 }
 
-func NewIndex(from Expr, index *big.Int) *Index {
-	return &Index{
+func NewTupleIndex(from Expr, index *big.Int) *TupleIndex {
+	return &TupleIndex{
 		From:  from,
 		Index: index,
 	}
 }
 
-func (*Index) expr()  {}
-func (*Index) local() {}
+func (*TupleIndex) expr()  {}
+func (*TupleIndex) local() {}
 
-func (e *Index) print(p *printer) {
+func (e *TupleIndex) print(p *printer) {
 	p.WriteBy(e.From)
 	p.WriteString("[")
 	p.WriteString(e.Index.String())
 	p.WriteString("]")
 }
 
-func (e *Index) GetType() Type {
+func (e *TupleIndex) GetType() Type {
 	elems := e.From.GetType().(*TupleType).Elems
 	return elems[e.Index.Int64()]
 }
@@ -246,4 +246,30 @@ func (e *Array) print(p *printer) {
 
 func (e *Array) GetType() Type {
 	return e.Type
+}
+
+type ArrayIndex struct {
+	From  Expr
+	Index Expr
+}
+
+func NewArrayIndex(from, index Expr) *ArrayIndex {
+	return &ArrayIndex{
+		From:  from,
+		Index: index,
+	}
+}
+
+func (*ArrayIndex) expr()  {}
+func (*ArrayIndex) local() {}
+
+func (e *ArrayIndex) print(p *printer) {
+	p.WriteBy(e.From)
+	p.WriteString("[")
+	p.WriteBy(e.Index)
+	p.WriteString("]")
+}
+
+func (e *ArrayIndex) GetType() Type {
+	return e.From.GetType().(*ArrayType).Elem
 }
