@@ -28,6 +28,12 @@ func (p *Parser) parseType() ast.Type {
 
 		returnType := optional.Some(p.parseType())
 		return &ast.FuncType{BeginPosition: begin, Params: elems, ReturnType: returnType, EndPosition: p.curToken.Position}
+	case token.KindEnum.Lba:
+		begin := p.expect(token.KindEnum.Lba).Position
+		size := p.expect(token.KindEnum.Integer)
+		p.expect(token.KindEnum.Rba)
+		elem := p.parseType()
+		return &ast.ArrayType{BeginPosition: begin, Size: size, Elem: elem}
 	default:
 		name := p.expect(token.KindEnum.Ident)
 		return &ast.IdentType{Name: name}
