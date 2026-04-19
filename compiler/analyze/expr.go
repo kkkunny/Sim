@@ -13,6 +13,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/report"
 	"github.com/kkkunny/Sim/compiler/token"
 )
@@ -96,15 +97,9 @@ func (a *Analyzer) analyseInteger(expr *ast.Integer, expect ...hir.Type) hir.Exp
 	}
 	v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
 	if stlval.Is[hir.IntegerType](t) {
-		return &hir.Integer{
-			Type:  t,
-			Value: big.NewInt(v),
-		}
+		return hir.NewInteger(t, big.NewInt(v))
 	} else {
-		return &hir.Float{
-			Type:  t,
-			Value: big.NewFloat(float64(v)),
-		}
+		return hir.NewFloat(t, big.NewFloat(float64(v)))
 	}
 }
 
@@ -195,11 +190,7 @@ func (a *Analyzer) analyseFunc(expr *ast.Func) *hir.Func {
 	var params []*hir.Param
 	for _, p := range expr.Params {
 		paramType := a.analyzeType(p.Type)
-		params = append(params, &hir.Param{
-			Mut:  p.Mut,
-			Name: p.Name.OriginText,
-			Type: paramType,
-		})
+		params = append(params, hir.NewParam(p.Mut, paramType, p.Name.OriginText))
 	}
 
 	var returnType hir.Type = hir.Unit
@@ -225,12 +216,10 @@ func (a *Analyzer) analyseFunc(expr *ast.Func) *hir.Func {
 
 	a.scope = stlval.IgnoreWith(a.scope.Parent())
 
-	return &hir.Func{
-		Params:                params,
-		ReturnType:            returnType,
-		Body:                  body,
-		UsedExternalVariables: externalVars,
-	}
+	f := hir.NewFunc(returnType, params...)
+	f.Body = body
+	f.UsedExternalVariables = externalVars
+	return f
 }
 
 func (a *Analyzer) analyseCall(expr *ast.Call) *hir.Call {
@@ -340,4 +329,38 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *hir.Array 
 	})
 
 	return hir.NewArray(hir.NewArrayType(big.NewInt(int64(len(elems))), expectElemType), elems...)
+}
+
+func (a *Analyzer) zeroExpr(pos reader.Position, t hir.Type) hir.Expr {
+	switch t := t.(type) {
+	case hir.IntegerType:
+		return hir.NewInteger(t, big.NewInt(0))
+	case *hir.FloatType:
+		return hir.NewFloat(t, big.NewFloat(0))
+	case *hir.FuncType:
+		var returnValue hir.Expr
+		if !t.Return.Equal(hir.Unit) {
+			returnValue = a.zeroExpr(pos, t.Return)
+		}
+		f := hir.NewFunc(t.Return, stlslices.Map(t.Params, func(i int, pt hir.Type) *hir.Param {
+			return hir.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
+		})...)
+		block := hir.NewBlock()
+		if returnValue != nil {
+			block.Stmts = append(block.Stmts, hir.NewReturn(returnValue))
+		}
+		f.Body = optional.Some(block)
+		return f
+	case *hir.TupleType:
+		return hir.NewEmptyTuple(t)
+	case *hir.ArrayType:
+		return hir.NewEmptyArray(t)
+	default:
+		a.reporter.Fatalf(
+			pos,
+			report.Errors.TypeMissingDefaultValue,
+			t,
+		)
+		return nil
+	}
 }

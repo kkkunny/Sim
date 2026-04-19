@@ -60,7 +60,8 @@ func (r *Return) print(p *printer) {
 type Let struct {
 	Mut   bool
 	Name  token.Token
-	Value Expr
+	Type  optional.Optional[Type]
+	Value optional.Optional[Expr]
 }
 
 func (*Let) local()  {}
@@ -72,6 +73,12 @@ func (l *Let) print(p *printer) {
 		p.WriteString("mut ")
 	}
 	p.WriteToken(l.Name)
-	p.WriteString(" = ")
-	p.WriteBy(l.Value)
+	if t, ok := l.Type.Value(); ok {
+		p.WriteString(": ")
+		p.WriteBy(t)
+	}
+	if v, ok := l.Value.Value(); ok {
+		p.WriteString(" = ")
+		p.WriteBy(v)
+	}
 }
