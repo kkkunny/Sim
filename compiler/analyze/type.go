@@ -51,6 +51,11 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			rt = a.analyzeType(returnType)
 		}
 		return hir.NewFuncType(rt, params...)
+	case *ast.TupleType:
+		elems := stlslices.Map(t.Elems, func(_ int, p ast.Type) hir.Type {
+			return a.analyzeType(p)
+		})
+		return hir.NewTupleType(elems...)
 	default:
 		panic("unreachable")
 	}

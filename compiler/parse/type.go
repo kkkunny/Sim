@@ -12,22 +12,22 @@ func (p *Parser) parseType() ast.Type {
 	case token.KindEnum.Lpa:
 		begin := p.expect(token.KindEnum.Lpa).Position
 		p.skip(token.KindEnum.Br)
-		var params []ast.Type
+		var elems []ast.Type
 		for p.nextToken.Kind != token.KindEnum.Rpa {
-			params = append(params, p.parseType())
+			elems = append(elems, p.parseType())
 			if !p.ifSkip(token.KindEnum.Comma) {
 				break
 			}
 			p.skip(token.KindEnum.Br)
 		}
-		p.expect(token.KindEnum.Rpa)
+		end := p.expect(token.KindEnum.Rpa).Position
 
-		var returnType optional.Optional[ast.Type]
-		if p.ifSkip(token.KindEnum.Arrow) {
-			returnType = optional.Some(p.parseType())
+		if !p.ifSkip(token.KindEnum.Arrow) {
+			return &ast.TupleType{BeginPosition: begin, Elems: elems, EndPosition: end}
 		}
 
-		return &ast.FuncType{BeginPosition: begin, Params: params, ReturnType: returnType, EndPosition: p.curToken.Position}
+		returnType := optional.Some(p.parseType())
+		return &ast.FuncType{BeginPosition: begin, Params: elems, ReturnType: returnType, EndPosition: p.curToken.Position}
 	default:
 		name := p.expect(token.KindEnum.Ident)
 		return &ast.IdentType{Name: name}

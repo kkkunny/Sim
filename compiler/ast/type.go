@@ -54,3 +54,26 @@ func (t *FuncType) print(p *printer) {
 func (t *FuncType) Position() reader.Position {
 	return reader.MixPosition(t.BeginPosition, t.EndPosition)
 }
+
+type TupleType struct {
+	BeginPosition reader.Position
+	Elems         []Type
+	EndPosition   reader.Position
+}
+
+func (t *TupleType) typ() {}
+
+func (t *TupleType) print(p *printer) {
+	p.WriteString("(")
+	for i, elem := range t.Elems {
+		if i > 0 {
+			p.WriteString(", ")
+		}
+		p.WriteBy(elem)
+	}
+	p.WriteString(")")
+}
+
+func (t *TupleType) Position() reader.Position {
+	return reader.MixPosition(t.BeginPosition, t.EndPosition)
+}
