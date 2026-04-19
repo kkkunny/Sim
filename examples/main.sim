@@ -1,5 +1,6 @@
+let sub = (a: i32, b: i32) -> i32 {
+	return a - b
+}
 let add = (a: i32, b: i32) {
-	let sub = (a: i32, b: i32) -> i32 {
-		return a - b
-	}
+	let sub = sub(2, 1)
 }

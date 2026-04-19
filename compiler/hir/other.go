@@ -19,6 +19,9 @@ type Param struct {
 	Type Type
 }
 
+func (*Param) local() {}
+func (*Param) expr()  {}
+
 func (p *Param) print(pr *printer) {
 	pr.WriteString(p.Name)
 	pr.WriteString(": ")

@@ -14,51 +14,35 @@ type Expr interface {
 	GetType() Type
 }
 
-type IdentExpr struct {
-	Name string
-	Type Type
-}
-
-func (*IdentExpr) expr()  {}
-func (*IdentExpr) local() {}
-
-func (e *IdentExpr) print(p *printer) {
-	p.WriteString(e.Name)
-}
-
-func (e *IdentExpr) GetType() Type {
-	return e.Type
-}
-
-type IntegerExpr struct {
+type Integer struct {
 	Type  Type
 	Value *big.Int
 }
 
-func (*IntegerExpr) expr()  {}
-func (*IntegerExpr) local() {}
+func (*Integer) expr()  {}
+func (*Integer) local() {}
 
-func (e *IntegerExpr) print(p *printer) {
+func (e *Integer) print(p *printer) {
 	p.WriteString(e.Value.String())
 }
 
-func (e *IntegerExpr) GetType() Type {
+func (e *Integer) GetType() Type {
 	return e.Type
 }
 
-type FloatExpr struct {
+type Float struct {
 	Type  Type
 	Value *big.Float
 }
 
-func (*FloatExpr) expr()  {}
-func (*FloatExpr) local() {}
+func (*Float) expr()  {}
+func (*Float) local() {}
 
-func (e *FloatExpr) print(p *printer) {
+func (e *Float) print(p *printer) {
 	p.WriteString(e.Value.String())
 }
 
-func (e *FloatExpr) GetType() Type {
+func (e *Float) GetType() Type {
 	return e.Type
 }
 
@@ -68,22 +52,22 @@ var UnaryOpEnum = enum.New[struct {
 	Not UnaryOp `enum:"!"`
 }]()
 
-type UnaryExpr struct {
+type Unary struct {
 	Op   UnaryOp
 	Expr Expr
 }
 
-func (*UnaryExpr) expr()  {}
-func (*UnaryExpr) local() {}
+func (*Unary) expr()  {}
+func (*Unary) local() {}
 
-func (e *UnaryExpr) print(p *printer) {
+func (e *Unary) print(p *printer) {
 	p.WriteString("(")
 	p.WriteString(string(e.Op))
 	p.WriteBy(e.Expr)
 	p.WriteString(")")
 }
 
-func (e *UnaryExpr) GetType() Type {
+func (e *Unary) GetType() Type {
 	return e.Expr.GetType()
 }
 
@@ -100,16 +84,16 @@ var BinaryOpEnum = enum.New[struct {
 	Xor BinaryOp `enum:"^"`
 }]()
 
-type BinaryExpr struct {
+type Binary struct {
 	Op    BinaryOp
 	Left  Expr
 	Right Expr
 }
 
-func (*BinaryExpr) expr()  {}
-func (*BinaryExpr) local() {}
+func (*Binary) expr()  {}
+func (*Binary) local() {}
 
-func (e *BinaryExpr) print(p *printer) {
+func (e *Binary) print(p *printer) {
 	p.WriteString("(")
 	p.WriteBy(e.Left)
 	p.WriteString(" ")
@@ -119,26 +103,26 @@ func (e *BinaryExpr) print(p *printer) {
 	p.WriteString(")")
 }
 
-func (e *BinaryExpr) GetType() Type {
+func (e *Binary) GetType() Type {
 	return e.Left.GetType()
 }
 
-type FuncExpr struct {
+type Func struct {
 	Params     []*Param
 	ReturnType Type
 	Body       optional.Optional[*Block]
 }
 
-func (*FuncExpr) expr()  {}
-func (*FuncExpr) local() {}
+func (*Func) expr()  {}
+func (*Func) local() {}
 
-func (e *FuncExpr) print(p *printer) {
+func (e *Func) print(p *printer) {
 	p.WriteString("(")
 	for i, param := range e.Params {
-		if i > 0 {
+		p.WriteBy(param)
+		if i < len(e.Params)-1 {
 			p.WriteString(", ")
 		}
-		p.WriteBy(param)
 	}
 	p.WriteString(")")
 	p.WriteString(" -> ")
@@ -149,9 +133,33 @@ func (e *FuncExpr) print(p *printer) {
 	}
 }
 
-func (e *FuncExpr) GetType() Type {
+func (e *Func) GetType() Type {
 	params := stlslices.Map(e.Params, func(_ int, param *Param) Type {
 		return param.Type
 	})
 	return NewFuncType(e.ReturnType, params...)
+}
+
+type Call struct {
+	Func Expr
+	Args []Expr
+}
+
+func (*Call) expr()  {}
+func (*Call) local() {}
+
+func (e *Call) print(p *printer) {
+	p.WriteBy(e.Func)
+	p.WriteString("(")
+	for i, param := range e.Args {
+		p.WriteBy(param)
+		if i < len(e.Args)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}
+
+func (e *Call) GetType() Type {
+	return e.Func.GetType().(*FuncType).Return
 }
