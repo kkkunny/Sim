@@ -2,7 +2,7 @@ module github.com/kkkunny/Sim
 
 go 1.25.0
 
-require github.com/kkkunny/stl v0.0.0-20260415114356-055a9d0f481e
+require github.com/kkkunny/stl v0.0.0-20260419043926-054b0441b9a5
 
 require golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 
