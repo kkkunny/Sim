@@ -33,6 +33,8 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 		return a.analyzeTuple(expr, expect...)
 	case *ast.Index:
 		return a.analyzeIndex(expr)
+	case *ast.Array:
+		return a.analyzeArray(expr, expect...)
 	default:
 		panic("unreachable")
 	}
@@ -251,4 +253,39 @@ func (a *Analyzer) analyzeIndex(expr *ast.Index) *hir.Index {
 		)
 	}
 	return hir.NewIndex(from, indexValue.Value)
+}
+
+func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *hir.Array {
+	var expectElemType hir.Type
+	if len(expect) > 0 {
+		if at, ok := stlslices.Last(expect).(*hir.ArrayType); ok && at.Size.Int64() == int64(len(expr.Elems)) {
+			expectElemType = at.Elem
+		}
+	}
+
+	if len(expr.Elems) == 0 {
+		if expectElemType == nil {
+			a.reporter.Fatalf(
+				expr.Position(),
+				report.Errors.TypeLoss,
+			)
+		}
+		return hir.NewArray(expectElemType)
+	}
+
+	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) hir.Expr {
+		if i == 0 {
+			var elemExpect []hir.Type
+			if expectElemType != nil {
+				elemExpect = []hir.Type{expectElemType}
+			}
+			v := a.analyzeExpr(e, elemExpect...)
+			expectElemType = v.GetType()
+			return v
+		} else {
+			return a.expectTypeExpr(e, expectElemType)
+		}
+	})
+
+	return hir.NewArray(hir.NewArrayType(big.NewInt(int64(len(elems))), expectElemType), elems...)
 }

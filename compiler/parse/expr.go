@@ -119,6 +119,19 @@ func (p *Parser) parsePrimaryExpr() (expr ast.Expr) {
 		}
 		end := p.expect(token.KindEnum.Rpa).Position
 		return &ast.Tuple{BeginPosition: begin, Elems: elems, EndPosition: end}
+	case token.KindEnum.Lba:
+		begin := p.expect(token.KindEnum.Lba).Position
+		p.skip(token.KindEnum.Br)
+		var elems []ast.Expr
+		for p.nextToken.Kind != token.KindEnum.Rba {
+			elems = append(elems, p.parseExpr())
+			if !p.ifSkip(token.KindEnum.Comma) {
+				break
+			}
+			p.skip(token.KindEnum.Br)
+		}
+		end := p.expect(token.KindEnum.Rba).Position
+		return &ast.Array{BeginPosition: begin, Elems: elems, EndPosition: end}
 	default:
 		p.reporter.Fatalf(
 			p.nextToken.Position,

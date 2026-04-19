@@ -113,14 +113,14 @@ func (c *CodeGenerator) buildTupleType(t *hir.TupleType) *cir.StructType {
 }
 
 func (c *CodeGenerator) buildArrayType(t *hir.ArrayType) *cir.AliasType {
-	key := fmt.Sprintf("closure:%s", t)
+	key := t.String()
 	at, ok := c.typeCache[key]
 	if ok {
 		return at
 	}
 
 	elem := c.buildType(t.Elem)
-	at = cir.NewAliasType(c.builder.BuildTypedef(cir.NewArrayType(elem, t.Size), ""))
+	at = cir.NewAliasType(c.builder.BuildTypedef(cir.NewStructType("", cir.NewStructTypeField(cir.NewArrayType(elem, t.Size), "array")), ""))
 	c.typeCache[key] = at
 	return at
 }

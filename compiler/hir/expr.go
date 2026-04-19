@@ -220,3 +220,30 @@ func (e *Index) GetType() Type {
 	elems := e.From.GetType().(*TupleType).Elems
 	return elems[e.Index.Int64()]
 }
+
+type Array struct {
+	Type  Type
+	Elems []Expr
+}
+
+func NewArray(t Type, elems ...Expr) *Array {
+	return &Array{Type: t, Elems: elems}
+}
+
+func (*Array) expr()  {}
+func (*Array) local() {}
+
+func (e *Array) print(p *printer) {
+	p.WriteString("[")
+	for i, param := range e.Elems {
+		p.WriteBy(param)
+		if i < len(e.Elems)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString("]")
+}
+
+func (e *Array) GetType() Type {
+	return e.Type
+}
