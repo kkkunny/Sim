@@ -1,4 +1,5 @@
 let a = 1
 
-let mut main = (){
+let main = (){
+	[1, 2][0] = 1
 }

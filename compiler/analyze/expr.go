@@ -166,11 +166,19 @@ func (a *Analyzer) analyseBinary(expr *ast.Binary, expect ...hir.Type) *hir.Bina
 		panic("unreachable")
 	}
 
-	if strings.Contains(expr.Op.Kind.String(), "=") && !left.Mutable() {
-		a.reporter.Fatalf(
-			expr.Left.Position(),
-			report.Errors.MustMutable,
-		)
+	if strings.Contains(expr.Op.Kind.String(), "=") {
+		if left.Temporary() {
+			a.reporter.Fatalf(
+				expr.Left.Position(),
+				report.Errors.MustNotTemporary,
+			)
+		}
+		if !left.Mutable() {
+			a.reporter.Fatalf(
+				expr.Left.Position(),
+				report.Errors.MustMutable,
+			)
+		}
 	}
 
 	return &hir.Binary{
