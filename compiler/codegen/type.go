@@ -53,6 +53,8 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 		return c.buildFuncType(t)
 	case *hir.TupleType:
 		return c.buildTupleType(t)
+	case *hir.ArrayType:
+		return c.buildArrayType(t)
 	default:
 		panic("unreachable")
 	}
@@ -108,4 +110,17 @@ func (c *CodeGenerator) buildTupleType(t *hir.TupleType) *cir.StructType {
 		fields[i] = cir.NewStructTypeField(ft, fn)
 	}
 	return cir.NewStructType("", fields...)
+}
+
+func (c *CodeGenerator) buildArrayType(t *hir.ArrayType) *cir.AliasType {
+	key := fmt.Sprintf("closure:%s", t)
+	at, ok := c.typeCache[key]
+	if ok {
+		return at
+	}
+
+	elem := c.buildType(t.Elem)
+	at = cir.NewAliasType(c.builder.BuildTypedef(cir.NewArrayType(elem, t.Size), ""))
+	c.typeCache[key] = at
+	return at
 }

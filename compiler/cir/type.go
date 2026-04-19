@@ -1,6 +1,8 @@
 package cir
 
 import (
+	"math/big"
+
 	"github.com/kkkunny/stl/enum"
 )
 
@@ -122,7 +124,9 @@ type FuncType struct {
 
 func (*FuncType) typ() {}
 
-func (t *FuncType) print(*printer) {}
+func (t *FuncType) print(*printer) {
+	panic("unreachable")
+}
 
 func (t *FuncType) printWithName(p *printer, name string) {
 	p.WriteBy(t.Return)
@@ -238,7 +242,46 @@ func (t *StructType) print(p *printer) {
 }
 
 func (t *StructType) printWithName(p *printer, name string) {
+	if len(t.Fields) == 0 {
+		p.WriteString("ZERO_TYPE")
+		return
+	}
+
 	p.WriteBy(t)
 	p.WriteString(" ")
 	p.WriteString(name)
+}
+
+type ArrayType struct {
+	Elem Type
+	Size *big.Int
+}
+
+func NewArrayType(elem Type, size *big.Int) *ArrayType {
+	return &ArrayType{Elem: elem, Size: size}
+}
+
+func (*ArrayType) typ() {}
+
+func (t *ArrayType) print(p *printer) {
+	if t.Size.Int64() == 0 {
+		p.WriteString("ZERO_TYPE")
+		return
+	}
+
+	panic("unreachable")
+}
+
+func (t *ArrayType) printWithName(p *printer, name string) {
+	if t.Size.Int64() == 0 {
+		p.WriteString("ZERO_TYPE")
+		return
+	}
+
+	p.WriteBy(t.Elem)
+	p.WriteString(" ")
+	p.WriteString(name)
+	p.WriteString("[")
+	p.WriteString(t.Size.String())
+	p.WriteString("]")
 }

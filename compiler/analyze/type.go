@@ -1,6 +1,9 @@
 package analyze
 
 import (
+	"math/big"
+	"strconv"
+
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -56,6 +59,11 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			return a.analyzeType(p)
 		})
 		return hir.NewTupleType(elems...)
+	case *ast.ArrayType:
+		v, _ := strconv.ParseInt(t.Size.OriginText, 10, 64)
+		size := big.NewInt(v)
+		elem := a.analyzeType(t.Elem)
+		return hir.NewArrayType(size, elem)
 	default:
 		panic("unreachable")
 	}
