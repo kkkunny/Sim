@@ -156,9 +156,9 @@ func (*FuncType) typ() {}
 
 func (t *FuncType) print(p *printer) {
 	p.WriteString("(")
-	for _, param := range t.Params {
+	for i, param := range t.Params {
 		p.WriteBy(param)
-		if param != t.Params[len(t.Params)-1] {
+		if i < len(t.Params)-1 {
 			p.WriteString(", ")
 		}
 	}
@@ -185,5 +185,47 @@ func (t *FuncType) Equal(p Type) bool {
 	}
 	return stlslices.All(t.Params, func(i int, p Type) bool {
 		return p.Equal(dst.Params[i])
+	})
+}
+
+type TupleType struct {
+	Elems []Type
+}
+
+func NewTupleType(elems ...Type) *TupleType {
+	return &TupleType{
+		Elems: elems,
+	}
+}
+
+func (*TupleType) typ() {}
+
+func (t *TupleType) print(p *printer) {
+	p.WriteString("(")
+	for i, param := range t.Elems {
+		p.WriteBy(param)
+		if i < len(t.Elems)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}
+
+func (t *TupleType) String() string {
+	var buf strings.Builder
+	t.print(newPrint(&buf))
+	return buf.String()
+}
+
+func (t *TupleType) Equal(p Type) bool {
+	dst, ok := p.(*TupleType)
+	if !ok {
+		return false
+	}
+	if len(t.Elems) != len(dst.Elems) {
+		return false
+	}
+	return stlslices.All(t.Elems, func(i int, p Type) bool {
+		return p.Equal(dst.Elems[i])
 	})
 }
