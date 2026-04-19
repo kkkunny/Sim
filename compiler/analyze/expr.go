@@ -13,6 +13,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/report"
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
 func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
@@ -109,8 +110,8 @@ func (a *Analyzer) analyseInteger(expr *ast.Integer, expect ...hir.Type) hir.Exp
 func (a *Analyzer) analyseUnary(expr *ast.Unary) *hir.Unary {
 	subExpr := a.analyzeExpr(expr.Expr)
 	var op hir.UnaryOp
-	switch expr.Op.OriginText {
-	case "!":
+	switch expr.Op.Kind {
+	case token.KindEnum.Not:
 		op = hir.UnaryOpEnum.Not
 	default:
 		panic("unreachable")
@@ -125,25 +126,41 @@ func (a *Analyzer) analyseBinary(expr *ast.Binary, expect ...hir.Type) *hir.Bina
 	left := a.analyzeExpr(expr.Left, expect...)
 	right := a.expectTypeExpr(expr.Right, left.GetType())
 	var op hir.BinaryOp
-	switch expr.Op.OriginText {
-	case "+":
+	switch expr.Op.Kind {
+	case token.KindEnum.Add:
 		op = hir.BinaryOpEnum.Add
-	case "-":
+	case token.KindEnum.Sub:
 		op = hir.BinaryOpEnum.Sub
-	case "*":
+	case token.KindEnum.Mul:
 		op = hir.BinaryOpEnum.Mul
-	case "/":
+	case token.KindEnum.Quo:
 		op = hir.BinaryOpEnum.Quo
-	case "%":
+	case token.KindEnum.Rem:
 		op = hir.BinaryOpEnum.Rem
-	case "&":
+	case token.KindEnum.And:
 		op = hir.BinaryOpEnum.And
-	case "|":
+	case token.KindEnum.Or:
 		op = hir.BinaryOpEnum.Or
-	case "^":
+	case token.KindEnum.Xor:
 		op = hir.BinaryOpEnum.Xor
-	case "=":
+	case token.KindEnum.Assign:
 		op = hir.BinaryOpEnum.Assign
+	case token.KindEnum.AddAssign:
+		op = hir.BinaryOpEnum.AddAssign
+	case token.KindEnum.SubAssign:
+		op = hir.BinaryOpEnum.SubAssign
+	case token.KindEnum.MulAssign:
+		op = hir.BinaryOpEnum.MulAssign
+	case token.KindEnum.QuoAssign:
+		op = hir.BinaryOpEnum.QuoAssign
+	case token.KindEnum.RemAssign:
+		op = hir.BinaryOpEnum.RemAssign
+	case token.KindEnum.AndAssign:
+		op = hir.BinaryOpEnum.AndAssign
+	case token.KindEnum.OrAssign:
+		op = hir.BinaryOpEnum.OrAssign
+	case token.KindEnum.XorAssign:
+		op = hir.BinaryOpEnum.XorAssign
 	default:
 		panic("unreachable")
 	}

@@ -149,26 +149,72 @@ func (l *Lexer) Scan() token.Token {
 		case '\n':
 			kind = token.KindEnum.Br
 		case '-':
-			if l.peek() == '>' {
+			switch l.peek() {
+			case '>':
 				l.next()
 				kind = token.KindEnum.Arrow
-			} else {
+			case '=':
+				l.next()
+				kind = token.KindEnum.SubAssign
+			default:
 				kind = token.KindEnum.Sub
 			}
 		case '+':
-			kind = token.KindEnum.Add
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.AddAssign
+			default:
+				kind = token.KindEnum.Add
+			}
 		case '*':
-			kind = token.KindEnum.Mul
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.MulAssign
+			default:
+				kind = token.KindEnum.Mul
+			}
 		case '/':
-			kind = token.KindEnum.Quo
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.QuoAssign
+			default:
+				kind = token.KindEnum.Quo
+			}
 		case '%':
-			kind = token.KindEnum.Rem
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.RemAssign
+			default:
+				kind = token.KindEnum.Rem
+			}
 		case '&':
-			kind = token.KindEnum.And
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.AndAssign
+			default:
+				kind = token.KindEnum.And
+			}
 		case '|':
-			kind = token.KindEnum.Or
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.OrAssign
+			default:
+				kind = token.KindEnum.Or
+			}
 		case '^':
-			kind = token.KindEnum.Xor
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.XorAssign
+			default:
+				kind = token.KindEnum.Xor
+			}
 		case '!':
 			kind = token.KindEnum.Not
 		}
