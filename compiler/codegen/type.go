@@ -51,6 +51,8 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 		}
 	case *hir.FuncType:
 		return c.buildFuncType(t)
+	case *hir.TupleType:
+		return c.buildTupleType(t)
 	default:
 		panic("unreachable")
 	}
@@ -96,4 +98,14 @@ func (c *CodeGenerator) buildFuncType(t *hir.FuncType) *cir.MacroType {
 	}
 
 	return cir.NewMacroType("FUNCTYPE", ft, ct)
+}
+
+func (c *CodeGenerator) buildTupleType(t *hir.TupleType) *cir.StructType {
+	fields := make([]*cir.StructTypeField, len(t.Elems))
+	for i, e := range t.Elems {
+		fn := fmt.Sprintf("_f%d", i)
+		ft := c.buildType(e)
+		fields[i] = cir.NewStructTypeField(ft, fn)
+	}
+	return cir.NewStructType("", fields...)
 }
