@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 
+	stlmaps "github.com/kkkunny/stl/container/maps"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
@@ -146,8 +147,7 @@ func (a *Analyzer) analyseBinary(expr *ast.Binary, expect ...hir.Type) *hir.Bina
 }
 
 func (a *Analyzer) analyseFunc(expr *ast.Func) *hir.Func {
-	ps := a.scope
-	scope := hir.NewBlockScope(a.scope.Package())
+	scope := hir.NewBlockScope(a.scope)
 	a.scope = scope
 
 	var params []*hir.Param
@@ -178,12 +178,15 @@ func (a *Analyzer) analyseFunc(expr *ast.Func) *hir.Func {
 		body = optional.Some(a.analyzeBlock(b))
 	}
 
-	a.scope = ps
+	externalVars := stlslices.DiffTo(a.scope.UsedValues(), stlmaps.Values(a.scope.Values()))
+
+	a.scope = stlval.IgnoreWith(a.scope.Parent())
 
 	return &hir.Func{
-		Params:     params,
-		ReturnType: returnType,
-		Body:       body,
+		Params:                params,
+		ReturnType:            returnType,
+		Body:                  body,
+		UsedExternalVariables: externalVars,
 	}
 }
 

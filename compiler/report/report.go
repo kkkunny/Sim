@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gookit/color"
 	"github.com/kkkunny/stl/enum"
 
 	"github.com/kkkunny/Sim/compiler/reader"
@@ -19,6 +20,24 @@ var levelEnum = enum.New[struct {
 	Warn  level `enum:"warn"`
 	Error level `enum:"report"`
 }]()
+
+var levelColorMap = map[level]color.Style{
+	levelEnum.Warn:  color.New(color.FgYellow),
+	levelEnum.Error: color.New(color.FgRed),
+}
+
+var levelCodeColorMap = map[level]color.Style{
+	levelEnum.Warn:  color.New(color.BgYellow),
+	levelEnum.Error: color.New(color.BgRed),
+}
+
+func (l level) Color() color.Style {
+	return levelColorMap[l]
+}
+
+func (l level) CodeColor() color.Style {
+	return levelCodeColorMap[l]
+}
 
 type report struct {
 	Level    level
@@ -38,19 +57,14 @@ func newReport(level level, title, message string, pos reader.Position) *report 
 
 // Format 格式化错误报告为字符串
 func (r *report) Format() string {
-	if r.Position.BeginRow != r.Position.EndRow {
-		// TODO: 多行
-		panic("todo")
-		return ""
-	}
-
 	var buf strings.Builder
 
 	// 错误级别和标题
-	buf.WriteString(fmt.Sprintf("%s[%s]: %s\n",
+	buf.WriteString(r.Level.Color().Sprintf("%s[%s]: %s",
 		levelPrefix(r.Level),
 		r.Title,
 		r.Message))
+	buf.WriteString("\n")
 
 	// 位置
 	path := r.Position.Reader.Path()
@@ -60,7 +74,6 @@ func (r *report) Format() string {
 		}
 	}
 	buf.WriteString(fmt.Sprintf("  --> %s:%d:%d\n", path, r.Position.BeginRow, r.Position.BeginCol))
-	buf.WriteString("   |\n")
 
 	// 代码
 	beginOffset := r.Position.BeginOffset - (r.Position.BeginCol - 1)
@@ -75,21 +88,30 @@ func (r *report) Format() string {
 		}
 		code += string(c)
 	}
-	// code = strings.ReplaceAll(strings.ReplaceAll(code, "\t", "    "), "\n", " ")
-	buf.WriteString(fmt.Sprintf("%2d | %s\n", r.Position.BeginRow, code))
-
-	// 箭头
-	arrowPos := int(r.Position.BeginCol)
-	if arrowPos > len(code) {
-		arrowPos = len(code)
+	buf.WriteString("   |\n")
+	lines := strings.Split(code, "\n")
+	for i, line := range lines {
+		buf.WriteString(fmt.Sprintf("%2d |", r.Position.BeginRow+int64(i)))
+		var splitPos int
+		if i == 0 {
+			splitPos = int(r.Position.BeginCol) - 1
+		} else if i == len(lines)-1 {
+			splitPos = int(r.Position.EndCol) - 1
+		}
+		prev, next := line[:splitPos], line[splitPos:]
+		if i == 0 {
+			next = r.Level.CodeColor().Sprintf(next)
+		} else if i == len(lines)-1 {
+			prev = r.Level.CodeColor().Sprintf(prev)
+		} else {
+			prev = r.Level.CodeColor().Sprintf(prev)
+			next = r.Level.CodeColor().Sprintf(next)
+		}
+		buf.WriteString(prev)
+		buf.WriteString(next)
+		buf.WriteString("\n")
 	}
 	buf.WriteString("   |")
-	buf.WriteString(strings.Repeat(" ", arrowPos))
-	buf.WriteString("^")
-	if r.Position.EndCol > r.Position.BeginCol {
-		buf.WriteString(strings.Repeat("~", int(r.Position.EndCol-r.Position.BeginCol)))
-	}
-	buf.WriteString("\n")
 
 	return buf.String()
 }
