@@ -13,6 +13,7 @@ type Expr interface {
 	expr()
 	GetType() Type
 	Mutable() bool
+	Temporary() bool
 }
 
 type IdentExpr struct {
@@ -40,6 +41,10 @@ func (e *IdentExpr) Mutable() bool {
 	return e.Define.Mutable()
 }
 
+func (e *IdentExpr) Temporary() bool {
+	return false
+}
+
 type Integer struct {
 	Type  Type
 	Value *big.Int
@@ -60,6 +65,10 @@ func (e *Integer) Mutable() bool {
 	return false
 }
 
+func (e *Integer) Temporary() bool {
+	return true
+}
+
 type Float struct {
 	Type  Type
 	Value *big.Float
@@ -78,6 +87,10 @@ func (e *Float) GetType() Type {
 
 func (e *Float) Mutable() bool {
 	return false
+}
+
+func (e *Float) Temporary() bool {
+	return true
 }
 
 type UnaryOp string
@@ -107,6 +120,10 @@ func (e *Unary) GetType() Type {
 
 func (e *Unary) Mutable() bool {
 	return false
+}
+
+func (e *Unary) Temporary() bool {
+	return true
 }
 
 type BinaryOp string
@@ -166,6 +183,10 @@ func (e *Binary) Mutable() bool {
 	return false
 }
 
+func (e *Binary) Temporary() bool {
+	return true
+}
+
 type Func struct {
 	Params     []*Param
 	ReturnType Type
@@ -205,6 +226,10 @@ func (e *Func) Mutable() bool {
 	return false
 }
 
+func (e *Func) Temporary() bool {
+	return true
+}
+
 type Call struct {
 	Func Expr
 	Args []Expr
@@ -231,6 +256,10 @@ func (e *Call) GetType() Type {
 
 func (e *Call) Mutable() bool {
 	return false
+}
+
+func (e *Call) Temporary() bool {
+	return true
 }
 
 type Tuple struct {
@@ -265,6 +294,10 @@ func (e *Tuple) Mutable() bool {
 	return false
 }
 
+func (e *Tuple) Temporary() bool {
+	return true
+}
+
 type TupleIndex struct {
 	From  Expr
 	Index *big.Int
@@ -294,6 +327,10 @@ func (e *TupleIndex) GetType() Type {
 
 func (e *TupleIndex) Mutable() bool {
 	return e.From.Mutable()
+}
+
+func (e *TupleIndex) Temporary() bool {
+	return e.From.Temporary()
 }
 
 type Array struct {
@@ -327,6 +364,10 @@ func (e *Array) Mutable() bool {
 	return false
 }
 
+func (e *Array) Temporary() bool {
+	return true
+}
+
 type ArrayIndex struct {
 	From  Expr
 	Index Expr
@@ -355,4 +396,8 @@ func (e *ArrayIndex) GetType() Type {
 
 func (e *ArrayIndex) Mutable() bool {
 	return e.From.Mutable()
+}
+
+func (e *ArrayIndex) Temporary() bool {
+	return e.From.Temporary()
 }

@@ -19,6 +19,7 @@ var Errors = enum.New[struct {
 	TypeLoss                 Error `enum:"type loss" format:"this expression must have a type"`
 	MustMutable              Error `enum:"must mutable" format:"the expression must be mutable"`
 	MustImmutable            Error `enum:"must immutable" format:"the expression must be immutable"`
+	MustNotTemporary         Error `enum:"must not temporary" format:"the expression must be not temporary"`
 }]()
 
 var errorFormats = func() map[Error]string {
