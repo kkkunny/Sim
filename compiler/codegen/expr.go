@@ -119,5 +119,8 @@ func (c *CodeGenerator) buildCall(expr *hir.Call) cir.Expr {
 	args := stlslices.Map(expr.Args, func(_ int, argExpr hir.Expr) cir.Expr {
 		return c.buildExpr(argExpr)
 	})
+	if macroF, ok := f.(*cir.MacroExpr); ok && macroF.Name == "FUNCEXPR_F" {
+		return cir.NewCall(macroF.Args[0], args...)
+	}
 	return cir.NewMacroExpr("FUNCCALL", append([]cir.Expr{f}, args...)...)
 }

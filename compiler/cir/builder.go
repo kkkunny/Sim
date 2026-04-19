@@ -16,7 +16,9 @@ type Builder struct {
 }
 
 func NewBuilder() *Builder {
-	return &Builder{}
+	b := &Builder{}
+	b.BuildInclude("\"buildin.c\"")
+	return b
 }
 
 func (b *Builder) print(p *printer) {
