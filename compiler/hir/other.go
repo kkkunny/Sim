@@ -1,5 +1,10 @@
 package hir
 
+type Ident interface {
+	GetType() Type
+	GetName() string
+}
+
 type Program struct {
 	Globals []Global
 }
@@ -18,9 +23,6 @@ type Param struct {
 	Name string
 	Type Type
 }
-
-func (*Param) local() {}
-func (*Param) expr()  {}
 
 func (p *Param) print(pr *printer) {
 	pr.WriteString(p.Name)

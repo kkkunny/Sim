@@ -135,3 +135,21 @@ func (l *Include) print(p *printer) {
 	p.WriteString("#include ")
 	p.WriteString(l.Path)
 }
+
+type ExprStmt struct {
+	Expr Expr
+}
+
+func (c *Builder) BuildExpr(expr Expr) *ExprStmt {
+	i := &ExprStmt{Expr: expr}
+	c.at.Stmts = append(c.at.Stmts, i)
+	return i
+}
+
+func (*ExprStmt) local()  {}
+func (*ExprStmt) global() {}
+
+func (l *ExprStmt) print(p *printer) {
+	p.WriteBy(l.Expr)
+	p.WriteString(";")
+}
