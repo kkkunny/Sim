@@ -15,6 +15,10 @@ type IdentExpr struct {
 	Name string
 }
 
+func NewIdentExpr(name string) *IdentExpr {
+	return &IdentExpr{name}
+}
+
 func (*IdentExpr) local() {}
 func (*IdentExpr) expr()  {}
 
@@ -48,11 +52,20 @@ type UnaryOp string
 
 var UnaryOpEnum = enum.New[struct {
 	Not UnaryOp `enum:"NOT"`
+	Mul UnaryOp `enum:"*"`
+	AND UnaryOp `enum:"&"`
 }]()
 
 type UnaryExpr struct {
 	Op   UnaryOp
 	Expr Expr
+}
+
+func NewUnaryExpr(op UnaryOp, expr Expr) *UnaryExpr {
+	return &UnaryExpr{
+		Op:   op,
+		Expr: expr,
+	}
 }
 
 func (*UnaryExpr) local() {}
@@ -159,4 +172,76 @@ func (e *Call) print(p *printer) {
 		}
 	}
 	p.WriteString(")")
+}
+
+type Covert struct {
+	Type  Type
+	Value Expr
+}
+
+func NewCovert(t Type, v Expr) *Covert {
+	return &Covert{
+		Type:  t,
+		Value: v,
+	}
+}
+
+func (*Covert) local() {}
+func (*Covert) expr()  {}
+
+func (e *Covert) print(p *printer) {
+	p.WriteString("(")
+	p.WriteBy(e.Type)
+	p.WriteString(")")
+	p.WriteString("(")
+	p.WriteBy(e.Value)
+	p.WriteString(")")
+}
+
+type Member struct {
+	From Expr
+	Name string
+}
+
+func NewMember(f Expr, name string) *Member {
+	return &Member{
+		From: f,
+		Name: name,
+	}
+}
+
+func (*Member) local() {}
+func (*Member) expr()  {}
+
+func (e *Member) print(p *printer) {
+	p.WriteBy(e.From)
+	p.WriteString(".")
+	p.WriteString(e.Name)
+}
+
+type Struct struct {
+	Fields map[string]Expr
+}
+
+func NewStruct(fields map[string]Expr) *Struct {
+	return &Struct{Fields: fields}
+}
+
+func (*Struct) local() {}
+func (*Struct) expr()  {}
+
+func (e *Struct) print(p *printer) {
+	p.WriteString("{")
+	var i int
+	for fn, fv := range e.Fields {
+		p.WriteString(".")
+		p.WriteString(fn)
+		p.WriteString("=")
+		p.WriteBy(fv)
+		if i < len(e.Fields)-1 {
+			p.WriteString(", ")
+		}
+		i++
+	}
+	p.WriteString("}")
 }

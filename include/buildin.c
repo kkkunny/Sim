@@ -1,7 +1,9 @@
 #ifndef _SIM_BUILDIN
 #define _SIM_BUILDIN	1
 
+#ifndef NULL
 #define NULL ((void *)0)
+#endif
 
 // 基础类型
 #define i8 signed char
@@ -126,9 +128,9 @@
     f64: ~x)
 
 // 函数胖指针与闭包
-#define FUNCTYPE(ft, ct) struct{union{ft f; ct c;} func; void* env;}
-#define FUNCEXPR_F(v) {.func.f=v, .env=NULL}
-#define FUNCEXPR_C(e, v) {.func.f=v, .env=e}
-#define FUNCCALL(v, ...) v.env==NULL?v.func.f(__VA_ARGS__):v.func.c(v.env, __VA_ARGS__)
+#define FUNCTYPE(ft, ct) struct{union{ft f; ct c;} func; void* ctx;}
+#define FUNCEXPR_F(expr) {.func.f=expr, .ctx=NULL}
+#define FUNCEXPR_C(expr, ctxv) {.func.c=expr, .ctx=ctxv}
+#define FUNCCALL(expr, ...) expr.ctx==NULL?expr.func.f(__VA_ARGS__):expr.func.c(expr.ctx, __VA_ARGS__)
 
 #endif

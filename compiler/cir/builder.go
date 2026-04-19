@@ -2,8 +2,6 @@ package cir
 
 import (
 	"strings"
-
-	stlval "github.com/kkkunny/stl/value"
 )
 
 type Builder struct {
@@ -23,18 +21,6 @@ func NewBuilder() *Builder {
 
 func (b *Builder) print(p *printer) {
 	for i, g := range b.Globals {
-		if !stlval.Is[*Typedef](g) {
-			continue
-		}
-		p.WriteBy(g)
-		if i != len(b.Globals)-1 {
-			p.WriteString("\n")
-		}
-	}
-	for i, g := range b.Globals {
-		if stlval.Is[*Typedef](g) {
-			continue
-		}
 		p.WriteBy(g)
 		if i != len(b.Globals)-1 {
 			p.WriteString("\n")

@@ -111,6 +111,8 @@ type Func struct {
 	Params     []*Param
 	ReturnType Type
 	Body       optional.Optional[*Block]
+
+	UsedExternalVariables []Ident
 }
 
 func (*Func) expr()  {}
