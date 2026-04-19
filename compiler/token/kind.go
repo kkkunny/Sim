@@ -18,17 +18,26 @@ var KindEnum = enum.New[struct {
 	Ident   Kind `text:"ident"`
 	Integer Kind `text:"integer"`
 
-	Assign Kind `text:"="`
-	Add    Kind `text:"+"`
-	Sub    Kind `text:"-"`
-	Mul    Kind `text:"*"`
-	Quo    Kind `text:"/"`
-	Rem    Kind `text:"%"`
+	Add Kind `text:"+"`
+	Sub Kind `text:"-"`
+	Mul Kind `text:"*"`
+	Quo Kind `text:"/"`
+	Rem Kind `text:"%"`
 
 	And Kind `text:"&"`
 	Or  Kind `text:"|"`
 	Xor Kind `text:"^"`
 	Not Kind `text:"!"`
+
+	Assign    Kind `text:"="`
+	AddAssign Kind `text:"+="`
+	SubAssign Kind `text:"-="`
+	MulAssign Kind `text:"*="`
+	QuoAssign Kind `text:"/="`
+	RemAssign Kind `text:"%="`
+	AndAssign Kind `text:"&="`
+	OrAssign  Kind `text:"|="`
+	XorAssign Kind `text:"^="`
 
 	Lpa   Kind `text:"("`
 	Rpa   Kind `text:")"`
@@ -93,7 +102,7 @@ func (k Kind) Priority() int {
 		return 3
 	case KindEnum.Or:
 		return 2
-	case KindEnum.Assign:
+	case KindEnum.Assign, KindEnum.AddAssign, KindEnum.SubAssign, KindEnum.MulAssign, KindEnum.QuoAssign, KindEnum.RemAssign, KindEnum.AndAssign, KindEnum.OrAssign, KindEnum.XorAssign:
 		return 1
 	default:
 		return -1
