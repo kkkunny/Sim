@@ -187,3 +187,27 @@ func (e *Index) print(p *printer) {
 func (e *Index) Position() reader.Position {
 	return reader.MixPosition(e.From.Position(), e.EndPosition)
 }
+
+type Array struct {
+	BeginPosition reader.Position
+	Elems         []Expr
+	EndPosition   reader.Position
+}
+
+func (e *Array) local() {}
+func (e *Array) expr()  {}
+
+func (e *Array) print(p *printer) {
+	p.WriteString("[")
+	for i, arg := range e.Elems {
+		p.WriteBy(arg)
+		if i < len(e.Elems)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString("]")
+}
+
+func (e *Array) Position() reader.Position {
+	return reader.MixPosition(e.BeginPosition, e.EndPosition)
+}

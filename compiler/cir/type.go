@@ -227,9 +227,7 @@ func (t *StructType) print(p *printer) {
 	if len(t.Fields) > 0 {
 		p.NextLine(+1)
 		for i, f := range t.Fields {
-			p.WriteBy(f.Type)
-			p.WriteString(" ")
-			p.WriteString(f.Name)
+			f.Type.printWithName(p, f.Name)
 			p.WriteString(";")
 			if i < len(t.Fields)-1 {
 				p.NextLine()
@@ -269,7 +267,10 @@ func (t *ArrayType) print(p *printer) {
 		return
 	}
 
-	panic("unreachable")
+	p.WriteBy(t.Elem)
+	p.WriteString("[")
+	p.WriteString(t.Size.String())
+	p.WriteString("]")
 }
 
 func (t *ArrayType) printWithName(p *printer, name string) {

@@ -3,6 +3,8 @@ package cir
 import (
 	"math/big"
 
+	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/enum"
 )
 
@@ -220,11 +222,15 @@ func (e *Member) print(p *printer) {
 }
 
 type Struct struct {
+	Type   optional.Optional[Type]
 	Fields map[string]Expr
 }
 
-func NewStruct(fields map[string]Expr) *Struct {
-	return &Struct{Fields: fields}
+func NewStruct(fields map[string]Expr, t ...Type) *Struct {
+	return &Struct{
+		Type:   optional.UnEmpty(stlslices.Last(t)),
+		Fields: fields,
+	}
 }
 
 func (*Struct) local() {}
@@ -234,6 +240,12 @@ func (e *Struct) print(p *printer) {
 	if len(e.Fields) == 0 {
 		p.WriteString("ZERO_TYPE_VALUE")
 		return
+	}
+
+	if t, ok := e.Type.Value(); ok {
+		p.WriteString("(")
+		p.WriteBy(t)
+		p.WriteString(")")
 	}
 
 	p.WriteString("{")
@@ -247,6 +259,33 @@ func (e *Struct) print(p *printer) {
 			p.WriteString(", ")
 		}
 		i++
+	}
+	p.WriteString("}")
+}
+
+type Array struct {
+	Elems []Expr
+}
+
+func NewArray(elems ...Expr) *Array {
+	return &Array{Elems: elems}
+}
+
+func (*Array) local() {}
+func (*Array) expr()  {}
+
+func (e *Array) print(p *printer) {
+	if len(e.Elems) == 0 {
+		p.WriteString("ZERO_TYPE_VALUE")
+		return
+	}
+
+	p.WriteString("{")
+	for i, elem := range e.Elems {
+		p.WriteBy(elem)
+		if i < len(e.Elems)-1 {
+			p.WriteString(", ")
+		}
 	}
 	p.WriteString("}")
 }

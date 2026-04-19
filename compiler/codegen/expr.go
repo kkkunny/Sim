@@ -32,6 +32,8 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildTuple(expr)
 	case *hir.Index:
 		return c.buildIndex(expr)
+	case *hir.Array:
+		return c.buildArray(expr)
 	default:
 		panic("unreachable")
 	}
@@ -207,4 +209,14 @@ func (c *CodeGenerator) buildTuple(expr *hir.Tuple) *cir.Struct {
 func (c *CodeGenerator) buildIndex(expr *hir.Index) *cir.Member {
 	from := c.buildExpr(expr.From)
 	return cir.NewMember(from, fmt.Sprintf("_f%d", expr.Index.Int64()+1))
+}
+
+func (c *CodeGenerator) buildArray(expr *hir.Array) *cir.Struct {
+	at := c.buildType(expr.GetType())
+	elems := stlslices.Map(expr.Elems, func(_ int, argExpr hir.Expr) cir.Expr {
+		return c.buildExpr(argExpr)
+	})
+	return cir.NewStruct(map[string]cir.Expr{
+		"array": cir.NewArray(elems...),
+	}, at)
 }
