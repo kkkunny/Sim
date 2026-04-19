@@ -29,6 +29,8 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 		return a.analyseFunc(expr)
 	case *ast.Call:
 		return a.analyseCall(expr)
+	case *ast.Tuple:
+		return a.analyzeTuple(expr, expect...)
 	default:
 		panic("unreachable")
 	}
@@ -207,4 +209,31 @@ func (a *Analyzer) analyseCall(expr *ast.Call) *hir.Call {
 		Func: f,
 		Args: args,
 	}
+}
+
+func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) hir.Expr {
+	var expectTuple bool
+	expectElemTypes := make([]hir.Type, len(expr.Elems))
+	if len(expect) > 0 {
+		if tt, ok := stlslices.Last(expect).(*hir.TupleType); ok && len(expr.Elems) == len(tt.Elems) {
+			expectElemTypes = tt.Elems
+			expectTuple = true
+		} else if len(expr.Elems) == 1 {
+			expectElemTypes[0] = stlslices.Last(expect)
+		}
+	}
+
+	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) hir.Expr {
+		var elemExpect []hir.Type
+		if et := expectElemTypes[i]; et != nil {
+			elemExpect = []hir.Type{et}
+		}
+		return a.analyzeExpr(e, elemExpect...)
+	})
+
+	if len(elems) == 1 && !expectTuple {
+		return elems[0]
+	}
+
+	return hir.NewTuple(elems...)
 }

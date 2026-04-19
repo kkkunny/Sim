@@ -165,3 +165,31 @@ func (e *Call) print(p *printer) {
 func (e *Call) GetType() Type {
 	return e.Func.GetType().(*FuncType).Return
 }
+
+type Tuple struct {
+	Elems []Expr
+}
+
+func NewTuple(elems ...Expr) *Tuple {
+	return &Tuple{Elems: elems}
+}
+
+func (*Tuple) expr()  {}
+func (*Tuple) local() {}
+
+func (e *Tuple) print(p *printer) {
+	p.WriteString("(")
+	for i, param := range e.Elems {
+		p.WriteBy(param)
+		if i < len(e.Elems)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}
+
+func (e *Tuple) GetType() Type {
+	return NewTupleType(stlslices.Map(e.Elems, func(_ int, e Expr) Type {
+		return e.GetType()
+	})...)
+}
