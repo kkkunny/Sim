@@ -8,12 +8,14 @@ import (
 type CodeGenerator struct {
 	builder *cir.Builder
 
+	idents    map[hir.Ident]cir.Namer
 	typeCache map[string]*cir.AliasType
 }
 
 func New() *CodeGenerator {
 	return &CodeGenerator{
 		builder:   cir.NewBuilder(),
+		idents:    make(map[hir.Ident]cir.Namer),
 		typeCache: make(map[string]*cir.AliasType),
 	}
 }

@@ -13,15 +13,15 @@ type Global interface {
 
 type FuncDecl struct {
 	Name       string
-	Params     []*ParamDecl
+	Params     []*Param
 	ReturnType Type
 	Body       optional.Optional[*Block]
 }
 
-func (b *Builder) BuildFuncDecl(name string, rt Type, params []*ParamDecl) *FuncDecl {
-	b.varCount++
+func (b *Builder) BuildFuncDecl(name string, rt Type, params []*Param) *FuncDecl {
+	b.globalVarCount++
 	if name == "" {
-		name = fmt.Sprintf("_v%d", b.varCount)
+		name = fmt.Sprintf("_g%d", b.globalVarCount)
 	}
 	g := &FuncDecl{
 		Name:       name,
@@ -54,6 +54,10 @@ func (g *FuncDecl) print(p *printer) {
 	}
 }
 
+func (g *FuncDecl) GetName() string {
+	return g.Name
+}
+
 type Typedef struct {
 	Type Type
 	Name string
@@ -78,4 +82,8 @@ func (g *Typedef) print(p *printer) {
 	p.WriteString("typedef ")
 	g.Type.printWithName(p, g.Name)
 	p.WriteString(";")
+}
+
+func (g *Typedef) GetName() string {
+	return g.Name
 }

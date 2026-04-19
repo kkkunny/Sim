@@ -9,8 +9,10 @@ import (
 type Builder struct {
 	Globals []Global
 
-	typedefCount int
-	varCount     int
+	at *Block
+
+	typedefCount   int
+	globalVarCount int
 }
 
 func NewBuilder() *Builder {
@@ -42,4 +44,12 @@ func (c *Builder) String() string {
 	var buf strings.Builder
 	c.Output(&buf)
 	return buf.String()
+}
+
+func (c *Builder) MoveTo(b *Block) {
+	c.at = b
+}
+
+func (c *Builder) CurrentAt() (*Block, bool) {
+	return c.at, c.at != nil
 }
