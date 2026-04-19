@@ -16,4 +16,7 @@ func (c *CodeGenerator) buildGlobal(global hir.Global) {
 func (c *CodeGenerator) buildGlobalLet(l *hir.Let) {
 	f := c.buildNativeFunc(l.Value.(*hir.Func))
 	c.idents[l] = f.Decl
+	if l.Name == "main" {
+		f.Decl.Name = "sim_main"
+	}
 }

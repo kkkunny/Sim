@@ -3,13 +3,16 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 
-	stlerror "github.com/kkkunny/stl/error"
+	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/analyze"
 	"github.com/kkkunny/Sim/compiler/codegen"
+	"github.com/kkkunny/Sim/compiler/compile"
+	"github.com/kkkunny/Sim/compiler/config"
 	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
 	"github.com/kkkunny/Sim/compiler/reader"
@@ -18,7 +21,7 @@ import (
 
 func main() {
 	testFilePath := "examples/main.sim"
-	file := stlerror.MustWith(os.Open(testFilePath))
+	file := stlerr.MustWith(os.Open(testFilePath))
 	defer file.Close()
 	lexer := lex.New(reader.NewFile(testFilePath, file))
 
@@ -36,5 +39,15 @@ func main() {
 	}
 
 	builder := codegen.New().Generate(node)
-	fmt.Println(builder)
+	err := compile.NewCompiler(builder).Compile()
+	if err != nil {
+		panic(err)
+	}
+	outPath := filepath.Join(config.WorkPath, "main.out")
+	defer os.Remove(outPath)
+	cmder := exec.Command(outPath)
+	cmder.Stdin, cmder.Stdout, cmder.Stderr = os.Stdin, os.Stdout, os.Stderr
+	if err = stlerr.ErrorWrap(cmder.Run()); err != nil {
+		panic(err)
+	}
 }

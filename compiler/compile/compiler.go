@@ -60,16 +60,5 @@ func (c *Compiler) Compile() error {
 			return err
 		}
 	}
-	// defer os.Remove(outPath)
-
-	// // 运行
-	// cmder = exec.Command(outPath)
-	// cmder.Stdin, cmder.Stdout, cmder.Stderr = os.Stdin, os.Stdout, os.Stderr
-	// if err = stlerr.ErrorWrap(cmder.Run()); err != nil {
-	// 	var exitErr *exec.ExitError
-	// 	if !errors.As(err, &exitErr) {
-	// 		return err
-	// 	}
-	// }
 	return nil
 }
