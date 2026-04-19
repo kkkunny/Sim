@@ -242,17 +242,32 @@ func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) hir.Expr {
 	return hir.NewTuple(elems...)
 }
 
-func (a *Analyzer) analyzeIndex(expr *ast.Index) *hir.Index {
-	from := expectTypeExpr[*hir.TupleType](a, expr.From)
-	index := expectTypeExpr[hir.IntegerType](a, expr.Index)
-	indexValue, ok := index.(*hir.Integer)
+func (a *Analyzer) analyzeIndex(expr *ast.Index) hir.Expr {
+	from := a.analyzeExpr(expr.From)
+	ft := from.GetType()
+
+	if stlval.Is[*hir.TupleType](ft) {
+		index := expectTypeExpr[hir.IntegerType](a, expr.Index)
+		indexValue, ok := index.(*hir.Integer)
+		if !ok {
+			a.reporter.Fatalf(
+				expr.Index.Position(),
+				report.Errors.ExpectedIntegerConstant,
+			)
+		}
+		return hir.NewTupleIndex(from, indexValue.Value)
+	}
+
+	at, ok := ft.(*hir.ArrayType)
 	if !ok {
 		a.reporter.Fatalf(
-			expr.Index.Position(),
-			report.Errors.ExpectedIntegerConstant,
+			expr.From.Position(),
+			report.Errors.UnexpectedExpressionType,
+			fmt.Sprintf("%T", hir.ArrayType{}), at,
 		)
 	}
-	return hir.NewIndex(from, indexValue.Value)
+	index := expectTypeExpr[hir.IntegerType](a, expr.Index)
+	return hir.NewArrayIndex(from, index)
 }
 
 func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *hir.Array {
