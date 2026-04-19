@@ -14,8 +14,8 @@ import (
 
 func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 	switch expr := expr.(type) {
-	case hir.Ident:
-		return c.buildIdent(expr)
+	case *hir.IdentExpr:
+		return c.buildIdentExpr(expr)
 	case *hir.Integer:
 		return &cir.IntegerExpr{Value: expr.Value}
 	case *hir.Float:
@@ -41,18 +41,18 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 	}
 }
 
-func (c *CodeGenerator) buildIdent(expr hir.Ident) cir.Expr {
-	name := c.idents[expr].GetName()
+func (c *CodeGenerator) buildIdentExpr(expr *hir.IdentExpr) cir.Expr {
+	name := c.idents[expr.Define].GetName()
 	var value cir.Expr = cir.NewIdentExpr(name)
 
 	// 如果是闭包中捕获的外部变量，转换成ctx的成员变量
 	if c.currentFunc != nil {
-		if cv, ok := c.captureVarsMap[tuple.Pack2(c.currentFunc, expr)]; ok {
+		if cv, ok := c.captureVarsMap[tuple.Pack2(c.currentFunc, expr.Define)]; ok {
 			value = cv
 		}
 	}
 
-	if let, ok := expr.(*hir.Let); ok && stlval.Is[*hir.Func](let.Value) {
+	if let, ok := expr.Define.(*hir.Let); ok && stlval.Is[*hir.Func](let.Value) {
 		return cir.NewMacroExpr("FUNCEXPR_F", value)
 	}
 	return value
@@ -69,7 +69,12 @@ func (c *CodeGenerator) buildUnary(expr *hir.Unary) *cir.UnaryExpr {
 	return cir.NewUnaryExpr(op, c.buildExpr(expr.Expr))
 }
 
-func (c *CodeGenerator) buildBinary(expr *hir.Binary) *cir.BinaryExpr {
+func (c *CodeGenerator) buildBinary(expr *hir.Binary) cir.Expr {
+	left, right := c.buildExpr(expr.Left), c.buildExpr(expr.Right)
+	if expr.Op == hir.BinaryOpEnum.Assign {
+		return cir.NewAssign(left, right)
+	}
+
 	var op cir.BinaryOp
 	switch expr.Op {
 	case hir.BinaryOpEnum.Add:
@@ -93,8 +98,8 @@ func (c *CodeGenerator) buildBinary(expr *hir.Binary) *cir.BinaryExpr {
 	}
 	return &cir.BinaryExpr{
 		Op:    op,
-		Left:  c.buildExpr(expr.Left),
-		Right: c.buildExpr(expr.Right),
+		Left:  left,
+		Right: right,
 	}
 }
 
@@ -180,7 +185,7 @@ func (c *CodeGenerator) buildFunc(expr *hir.Func) *cir.MacroExpr {
 		ctxT, f = c.buildNativeClosureFunc(expr, captureVars)
 		fields := make(map[string]cir.Expr, len(captureVars))
 		for i, cv := range captureVars {
-			fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(cv)
+			fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(hir.NewIdentExpr(cv))
 		}
 		ctx := c.builder.BuildVarDecl(cir.NewAliasType(ctxT), "", cir.NewStruct(fields))
 		return cir.NewMacroExpr("FUNCEXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnaryExpr(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))

@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"github.com/kkkunny/stl/container/optional"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -26,6 +27,7 @@ func (c *CodeGenerator) buildGlobalLet(l *hir.Let) {
 	}
 
 	t := c.buildType(l.GetType())
-	value := c.buildExpr(l.Value)
-	c.builder.BuildVarDecl(t, "", value)
+	decl := c.builder.BuildVarDecl(t, "")
+	c.idents[l] = decl
+	decl.Value = optional.Some(c.buildExpr(l.Value))
 }

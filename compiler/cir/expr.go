@@ -311,3 +311,24 @@ func (e *Offset) print(p *printer) {
 	p.WriteBy(e.Offset)
 	p.WriteString("]")
 }
+
+type Assign struct {
+	Left  Expr
+	Right Expr
+}
+
+func NewAssign(left Expr, right Expr) *Assign {
+	return &Assign{
+		Left:  left,
+		Right: right,
+	}
+}
+
+func (*Assign) local() {}
+func (*Assign) expr()  {}
+
+func (e *Assign) print(p *printer) {
+	p.WriteBy(e.Left)
+	p.WriteString(" = ")
+	p.WriteBy(e.Right)
+}

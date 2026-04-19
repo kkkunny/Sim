@@ -14,7 +14,7 @@ func (c *CodeGenerator) buildLocal(local hir.Local) {
 	case *hir.Let:
 		c.buildLocalLet(local)
 	case hir.Expr:
-		c.buildExpr(local)
+		c.builder.BuildExpr(c.buildExpr(local))
 	default:
 		panic("unreachable")
 	}
