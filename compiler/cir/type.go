@@ -94,8 +94,14 @@ func (t *FloatType) printWithName(p *printer, name string) {
 	p.WriteString(name)
 }
 
+var VoidPtr = NewPointerType(Void)
+
 type PointerType struct {
 	Elem Type
+}
+
+func NewPointerType(elem Type) *PointerType {
+	return &PointerType{Elem: elem}
 }
 
 func (*PointerType) typ() {}
@@ -134,17 +140,50 @@ func (t *FuncType) printWithName(p *printer, name string) {
 }
 
 type AliasType struct {
-	Define *Typedef
+	*Typedef
+}
+
+func NewAliasType(def *Typedef) *AliasType {
+	return &AliasType{Typedef: def}
 }
 
 func (*AliasType) typ() {}
 
 func (t *AliasType) print(p *printer) {
-	p.WriteString(t.Define.Name)
+	p.WriteString(t.Name)
 }
 
 func (t *AliasType) printWithName(p *printer, name string) {
-	p.WriteString(t.Define.Name)
+	p.WriteString(t.Name)
 	p.WriteString(" ")
 	p.WriteFormat(name)
+}
+
+type MacroType struct {
+	Name string
+	Args []Type
+}
+
+func NewMacroType(name string, args ...Type) *MacroType {
+	return &MacroType{Name: name, Args: args}
+}
+
+func (*MacroType) typ() {}
+
+func (t *MacroType) print(p *printer) {
+	p.WriteString(t.Name)
+	p.WriteString("(")
+	for i, arg := range t.Args {
+		p.WriteBy(arg)
+		if i < len(t.Args)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}
+
+func (t *MacroType) printWithName(p *printer, name string) {
+	p.WriteBy(t)
+	p.WriteString(" ")
+	p.WriteString(name)
 }

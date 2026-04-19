@@ -106,3 +106,23 @@ func (*FuncExpr) expr()  {}
 func (e *FuncExpr) print(p *printer) {
 	p.WriteString(e.Decl.Name)
 }
+
+type MacroExpr struct {
+	Name string
+	Args []Expr
+}
+
+func (*MacroExpr) local() {}
+func (*MacroExpr) expr()  {}
+
+func (e *MacroExpr) print(p *printer) {
+	p.WriteString(e.Name)
+	p.WriteString("(")
+	for i, arg := range e.Args {
+		p.WriteBy(arg)
+		if i < len(e.Args)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}
