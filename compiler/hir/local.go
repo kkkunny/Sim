@@ -2,6 +2,7 @@ package hir
 
 import (
 	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
 )
 
 type Local interface {
@@ -11,6 +12,10 @@ type Local interface {
 
 type Block struct {
 	Stmts []Local
+}
+
+func NewBlock() *Block {
+	return &Block{}
 }
 
 func (*Block) local() {}
@@ -37,6 +42,12 @@ type Return struct {
 	Value optional.Optional[Expr]
 }
 
+func NewReturn(v ...Expr) *Return {
+	return &Return{
+		Value: optional.UnEmpty(stlslices.Last(v)),
+	}
+}
+
 func (*Return) local() {}
 
 func (r *Return) print(p *printer) {
@@ -50,6 +61,7 @@ func (r *Return) print(p *printer) {
 
 type Let struct {
 	Mut   bool
+	Type  Type
 	Name  string
 	Value Expr
 }
@@ -60,6 +72,8 @@ func (*Let) global() {}
 func (l *Let) print(p *printer) {
 	p.WriteString("let ")
 	p.WriteString(l.Name)
+	p.WriteString(": ")
+	p.WriteBy(l.Type)
 	p.WriteString(" = ")
 	p.WriteBy(l.Value)
 }
