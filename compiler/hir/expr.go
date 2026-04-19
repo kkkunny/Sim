@@ -14,6 +14,27 @@ type Expr interface {
 	GetType() Type
 }
 
+type IdentExpr struct {
+	Define Ident
+}
+
+func NewIdentExpr(ident Ident) *IdentExpr {
+	return &IdentExpr{
+		Define: ident,
+	}
+}
+
+func (*IdentExpr) expr()  {}
+func (*IdentExpr) local() {}
+
+func (e *IdentExpr) print(p *printer) {
+	p.WriteString(e.Define.GetName())
+}
+
+func (e *IdentExpr) GetType() Type {
+	return e.Define.GetType()
+}
+
 type Integer struct {
 	Type  Type
 	Value *big.Int
@@ -82,6 +103,8 @@ var BinaryOpEnum = enum.New[struct {
 	And BinaryOp `enum:"&"`
 	Or  BinaryOp `enum:"|"`
 	Xor BinaryOp `enum:"^"`
+
+	Assign BinaryOp `enum:"="`
 }]()
 
 type Binary struct {

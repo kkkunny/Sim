@@ -84,14 +84,16 @@ func (k Kind) String() string {
 func (k Kind) Priority() int {
 	switch k {
 	case KindEnum.Mul, KindEnum.Quo, KindEnum.Rem:
-		return 5
+		return 6
 	case KindEnum.Add, KindEnum.Sub:
-		return 4
+		return 5
 	case KindEnum.And:
-		return 3
+		return 4
 	case KindEnum.Xor:
-		return 2
+		return 3
 	case KindEnum.Or:
+		return 2
+	case KindEnum.Assign:
 		return 1
 	default:
 		return -1

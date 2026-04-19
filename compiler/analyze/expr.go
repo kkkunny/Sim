@@ -66,7 +66,7 @@ func expectTypeExpr[TYPE hir.Type](a *Analyzer, expr ast.Expr) hir.Expr {
 	return v
 }
 
-func (a *Analyzer) analyseIdentExpr(expr *ast.IdentExpr) hir.Ident {
+func (a *Analyzer) analyseIdentExpr(expr *ast.IdentExpr) *hir.IdentExpr {
 	v, ok := a.scope.Lookup(expr.Name.OriginText)
 	if !ok {
 		a.reporter.Fatalf(
@@ -76,7 +76,7 @@ func (a *Analyzer) analyseIdentExpr(expr *ast.IdentExpr) hir.Ident {
 		)
 		return nil
 	}
-	return v
+	return hir.NewIdentExpr(v)
 }
 
 func (a *Analyzer) analyseInteger(expr *ast.Integer, expect ...hir.Type) hir.Expr {
@@ -142,6 +142,8 @@ func (a *Analyzer) analyseBinary(expr *ast.Binary, expect ...hir.Type) *hir.Bina
 		op = hir.BinaryOpEnum.Or
 	case "^":
 		op = hir.BinaryOpEnum.Xor
+	case "=":
+		op = hir.BinaryOpEnum.Assign
 	default:
 		panic("unreachable")
 	}
