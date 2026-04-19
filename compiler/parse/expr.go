@@ -42,7 +42,7 @@ func (p *Parser) parseUnaryExpr() ast.Expr {
 	}
 }
 
-func (p *Parser) parsePrimaryExpr() (expr ast.Expr) {
+func (p *Parser) parsePrimaryExpr() ast.Expr {
 	switch p.nextToken.Kind {
 	case token.KindEnum.Ident:
 		name := p.expect(token.KindEnum.Ident)
@@ -76,11 +76,24 @@ func (p *Parser) parsePrimaryExpr() (expr ast.Expr) {
 			return &ast.Func{BeginPosition: begin, ReturnType: returnType, Body: body, EndPosition: p.curToken.Position}
 		}
 
-		expr := p.parseExpr()
-		if identExpr, ok := expr.(*ast.IdentExpr); ok && p.nextToken.Kind == token.KindEnum.Col {
+		var params []*ast.ParamDecl
+		var expr ast.Expr
+		if p.ifSkip(token.KindEnum.Mut) {
+			// 有mut, 说明在定义形参，走函数表达式逻辑
+			pn := p.expect(token.KindEnum.Ident)
 			p.expect(token.KindEnum.Col)
-			typ := p.parseType()
-			params := []*ast.ParamDecl{{Name: identExpr.Name, Type: typ}}
+			pt := p.parseType()
+			params = append(params, &ast.ParamDecl{Mut: true, Name: pn, Type: pt})
+		} else {
+			expr = p.parseExpr()
+			if identExpr, ok := expr.(*ast.IdentExpr); ok && p.nextToken.Kind == token.KindEnum.Col {
+				p.expect(token.KindEnum.Col)
+				pt := p.parseType()
+				params = append(params, &ast.ParamDecl{Name: identExpr.Name, Type: pt})
+			}
+		}
+
+		if len(params) > 0 {
 			if p.ifSkip(token.KindEnum.Comma) {
 				p.skip(token.KindEnum.Br)
 				for p.nextToken.Kind == token.KindEnum.Ident {

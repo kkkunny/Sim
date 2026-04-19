@@ -3,6 +3,7 @@ package hir
 type Ident interface {
 	GetType() Type
 	GetName() string
+	Mutable() bool
 }
 
 type Program struct {
@@ -20,6 +21,7 @@ func (p *Program) print(pr *printer) {
 }
 
 type Param struct {
+	Mut  bool
 	Name string
 	Type Type
 }
@@ -36,4 +38,8 @@ func (p *Param) GetName() string {
 
 func (p *Param) GetType() Type {
 	return p.Type
+}
+
+func (e *Param) Mutable() bool {
+	return e.Mut
 }

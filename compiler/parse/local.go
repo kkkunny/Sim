@@ -48,8 +48,9 @@ func (p *Parser) parseReturn() *ast.Return {
 
 func (p *Parser) parseLet() *ast.Let {
 	p.expect(token.KindEnum.Let)
+	mut := p.ifSkip(token.KindEnum.Mut)
 	name := p.expect(token.KindEnum.Ident)
 	p.expect(token.KindEnum.Assign)
 	value := p.parseExpr()
-	return &ast.Let{Name: name, Value: value}
+	return &ast.Let{Mut: mut, Name: name, Value: value}
 }

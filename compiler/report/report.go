@@ -92,14 +92,20 @@ func (r *report) Format() string {
 	lines := strings.Split(code, "\n")
 	for i, line := range lines {
 		buf.WriteString(fmt.Sprintf("%2d |", r.Position.BeginRow+int64(i)))
-		var splitPos int
-		if i == 0 {
-			splitPos = int(r.Position.BeginCol) - 1
+		var beginPos, endPos int
+		if len(lines) == 1 {
+			beginPos, endPos = int(r.Position.BeginCol)-1, int(r.Position.EndCol)
+		} else if i == 0 {
+			beginPos = int(r.Position.BeginCol) - 1
+			endPos = beginPos
 		} else if i == len(lines)-1 {
-			splitPos = int(r.Position.EndCol) - 1
+			beginPos = int(r.Position.EndCol) - 1
+			endPos = beginPos
 		}
-		prev, next := line[:splitPos], line[splitPos:]
-		if i == 0 {
+		prev, mid, next := line[:beginPos], line[beginPos:endPos], line[endPos:]
+		if len(lines) == 1 {
+			mid = r.Level.CodeColor().Sprintf(mid)
+		} else if i == 0 {
 			next = r.Level.CodeColor().Sprintf(next)
 		} else if i == len(lines)-1 {
 			prev = r.Level.CodeColor().Sprintf(prev)
@@ -108,6 +114,7 @@ func (r *report) Format() string {
 			next = r.Level.CodeColor().Sprintf(next)
 		}
 		buf.WriteString(prev)
+		buf.WriteString(mid)
 		buf.WriteString(next)
 		buf.WriteString("\n")
 	}
