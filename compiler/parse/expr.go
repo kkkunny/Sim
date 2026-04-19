@@ -149,6 +149,16 @@ func (p *Parser) parseSuffixExpr(prev ast.Expr) (expr ast.Expr) {
 				Args:        args,
 				EndPosition: end,
 			}
+		case token.KindEnum.Lba:
+			p.expect(token.KindEnum.Lba)
+			p.skip(token.KindEnum.Br)
+			index := p.parseExpr()
+			end := p.expect(token.KindEnum.Rba).Position
+			prev = &ast.Index{
+				From:        prev,
+				Index:       index,
+				EndPosition: end,
+			}
 		default:
 			return prev
 		}
