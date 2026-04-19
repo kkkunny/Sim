@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -71,8 +72,31 @@ func (c *CodeGenerator) buildUnary(expr *hir.Unary) *cir.UnaryExpr {
 
 func (c *CodeGenerator) buildBinary(expr *hir.Binary) cir.Expr {
 	left, right := c.buildExpr(expr.Left), c.buildExpr(expr.Right)
-	if expr.Op == hir.BinaryOpEnum.Assign {
-		return cir.NewAssign(left, right)
+	if strings.Contains(string(expr.Op), "=") {
+		var op cir.AssignOp
+		switch expr.Op {
+		case hir.BinaryOpEnum.Assign:
+			op = cir.AssignOpEnum.Assign
+		case hir.BinaryOpEnum.AddAssign:
+			op = cir.AssignOpEnum.AddAssign
+		case hir.BinaryOpEnum.SubAssign:
+			op = cir.AssignOpEnum.SubAssign
+		case hir.BinaryOpEnum.MulAssign:
+			op = cir.AssignOpEnum.MulAssign
+		case hir.BinaryOpEnum.QuoAssign:
+			op = cir.AssignOpEnum.QuoAssign
+		case hir.BinaryOpEnum.RemAssign:
+			op = cir.AssignOpEnum.RemAssign
+		case hir.BinaryOpEnum.AndAssign:
+			op = cir.AssignOpEnum.AndAssign
+		case hir.BinaryOpEnum.OrAssign:
+			op = cir.AssignOpEnum.OrAssign
+		case hir.BinaryOpEnum.XorAssign:
+			op = cir.AssignOpEnum.XorAssign
+		default:
+			panic("unreachable")
+		}
+		return cir.NewAssign(op, left, right)
 	}
 
 	var op cir.BinaryOp

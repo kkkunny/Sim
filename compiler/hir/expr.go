@@ -104,7 +104,15 @@ var BinaryOpEnum = enum.New[struct {
 	Or  BinaryOp `enum:"|"`
 	Xor BinaryOp `enum:"^"`
 
-	Assign BinaryOp `enum:"="`
+	Assign    BinaryOp `enum:"="`
+	AddAssign BinaryOp `enum:"+="`
+	SubAssign BinaryOp `enum:"-="`
+	MulAssign BinaryOp `enum:"*="`
+	QuoAssign BinaryOp `enum:"/="`
+	RemAssign BinaryOp `enum:"%="`
+	AndAssign BinaryOp `enum:"&="`
+	OrAssign  BinaryOp `enum:"|="`
+	XorAssign BinaryOp `enum:"^="`
 }]()
 
 type Binary struct {
@@ -127,7 +135,14 @@ func (e *Binary) print(p *printer) {
 }
 
 func (e *Binary) GetType() Type {
-	return e.Left.GetType()
+	switch e.Op {
+	case BinaryOpEnum.Add, BinaryOpEnum.Sub, BinaryOpEnum.Mul, BinaryOpEnum.Quo, BinaryOpEnum.Rem, BinaryOpEnum.And, BinaryOpEnum.Or, BinaryOpEnum.Xor:
+		return e.Left.GetType()
+	case BinaryOpEnum.Assign, BinaryOpEnum.AddAssign, BinaryOpEnum.SubAssign, BinaryOpEnum.MulAssign, BinaryOpEnum.QuoAssign, BinaryOpEnum.RemAssign, BinaryOpEnum.AndAssign, BinaryOpEnum.OrAssign, BinaryOpEnum.XorAssign:
+		return Unit
+	default:
+		panic("unreachable")
+	}
 }
 
 type Func struct {

@@ -1,5 +1,5 @@
 let a = 1
 
 let main = (){
-	a = 2
+	a += 2
 }
