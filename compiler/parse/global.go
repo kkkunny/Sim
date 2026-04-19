@@ -9,7 +9,7 @@ import (
 func (p *Parser) parseGlobal() ast.Global {
 	switch p.nextToken.Kind {
 	case token.KindEnum.Let:
-		return p.parseGlobalLet()
+		return p.parseLet()
 	default:
 		p.reporter.Fatalf(
 			p.nextToken.Position,
@@ -18,12 +18,4 @@ func (p *Parser) parseGlobal() ast.Global {
 		)
 		return nil
 	}
-}
-
-func (p *Parser) parseGlobalLet() ast.Global {
-	p.expect(token.KindEnum.Let)
-	name := p.expect(token.KindEnum.Ident)
-	p.expect(token.KindEnum.Assign)
-	value := p.parseExpr()
-	return &ast.Let{Name: name, Value: value}
 }

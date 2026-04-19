@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 
 	stlmaps "github.com/kkkunny/stl/container/maps"
 	"github.com/kkkunny/stl/container/optional"
@@ -164,6 +165,14 @@ func (a *Analyzer) analyseBinary(expr *ast.Binary, expect ...hir.Type) *hir.Bina
 	default:
 		panic("unreachable")
 	}
+
+	if strings.Contains(expr.Op.Kind.String(), "=") && !left.Mutable() {
+		a.reporter.Fatalf(
+			expr.Left.Position(),
+			report.Errors.MustMutable,
+		)
+	}
+
 	return &hir.Binary{
 		Op:    op,
 		Left:  left,
@@ -179,6 +188,7 @@ func (a *Analyzer) analyseFunc(expr *ast.Func) *hir.Func {
 	for _, p := range expr.Params {
 		paramType := a.analyzeType(p.Type)
 		params = append(params, &hir.Param{
+			Mut:  p.Mut,
 			Name: p.Name.OriginText,
 			Type: paramType,
 		})

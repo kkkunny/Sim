@@ -35,6 +35,7 @@ func (b *Builder) BuildFuncDecl(name string, rt Type, params []*Param) *FuncDecl
 func (*FuncDecl) global() {}
 
 func (g *FuncDecl) print(p *printer) {
+	p.WriteString("static ")
 	p.WriteBy(g.ReturnType)
 	p.WriteString(" ")
 	p.WriteString(g.Name + "(")

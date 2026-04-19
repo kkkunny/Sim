@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/report"
 )
 
 func (a *Analyzer) analyzeBlock(block *ast.Block) *hir.Block {
@@ -43,15 +44,21 @@ func (a *Analyzer) analyzeReturn(ret *ast.Return) *hir.Return {
 }
 
 func (a *Analyzer) analyzeLet(l *ast.Let, isGlobal bool) *hir.Let {
-
 	var value hir.Expr
 	if isGlobal && l.Name.OriginText == "main" { // TODO: 同一个包下只允许存在一个main函数
 		value = a.expectTypeExpr(l.Value, hir.NewFuncType(hir.Unit))
+		if l.Mut {
+			a.reporter.Fatalf(
+				l.Name.Position,
+				report.Errors.MustImmutable,
+			)
+		}
 	} else {
 		value = a.analyzeExpr(l.Value)
 	}
 
 	let := &hir.Let{
+		Mut:   l.Mut,
 		Name:  l.Name.OriginText,
 		Value: value,
 	}

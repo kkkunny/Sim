@@ -19,11 +19,15 @@ func (p *Program) print(pr *printer) {
 }
 
 type ParamDecl struct {
+	Mut  bool
 	Name token.Token
 	Type Type
 }
 
 func (p *ParamDecl) print(pr *printer) {
+	if p.Mut {
+		pr.WriteString("mut ")
+	}
 	pr.WriteToken(p.Name)
 	pr.WriteString(": ")
 	pr.WriteBy(p.Type)

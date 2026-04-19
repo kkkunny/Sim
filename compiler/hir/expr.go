@@ -12,6 +12,7 @@ type Expr interface {
 	Local
 	expr()
 	GetType() Type
+	Mutable() bool
 }
 
 type IdentExpr struct {
@@ -35,6 +36,10 @@ func (e *IdentExpr) GetType() Type {
 	return e.Define.GetType()
 }
 
+func (e *IdentExpr) Mutable() bool {
+	return e.Define.Mutable()
+}
+
 type Integer struct {
 	Type  Type
 	Value *big.Int
@@ -51,6 +56,10 @@ func (e *Integer) GetType() Type {
 	return e.Type
 }
 
+func (e *Integer) Mutable() bool {
+	return false
+}
+
 type Float struct {
 	Type  Type
 	Value *big.Float
@@ -65,6 +74,10 @@ func (e *Float) print(p *printer) {
 
 func (e *Float) GetType() Type {
 	return e.Type
+}
+
+func (e *Float) Mutable() bool {
+	return false
 }
 
 type UnaryOp string
@@ -90,6 +103,10 @@ func (e *Unary) print(p *printer) {
 
 func (e *Unary) GetType() Type {
 	return e.Expr.GetType()
+}
+
+func (e *Unary) Mutable() bool {
+	return false
 }
 
 type BinaryOp string
@@ -145,6 +162,10 @@ func (e *Binary) GetType() Type {
 	}
 }
 
+func (e *Binary) Mutable() bool {
+	return false
+}
+
 type Func struct {
 	Params     []*Param
 	ReturnType Type
@@ -180,6 +201,10 @@ func (e *Func) GetType() Type {
 	return NewFuncType(e.ReturnType, params...)
 }
 
+func (e *Func) Mutable() bool {
+	return false
+}
+
 type Call struct {
 	Func Expr
 	Args []Expr
@@ -202,6 +227,10 @@ func (e *Call) print(p *printer) {
 
 func (e *Call) GetType() Type {
 	return e.Func.GetType().(*FuncType).Return
+}
+
+func (e *Call) Mutable() bool {
+	return false
 }
 
 type Tuple struct {
@@ -232,6 +261,10 @@ func (e *Tuple) GetType() Type {
 	})...)
 }
 
+func (e *Tuple) Mutable() bool {
+	return false
+}
+
 type TupleIndex struct {
 	From  Expr
 	Index *big.Int
@@ -257,6 +290,10 @@ func (e *TupleIndex) print(p *printer) {
 func (e *TupleIndex) GetType() Type {
 	elems := e.From.GetType().(*TupleType).Elems
 	return elems[e.Index.Int64()]
+}
+
+func (e *TupleIndex) Mutable() bool {
+	return e.From.Mutable()
 }
 
 type Array struct {
@@ -286,6 +323,10 @@ func (e *Array) GetType() Type {
 	return e.Type
 }
 
+func (e *Array) Mutable() bool {
+	return false
+}
+
 type ArrayIndex struct {
 	From  Expr
 	Index Expr
@@ -310,4 +351,8 @@ func (e *ArrayIndex) print(p *printer) {
 
 func (e *ArrayIndex) GetType() Type {
 	return e.From.GetType().(*ArrayType).Elem
+}
+
+func (e *ArrayIndex) Mutable() bool {
+	return e.From.Mutable()
 }

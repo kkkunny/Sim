@@ -58,6 +58,7 @@ func (r *Return) print(p *printer) {
 }
 
 type Let struct {
+	Mut   bool
 	Name  token.Token
 	Value Expr
 }
@@ -67,6 +68,9 @@ func (*Let) global() {}
 
 func (l *Let) print(p *printer) {
 	p.WriteString("let ")
+	if l.Mut {
+		p.WriteString("mut ")
+	}
 	p.WriteToken(l.Name)
 	p.WriteString(" = ")
 	p.WriteBy(l.Value)
