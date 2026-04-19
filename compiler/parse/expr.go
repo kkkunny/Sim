@@ -53,6 +53,29 @@ func (p *Parser) parsePrimaryExpr() (expr ast.Expr) {
 	case token.KindEnum.Lpa:
 		begin := p.expect(token.KindEnum.Lpa).Position
 		p.skip(token.KindEnum.Br)
+		if p.ifSkip(token.KindEnum.Rpa) {
+			// 空元组
+			if p.nextToken.Kind != token.KindEnum.Arrow && p.nextToken.Kind != token.KindEnum.Lbr {
+				return &ast.Tuple{
+					BeginPosition: begin,
+					EndPosition:   p.curToken.Position,
+				}
+			}
+
+			// 无参函数
+			var returnType optional.Optional[ast.Type]
+			if p.ifSkip(token.KindEnum.Arrow) {
+				returnType = optional.Some(p.parseType())
+			}
+
+			var body optional.Optional[*ast.Block]
+			if p.nextToken.Kind == token.KindEnum.Lbr {
+				body = optional.Some(p.parseBlock())
+			}
+
+			return &ast.Func{BeginPosition: begin, ReturnType: returnType, Body: body, EndPosition: p.curToken.Position}
+		}
+
 		expr := p.parseExpr()
 		if identExpr, ok := expr.(*ast.IdentExpr); ok && p.nextToken.Kind == token.KindEnum.Col {
 			p.expect(token.KindEnum.Col)
@@ -82,8 +105,20 @@ func (p *Parser) parsePrimaryExpr() (expr ast.Expr) {
 
 			return &ast.Func{BeginPosition: begin, Params: params, ReturnType: returnType, Body: body, EndPosition: p.curToken.Position}
 		}
-		p.expect(token.KindEnum.Rpa)
-		return expr
+
+		// 非空元组
+		elems := []ast.Expr{expr}
+		p.ifSkip(token.KindEnum.Comma)
+		p.skip(token.KindEnum.Br)
+		for p.nextToken.Kind != token.KindEnum.Rpa {
+			elems = append(elems, p.parseExpr())
+			if !p.ifSkip(token.KindEnum.Comma) {
+				break
+			}
+			p.skip(token.KindEnum.Br)
+		}
+		end := p.expect(token.KindEnum.Rpa).Position
+		return &ast.Tuple{BeginPosition: begin, Elems: elems, EndPosition: end}
 	default:
 		p.reporter.Fatalf(
 			p.nextToken.Position,

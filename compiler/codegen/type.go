@@ -103,7 +103,7 @@ func (c *CodeGenerator) buildFuncType(t *hir.FuncType) *cir.MacroType {
 func (c *CodeGenerator) buildTupleType(t *hir.TupleType) *cir.StructType {
 	fields := make([]*cir.StructTypeField, len(t.Elems))
 	for i, e := range t.Elems {
-		fn := fmt.Sprintf("_f%d", i)
+		fn := fmt.Sprintf("_f%d", i+1)
 		ft := c.buildType(e)
 		fields[i] = cir.NewStructTypeField(ft, fn)
 	}
