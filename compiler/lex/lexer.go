@@ -132,6 +132,10 @@ func (l *Lexer) Scan() token.Token {
 			kind = token.KindEnum.Lpa
 		case ')':
 			kind = token.KindEnum.Rpa
+		case '[':
+			kind = token.KindEnum.Lba
+		case ']':
+			kind = token.KindEnum.Rba
 		case '{':
 			kind = token.KindEnum.Lbr
 		case '}':

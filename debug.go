@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,13 +42,23 @@ func main() {
 	builder := codegen.New().Generate(node)
 	err := compile.NewCompiler(builder).Compile()
 	if err != nil {
-		panic(err)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			panic(err)
+		} else {
+			os.Exit(exitErr.ExitCode())
+		}
 	}
 	outPath := filepath.Join(config.WorkPath, "main.out")
 	defer os.Remove(outPath)
 	cmder := exec.Command(outPath)
 	cmder.Stdin, cmder.Stdout, cmder.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err = stlerr.ErrorWrap(cmder.Run()); err != nil {
-		panic(err)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			panic(err)
+		} else {
+			os.Exit(exitErr.ExitCode())
+		}
 	}
 }

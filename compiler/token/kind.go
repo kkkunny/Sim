@@ -32,6 +32,8 @@ var KindEnum = enum.New[struct {
 
 	Lpa   Kind `text:"("`
 	Rpa   Kind `text:")"`
+	Lba   Kind `text:"["`
+	Rba   Kind `text:"]"`
 	Lbr   Kind `text:"{"`
 	Rbr   Kind `text:"}"`
 	Col   Kind `text:":"`
