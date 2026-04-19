@@ -147,7 +147,7 @@ func (c *CodeGenerator) buildNativeClosureFunc(expr *hir.Func, captureVars []hir
 	returnType := c.buildType(expr.ReturnType)
 
 	initBodyFn := func() {
-		ctx := c.builder.BuildLocalVarDecl(cir.NewAliasType(ctxT), "_ctx")
+		ctx := c.builder.BuildVarDecl(cir.NewAliasType(ctxT), "_ctx")
 		ctx.Value = optional.Some[cir.Expr](cir.NewUnaryExpr(cir.UnaryOpEnum.Mul, cir.NewCovert(cir.NewPointerType(cir.NewAliasType(ctxT)), cir.NewIdentExpr("_p0"))))
 	}
 
@@ -182,7 +182,7 @@ func (c *CodeGenerator) buildFunc(expr *hir.Func) *cir.MacroExpr {
 		for i, cv := range captureVars {
 			fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(cv)
 		}
-		ctx := c.builder.BuildLocalVarDecl(cir.NewAliasType(ctxT), "", cir.NewStruct(fields))
+		ctx := c.builder.BuildVarDecl(cir.NewAliasType(ctxT), "", cir.NewStruct(fields))
 		return cir.NewMacroExpr("FUNCEXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnaryExpr(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
 	}
 }

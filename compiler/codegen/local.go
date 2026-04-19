@@ -45,7 +45,7 @@ func (c *CodeGenerator) buildReturn(r *hir.Return) *cir.Return {
 func (c *CodeGenerator) buildLocalLet(l *hir.Let) *cir.VarDecl {
 	typ := c.buildType(l.Value.GetType())
 	value := c.buildExpr(l.Value)
-	v := c.builder.BuildLocalVarDecl(typ, "", value)
+	v := c.builder.BuildVarDecl(typ, "", value)
 	c.idents[l] = v
 	return v
 }
