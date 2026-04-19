@@ -231,6 +231,11 @@ func (*Struct) local() {}
 func (*Struct) expr()  {}
 
 func (e *Struct) print(p *printer) {
+	if len(e.Fields) == 0 {
+		p.WriteString("ZERO_TYPE_VALUE")
+		return
+	}
+
 	p.WriteString("{")
 	var i int
 	for fn, fv := range e.Fields {

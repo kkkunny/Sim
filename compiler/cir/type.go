@@ -212,19 +212,26 @@ func NewStructType(name string, fields ...*StructTypeField) *StructType {
 func (*StructType) typ() {}
 
 func (t *StructType) print(p *printer) {
+	if len(t.Fields) == 0 {
+		p.WriteString("ZERO_TYPE")
+		return
+	}
+
 	p.WriteString("struct ")
 	p.WriteString(t.Name)
 	p.WriteString("{")
-	p.NextLine(+1)
-	for i, f := range t.Fields {
-		p.WriteBy(f.Type)
-		p.WriteString(" ")
-		p.WriteString(f.Name)
-		p.WriteString(";")
-		if i < len(t.Fields)-1 {
-			p.NextLine()
-		} else {
-			p.NextLine(-1)
+	if len(t.Fields) > 0 {
+		p.NextLine(+1)
+		for i, f := range t.Fields {
+			p.WriteBy(f.Type)
+			p.WriteString(" ")
+			p.WriteString(f.Name)
+			p.WriteString(";")
+			if i < len(t.Fields)-1 {
+				p.NextLine()
+			} else {
+				p.NextLine(-1)
+			}
 		}
 	}
 	p.WriteString("}")

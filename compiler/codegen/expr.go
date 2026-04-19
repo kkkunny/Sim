@@ -28,6 +28,8 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildFunc(expr)
 	case *hir.Call:
 		return c.buildCall(expr)
+	case *hir.Tuple:
+		return c.buildTuple(expr)
 	default:
 		panic("unreachable")
 	}
@@ -190,4 +192,12 @@ func (c *CodeGenerator) buildCall(expr *hir.Call) cir.Expr {
 		return cir.NewCall(macroF.Args[0], append([]cir.Expr{macroF.Args[1]}, args...)...)
 	}
 	return cir.NewMacroExpr("FUNCCALL", append([]cir.Expr{f}, args...)...)
+}
+
+func (c *CodeGenerator) buildTuple(expr *hir.Tuple) *cir.Struct {
+	fields := make(map[string]cir.Expr, len(expr.Elems))
+	for i, e := range expr.Elems {
+		fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(e)
+	}
+	return cir.NewStruct(fields)
 }

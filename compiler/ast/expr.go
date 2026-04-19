@@ -143,3 +143,27 @@ func (e *Call) print(p *printer) {
 func (e *Call) Position() reader.Position {
 	return reader.MixPosition(e.Func.Position(), e.EndPosition)
 }
+
+type Tuple struct {
+	BeginPosition reader.Position
+	Elems         []Expr
+	EndPosition   reader.Position
+}
+
+func (e *Tuple) local() {}
+func (e *Tuple) expr()  {}
+
+func (e *Tuple) print(p *printer) {
+	p.WriteString("(")
+	for i, arg := range e.Elems {
+		p.WriteBy(arg)
+		if i < len(e.Elems)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}
+
+func (e *Tuple) Position() reader.Position {
+	return reader.MixPosition(e.BeginPosition, e.EndPosition)
+}
