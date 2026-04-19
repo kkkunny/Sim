@@ -187,3 +187,51 @@ func (t *MacroType) printWithName(p *printer, name string) {
 	p.WriteString(" ")
 	p.WriteString(name)
 }
+
+type StructTypeField struct {
+	Type Type
+	Name string
+}
+
+func NewStructTypeField(t Type, name string) *StructTypeField {
+	return &StructTypeField{
+		Type: t,
+		Name: name,
+	}
+}
+
+type StructType struct {
+	Name   string
+	Fields []*StructTypeField
+}
+
+func NewStructType(name string, fields ...*StructTypeField) *StructType {
+	return &StructType{Name: name, Fields: fields}
+}
+
+func (*StructType) typ() {}
+
+func (t *StructType) print(p *printer) {
+	p.WriteString("struct ")
+	p.WriteString(t.Name)
+	p.WriteString("{")
+	p.NextLine(+1)
+	for i, f := range t.Fields {
+		p.WriteBy(f.Type)
+		p.WriteString(" ")
+		p.WriteString(f.Name)
+		p.WriteString(";")
+		if i < len(t.Fields)-1 {
+			p.NextLine()
+		} else {
+			p.NextLine(-1)
+		}
+	}
+	p.WriteString("}")
+}
+
+func (t *StructType) printWithName(p *printer, name string) {
+	p.WriteBy(t)
+	p.WriteString(" ")
+	p.WriteString(name)
+}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	"github.com/kkkunny/stl/container/tuple"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
@@ -34,12 +35,19 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 
 func (c *CodeGenerator) buildIdent(expr hir.Ident) cir.Expr {
 	name := c.idents[expr].GetName()
-	if let, ok := expr.(*hir.Let); ok {
-		if stlval.Is[*hir.Func](let.Value) {
-			return cir.NewMacroExpr("FUNCEXPR_F", &cir.IdentExpr{Name: name})
+	var value cir.Expr = cir.NewIdentExpr(name)
+
+	// 如果是闭包中捕获的外部变量，转换成ctx的成员变量
+	if c.currentFunc != nil {
+		if cv, ok := c.captureVarsMap[tuple.Pack2(c.currentFunc, expr)]; ok {
+			value = cv
 		}
 	}
-	return &cir.IdentExpr{Name: name}
+
+	if let, ok := expr.(*hir.Let); ok && stlval.Is[*hir.Func](let.Value) {
+		return cir.NewMacroExpr("FUNCEXPR_F", value)
+	}
+	return value
 }
 
 func (c *CodeGenerator) buildUnary(expr *hir.Unary) *cir.UnaryExpr {
@@ -50,10 +58,7 @@ func (c *CodeGenerator) buildUnary(expr *hir.Unary) *cir.UnaryExpr {
 	default:
 		panic("unreachable")
 	}
-	return &cir.UnaryExpr{
-		Op:   op,
-		Expr: c.buildExpr(expr.Expr),
-	}
+	return cir.NewUnaryExpr(op, c.buildExpr(expr.Expr))
 }
 
 func (c *CodeGenerator) buildBinary(expr *hir.Binary) *cir.BinaryExpr {
@@ -88,7 +93,7 @@ func (c *CodeGenerator) buildBinary(expr *hir.Binary) *cir.BinaryExpr {
 func (c *CodeGenerator) buildNativeFunc(expr *hir.Func) *cir.FuncExpr {
 	params := make([]*cir.Param, len(expr.Params))
 	for i, p := range expr.Params {
-		pn := fmt.Sprintf("_p%d", i)
+		pn := fmt.Sprintf("_p%d", i+1)
 		pt := c.buildType(p.Type)
 		params[i] = cir.NewParam(pn, pt)
 		c.idents[p] = params[i]
@@ -98,10 +103,13 @@ func (c *CodeGenerator) buildNativeFunc(expr *hir.Func) *cir.FuncExpr {
 
 	var body optional.Optional[*cir.Block]
 	if b, ok := expr.Body.Value(); ok {
+		prevFunc := c.currentFunc
+		c.currentFunc = expr
 		prevBlock, _ := c.builder.CurrentAt()
 		c.builder.MoveTo(nil)
-		body = optional.Some(c.buildBlock(b))
+		body = optional.Some(c.buildBlock(b, nil))
 		c.builder.MoveTo(prevBlock)
+		c.currentFunc = prevFunc
 	}
 
 	decl := c.builder.BuildFuncDecl("", returnType, params)
@@ -109,9 +117,66 @@ func (c *CodeGenerator) buildNativeFunc(expr *hir.Func) *cir.FuncExpr {
 	return &cir.FuncExpr{Decl: decl}
 }
 
+func (c *CodeGenerator) buildNativeClosureFunc(expr *hir.Func, captureVars []hir.Ident) (*cir.Typedef, *cir.FuncExpr) {
+	// 上下文
+	fields := stlslices.Map(captureVars, func(i int, vexpr hir.Ident) *cir.StructTypeField {
+		fn := fmt.Sprintf("_f%d", i+1)
+		c.captureVarsMap[tuple.Pack2(expr, vexpr)] = cir.NewMember(cir.NewIdentExpr("_ctx"), fn)
+		return cir.NewStructTypeField(c.buildType(vexpr.GetType()), fn)
+	})
+	ctxT := c.builder.BuildTypedef(cir.NewStructType("", fields...), "")
+
+	// 函数
+	params := make([]*cir.Param, len(expr.Params)+1)
+	params[0] = cir.NewParam("_p0", cir.VoidPtr)
+	for i, p := range expr.Params {
+		pn := fmt.Sprintf("_p%d", i+1)
+		pt := c.buildType(p.Type)
+		params[i+1] = cir.NewParam(pn, pt)
+		c.idents[p] = params[i+1]
+	}
+
+	returnType := c.buildType(expr.ReturnType)
+
+	initBodyFn := func() {
+		ctx := c.builder.BuildLocalVarDecl(cir.NewAliasType(ctxT), "_ctx")
+		ctx.Value = optional.Some[cir.Expr](cir.NewUnaryExpr(cir.UnaryOpEnum.Mul, cir.NewCovert(cir.NewPointerType(cir.NewAliasType(ctxT)), cir.NewIdentExpr("_p0"))))
+	}
+
+	var body optional.Optional[*cir.Block]
+	if b, ok := expr.Body.Value(); ok {
+		prevFunc := c.currentFunc
+		c.currentFunc = expr
+		prevBlock, _ := c.builder.CurrentAt()
+		c.builder.MoveTo(nil)
+		body = optional.Some(c.buildBlock(b, initBodyFn))
+		c.builder.MoveTo(prevBlock)
+		c.currentFunc = prevFunc
+	}
+
+	decl := c.builder.BuildFuncDecl("", returnType, params)
+	decl.Body = body
+	return ctxT, &cir.FuncExpr{Decl: decl}
+}
+
 func (c *CodeGenerator) buildFunc(expr *hir.Func) *cir.MacroExpr {
-	f := c.buildNativeFunc(expr)
-	return cir.NewMacroExpr("FUNCEXPR_F", &cir.IdentExpr{Name: f.Decl.Name})
+	captureVars := stlslices.Filter(expr.UsedExternalVariables, func(i int, v hir.Ident) bool {
+		return !stlval.Is[hir.Global](v)
+	})
+	var f *cir.FuncExpr
+	if len(captureVars) == 0 {
+		f = c.buildNativeFunc(expr)
+		return cir.NewMacroExpr("FUNCEXPR_F", &cir.IdentExpr{Name: f.Decl.Name})
+	} else {
+		var ctxT *cir.Typedef
+		ctxT, f = c.buildNativeClosureFunc(expr, captureVars)
+		fields := make(map[string]cir.Expr, len(captureVars))
+		for i, cv := range captureVars {
+			fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(cv)
+		}
+		ctx := c.builder.BuildLocalVarDecl(cir.NewAliasType(ctxT), "", cir.NewStruct(fields))
+		return cir.NewMacroExpr("FUNCEXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnaryExpr(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
+	}
 }
 
 func (c *CodeGenerator) buildCall(expr *hir.Call) cir.Expr {
@@ -121,6 +186,8 @@ func (c *CodeGenerator) buildCall(expr *hir.Call) cir.Expr {
 	})
 	if macroF, ok := f.(*cir.MacroExpr); ok && macroF.Name == "FUNCEXPR_F" {
 		return cir.NewCall(macroF.Args[0], args...)
+	} else if ok && macroF.Name == "FUNCEXPR_C" {
+		return cir.NewCall(macroF.Args[0], append([]cir.Expr{macroF.Args[1]}, args...)...)
 	}
 	return cir.NewMacroExpr("FUNCCALL", append([]cir.Expr{f}, args...)...)
 }

@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"github.com/kkkunny/stl/container/tuple"
+
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir"
 )
@@ -8,15 +10,18 @@ import (
 type CodeGenerator struct {
 	builder *cir.Builder
 
-	idents    map[hir.Ident]cir.Namer
-	typeCache map[string]*cir.AliasType
+	idents         map[hir.Ident]cir.Namer
+	typeCache      map[string]*cir.AliasType
+	captureVarsMap map[tuple.Tuple2[*hir.Func, hir.Ident]]*cir.Member
+	currentFunc    *hir.Func
 }
 
 func New() *CodeGenerator {
 	return &CodeGenerator{
-		builder:   cir.NewBuilder(),
-		idents:    make(map[hir.Ident]cir.Namer),
-		typeCache: make(map[string]*cir.AliasType),
+		builder:        cir.NewBuilder(),
+		idents:         make(map[hir.Ident]cir.Namer),
+		typeCache:      make(map[string]*cir.AliasType),
+		captureVarsMap: make(map[tuple.Tuple2[*hir.Func, hir.Ident]]*cir.Member),
 	}
 }
 

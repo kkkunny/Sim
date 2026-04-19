@@ -8,7 +8,7 @@ import (
 func (c *CodeGenerator) buildLocal(local hir.Local) {
 	switch local := local.(type) {
 	case *hir.Block:
-		c.buildBlock(local)
+		c.buildBlock(local, nil)
 	case *hir.Return:
 		c.buildReturn(local)
 	case *hir.Let:
@@ -20,10 +20,13 @@ func (c *CodeGenerator) buildLocal(local hir.Local) {
 	}
 }
 
-func (c *CodeGenerator) buildBlock(b *hir.Block) *cir.Block {
+func (c *CodeGenerator) buildBlock(b *hir.Block, initFn func()) *cir.Block {
 	prevBlock, _ := c.builder.CurrentAt()
 	block := c.builder.BuildBlock()
 	c.builder.MoveTo(block)
+	if initFn != nil {
+		initFn()
+	}
 	for _, s := range b.Stmts {
 		c.buildLocal(s)
 	}
