@@ -30,13 +30,15 @@ func (*Block) local() {}
 
 func (l *Block) print(p *printer) {
 	p.WriteString("{")
-	p.NextLine(+1)
-	for i, stmt := range l.Stmts {
-		p.WriteBy(stmt)
-		if i < len(l.Stmts)-1 {
-			p.NextLine()
-		} else {
-			p.NextLine(-1)
+	if len(l.Stmts) > 0 {
+		p.NextLine(+1)
+		for i, stmt := range l.Stmts {
+			p.WriteBy(stmt)
+			if i < len(l.Stmts)-1 {
+				p.NextLine()
+			} else {
+				p.NextLine(-1)
+			}
 		}
 	}
 	p.WriteString("}")
@@ -98,4 +100,26 @@ func (l *VarDecl) print(p *printer) {
 
 func (l *VarDecl) GetName() string {
 	return l.Name
+}
+
+type Include struct {
+	Path string
+}
+
+func (c *Builder) BuildInclude(path string) *Include {
+	i := &Include{Path: path}
+	if c.at == nil {
+		c.Globals = append(c.Globals, i)
+	} else {
+		c.at.Stmts = append(c.at.Stmts, i)
+	}
+	return i
+}
+
+func (*Include) local()  {}
+func (*Include) global() {}
+
+func (l *Include) print(p *printer) {
+	p.WriteString("#include ")
+	p.WriteString(l.Path)
 }

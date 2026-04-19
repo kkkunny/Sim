@@ -133,3 +133,30 @@ func (e *MacroExpr) print(p *printer) {
 	}
 	p.WriteString(")")
 }
+
+type Call struct {
+	Func Expr
+	Args []Expr
+}
+
+func NewCall(f Expr, args ...Expr) *Call {
+	return &Call{
+		Func: f,
+		Args: args,
+	}
+}
+
+func (*Call) local() {}
+func (*Call) expr()  {}
+
+func (e *Call) print(p *printer) {
+	p.WriteBy(e.Func)
+	p.WriteString("(")
+	for i, arg := range e.Args {
+		p.WriteBy(arg)
+		if i < len(e.Args)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}

@@ -54,6 +54,10 @@ analyze: $(WORK_PATH)/ $(TEST_FILE)
 codegen: $(WORK_PATH)/ $(TEST_FILE)
 	@go run -tags codegen $(WORK_PATH) $(TEST_FILE)
 
+.PHONY: compile
+compile: $(WORK_PATH)/ $(TEST_FILE)
+	@go run -tags compile $(WORK_PATH) $(TEST_FILE)
+
 .PHONY: build
 build: clean $(WORK_PATH)/
 	go build -buildmode=c-archive -o $(OUTPUT_PATH)/$(STATIC_LIB_FILE) $(RUNTIME_PATH)
