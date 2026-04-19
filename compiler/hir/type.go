@@ -2,6 +2,7 @@ package hir
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -226,4 +227,42 @@ func (t *TupleType) Equal(p Type) bool {
 	return stlslices.All(t.Elems, func(i int, p Type) bool {
 		return p.Equal(dst.Elems[i])
 	})
+}
+
+type ArrayType struct {
+	Size *big.Int
+	Elem Type
+}
+
+func NewArrayType(size *big.Int, elem Type) *ArrayType {
+	return &ArrayType{
+		Size: size,
+		Elem: elem,
+	}
+}
+
+func (*ArrayType) typ() {}
+
+func (t *ArrayType) print(p *printer) {
+	p.WriteString("[")
+	p.WriteString(t.Size.String())
+	p.WriteString("]")
+	p.WriteBy(t.Elem)
+}
+
+func (t *ArrayType) String() string {
+	var buf strings.Builder
+	t.print(newPrint(&buf))
+	return buf.String()
+}
+
+func (t *ArrayType) Equal(p Type) bool {
+	dst, ok := p.(*ArrayType)
+	if !ok {
+		return false
+	}
+	if t.Size.String() != dst.Size.String() {
+		return false
+	}
+	return t.Elem.Equal(dst.Elem)
 }
