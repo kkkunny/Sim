@@ -49,6 +49,7 @@ func (r *Return) print(p *printer) {
 }
 
 type Let struct {
+	Mut   bool
 	Name  string
 	Value Expr
 }
@@ -69,4 +70,8 @@ func (l *Let) GetName() string {
 
 func (l *Let) GetType() Type {
 	return l.Value.GetType()
+}
+
+func (e *Let) Mutable() bool {
+	return e.Mut
 }

@@ -6,8 +6,9 @@ import (
 )
 
 func (p *Parser) parseParamDecl() *ast.ParamDecl {
+	mut := p.ifSkip(token.KindEnum.Mut)
 	name := p.expect(token.KindEnum.Ident)
 	p.expect(token.KindEnum.Col)
 	typ := p.parseType()
-	return &ast.ParamDecl{Name: name, Type: typ}
+	return &ast.ParamDecl{Mut: mut, Name: name, Type: typ}
 }

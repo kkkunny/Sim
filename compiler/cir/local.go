@@ -68,27 +68,31 @@ func (l *Return) print(p *printer) {
 }
 
 type VarDecl struct {
-	Type  Type
-	Name  string
-	Value optional.Optional[Expr]
+	IsGlobal bool
+	Type     Type
+	Name     string
+	Value    optional.Optional[Expr]
 }
 
 func (c *Builder) BuildVarDecl(t Type, name string, value ...Expr) *VarDecl {
+	var isGlobal bool
 	if c.at != nil {
 		c.at.varCount++
 		if name == "" {
 			name = fmt.Sprintf("_v%d", c.at.varCount)
 		}
 	} else {
+		isGlobal = true
 		c.globalVarCount++
 		if name == "" {
 			name = fmt.Sprintf("_g%d", c.globalVarCount)
 		}
 	}
 	decl := &VarDecl{
-		Type:  t,
-		Name:  name,
-		Value: optional.UnEmpty(stlslices.Last(value)),
+		IsGlobal: isGlobal,
+		Type:     t,
+		Name:     name,
+		Value:    optional.UnEmpty(stlslices.Last(value)),
 	}
 	if c.at != nil {
 		c.at.Stmts = append(c.at.Stmts, decl)
@@ -102,6 +106,9 @@ func (*VarDecl) global() {}
 func (*VarDecl) local()  {}
 
 func (l *VarDecl) print(p *printer) {
+	if l.IsGlobal {
+		p.WriteString("static ")
+	}
 	l.Type.printWithName(p, l.Name)
 	if value, ok := l.Value.Value(); ok {
 		p.WriteString(" = ")

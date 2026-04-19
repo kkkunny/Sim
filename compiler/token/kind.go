@@ -52,6 +52,7 @@ var KindEnum = enum.New[struct {
 
 	Let    Kind `text:"let"`
 	Return Kind `text:"return"`
+	Mut    Kind `text:"mut"`
 }]()
 
 var kind2Text = func() map[Kind]string {
@@ -69,7 +70,7 @@ var kind2Text = func() map[Kind]string {
 var keyword2Kind = func() map[string]Kind {
 	res := make(map[string]Kind, len(kind2Text))
 	keywordKey2Text := stlmaps.Filter(kind2Text, func(k Kind, v string) bool {
-		return k >= KindEnum.Let && k <= KindEnum.Return
+		return k >= KindEnum.Let
 	})
 	for k, v := range keywordKey2Text {
 		res[v] = k

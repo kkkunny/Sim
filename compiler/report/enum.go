@@ -17,6 +17,8 @@ var Errors = enum.New[struct {
 	InsufficientArguments    Error `enum:"insufficient arguments" format:"expected %d arguments but got %d"`
 	ExpectedIntegerConstant  Error `enum:"expected integer constant" format:"expected a integer constant"`
 	TypeLoss                 Error `enum:"type loss" format:"this expression must have a type"`
+	MustMutable              Error `enum:"must mutable" format:"the expression must be mutable"`
+	MustImmutable            Error `enum:"must immutable" format:"the expression must be immutable"`
 }]()
 
 var errorFormats = func() map[Error]string {
