@@ -50,6 +50,13 @@ type Integer struct {
 	Value *big.Int
 }
 
+func NewInteger(t Type, v *big.Int) *Integer {
+	return &Integer{
+		Type:  t,
+		Value: v,
+	}
+}
+
 func (*Integer) expr()  {}
 func (*Integer) local() {}
 
@@ -72,6 +79,13 @@ func (e *Integer) Temporary() bool {
 type Float struct {
 	Type  Type
 	Value *big.Float
+}
+
+func NewFloat(t Type, v *big.Float) *Float {
+	return &Float{
+		Type:  t,
+		Value: v,
+	}
 }
 
 func (*Float) expr()  {}
@@ -188,11 +202,18 @@ func (e *Binary) Temporary() bool {
 }
 
 type Func struct {
-	Params     []*Param
-	ReturnType Type
-	Body       optional.Optional[*Block]
+	Return Type
+	Params []*Param
+	Body   optional.Optional[*Block]
 
 	UsedExternalVariables []Ident
+}
+
+func NewFunc(rt Type, params ...*Param) *Func {
+	return &Func{
+		Return: rt,
+		Params: params,
+	}
 }
 
 func (*Func) expr()  {}
@@ -208,7 +229,7 @@ func (e *Func) print(p *printer) {
 	}
 	p.WriteString(")")
 	p.WriteString(" -> ")
-	p.WriteBy(e.ReturnType)
+	p.WriteBy(e.Return)
 	if body, ok := e.Body.Value(); ok {
 		p.WriteString(" ")
 		p.WriteBy(body)
@@ -219,7 +240,7 @@ func (e *Func) GetType() Type {
 	params := stlslices.Map(e.Params, func(_ int, param *Param) Type {
 		return param.Type
 	})
-	return NewFuncType(e.ReturnType, params...)
+	return NewFuncType(e.Return, params...)
 }
 
 func (e *Func) Mutable() bool {
@@ -298,6 +319,33 @@ func (e *Tuple) Temporary() bool {
 	return true
 }
 
+type EmptyTuple struct {
+	Type Type
+}
+
+func NewEmptyTuple(t Type) *EmptyTuple {
+	return &EmptyTuple{Type: t}
+}
+
+func (*EmptyTuple) expr()  {}
+func (*EmptyTuple) local() {}
+
+func (e *EmptyTuple) print(p *printer) {
+	p.WriteString("(...)")
+}
+
+func (e *EmptyTuple) GetType() Type {
+	return e.Type
+}
+
+func (e *EmptyTuple) Mutable() bool {
+	return false
+}
+
+func (e *EmptyTuple) Temporary() bool {
+	return true
+}
+
 type TupleIndex struct {
 	From  Expr
 	Index *big.Int
@@ -365,6 +413,33 @@ func (e *Array) Mutable() bool {
 }
 
 func (e *Array) Temporary() bool {
+	return true
+}
+
+type EmptyArray struct {
+	Type Type
+}
+
+func NewEmptyArray(t Type) *EmptyArray {
+	return &EmptyArray{Type: t}
+}
+
+func (*EmptyArray) expr()  {}
+func (*EmptyArray) local() {}
+
+func (e *EmptyArray) print(p *printer) {
+	p.WriteString("[...]")
+}
+
+func (e *EmptyArray) GetType() Type {
+	return e.Type
+}
+
+func (e *EmptyArray) Mutable() bool {
+	return false
+}
+
+func (e *EmptyArray) Temporary() bool {
 	return true
 }
 

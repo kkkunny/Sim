@@ -1,5 +1,3 @@
-let a = 1
+let a: i64
 
-let main = (){
-	[1, 2][0] = 1
-}
+let add: (i32, i32) -> unit

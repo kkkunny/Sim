@@ -50,7 +50,14 @@ func (p *Parser) parseLet() *ast.Let {
 	p.expect(token.KindEnum.Let)
 	mut := p.ifSkip(token.KindEnum.Mut)
 	name := p.expect(token.KindEnum.Ident)
-	p.expect(token.KindEnum.Assign)
-	value := p.parseExpr()
-	return &ast.Let{Mut: mut, Name: name, Value: value}
+	var t optional.Optional[ast.Type]
+	if p.ifSkip(token.KindEnum.Col) {
+		t = optional.Some(p.parseType())
+	}
+	var value optional.Optional[ast.Expr]
+	if t.IsNone() || p.nextToken.Kind == token.KindEnum.Assign {
+		p.expect(token.KindEnum.Assign)
+		value = optional.Some(p.parseExpr())
+	}
+	return &ast.Let{Mut: mut, Name: name, Type: t, Value: value}
 }

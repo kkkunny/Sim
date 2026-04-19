@@ -31,10 +31,14 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildCall(expr)
 	case *hir.Tuple:
 		return c.buildTuple(expr)
+	case *hir.EmptyTuple:
+		return c.buildEmptyTuple(expr)
 	case *hir.TupleIndex:
 		return c.buildTupleIndex(expr)
 	case *hir.Array:
 		return c.buildArray(expr)
+	case *hir.EmptyArray:
+		return c.buildEmptyArray(expr)
 	case *hir.ArrayIndex:
 		return c.buildArrayIndex(expr)
 	default:
@@ -136,7 +140,7 @@ func (c *CodeGenerator) buildNativeFunc(expr *hir.Func) *cir.FuncExpr {
 		c.idents[p] = params[i]
 	}
 
-	returnType := c.buildType(expr.ReturnType)
+	returnType := c.buildType(expr.Return)
 
 	var body optional.Optional[*cir.Block]
 	if b, ok := expr.Body.Value(); ok {
@@ -173,7 +177,7 @@ func (c *CodeGenerator) buildNativeClosureFunc(expr *hir.Func, captureVars []hir
 		c.idents[p] = params[i+1]
 	}
 
-	returnType := c.buildType(expr.ReturnType)
+	returnType := c.buildType(expr.Return)
 
 	initBodyFn := func() {
 		ctx := c.builder.BuildVarDecl(cir.NewAliasType(ctxT), "_ctx")
@@ -237,6 +241,10 @@ func (c *CodeGenerator) buildTuple(expr *hir.Tuple) *cir.Struct {
 	return cir.NewStruct(fields)
 }
 
+func (c *CodeGenerator) buildEmptyTuple(*hir.EmptyTuple) *cir.Struct {
+	return cir.NewStruct(nil)
+}
+
 func (c *CodeGenerator) buildTupleIndex(expr *hir.TupleIndex) *cir.Member {
 	from := c.buildExpr(expr.From)
 	return cir.NewMember(from, fmt.Sprintf("_f%d", expr.Index.Int64()+1))
@@ -249,6 +257,13 @@ func (c *CodeGenerator) buildArray(expr *hir.Array) *cir.Struct {
 	})
 	return cir.NewStruct(map[string]cir.Expr{
 		"array": cir.NewArray(elems...),
+	}, at)
+}
+
+func (c *CodeGenerator) buildEmptyArray(expr *hir.EmptyArray) *cir.Struct {
+	at := c.buildType(expr.GetType())
+	return cir.NewStruct(map[string]cir.Expr{
+		"array": cir.NewArray(),
 	}, at)
 }
 

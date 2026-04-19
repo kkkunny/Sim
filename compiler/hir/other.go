@@ -26,6 +26,14 @@ type Param struct {
 	Type Type
 }
 
+func NewParam(mut bool, t Type, name string) *Param {
+	return &Param{
+		Mut:  mut,
+		Name: name,
+		Type: t,
+	}
+}
+
 func (p *Param) print(pr *printer) {
 	pr.WriteString(p.Name)
 	pr.WriteString(": ")
