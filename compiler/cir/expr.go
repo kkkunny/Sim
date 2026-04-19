@@ -112,6 +112,13 @@ type MacroExpr struct {
 	Args []Expr
 }
 
+func NewMacroExpr(name string, args ...Expr) *MacroExpr {
+	return &MacroExpr{
+		Name: name,
+		Args: args,
+	}
+}
+
 func (*MacroExpr) local() {}
 func (*MacroExpr) expr()  {}
 

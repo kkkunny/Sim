@@ -14,5 +14,6 @@ func (c *CodeGenerator) buildGlobal(global hir.Global) {
 }
 
 func (c *CodeGenerator) buildGlobalLet(l *hir.Let) {
-	c.buildFuncExpr(l.Value.(*hir.FuncExpr))
+	f := c.buildNativeFunc(l.Value.(*hir.Func))
+	c.idents[l] = f.Decl
 }

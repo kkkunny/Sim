@@ -55,6 +55,7 @@ type Let struct {
 
 func (*Let) local()  {}
 func (*Let) global() {}
+func (*Let) expr()   {}
 
 func (l *Let) print(p *printer) {
 	p.WriteString("let ")

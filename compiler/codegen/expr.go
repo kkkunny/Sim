@@ -1,7 +1,11 @@
 package codegen
 
 import (
+	"fmt"
+
 	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir"
@@ -9,24 +13,36 @@ import (
 
 func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 	switch expr := expr.(type) {
-	case *hir.IdentExpr:
-		return &cir.IdentExpr{Name: expr.Name}
-	case *hir.IntegerExpr:
+	case hir.Ident:
+		return c.buildIdent(expr)
+	case *hir.Integer:
 		return &cir.IntegerExpr{Value: expr.Value}
-	case *hir.FloatExpr:
+	case *hir.Float:
 		return &cir.FloatExpr{Value: expr.Value}
-	case *hir.UnaryExpr:
-		return c.buildUnaryOp(expr)
-	case *hir.BinaryExpr:
-		return c.buildBinaryExpr(expr)
-	case *hir.FuncExpr:
-		return c.buildFuncExpr(expr)
+	case *hir.Unary:
+		return c.buildUnary(expr)
+	case *hir.Binary:
+		return c.buildBinary(expr)
+	case *hir.Func:
+		return c.buildFunc(expr)
+	case *hir.Call:
+		return c.buildCall(expr)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildUnaryOp(expr *hir.UnaryExpr) *cir.UnaryExpr {
+func (c *CodeGenerator) buildIdent(expr hir.Ident) cir.Expr {
+	name := c.idents[expr].GetName()
+	if let, ok := expr.(*hir.Let); ok {
+		if stlval.Is[*hir.Func](let.Value) {
+			return cir.NewMacroExpr("FUNCEXPR_F", &cir.IdentExpr{Name: name})
+		}
+	}
+	return &cir.IdentExpr{Name: name}
+}
+
+func (c *CodeGenerator) buildUnary(expr *hir.Unary) *cir.UnaryExpr {
 	var op cir.UnaryOp
 	switch expr.Op {
 	case hir.UnaryOpEnum.Not:
@@ -40,7 +56,7 @@ func (c *CodeGenerator) buildUnaryOp(expr *hir.UnaryExpr) *cir.UnaryExpr {
 	}
 }
 
-func (c *CodeGenerator) buildBinaryExpr(expr *hir.BinaryExpr) *cir.BinaryExpr {
+func (c *CodeGenerator) buildBinary(expr *hir.Binary) *cir.BinaryExpr {
 	var op cir.BinaryOp
 	switch expr.Op {
 	case hir.BinaryOpEnum.Add:
@@ -69,20 +85,39 @@ func (c *CodeGenerator) buildBinaryExpr(expr *hir.BinaryExpr) *cir.BinaryExpr {
 	}
 }
 
-func (c *CodeGenerator) buildFuncExpr(expr *hir.FuncExpr) *cir.FuncExpr {
+func (c *CodeGenerator) buildNativeFunc(expr *hir.Func) *cir.FuncExpr {
+	params := make([]*cir.Param, len(expr.Params))
+	for i, p := range expr.Params {
+		pn := fmt.Sprintf("_p%d", i)
+		pt := c.buildType(p.Type)
+		params[i] = cir.NewParam(pn, pt)
+		c.idents[p] = params[i]
+	}
+
+	returnType := c.buildType(expr.ReturnType)
+
 	var body optional.Optional[*cir.Block]
 	if b, ok := expr.Body.Value(); ok {
+		prevBlock, _ := c.builder.CurrentAt()
+		c.builder.MoveTo(nil)
 		body = optional.Some(c.buildBlock(b))
+		c.builder.MoveTo(prevBlock)
 	}
-	returnType := c.buildType(expr.ReturnType)
-	params := make([]*cir.ParamDecl, len(expr.Params))
-	for i, p := range expr.Params {
-		params[i] = &cir.ParamDecl{
-			Name: p.Name,
-			Type: c.buildType(p.Type),
-		}
-	}
+
 	decl := c.builder.BuildFuncDecl("", returnType, params)
 	decl.Body = body
 	return &cir.FuncExpr{Decl: decl}
+}
+
+func (c *CodeGenerator) buildFunc(expr *hir.Func) *cir.MacroExpr {
+	f := c.buildNativeFunc(expr)
+	return cir.NewMacroExpr("FUNCEXPR_F", &cir.IdentExpr{Name: f.Decl.Name})
+}
+
+func (c *CodeGenerator) buildCall(expr *hir.Call) cir.Expr {
+	f := c.buildExpr(expr.Func)
+	args := stlslices.Map(expr.Args, func(_ int, argExpr hir.Expr) cir.Expr {
+		return c.buildExpr(argExpr)
+	})
+	return cir.NewMacroExpr("FUNCCALL", append([]cir.Expr{f}, args...)...)
 }

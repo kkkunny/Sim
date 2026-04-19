@@ -1,49 +1,48 @@
 package codegen
 
 import (
-	"github.com/kkkunny/stl/container/optional"
-
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
-func (c *CodeGenerator) buildBlock(b *hir.Block) *cir.Block {
-	stmts := make([]cir.Local, len(b.Stmts))
-	for i, s := range b.Stmts {
-		stmts[i] = c.buildLocal(s)
-	}
-	return &cir.Block{Stmts: stmts}
-}
-
-func (c *CodeGenerator) buildLocal(local hir.Local) cir.Local {
+func (c *CodeGenerator) buildLocal(local hir.Local) {
 	switch local := local.(type) {
 	case *hir.Block:
-		return c.buildBlock(local)
+		c.buildBlock(local)
 	case *hir.Return:
-		return c.buildReturn(local)
-	case hir.Expr:
-		return c.buildExpr(local)
+		c.buildReturn(local)
 	case *hir.Let:
-		return c.buildLocalLet(local)
+		c.buildLocalLet(local)
+	case hir.Expr:
+		c.buildExpr(local)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildReturn(r *hir.Return) *cir.Return {
-	var value optional.Optional[cir.Expr]
-	if v, ok := r.Value.Value(); ok {
-		value = optional.Some(c.buildExpr(v))
+func (c *CodeGenerator) buildBlock(b *hir.Block) *cir.Block {
+	prevBlock, _ := c.builder.CurrentAt()
+	block := c.builder.BuildBlock()
+	c.builder.MoveTo(block)
+	for _, s := range b.Stmts {
+		c.buildLocal(s)
 	}
-	return &cir.Return{Value: value}
+	c.builder.MoveTo(prevBlock)
+	return block
+}
+
+func (c *CodeGenerator) buildReturn(r *hir.Return) *cir.Return {
+	if v, ok := r.Value.Value(); ok {
+		return c.builder.BuildReturn(c.buildExpr(v))
+	} else {
+		return c.builder.BuildReturn()
+	}
 }
 
 func (c *CodeGenerator) buildLocalLet(l *hir.Let) *cir.VarDecl {
 	typ := c.buildType(l.Value.GetType())
 	value := c.buildExpr(l.Value)
-	return &cir.VarDecl{
-		Type:  typ,
-		Name:  l.Name,
-		Value: optional.Some(value),
-	}
+	v := c.builder.BuildLocalVarDecl(typ, "", value)
+	c.idents[l] = v
+	return v
 }

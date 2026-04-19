@@ -1,6 +1,11 @@
 package cir
 
-import "github.com/kkkunny/stl/container/optional"
+import (
+	"fmt"
+
+	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
+)
 
 type Local interface {
 	printWriter
@@ -9,6 +14,16 @@ type Local interface {
 
 type Block struct {
 	Stmts []Local
+
+	varCount int
+}
+
+func (c *Builder) BuildBlock() *Block {
+	local := &Block{}
+	if c.at != nil {
+		c.at.Stmts = append(c.at.Stmts, local)
+	}
+	return local
 }
 
 func (*Block) local() {}
@@ -31,6 +46,14 @@ type Return struct {
 	Value optional.Optional[Expr]
 }
 
+func (c *Builder) BuildReturn(value ...Expr) *Return {
+	local := &Return{
+		Value: optional.UnEmpty(stlslices.Last(value)),
+	}
+	c.at.Stmts = append(c.at.Stmts, local)
+	return local
+}
+
 func (*Return) local() {}
 
 func (l *Return) print(p *printer) {
@@ -48,6 +71,20 @@ type VarDecl struct {
 	Value optional.Optional[Expr]
 }
 
+func (c *Builder) BuildLocalVarDecl(t Type, name string, value ...Expr) *VarDecl {
+	c.at.varCount++
+	if name == "" {
+		name = fmt.Sprintf("_v%d", c.at.varCount)
+	}
+	local := &VarDecl{
+		Type:  t,
+		Name:  name,
+		Value: optional.UnEmpty(stlslices.Last(value)),
+	}
+	c.at.Stmts = append(c.at.Stmts, local)
+	return local
+}
+
 func (*VarDecl) local() {}
 
 func (l *VarDecl) print(p *printer) {
@@ -57,4 +94,8 @@ func (l *VarDecl) print(p *printer) {
 		p.WriteBy(value)
 	}
 	p.WriteString(";")
+}
+
+func (l *VarDecl) GetName() string {
+	return l.Name
 }

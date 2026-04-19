@@ -28,50 +28,50 @@ func (e *IdentExpr) Position() reader.Position {
 	return e.Name.Position
 }
 
-type IntegerExpr struct {
+type Integer struct {
 	Value token.Token
 }
 
-func (e *IntegerExpr) local() {}
-func (e *IntegerExpr) expr()  {}
+func (e *Integer) local() {}
+func (e *Integer) expr()  {}
 
-func (e *IntegerExpr) print(p *printer) {
+func (e *Integer) print(p *printer) {
 	p.WriteToken(e.Value)
 }
 
-func (e *IntegerExpr) Position() reader.Position {
+func (e *Integer) Position() reader.Position {
 	return e.Value.Position
 }
 
-type UnaryExpr struct {
+type Unary struct {
 	Op   token.Token
 	Expr Expr
 }
 
-func (e *UnaryExpr) local() {}
-func (e *UnaryExpr) expr()  {}
+func (e *Unary) local() {}
+func (e *Unary) expr()  {}
 
-func (e *UnaryExpr) print(p *printer) {
+func (e *Unary) print(p *printer) {
 	p.WriteString("(")
 	p.WriteToken(e.Op)
 	p.WriteBy(e.Expr)
 	p.WriteString(")")
 }
 
-func (e *UnaryExpr) Position() reader.Position {
+func (e *Unary) Position() reader.Position {
 	return reader.MixPosition(e.Op.Position, e.Expr.Position())
 }
 
-type BinaryExpr struct {
+type Binary struct {
 	Op    token.Token
 	Left  Expr
 	Right Expr
 }
 
-func (e *BinaryExpr) local() {}
-func (e *BinaryExpr) expr()  {}
+func (e *Binary) local() {}
+func (e *Binary) expr()  {}
 
-func (e *BinaryExpr) print(p *printer) {
+func (e *Binary) print(p *printer) {
 	p.WriteString("(")
 	p.WriteBy(e.Left)
 	p.WriteString(" ")
@@ -81,11 +81,11 @@ func (e *BinaryExpr) print(p *printer) {
 	p.WriteString(")")
 }
 
-func (e *BinaryExpr) Position() reader.Position {
+func (e *Binary) Position() reader.Position {
 	return reader.MixPosition(e.Left.Position(), e.Right.Position())
 }
 
-type FuncExpr struct {
+type Func struct {
 	BeginPosition reader.Position
 	Params        []*ParamDecl
 	ReturnType    optional.Optional[Type]
@@ -93,16 +93,16 @@ type FuncExpr struct {
 	EndPosition   reader.Position
 }
 
-func (e *FuncExpr) local() {}
-func (e *FuncExpr) expr()  {}
+func (e *Func) local() {}
+func (e *Func) expr()  {}
 
-func (e *FuncExpr) print(p *printer) {
+func (e *Func) print(p *printer) {
 	p.WriteString("(")
 	for i, param := range e.Params {
-		if i > 0 {
+		p.WriteBy(param)
+		if i < len(e.Params)-1 {
 			p.WriteString(", ")
 		}
-		p.WriteBy(param)
 	}
 	p.WriteString(")")
 	if rt, ok := e.ReturnType.Value(); ok {
@@ -115,6 +115,31 @@ func (e *FuncExpr) print(p *printer) {
 	}
 }
 
-func (e *FuncExpr) Position() reader.Position {
+func (e *Func) Position() reader.Position {
 	return reader.MixPosition(e.BeginPosition, e.EndPosition)
+}
+
+type Call struct {
+	Func        Expr
+	Args        []Expr
+	EndPosition reader.Position
+}
+
+func (e *Call) local() {}
+func (e *Call) expr()  {}
+
+func (e *Call) print(p *printer) {
+	p.WriteBy(e.Func)
+	p.WriteString("(")
+	for i, arg := range e.Args {
+		p.WriteBy(arg)
+		if i < len(e.Args)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(")")
+}
+
+func (e *Call) Position() reader.Position {
+	return reader.MixPosition(e.Func.Position(), e.EndPosition)
 }
