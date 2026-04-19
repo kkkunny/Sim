@@ -30,10 +30,12 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildCall(expr)
 	case *hir.Tuple:
 		return c.buildTuple(expr)
-	case *hir.Index:
-		return c.buildIndex(expr)
+	case *hir.TupleIndex:
+		return c.buildTupleIndex(expr)
 	case *hir.Array:
 		return c.buildArray(expr)
+	case *hir.ArrayIndex:
+		return c.buildArrayIndex(expr)
 	default:
 		panic("unreachable")
 	}
@@ -206,7 +208,7 @@ func (c *CodeGenerator) buildTuple(expr *hir.Tuple) *cir.Struct {
 	return cir.NewStruct(fields)
 }
 
-func (c *CodeGenerator) buildIndex(expr *hir.Index) *cir.Member {
+func (c *CodeGenerator) buildTupleIndex(expr *hir.TupleIndex) *cir.Member {
 	from := c.buildExpr(expr.From)
 	return cir.NewMember(from, fmt.Sprintf("_f%d", expr.Index.Int64()+1))
 }
@@ -219,4 +221,10 @@ func (c *CodeGenerator) buildArray(expr *hir.Array) *cir.Struct {
 	return cir.NewStruct(map[string]cir.Expr{
 		"array": cir.NewArray(elems...),
 	}, at)
+}
+
+func (c *CodeGenerator) buildArrayIndex(expr *hir.ArrayIndex) *cir.Offset {
+	from := c.buildExpr(expr.From)
+	offset := c.buildExpr(expr.Index)
+	return cir.NewOffset(cir.NewMember(from, "array"), offset)
 }

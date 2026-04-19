@@ -289,3 +289,25 @@ func (e *Array) print(p *printer) {
 	}
 	p.WriteString("}")
 }
+
+type Offset struct {
+	From   Expr
+	Offset Expr
+}
+
+func NewOffset(from, offset Expr) *Offset {
+	return &Offset{
+		From:   from,
+		Offset: offset,
+	}
+}
+
+func (*Offset) local() {}
+func (*Offset) expr()  {}
+
+func (e *Offset) print(p *printer) {
+	p.WriteBy(e.From)
+	p.WriteString("[")
+	p.WriteBy(e.Offset)
+	p.WriteString("]")
+}
