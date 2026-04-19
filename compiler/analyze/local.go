@@ -24,7 +24,7 @@ func (a *Analyzer) analyzeLocal(local ast.Local) hir.Local {
 	case ast.Expr:
 		return a.analyzeExpr(local)
 	case *ast.Let:
-		return a.analyzeLet(local)
+		return a.analyzeLet(local, false)
 	default:
 		panic("unreachable")
 	}
@@ -42,8 +42,15 @@ func (a *Analyzer) analyzeReturn(ret *ast.Return) *hir.Return {
 	}
 }
 
-func (a *Analyzer) analyzeLet(l *ast.Let) *hir.Let {
-	value := a.analyzeExpr(l.Value)
+func (a *Analyzer) analyzeLet(l *ast.Let, isGlobal bool) *hir.Let {
+
+	var value hir.Expr
+	if isGlobal && l.Name.OriginText == "main" { // TODO: 同一个包下只允许存在一个main函数
+		value = a.expectTypeExpr(l.Value, hir.NewFuncType(hir.Unit))
+	} else {
+		value = a.analyzeExpr(l.Value)
+	}
+
 	let := &hir.Let{
 		Name:  l.Name.OriginText,
 		Value: value,
