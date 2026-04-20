@@ -41,6 +41,11 @@ func (p *Parser) parsePrimaryType() ast.Type {
 		p.expect(token.KindEnum.Rba)
 		elem := p.parseType()
 		return &ast.ArrayType{BeginPosition: begin, Size: size, Elem: elem}
+	case token.KindEnum.And:
+		begin := p.expect(token.KindEnum.And).Position
+		mut := p.ifSkip(token.KindEnum.Mut)
+		elem := p.parseType()
+		return &ast.PointerType{BeginPosition: begin, Mut: mut, Elem: elem}
 	default:
 		name := p.expect(token.KindEnum.Ident)
 		return &ast.IdentType{Name: name}
