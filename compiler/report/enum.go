@@ -22,6 +22,7 @@ var Errors = enum.New[struct {
 	MustNotTemporary         Error `enum:"must not temporary" format:"the expression must be not temporary"`
 	MissingType              Error `enum:"missing type" format:"a expression must have a type"`
 	TypeMissingDefaultValue  Error `enum:"missing default value" format:"the type '%s' missing a default value"`
+	InvalidType              Error `enum:"invalid type" format:"expect a valid type"`
 }]()
 
 var errorFormats = func() map[Error]string {
