@@ -2,6 +2,7 @@ package ast
 
 import (
 	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/token"
@@ -95,4 +96,38 @@ func (t *ArrayType) print(p *printer) {
 
 func (t *ArrayType) Position() reader.Position {
 	return reader.MixPosition(t.BeginPosition, t.Elem.Position())
+}
+
+type UnionType struct {
+	Elems []Type
+}
+
+func (t *UnionType) typ() {}
+
+func (t *UnionType) print(p *printer) {
+	for i, elem := range t.Elems {
+		switch elem := elem.(type) {
+		case *FuncType:
+			if i < len(t.Elems)-1 {
+				p.WriteString("(")
+				p.WriteBy(elem)
+				p.WriteString(")")
+			} else {
+				p.WriteBy(elem)
+			}
+		case *UnionType:
+			p.WriteString("(")
+			p.WriteBy(elem)
+			p.WriteString(")")
+		default:
+			p.WriteBy(elem)
+		}
+		if i < len(t.Elems)-1 {
+			p.WriteString(" | ")
+		}
+	}
+}
+
+func (t *UnionType) Position() reader.Position {
+	return reader.MixPosition(stlslices.First(t.Elems).Position(), stlslices.Last(t.Elems).Position())
 }

@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/kkkunny/stl/container/optional"
@@ -18,7 +19,7 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 	case *hir.IdentExpr:
 		return c.buildIdentExpr(expr)
 	case *hir.Integer:
-		return &cir.IntegerExpr{Value: expr.Value}
+		return cir.NewInteger(expr.Value)
 	case *hir.Float:
 		return &cir.FloatExpr{Value: expr.Value}
 	case *hir.Unary:
@@ -41,6 +42,8 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildEmptyArray(expr)
 	case *hir.ArrayIndex:
 		return c.buildArrayIndex(expr)
+	case *hir.Union:
+		return c.buildUnion(expr)
 	default:
 		panic("unreachable")
 	}
@@ -160,10 +163,10 @@ func (c *CodeGenerator) buildNativeFunc(expr *hir.Func) *cir.FuncExpr {
 
 func (c *CodeGenerator) buildNativeClosureFunc(expr *hir.Func, captureVars []hir.Ident) (*cir.Typedef, *cir.FuncExpr) {
 	// 上下文
-	fields := stlslices.Map(captureVars, func(i int, vexpr hir.Ident) *cir.StructTypeField {
+	fields := stlslices.Map(captureVars, func(i int, vexpr hir.Ident) *cir.Member {
 		fn := fmt.Sprintf("_f%d", i+1)
-		c.captureVarsMap[tuple.Pack2(expr, vexpr)] = cir.NewMember(cir.NewIdentExpr("_ctx"), fn)
-		return cir.NewStructTypeField(c.buildType(vexpr.GetType()), fn)
+		c.captureVarsMap[tuple.Pack2(expr, vexpr)] = cir.NewGetMember(cir.NewIdentExpr("_ctx"), fn)
+		return cir.NewMember(c.buildType(vexpr.GetType()), fn)
 	})
 	ctxT := c.builder.BuildTypedef(cir.NewStructType("", fields...), "")
 
@@ -245,9 +248,9 @@ func (c *CodeGenerator) buildEmptyTuple(*hir.EmptyTuple) *cir.Struct {
 	return cir.NewStruct(nil)
 }
 
-func (c *CodeGenerator) buildTupleIndex(expr *hir.TupleIndex) *cir.Member {
+func (c *CodeGenerator) buildTupleIndex(expr *hir.TupleIndex) *cir.GetMember {
 	from := c.buildExpr(expr.From)
-	return cir.NewMember(from, fmt.Sprintf("_f%d", expr.Index.Int64()+1))
+	return cir.NewGetMember(from, fmt.Sprintf("_f%d", expr.Index.Int64()+1))
 }
 
 func (c *CodeGenerator) buildArray(expr *hir.Array) *cir.Struct {
@@ -270,5 +273,16 @@ func (c *CodeGenerator) buildEmptyArray(expr *hir.EmptyArray) *cir.Struct {
 func (c *CodeGenerator) buildArrayIndex(expr *hir.ArrayIndex) *cir.Offset {
 	from := c.buildExpr(expr.From)
 	offset := c.buildExpr(expr.Index)
-	return cir.NewOffset(cir.NewMember(from, "array"), offset)
+	return cir.NewOffset(cir.NewGetMember(from, "array"), offset)
+}
+
+func (c *CodeGenerator) buildUnion(expr *hir.Union) *cir.Struct {
+	t := c.buildType(expr.GetType())
+	v := c.buildExpr(expr.From)
+	return cir.NewStruct(map[string]cir.Expr{
+		"t": cir.NewInteger(big.NewInt(int64(expr.Index))),
+		"v": cir.NewStruct(map[string]cir.Expr{
+			fmt.Sprintf("t%d", expr.Index+1): v,
+		}),
+	}, t)
 }

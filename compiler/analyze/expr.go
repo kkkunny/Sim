@@ -331,16 +331,21 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *hir.Array 
 	return hir.NewArray(hir.NewArrayType(big.NewInt(int64(len(elems))), expectElemType), elems...)
 }
 
-func (a *Analyzer) zeroExpr(pos reader.Position, t hir.Type) hir.Expr {
+// 尝试获取类型的零值
+func (a *Analyzer) tryGetZeroExpr(t hir.Type) (hir.Expr, bool) {
 	switch t := t.(type) {
 	case hir.IntegerType:
-		return hir.NewInteger(t, big.NewInt(0))
+		return hir.NewInteger(t, big.NewInt(0)), true
 	case *hir.FloatType:
-		return hir.NewFloat(t, big.NewFloat(0))
+		return hir.NewFloat(t, big.NewFloat(0)), true
 	case *hir.FuncType:
 		var returnValue hir.Expr
 		if !t.Return.Equal(hir.Unit) {
-			returnValue = a.zeroExpr(pos, t.Return)
+			var ok bool
+			returnValue, ok = a.tryGetZeroExpr(t.Return)
+			if !ok {
+				return nil, false
+			}
 		}
 		f := hir.NewFunc(t.Return, stlslices.Map(t.Params, func(i int, pt hir.Type) *hir.Param {
 			return hir.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
@@ -350,17 +355,33 @@ func (a *Analyzer) zeroExpr(pos reader.Position, t hir.Type) hir.Expr {
 			block.Stmts = append(block.Stmts, hir.NewReturn(returnValue))
 		}
 		f.Body = optional.Some(block)
-		return f
+		return f, true
 	case *hir.TupleType:
-		return hir.NewEmptyTuple(t)
+		return hir.NewEmptyTuple(t), true
 	case *hir.ArrayType:
-		return hir.NewEmptyArray(t)
+		return hir.NewEmptyArray(t), true
+	case *hir.UnionType:
+		for i, e := range t.Elems {
+			v, ok := a.tryGetZeroExpr(e)
+			if ok {
+				return hir.NewUnion(v, t, uint8(i)), true
+			}
+		}
+		return nil, false
 	default:
+		return nil, false
+	}
+}
+
+// 获取类型的零值
+func (a *Analyzer) getZeroExpr(pos reader.Position, t hir.Type) hir.Expr {
+	v, ok := a.tryGetZeroExpr(t)
+	if !ok {
 		a.reporter.Fatalf(
 			pos,
 			report.Errors.TypeMissingDefaultValue,
 			t,
 		)
-		return nil
 	}
+	return v
 }

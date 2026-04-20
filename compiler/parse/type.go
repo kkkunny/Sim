@@ -8,6 +8,10 @@ import (
 )
 
 func (p *Parser) parseType() ast.Type {
+	return p.parseSuffixType(p.parsePrimaryType())
+}
+
+func (p *Parser) parsePrimaryType() ast.Type {
 	switch p.nextToken.Kind {
 	case token.KindEnum.Lpa:
 		begin := p.expect(token.KindEnum.Lpa).Position
@@ -23,6 +27,9 @@ func (p *Parser) parseType() ast.Type {
 		end := p.expect(token.KindEnum.Rpa).Position
 
 		if !p.ifSkip(token.KindEnum.Arrow) {
+			if len(elems) == 1 {
+				return elems[0]
+			}
 			return &ast.TupleType{BeginPosition: begin, Elems: elems, EndPosition: end}
 		}
 
@@ -37,5 +44,22 @@ func (p *Parser) parseType() ast.Type {
 	default:
 		name := p.expect(token.KindEnum.Ident)
 		return &ast.IdentType{Name: name}
+	}
+}
+
+func (p *Parser) parseSuffixType(prev ast.Type) ast.Type {
+	for {
+		switch p.nextToken.Kind {
+		case token.KindEnum.Or:
+			p.expect(token.KindEnum.Or)
+			next := p.parsePrimaryType()
+			if ut, ok := prev.(*ast.UnionType); ok {
+				prev = &ast.UnionType{Elems: append(ut.Elems, next)}
+			} else {
+				prev = &ast.UnionType{Elems: []ast.Type{prev, next}}
+			}
+		default:
+			return prev
+		}
 	}
 }

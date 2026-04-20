@@ -192,13 +192,13 @@ func (t *MacroType) printWithName(p *printer, name string) {
 	p.WriteString(name)
 }
 
-type StructTypeField struct {
+type Member struct {
 	Type Type
 	Name string
 }
 
-func NewStructTypeField(t Type, name string) *StructTypeField {
-	return &StructTypeField{
+func NewMember(t Type, name string) *Member {
+	return &Member{
 		Type: t,
 		Name: name,
 	}
@@ -206,10 +206,10 @@ func NewStructTypeField(t Type, name string) *StructTypeField {
 
 type StructType struct {
 	Name   string
-	Fields []*StructTypeField
+	Fields []*Member
 }
 
-func NewStructType(name string, fields ...*StructTypeField) *StructType {
+func NewStructType(name string, fields ...*Member) *StructType {
 	return &StructType{Name: name, Fields: fields}
 }
 
@@ -285,4 +285,50 @@ func (t *ArrayType) printWithName(p *printer, name string) {
 	p.WriteString("[")
 	p.WriteString(t.Size.String())
 	p.WriteString("]")
+}
+
+type UnionType struct {
+	Name    string
+	Members []*Member
+}
+
+func NewUnionType(name string, members ...*Member) *UnionType {
+	return &UnionType{Name: name, Members: members}
+}
+
+func (*UnionType) typ() {}
+
+func (t *UnionType) print(p *printer) {
+	if len(t.Members) == 0 {
+		p.WriteString("ZERO_TYPE")
+		return
+	}
+
+	p.WriteString("union ")
+	p.WriteString(t.Name)
+	p.WriteString("{")
+	if len(t.Members) > 0 {
+		p.NextLine(+1)
+		for i, m := range t.Members {
+			m.Type.printWithName(p, m.Name)
+			p.WriteString(";")
+			if i < len(t.Members)-1 {
+				p.NextLine()
+			} else {
+				p.NextLine(-1)
+			}
+		}
+	}
+	p.WriteString("}")
+}
+
+func (t *UnionType) printWithName(p *printer, name string) {
+	if len(t.Members) == 0 {
+		p.WriteString("ZERO_TYPE")
+		return
+	}
+
+	p.WriteBy(t)
+	p.WriteString(" ")
+	p.WriteString(name)
 }

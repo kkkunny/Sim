@@ -12,7 +12,7 @@ type CodeGenerator struct {
 
 	idents         map[hir.Ident]cir.Namer
 	typeCache      map[string]*cir.AliasType
-	captureVarsMap map[tuple.Tuple2[*hir.Func, hir.Ident]]*cir.Member
+	captureVarsMap map[tuple.Tuple2[*hir.Func, hir.Ident]]*cir.GetMember
 	currentFunc    *hir.Func
 }
 
@@ -21,7 +21,7 @@ func New() *CodeGenerator {
 		builder:        cir.NewBuilder(),
 		idents:         make(map[hir.Ident]cir.Namer),
 		typeCache:      make(map[string]*cir.AliasType),
-		captureVarsMap: make(map[tuple.Tuple2[*hir.Func, hir.Ident]]*cir.Member),
+		captureVarsMap: make(map[tuple.Tuple2[*hir.Func, hir.Ident]]*cir.GetMember),
 	}
 }
 
