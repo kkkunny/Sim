@@ -244,16 +244,11 @@ func NewArrayType(size *big.Int, elem Type) *ArrayType {
 func (*ArrayType) typ() {}
 
 func (t *ArrayType) print(p *printer) {
-	p.WriteString("[")
-	p.WriteString(t.Size.String())
-	p.WriteString("]")
-	p.WriteBy(t.Elem)
+	p.WriteFormat(t.String())
 }
 
 func (t *ArrayType) String() string {
-	var buf strings.Builder
-	t.print(newPrint(&buf))
-	return buf.String()
+	return fmt.Sprintf("[%s]%s", t.Size, t.Elem)
 }
 
 func (t *ArrayType) Equal(p Type) bool {
@@ -318,4 +313,37 @@ func (t *UnionType) Equal(p Type) bool {
 	return stlslices.All(t.Elems, func(i int, p Type) bool {
 		return p.Equal(dst.Elems[i])
 	})
+}
+
+type PointerType struct {
+	Mut  bool
+	Elem Type
+}
+
+func NewPointerType(mut bool, elem Type) *PointerType {
+	return &PointerType{Mut: mut, Elem: elem}
+}
+
+func (*PointerType) typ() {}
+
+func (t *PointerType) print(p *printer) {
+	p.WriteFormat(t.String())
+}
+
+func (t *PointerType) String() string {
+	if t.Mut {
+		return fmt.Sprintf("&mut %s", t.Elem)
+	}
+	return fmt.Sprintf("&%s", t.Elem)
+}
+
+func (t *PointerType) Equal(p Type) bool {
+	dst, ok := p.(*PointerType)
+	if !ok {
+		return false
+	}
+	if t.Mut != dst.Mut {
+		return false
+	}
+	return t.Elem.Equal(dst.Elem)
 }
