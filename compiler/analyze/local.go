@@ -57,7 +57,7 @@ func (a *Analyzer) analyzeLet(l *ast.Let, isGlobal bool) *hir.Let {
 		expectType := hir.NewFuncType(hir.Unit)
 		v, ok := l.Value.Value()
 		if !ok && t != nil {
-			value = a.zeroExpr(l.Name.Position, t)
+			value = a.getZeroExpr(l.Name.Position, t)
 		} else if t != nil {
 			value = a.expectTypeExpr(v, expectType)
 		} else {
@@ -73,7 +73,7 @@ func (a *Analyzer) analyzeLet(l *ast.Let, isGlobal bool) *hir.Let {
 	} else if v, ok := l.Value.Value(); t != nil && ok {
 		value = a.expectTypeExpr(v, t)
 	} else if t != nil {
-		value = a.zeroExpr(l.Name.Position, t)
+		value = a.getZeroExpr(l.Name.Position, t)
 	} else {
 		value = a.analyzeExpr(v)
 	}

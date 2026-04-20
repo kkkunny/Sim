@@ -266,3 +266,56 @@ func (t *ArrayType) Equal(p Type) bool {
 	}
 	return t.Elem.Equal(dst.Elem)
 }
+
+type UnionType struct {
+	Elems []Type
+}
+
+func NewUnionType(elems ...Type) *UnionType {
+	return &UnionType{Elems: elems}
+}
+
+func (*UnionType) typ() {}
+
+func (t *UnionType) print(p *printer) {
+	for i, elem := range t.Elems {
+		switch elem := elem.(type) {
+		case *FuncType:
+			if i < len(t.Elems)-1 {
+				p.WriteString("(")
+				p.WriteBy(elem)
+				p.WriteString(")")
+			} else {
+				p.WriteBy(elem)
+			}
+		case *UnionType:
+			p.WriteString("(")
+			p.WriteBy(elem)
+			p.WriteString(")")
+		default:
+			p.WriteBy(elem)
+		}
+		if i < len(t.Elems)-1 {
+			p.WriteString(" | ")
+		}
+	}
+}
+
+func (t *UnionType) String() string {
+	var buf strings.Builder
+	t.print(newPrint(&buf))
+	return buf.String()
+}
+
+func (t *UnionType) Equal(p Type) bool {
+	dst, ok := p.(*UnionType)
+	if !ok {
+		return false
+	}
+	if len(t.Elems) != len(dst.Elems) {
+		return false
+	}
+	return stlslices.All(t.Elems, func(i int, p Type) bool {
+		return p.Equal(dst.Elems[i])
+	})
+}
