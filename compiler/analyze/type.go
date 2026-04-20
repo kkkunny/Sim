@@ -16,7 +16,11 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 	case *ast.IdentType:
 		switch t.Name.OriginText {
 		case "unit":
-			return hir.Unit
+			a.reporter.Fatalf(
+				t.Name.Position,
+				report.Errors.InvalidType,
+			)
+			return nil
 		case "i8":
 			return hir.I8
 		case "i16":
@@ -51,7 +55,7 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 		})
 		var rt hir.Type = hir.Unit
 		if returnType, ok := t.ReturnType.Value(); ok {
-			rt = a.analyzeType(returnType)
+			rt = a.analyzeTypeWithUnit(returnType)
 		}
 		return hir.NewFuncType(rt, params...)
 	case *ast.TupleType:
@@ -72,4 +76,11 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 	default:
 		panic("unreachable")
 	}
+}
+
+func (a *Analyzer) analyzeTypeWithUnit(t ast.Type) hir.Type {
+	if it, ok := t.(*ast.IdentType); ok && it.Name.OriginText == "unit" {
+		return hir.Unit
+	}
+	return a.analyzeType(t)
 }
