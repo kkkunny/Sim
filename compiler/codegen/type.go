@@ -55,6 +55,8 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 		return c.buildTupleType(t)
 	case *hir.ArrayType:
 		return c.buildArrayType(t)
+	case *hir.UnionType:
+		return c.buildUnionType(t)
 	default:
 		panic("unreachable")
 	}
@@ -103,11 +105,11 @@ func (c *CodeGenerator) buildFuncType(t *hir.FuncType) *cir.MacroType {
 }
 
 func (c *CodeGenerator) buildTupleType(t *hir.TupleType) *cir.StructType {
-	fields := make([]*cir.StructTypeField, len(t.Elems))
+	fields := make([]*cir.Member, len(t.Elems))
 	for i, e := range t.Elems {
 		fn := fmt.Sprintf("_f%d", i+1)
 		ft := c.buildType(e)
-		fields[i] = cir.NewStructTypeField(ft, fn)
+		fields[i] = cir.NewMember(ft, fn)
 	}
 	return cir.NewStructType("", fields...)
 }
@@ -120,7 +122,34 @@ func (c *CodeGenerator) buildArrayType(t *hir.ArrayType) *cir.AliasType {
 	}
 
 	elem := c.buildType(t.Elem)
-	at = cir.NewAliasType(c.builder.BuildTypedef(cir.NewStructType("", cir.NewStructTypeField(cir.NewArrayType(elem, t.Size), "array")), ""))
+	at = cir.NewAliasType(c.builder.BuildTypedef(cir.NewStructType("", cir.NewMember(cir.NewArrayType(elem, t.Size), "array")), ""))
 	c.typeCache[key] = at
 	return at
+}
+
+func (c *CodeGenerator) buildUnionType(t *hir.UnionType) *cir.AliasType {
+	key := t.String()
+	ut, ok := c.typeCache[key]
+	if ok {
+		return ut
+	}
+
+	elems := stlslices.Map(t.Elems, func(_ int, e hir.Type) cir.Type {
+		return c.buildType(e)
+	})
+	ut = cir.NewAliasType(c.builder.BuildTypedef(cir.NewStructType(
+		"",
+		cir.NewMember(cir.U8, "t"),
+		cir.NewMember(
+			cir.NewUnionType(
+				"",
+				stlslices.Map(elems, func(i int, e cir.Type) *cir.Member {
+					return cir.NewMember(e, fmt.Sprintf("t%d", i+1))
+				})...,
+			),
+			"v",
+		),
+	), ""))
+	c.typeCache[key] = ut
+	return ut
 }

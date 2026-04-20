@@ -64,6 +64,11 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 		size := big.NewInt(v)
 		elem := a.analyzeType(t.Elem)
 		return hir.NewArrayType(size, elem)
+	case *ast.UnionType:
+		elems := stlslices.Map(t.Elems, func(_ int, e ast.Type) hir.Type {
+			return a.analyzeType(e)
+		})
+		return hir.NewUnionType(elems...)
 	default:
 		panic("unreachable")
 	}

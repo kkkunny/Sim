@@ -28,14 +28,18 @@ func (e *IdentExpr) print(p *printer) {
 	p.WriteString(e.Name)
 }
 
-type IntegerExpr struct {
+type Integer struct {
 	Value *big.Int
 }
 
-func (*IntegerExpr) local() {}
-func (*IntegerExpr) expr()  {}
+func NewInteger(v *big.Int) *Integer {
+	return &Integer{Value: v}
+}
 
-func (e *IntegerExpr) print(p *printer) {
+func (*Integer) local() {}
+func (*Integer) expr()  {}
+
+func (e *Integer) print(p *printer) {
 	p.WriteString(e.Value.String())
 }
 
@@ -200,22 +204,22 @@ func (e *Covert) print(p *printer) {
 	p.WriteString(")")
 }
 
-type Member struct {
+type GetMember struct {
 	From Expr
 	Name string
 }
 
-func NewMember(f Expr, name string) *Member {
-	return &Member{
+func NewGetMember(f Expr, name string) *GetMember {
+	return &GetMember{
 		From: f,
 		Name: name,
 	}
 }
 
-func (*Member) local() {}
-func (*Member) expr()  {}
+func (*GetMember) local() {}
+func (*GetMember) expr()  {}
 
-func (e *Member) print(p *printer) {
+func (e *GetMember) print(p *printer) {
 	p.WriteBy(e.From)
 	p.WriteString(".")
 	p.WriteString(e.Name)

@@ -476,3 +476,52 @@ func (e *ArrayIndex) Mutable() bool {
 func (e *ArrayIndex) Temporary() bool {
 	return e.From.Temporary()
 }
+
+type Covert interface {
+	Expr
+	GetFrom() Expr
+	GetTo() Type
+}
+
+type Union struct {
+	From  Expr
+	To    Type
+	Index uint8
+}
+
+func NewUnion(from Expr, to Type, index uint8) *Union {
+	return &Union{
+		From:  from,
+		To:    to,
+		Index: index,
+	}
+}
+
+func (*Union) expr()  {}
+func (*Union) local() {}
+
+func (e *Union) print(p *printer) {
+	p.WriteBy(e.From)
+	p.WriteString(" as ")
+	p.WriteBy(e.To)
+}
+
+func (e *Union) GetType() Type {
+	return e.To
+}
+
+func (e *Union) Mutable() bool {
+	return false
+}
+
+func (e *Union) Temporary() bool {
+	return true
+}
+
+func (e *Union) GetFrom() Expr {
+	return e.From
+}
+
+func (e *Union) GetTo() Type {
+	return e.To
+}
