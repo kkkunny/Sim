@@ -195,7 +195,7 @@ func (a *Analyzer) analyseFunc(expr *ast.Func) *hir.Func {
 
 	var returnType hir.Type = hir.Unit
 	if rtAst, ok := expr.ReturnType.Value(); ok {
-		returnType = a.analyzeType(rtAst)
+		returnType = a.analyzeTypeWithUnit(rtAst)
 	}
 
 	ft := hir.NewFuncType(returnType, stlslices.Map(params, func(i int, p *hir.Param) hir.Type {
