@@ -73,6 +73,9 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			return a.analyzeType(e)
 		})
 		return hir.NewUnionType(elems...)
+	case *ast.PointerType:
+		elem := a.analyzeType(t.Elem)
+		return hir.NewPointerType(t.Mut, elem)
 	default:
 		panic("unreachable")
 	}
