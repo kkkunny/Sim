@@ -185,6 +185,13 @@ func (p *Parser) parseSuffixExpr(prev ast.Expr) (expr ast.Expr) {
 				Index:       index,
 				EndPosition: end,
 			}
+		case token.KindEnum.As:
+			p.expect(token.KindEnum.As)
+			t := p.parseType()
+			prev = &ast.As{
+				Left:  prev,
+				Right: t,
+			}
 		default:
 			return prev
 		}
