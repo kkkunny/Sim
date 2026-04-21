@@ -2,19 +2,21 @@ package analyze
 
 import (
 	"github.com/kkkunny/Sim/compiler/ast"
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/scopes"
+	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/report"
 )
 
-func (a *Analyzer) analyzeBlock(block *ast.Block) *hir.Block {
-	hirBlock := hir.NewBlock()
+func (a *Analyzer) analyzeBlock(block *ast.Block) *stmts.Block {
+	hirBlock := stmts.NewBlock()
 	for _, stmt := range block.Stmts {
 		hirBlock.Stmts = append(hirBlock.Stmts, a.analyzeLocal(stmt))
 	}
 	return hirBlock
 }
 
-func (a *Analyzer) analyzeLocal(local ast.Local) hir.Local {
+func (a *Analyzer) analyzeLocal(local ast.Local) stmts.Local {
 	switch local := local.(type) {
 	case *ast.Block:
 		return a.analyzeBlock(local)
@@ -29,23 +31,23 @@ func (a *Analyzer) analyzeLocal(local ast.Local) hir.Local {
 	}
 }
 
-func (a *Analyzer) analyzeReturn(ret *ast.Return) *hir.Return {
-	ls := a.scope.(hir.LocalScope)
+func (a *Analyzer) analyzeReturn(ret *ast.Return) *stmts.Return {
+	ls := a.scope.(scopes.LocalScope)
 	if v, ok := ret.Value.Value(); ok {
 		value := a.expectTypeExpr(v, ls.FuncType().Return)
-		return hir.NewReturn(value)
+		return stmts.NewReturn(value)
 	} else {
-		return hir.NewReturn()
+		return stmts.NewReturn()
 	}
 }
 
-func (a *Analyzer) analyzeLet(l *ast.Let, isGlobal bool) *hir.Let {
-	var t hir.Type
+func (a *Analyzer) analyzeLet(l *ast.Let, isGlobal bool) *stmts.Let {
+	var t types.Type
 	if tnode, ok := l.Type.Value(); ok {
 		t = a.analyzeType(tnode)
 	}
 
-	var value hir.Expr
+	var value stmts.Expr
 	if isGlobal && l.Name.OriginText == "main" { // TODO: 同一个包下只允许存在一个main函数
 		if l.Mut {
 			a.reporter.Fatalf(
@@ -54,7 +56,7 @@ func (a *Analyzer) analyzeLet(l *ast.Let, isGlobal bool) *hir.Let {
 			)
 		}
 
-		expectType := hir.NewFuncType(hir.Unit)
+		expectType := types.NewFuncType(types.Unit)
 		v, ok := l.Value.Value()
 		if !ok && t != nil {
 			value = a.getZeroExpr(l.Name.Position, t)
@@ -78,7 +80,7 @@ func (a *Analyzer) analyzeLet(l *ast.Let, isGlobal bool) *hir.Let {
 		value = a.analyzeExpr(v)
 	}
 
-	let := &hir.Let{
+	let := &stmts.Let{
 		Mut:   l.Mut,
 		Type:  value.GetType(),
 		Name:  l.Name.OriginText,

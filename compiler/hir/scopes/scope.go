@@ -1,35 +1,38 @@
-package hir
+package scopes
 
 import (
 	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/set"
+
+	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 type Scope interface {
 	Package() *PkgScope
 	Parent() (Scope, bool)
-	AddValue(v Ident)
-	Lookup(name string) (Ident, bool)
-	LocalLookup(name string) (Ident, bool)
-	Values() map[string]Ident
-	UsedValues() []Ident
+	AddValue(v stmts.Ident)
+	Lookup(name string) (stmts.Ident, bool)
+	LocalLookup(name string) (stmts.Ident, bool)
+	Values() map[string]stmts.Ident
+	UsedValues() []stmts.Ident
 }
 
 type LocalScope interface {
 	Scope
-	SetFuncType(f *FuncType)
-	FuncType() *FuncType
+	SetFuncType(f *types.FuncType)
+	FuncType() *types.FuncType
 }
 
 type PkgScope struct {
-	values    map[string]Ident
-	usedValue set.Set[Ident]
+	values    map[string]stmts.Ident
+	usedValue set.Set[stmts.Ident]
 }
 
 func NewPkgScope() *PkgScope {
 	return &PkgScope{
-		values:    make(map[string]Ident),
-		usedValue: set.StdHashSetWith[Ident](),
+		values:    make(map[string]stmts.Ident),
+		usedValue: set.StdHashSetWith[stmts.Ident](),
 	}
 }
 
@@ -41,11 +44,11 @@ func (s *PkgScope) Parent() (Scope, bool) {
 	return nil, false
 }
 
-func (s *PkgScope) AddValue(v Ident) {
+func (s *PkgScope) AddValue(v stmts.Ident) {
 	s.values[v.GetName()] = v
 }
 
-func (s *PkgScope) Lookup(name string) (v Ident, ok bool) {
+func (s *PkgScope) Lookup(name string) (v stmts.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)
@@ -54,7 +57,7 @@ func (s *PkgScope) Lookup(name string) (v Ident, ok bool) {
 	return s.LocalLookup(name)
 }
 
-func (s *PkgScope) LocalLookup(name string) (v Ident, ok bool) {
+func (s *PkgScope) LocalLookup(name string) (v stmts.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)
@@ -64,26 +67,26 @@ func (s *PkgScope) LocalLookup(name string) (v Ident, ok bool) {
 	return v, ok
 }
 
-func (s *PkgScope) Values() map[string]Ident {
+func (s *PkgScope) Values() map[string]stmts.Ident {
 	return s.values
 }
 
-func (s *PkgScope) UsedValues() []Ident {
+func (s *PkgScope) UsedValues() []stmts.Ident {
 	return s.usedValue.ToSlice()
 }
 
 type BlockScope struct {
 	parent    Scope
-	funcType  optional.Optional[*FuncType]
-	values    map[string]Ident
-	usedValue set.Set[Ident]
+	funcType  optional.Optional[*types.FuncType]
+	values    map[string]stmts.Ident
+	usedValue set.Set[stmts.Ident]
 }
 
 func NewBlockScope(p Scope) *BlockScope {
 	return &BlockScope{
 		parent:    p,
-		values:    make(map[string]Ident),
-		usedValue: set.StdHashSetWith[Ident](),
+		values:    make(map[string]stmts.Ident),
+		usedValue: set.StdHashSetWith[stmts.Ident](),
 	}
 }
 
@@ -95,11 +98,11 @@ func (s *BlockScope) Parent() (Scope, bool) {
 	return s.parent, true
 }
 
-func (s *BlockScope) SetFuncType(f *FuncType) {
+func (s *BlockScope) SetFuncType(f *types.FuncType) {
 	s.funcType = optional.Some(f)
 }
 
-func (s *BlockScope) FuncType() *FuncType {
+func (s *BlockScope) FuncType() *types.FuncType {
 	if f, ok := s.funcType.Value(); ok {
 		return f
 	}
@@ -109,11 +112,11 @@ func (s *BlockScope) FuncType() *FuncType {
 	panic("unreachable")
 }
 
-func (s *BlockScope) AddValue(v Ident) {
+func (s *BlockScope) AddValue(v stmts.Ident) {
 	s.values[v.GetName()] = v
 }
 
-func (s *BlockScope) Lookup(name string) (v Ident, ok bool) {
+func (s *BlockScope) Lookup(name string) (v stmts.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)
@@ -125,7 +128,7 @@ func (s *BlockScope) Lookup(name string) (v Ident, ok bool) {
 	return s.parent.Lookup(name)
 }
 
-func (s *BlockScope) LocalLookup(name string) (v Ident, ok bool) {
+func (s *BlockScope) LocalLookup(name string) (v stmts.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)
@@ -135,10 +138,10 @@ func (s *BlockScope) LocalLookup(name string) (v Ident, ok bool) {
 	return v, ok
 }
 
-func (s *BlockScope) Values() map[string]Ident {
+func (s *BlockScope) Values() map[string]stmts.Ident {
 	return s.values
 }
 
-func (s *BlockScope) UsedValues() []Ident {
+func (s *BlockScope) UsedValues() []stmts.Ident {
 	return s.usedValue.ToSlice()
 }

@@ -2,25 +2,25 @@ package codegen
 
 import (
 	"github.com/kkkunny/Sim/compiler/cir"
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/stmts"
 )
 
-func (c *CodeGenerator) buildLocal(local hir.Local) {
+func (c *CodeGenerator) buildLocal(local stmts.Local) {
 	switch local := local.(type) {
-	case *hir.Block:
+	case *stmts.Block:
 		c.buildBlock(local, nil)
-	case *hir.Return:
+	case *stmts.Return:
 		c.buildReturn(local)
-	case *hir.Let:
+	case *stmts.Let:
 		c.buildLocalLet(local)
-	case hir.Expr:
+	case stmts.Expr:
 		c.builder.BuildExpr(c.buildExpr(local))
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildBlock(b *hir.Block, initFn func()) *cir.Block {
+func (c *CodeGenerator) buildBlock(b *stmts.Block, initFn func()) *cir.Block {
 	prevBlock, _ := c.builder.CurrentAt()
 	block := c.builder.BuildBlock()
 	c.builder.MoveTo(block)
@@ -34,7 +34,7 @@ func (c *CodeGenerator) buildBlock(b *hir.Block, initFn func()) *cir.Block {
 	return block
 }
 
-func (c *CodeGenerator) buildReturn(r *hir.Return) *cir.Return {
+func (c *CodeGenerator) buildReturn(r *stmts.Return) *cir.Return {
 	if v, ok := r.Value.Value(); ok {
 		return c.builder.BuildReturn(c.buildExpr(v))
 	} else {
@@ -42,7 +42,7 @@ func (c *CodeGenerator) buildReturn(r *hir.Return) *cir.Return {
 	}
 }
 
-func (c *CodeGenerator) buildLocalLet(l *hir.Let) *cir.VarDecl {
+func (c *CodeGenerator) buildLocalLet(l *stmts.Let) *cir.VarDecl {
 	typ := c.buildType(l.Value.GetType())
 	value := c.buildExpr(l.Value)
 	v := c.builder.BuildVarDecl(typ, "", value)

@@ -11,47 +11,47 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/stmts"
 )
 
-func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
+func (c *CodeGenerator) buildExpr(expr stmts.Expr) cir.Expr {
 	switch expr := expr.(type) {
-	case *hir.IdentExpr:
+	case *stmts.IdentExpr:
 		return c.buildIdentExpr(expr)
-	case *hir.Integer:
+	case *stmts.Integer:
 		return cir.NewInteger(expr.Value)
-	case *hir.Float:
+	case *stmts.Float:
 		return &cir.FloatExpr{Value: expr.Value}
-	case *hir.Boolean:
+	case *stmts.Boolean:
 		return cir.NewMacroExpr(stlval.If(expr.Value, "true", "false"))
-	case *hir.Unary:
+	case *stmts.Unary:
 		return c.buildUnary(expr)
-	case *hir.Binary:
+	case *stmts.Binary:
 		return c.buildBinary(expr)
-	case *hir.Func:
+	case *stmts.Func:
 		return c.buildFunc(expr)
-	case *hir.Call:
+	case *stmts.Call:
 		return c.buildCall(expr)
-	case *hir.Tuple:
+	case *stmts.Tuple:
 		return c.buildTuple(expr)
-	case *hir.TupleIndex:
+	case *stmts.TupleIndex:
 		return c.buildTupleIndex(expr)
-	case *hir.Array:
+	case *stmts.Array:
 		return c.buildArray(expr)
-	case *hir.ArrayIndex:
+	case *stmts.ArrayIndex:
 		return c.buildArrayIndex(expr)
-	case hir.Covert:
+	case stmts.Covert:
 		return c.buildCovert(expr)
-	case *hir.GetRef:
+	case *stmts.GetRef:
 		return c.buildGetRef(expr)
-	case *hir.DeRef:
+	case *stmts.DeRef:
 		return c.buildDeRef(expr)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildIdentExpr(expr *hir.IdentExpr) cir.Expr {
+func (c *CodeGenerator) buildIdentExpr(expr *stmts.IdentExpr) cir.Expr {
 	name := c.idents[expr.Define].GetName()
 	var value cir.Expr = cir.NewIdentExpr(name)
 
@@ -62,16 +62,16 @@ func (c *CodeGenerator) buildIdentExpr(expr *hir.IdentExpr) cir.Expr {
 		}
 	}
 
-	if let, ok := expr.Define.(*hir.Let); ok && stlval.Is[*hir.Func](let.Value) {
+	if let, ok := expr.Define.(*stmts.Let); ok && stlval.Is[*stmts.Func](let.Value) {
 		return cir.NewMacroExpr("FUNCEXPR_F", value)
 	}
 	return value
 }
 
-func (c *CodeGenerator) buildUnary(expr *hir.Unary) *cir.UnaryExpr {
+func (c *CodeGenerator) buildUnary(expr *stmts.Unary) *cir.UnaryExpr {
 	var op cir.UnaryOp
 	switch expr.Op {
-	case hir.UnaryOpEnum.Not:
+	case stmts.UnaryOpEnum.Not:
 		op = cir.UnaryOpEnum.Not
 	default:
 		panic("unreachable")
@@ -79,28 +79,28 @@ func (c *CodeGenerator) buildUnary(expr *hir.Unary) *cir.UnaryExpr {
 	return cir.NewUnaryExpr(op, c.buildExpr(expr.Expr))
 }
 
-func (c *CodeGenerator) buildBinary(expr *hir.Binary) cir.Expr {
+func (c *CodeGenerator) buildBinary(expr *stmts.Binary) cir.Expr {
 	left, right := c.buildExpr(expr.Left), c.buildExpr(expr.Right)
 	if strings.Contains(string(expr.Op), "=") {
 		var op cir.AssignOp
 		switch expr.Op {
-		case hir.BinaryOpEnum.Assign:
+		case stmts.BinaryOpEnum.Assign:
 			op = cir.AssignOpEnum.Assign
-		case hir.BinaryOpEnum.AddAssign:
+		case stmts.BinaryOpEnum.AddAssign:
 			op = cir.AssignOpEnum.AddAssign
-		case hir.BinaryOpEnum.SubAssign:
+		case stmts.BinaryOpEnum.SubAssign:
 			op = cir.AssignOpEnum.SubAssign
-		case hir.BinaryOpEnum.MulAssign:
+		case stmts.BinaryOpEnum.MulAssign:
 			op = cir.AssignOpEnum.MulAssign
-		case hir.BinaryOpEnum.QuoAssign:
+		case stmts.BinaryOpEnum.QuoAssign:
 			op = cir.AssignOpEnum.QuoAssign
-		case hir.BinaryOpEnum.RemAssign:
+		case stmts.BinaryOpEnum.RemAssign:
 			op = cir.AssignOpEnum.RemAssign
-		case hir.BinaryOpEnum.AndAssign:
+		case stmts.BinaryOpEnum.AndAssign:
 			op = cir.AssignOpEnum.AndAssign
-		case hir.BinaryOpEnum.OrAssign:
+		case stmts.BinaryOpEnum.OrAssign:
 			op = cir.AssignOpEnum.OrAssign
-		case hir.BinaryOpEnum.XorAssign:
+		case stmts.BinaryOpEnum.XorAssign:
 			op = cir.AssignOpEnum.XorAssign
 		default:
 			panic("unreachable")
@@ -110,21 +110,21 @@ func (c *CodeGenerator) buildBinary(expr *hir.Binary) cir.Expr {
 
 	var op cir.BinaryOp
 	switch expr.Op {
-	case hir.BinaryOpEnum.Add:
+	case stmts.BinaryOpEnum.Add:
 		op = cir.BinaryOpEnum.Add
-	case hir.BinaryOpEnum.Sub:
+	case stmts.BinaryOpEnum.Sub:
 		op = cir.BinaryOpEnum.Sub
-	case hir.BinaryOpEnum.Mul:
+	case stmts.BinaryOpEnum.Mul:
 		op = cir.BinaryOpEnum.Mul
-	case hir.BinaryOpEnum.Quo:
+	case stmts.BinaryOpEnum.Quo:
 		op = cir.BinaryOpEnum.Quo
-	case hir.BinaryOpEnum.Rem:
+	case stmts.BinaryOpEnum.Rem:
 		op = cir.BinaryOpEnum.Rem
-	case hir.BinaryOpEnum.And:
+	case stmts.BinaryOpEnum.And:
 		op = cir.BinaryOpEnum.And
-	case hir.BinaryOpEnum.Or:
+	case stmts.BinaryOpEnum.Or:
 		op = cir.BinaryOpEnum.Or
-	case hir.BinaryOpEnum.Xor:
+	case stmts.BinaryOpEnum.Xor:
 		op = cir.BinaryOpEnum.Xor
 	default:
 		panic("unreachable")
@@ -136,7 +136,7 @@ func (c *CodeGenerator) buildBinary(expr *hir.Binary) cir.Expr {
 	}
 }
 
-func (c *CodeGenerator) buildNativeFunc(expr *hir.Func) *cir.FuncExpr {
+func (c *CodeGenerator) buildNativeFunc(expr *stmts.Func) *cir.FuncExpr {
 	params := make([]*cir.Param, len(expr.Params))
 	for i, p := range expr.Params {
 		pn := fmt.Sprintf("_p%d", i+1)
@@ -163,9 +163,9 @@ func (c *CodeGenerator) buildNativeFunc(expr *hir.Func) *cir.FuncExpr {
 	return &cir.FuncExpr{Decl: decl}
 }
 
-func (c *CodeGenerator) buildNativeClosureFunc(expr *hir.Func, captureVars []hir.Ident) (*cir.Typedef, *cir.FuncExpr) {
+func (c *CodeGenerator) buildNativeClosureFunc(expr *stmts.Func, captureVars []stmts.Ident) (*cir.Typedef, *cir.FuncExpr) {
 	// 上下文
-	fields := stlslices.Map(captureVars, func(i int, vexpr hir.Ident) *cir.Member {
+	fields := stlslices.Map(captureVars, func(i int, vexpr stmts.Ident) *cir.Member {
 		fn := fmt.Sprintf("_f%d", i+1)
 		c.captureVarsMap[tuple.Pack2(expr, vexpr)] = cir.NewGetMember(cir.NewIdentExpr("_ctx"), fn)
 		return cir.NewMember(c.buildType(vexpr.GetType()), fn)
@@ -205,9 +205,9 @@ func (c *CodeGenerator) buildNativeClosureFunc(expr *hir.Func, captureVars []hir
 	return ctxT, &cir.FuncExpr{Decl: decl}
 }
 
-func (c *CodeGenerator) buildFunc(expr *hir.Func) *cir.MacroExpr {
-	captureVars := stlslices.Filter(expr.UsedExternalVariables, func(i int, v hir.Ident) bool {
-		return !stlval.Is[hir.Global](v)
+func (c *CodeGenerator) buildFunc(expr *stmts.Func) *cir.MacroExpr {
+	captureVars := stlslices.Filter(expr.UsedExternalVariables, func(i int, v stmts.Ident) bool {
+		return !stlval.Is[stmts.Global](v)
 	})
 	var f *cir.FuncExpr
 	if len(captureVars) == 0 {
@@ -218,16 +218,16 @@ func (c *CodeGenerator) buildFunc(expr *hir.Func) *cir.MacroExpr {
 		ctxT, f = c.buildNativeClosureFunc(expr, captureVars)
 		fields := make(map[string]cir.Expr, len(captureVars))
 		for i, cv := range captureVars {
-			fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(hir.NewIdentExpr(cv))
+			fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(stmts.NewIdentExpr(cv))
 		}
 		ctx := c.builder.BuildVarDecl(cir.NewAliasType(ctxT), "", cir.NewStruct(fields))
 		return cir.NewMacroExpr("FUNCEXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnaryExpr(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
 	}
 }
 
-func (c *CodeGenerator) buildCall(expr *hir.Call) cir.Expr {
+func (c *CodeGenerator) buildCall(expr *stmts.Call) cir.Expr {
 	f := c.buildExpr(expr.Func)
-	args := stlslices.Map(expr.Args, func(_ int, argExpr hir.Expr) cir.Expr {
+	args := stlslices.Map(expr.Args, func(_ int, argExpr stmts.Expr) cir.Expr {
 		return c.buildExpr(argExpr)
 	})
 	if macroF, ok := f.(*cir.MacroExpr); ok && macroF.Name == "FUNCEXPR_F" {
@@ -238,7 +238,7 @@ func (c *CodeGenerator) buildCall(expr *hir.Call) cir.Expr {
 	return cir.NewMacroExpr("FUNCCALL", append([]cir.Expr{f}, args...)...)
 }
 
-func (c *CodeGenerator) buildTuple(expr *hir.Tuple) *cir.Struct {
+func (c *CodeGenerator) buildTuple(expr *stmts.Tuple) *cir.Struct {
 	t := c.buildType(expr.Type)
 	if len(expr.Elems) == 0 {
 		return cir.NewStruct(nil, t)
@@ -251,18 +251,18 @@ func (c *CodeGenerator) buildTuple(expr *hir.Tuple) *cir.Struct {
 	return cir.NewStruct(fields, t)
 }
 
-func (c *CodeGenerator) buildTupleIndex(expr *hir.TupleIndex) *cir.GetMember {
+func (c *CodeGenerator) buildTupleIndex(expr *stmts.TupleIndex) *cir.GetMember {
 	from := c.buildExpr(expr.From)
 	return cir.NewGetMember(from, fmt.Sprintf("_f%d", expr.Index.Int64()+1))
 }
 
-func (c *CodeGenerator) buildArray(expr *hir.Array) *cir.Struct {
+func (c *CodeGenerator) buildArray(expr *stmts.Array) *cir.Struct {
 	at := c.buildType(expr.GetType())
 	if len(expr.Elems) == 0 {
 		return cir.NewStruct(nil, at)
 	}
 
-	elems := stlslices.Map(expr.Elems, func(_ int, argExpr hir.Expr) cir.Expr {
+	elems := stlslices.Map(expr.Elems, func(_ int, argExpr stmts.Expr) cir.Expr {
 		return c.buildExpr(argExpr)
 	})
 	return cir.NewStruct(map[string]cir.Expr{
@@ -270,36 +270,36 @@ func (c *CodeGenerator) buildArray(expr *hir.Array) *cir.Struct {
 	}, at)
 }
 
-func (c *CodeGenerator) buildArrayIndex(expr *hir.ArrayIndex) *cir.Offset {
+func (c *CodeGenerator) buildArrayIndex(expr *stmts.ArrayIndex) *cir.Offset {
 	from := c.buildExpr(expr.From)
 	offset := c.buildExpr(expr.Index)
 	return cir.NewOffset(cir.NewGetMember(from, "array"), offset)
 }
 
-func (c *CodeGenerator) buildCovert(expr hir.Covert) cir.Expr {
+func (c *CodeGenerator) buildCovert(expr stmts.Covert) cir.Expr {
 	t := c.buildType(expr.GetType())
 	v := c.buildExpr(expr.GetFrom())
 	switch expr := expr.(type) {
-	case *hir.Union:
+	case *stmts.Union:
 		return cir.NewStruct(map[string]cir.Expr{
 			"t": cir.NewInteger(big.NewInt(int64(expr.Index))),
 			"v": cir.NewStruct(map[string]cir.Expr{
 				fmt.Sprintf("t%d", expr.Index+1): v,
 			}),
 		}, t)
-	case *hir.NumberCovert:
+	case *stmts.NumberCovert:
 		return cir.NewCovert(t, v)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildGetRef(expr *hir.GetRef) cir.Expr {
+func (c *CodeGenerator) buildGetRef(expr *stmts.GetRef) cir.Expr {
 	v := c.buildExpr(expr.Value)
 	return cir.NewUnaryExpr(cir.UnaryOpEnum.AND, v)
 }
 
-func (c *CodeGenerator) buildDeRef(expr *hir.DeRef) cir.Expr {
+func (c *CodeGenerator) buildDeRef(expr *stmts.DeRef) cir.Expr {
 	v := c.buildExpr(expr.Value)
 	return cir.NewUnaryExpr(cir.UnaryOpEnum.Mul, v)
 }
