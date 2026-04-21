@@ -1,4 +1,5 @@
-let a = () -> i64 {
-	let x = true
-	return 1
+let a = () -> bool {
+	let v1 = true
+	let v2 = &mut v1
+	return *v2
 }
