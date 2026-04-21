@@ -31,8 +31,13 @@ func (t *UnitType) Equal(p Type) bool {
 	return stlval.Is[*UnitType](p)
 }
 
-type IntegerType interface {
+type NumberType interface {
 	Type
+	GetBits() uint8
+}
+
+type IntegerType interface {
+	NumberType
 	GetBits() uint8
 	integer()
 }

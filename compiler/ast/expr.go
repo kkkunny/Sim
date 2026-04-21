@@ -211,3 +211,21 @@ func (e *Array) print(p *printer) {
 func (e *Array) Position() reader.Position {
 	return reader.MixPosition(e.BeginPosition, e.EndPosition)
 }
+
+type As struct {
+	Left  Expr
+	Right Type
+}
+
+func (e *As) local() {}
+func (e *As) expr()  {}
+
+func (e *As) print(p *printer) {
+	p.WriteBy(e.Left)
+	p.WriteString(" as ")
+	p.WriteBy(e.Right)
+}
+
+func (e *As) Position() reader.Position {
+	return reader.MixPosition(e.Left.Position(), e.Right.Position())
+}

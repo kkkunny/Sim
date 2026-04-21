@@ -34,23 +34,25 @@ func (a *Analyzer) analyzeExprWithAutoCovert(expr ast.Expr, expect hir.Type) hir
 func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 	switch expr := expr.(type) {
 	case *ast.IdentExpr:
-		return a.analyseIdentExpr(expr)
+		return a.analyzeIdentExpr(expr)
 	case *ast.Integer:
-		return a.analyseInteger(expr, expect...)
+		return a.analyzeInteger(expr, expect...)
 	case *ast.Unary:
-		return a.analyseUnary(expr)
+		return a.analyzeUnary(expr)
 	case *ast.Binary:
-		return a.analyseBinary(expr, expect...)
+		return a.analyzeBinary(expr, expect...)
 	case *ast.Func:
-		return a.analyseFunc(expr)
+		return a.analyzeFunc(expr)
 	case *ast.Call:
-		return a.analyseCall(expr)
+		return a.analyzeCall(expr)
 	case *ast.Tuple:
 		return a.analyzeTuple(expr, expect...)
 	case *ast.Index:
 		return a.analyzeIndex(expr)
 	case *ast.Array:
 		return a.analyzeArray(expr, expect...)
+	case *ast.As:
+		return a.analyzeAs(expr)
 	default:
 		panic("unreachable")
 	}
@@ -82,7 +84,7 @@ func expectTypeExpr[TYPE hir.Type](a *Analyzer, expr ast.Expr) hir.Expr {
 	return v
 }
 
-func (a *Analyzer) analyseIdentExpr(expr *ast.IdentExpr) *hir.IdentExpr {
+func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *hir.IdentExpr {
 	v, ok := a.scope.Lookup(expr.Name.OriginText)
 	if !ok {
 		a.reporter.Fatalf(
@@ -95,7 +97,7 @@ func (a *Analyzer) analyseIdentExpr(expr *ast.IdentExpr) *hir.IdentExpr {
 	return hir.NewIdentExpr(v)
 }
 
-func (a *Analyzer) analyseInteger(expr *ast.Integer, expect ...hir.Type) hir.Expr {
+func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...hir.Type) hir.Expr {
 	var t hir.Type
 	it, ok := stlslices.Last(expect).(hir.IntegerType)
 	if ok {
@@ -116,7 +118,7 @@ func (a *Analyzer) analyseInteger(expr *ast.Integer, expect ...hir.Type) hir.Exp
 	}
 }
 
-func (a *Analyzer) analyseUnary(expr *ast.Unary) *hir.Unary {
+func (a *Analyzer) analyzeUnary(expr *ast.Unary) *hir.Unary {
 	subExpr := a.analyzeExpr(expr.Expr)
 	var op hir.UnaryOp
 	switch expr.Op.Kind {
@@ -131,7 +133,7 @@ func (a *Analyzer) analyseUnary(expr *ast.Unary) *hir.Unary {
 	}
 }
 
-func (a *Analyzer) analyseBinary(expr *ast.Binary, expect ...hir.Type) *hir.Binary {
+func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...hir.Type) *hir.Binary {
 	left := a.analyzeExpr(expr.Left, expect...)
 	right := a.expectTypeExpr(expr.Right, left.GetType())
 	var op hir.BinaryOp
@@ -196,7 +198,7 @@ func (a *Analyzer) analyseBinary(expr *ast.Binary, expect ...hir.Type) *hir.Bina
 	}
 }
 
-func (a *Analyzer) analyseFunc(expr *ast.Func) *hir.Func {
+func (a *Analyzer) analyzeFunc(expr *ast.Func) *hir.Func {
 	scope := hir.NewBlockScope(a.scope)
 	a.scope = scope
 
@@ -235,7 +237,7 @@ func (a *Analyzer) analyseFunc(expr *ast.Func) *hir.Func {
 	return f
 }
 
-func (a *Analyzer) analyseCall(expr *ast.Call) *hir.Call {
+func (a *Analyzer) analyzeCall(expr *ast.Call) *hir.Call {
 	f := expectTypeExpr[*hir.FuncType](a, expr.Func)
 	ft := f.GetType().(*hir.FuncType)
 	if len(ft.Params) != len(expr.Args) {
@@ -419,4 +421,26 @@ func (a *Analyzer) getZeroExpr(pos reader.Position, t hir.Type) hir.Expr {
 		)
 	}
 	return v
+}
+
+func (a *Analyzer) analyzeAs(expr *ast.As) hir.Expr {
+	to := a.analyzeType(expr.Right)
+	v := a.analyzeExprWithAutoCovert(expr.Left, to)
+	from := v.GetType()
+
+	if from.Equal(to) {
+		return v
+	}
+
+	switch {
+	case stlval.Is[hir.NumberType](from) && stlval.Is[hir.NumberType](to):
+		return hir.NewNumberCovert(v, to)
+	}
+
+	a.reporter.Fatalf(
+		expr.Left.Position(),
+		report.Errors.InvalidTypeCovert,
+		from, to,
+	)
+	return nil
 }
