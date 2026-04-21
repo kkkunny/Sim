@@ -422,6 +422,39 @@ func (e *ArrayIndex) Temporary() bool {
 	return e.From.Temporary()
 }
 
+type Boolean struct {
+	Value bool
+}
+
+func NewBoolean(v bool) *Boolean {
+	return &Boolean{
+		Value: v,
+	}
+}
+
+func (*Boolean) expr()  {}
+func (*Boolean) local() {}
+
+func (e *Boolean) print(p *printer) {
+	if e.Value {
+		p.WriteString("true")
+	} else {
+		p.WriteString("false")
+	}
+}
+
+func (e *Boolean) GetType() Type {
+	return Bool
+}
+
+func (e *Boolean) Mutable() bool {
+	return false
+}
+
+func (e *Boolean) Temporary() bool {
+	return true
+}
+
 type Covert interface {
 	Expr
 	GetFrom() Expr
