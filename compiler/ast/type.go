@@ -56,6 +56,7 @@ func (t *FuncType) Position() reader.Position {
 	return reader.MixPosition(t.BeginPosition, t.EndPosition)
 }
 
+// TupleType 元组类型，Elems数量不可能为1
 type TupleType struct {
 	BeginPosition reader.Position
 	Elems         []Type
@@ -98,6 +99,7 @@ func (t *ArrayType) Position() reader.Position {
 	return reader.MixPosition(t.BeginPosition, t.Elem.Position())
 }
 
+// UnionType 联合类型，Elems数量不可能小于2
 type UnionType struct {
 	Elems []Type
 }

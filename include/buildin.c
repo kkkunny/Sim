@@ -6,7 +6,7 @@
 #define NULL ((void *)0)
 #endif
 typedef struct{} ZERO_TYPE;
-#define ZERO_TYPE_VALUE (ZERO_TYPE){}
+ZERO_TYPE ZERO_TYPE_VALUE = {};
 
 // 基础类型
 #define i8 signed char
