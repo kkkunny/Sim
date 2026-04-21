@@ -284,11 +284,12 @@ func (e *Call) Temporary() bool {
 }
 
 type Tuple struct {
+	Type  Type
 	Elems []Expr
 }
 
-func NewTuple(elems ...Expr) *Tuple {
-	return &Tuple{Elems: elems}
+func NewTuple(t Type, elems ...Expr) *Tuple {
+	return &Tuple{Type: t, Elems: elems}
 }
 
 func (*Tuple) expr()  {}
@@ -306,9 +307,7 @@ func (e *Tuple) print(p *printer) {
 }
 
 func (e *Tuple) GetType() Type {
-	return NewTupleType(stlslices.Map(e.Elems, func(_ int, e Expr) Type {
-		return e.GetType()
-	})...)
+	return e.Type
 }
 
 func (e *Tuple) Mutable() bool {
@@ -316,33 +315,6 @@ func (e *Tuple) Mutable() bool {
 }
 
 func (e *Tuple) Temporary() bool {
-	return true
-}
-
-type EmptyTuple struct {
-	Type Type
-}
-
-func NewEmptyTuple(t Type) *EmptyTuple {
-	return &EmptyTuple{Type: t}
-}
-
-func (*EmptyTuple) expr()  {}
-func (*EmptyTuple) local() {}
-
-func (e *EmptyTuple) print(p *printer) {
-	p.WriteString("(...)")
-}
-
-func (e *EmptyTuple) GetType() Type {
-	return e.Type
-}
-
-func (e *EmptyTuple) Mutable() bool {
-	return false
-}
-
-func (e *EmptyTuple) Temporary() bool {
 	return true
 }
 
@@ -413,33 +385,6 @@ func (e *Array) Mutable() bool {
 }
 
 func (e *Array) Temporary() bool {
-	return true
-}
-
-type EmptyArray struct {
-	Type Type
-}
-
-func NewEmptyArray(t Type) *EmptyArray {
-	return &EmptyArray{Type: t}
-}
-
-func (*EmptyArray) expr()  {}
-func (*EmptyArray) local() {}
-
-func (e *EmptyArray) print(p *printer) {
-	p.WriteString("[...]")
-}
-
-func (e *EmptyArray) GetType() Type {
-	return e.Type
-}
-
-func (e *EmptyArray) Mutable() bool {
-	return false
-}
-
-func (e *EmptyArray) Temporary() bool {
 	return true
 }
 

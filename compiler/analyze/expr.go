@@ -242,14 +242,16 @@ func (a *Analyzer) analyseCall(expr *ast.Call) *hir.Call {
 }
 
 func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) hir.Expr {
-	var expectTuple bool
+	if len(expr.Elems) == 1 {
+		return a.analyzeExpr(expr.Elems[0], expect...)
+	}
+
+	var hasType bool
 	expectElemTypes := make([]hir.Type, len(expr.Elems))
 	if len(expect) > 0 {
-		if tt, ok := stlslices.Last(expect).(*hir.TupleType); ok && len(expr.Elems) == len(tt.Elems) {
+		if tt, ok := stlslices.Last(expect).(*hir.TupleType); ok && (len(expr.Elems) == 0 || len(expr.Elems) == len(tt.Elems)) {
+			hasType = true
 			expectElemTypes = tt.Elems
-			expectTuple = true
-		} else if len(expr.Elems) == 1 {
-			expectElemTypes[0] = stlslices.Last(expect)
 		}
 	}
 
@@ -261,11 +263,18 @@ func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) hir.Expr {
 		return a.analyzeExpr(e, elemExpect...)
 	})
 
-	if len(elems) == 1 && !expectTuple {
-		return elems[0]
+	var t *hir.TupleType
+	if len(elems) == 0 && !hasType {
+		t = hir.NewTupleType()
+	} else if len(elems) == 0 {
+		t = hir.NewTupleType(expectElemTypes...)
+	} else {
+		t = hir.NewTupleType(stlslices.Map(elems, func(_ int, e hir.Expr) hir.Type {
+			return e.GetType()
+		})...)
 	}
 
-	return hir.NewTuple(elems...)
+	return hir.NewTuple(t, elems...)
 }
 
 func (a *Analyzer) analyzeIndex(expr *ast.Index) hir.Expr {
@@ -297,21 +306,13 @@ func (a *Analyzer) analyzeIndex(expr *ast.Index) hir.Expr {
 }
 
 func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *hir.Array {
+	var size *big.Int
 	var expectElemType hir.Type
 	if len(expect) > 0 {
-		if at, ok := stlslices.Last(expect).(*hir.ArrayType); ok && at.Size.Int64() == int64(len(expr.Elems)) {
+		if at, ok := stlslices.Last(expect).(*hir.ArrayType); ok && (len(expr.Elems) == 0 || strconv.FormatInt(int64(len(expr.Elems)), 10) == at.Size.String()) {
+			size = at.Size
 			expectElemType = at.Elem
 		}
-	}
-
-	if len(expr.Elems) == 0 {
-		if expectElemType == nil {
-			a.reporter.Fatalf(
-				expr.Position(),
-				report.Errors.TypeLoss,
-			)
-		}
-		return hir.NewArray(expectElemType)
 	}
 
 	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) hir.Expr {
@@ -328,7 +329,20 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *hir.Array 
 		}
 	})
 
-	return hir.NewArray(hir.NewArrayType(big.NewInt(int64(len(elems))), expectElemType), elems...)
+	if size == nil || expectElemType == nil {
+		a.reporter.Fatalf(
+			expr.Position(),
+			report.Errors.MissingType,
+		)
+	}
+
+	var t *hir.ArrayType
+	if len(elems) == 0 {
+		t = hir.NewArrayType(size, expectElemType)
+	} else {
+		t = hir.NewArrayType(big.NewInt(int64(len(elems))), expectElemType)
+	}
+	return hir.NewArray(t, elems...)
 }
 
 // 尝试获取类型的零值
@@ -357,17 +371,25 @@ func (a *Analyzer) tryGetZeroExpr(t hir.Type) (hir.Expr, bool) {
 		f.Body = optional.Some(block)
 		return f, true
 	case *hir.TupleType:
-		return hir.NewEmptyTuple(t), true
-	case *hir.ArrayType:
-		return hir.NewEmptyArray(t), true
-	case *hir.UnionType:
-		for i, e := range t.Elems {
-			v, ok := a.tryGetZeroExpr(e)
-			if ok {
-				return hir.NewUnion(v, t, uint8(i)), true
+		for _, e := range t.Elems {
+			if _, ok := a.tryGetZeroExpr(e); !ok {
+				return nil, false
 			}
 		}
-		return nil, false
+		return hir.NewTuple(t), true
+	case *hir.ArrayType:
+		if t.Size.String() != "0" {
+			if _, ok := a.tryGetZeroExpr(t.Elem); !ok {
+				return nil, false
+			}
+		}
+		return hir.NewArray(t), true
+	case *hir.UnionType:
+		v, ok := a.tryGetZeroExpr(t.Elems[0])
+		if !ok {
+			return nil, false
+		}
+		return hir.NewUnion(v, t, 0), true
 	default:
 		return nil, false
 	}

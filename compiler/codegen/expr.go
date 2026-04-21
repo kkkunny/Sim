@@ -32,14 +32,10 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildCall(expr)
 	case *hir.Tuple:
 		return c.buildTuple(expr)
-	case *hir.EmptyTuple:
-		return c.buildEmptyTuple(expr)
 	case *hir.TupleIndex:
 		return c.buildTupleIndex(expr)
 	case *hir.Array:
 		return c.buildArray(expr)
-	case *hir.EmptyArray:
-		return c.buildEmptyArray(expr)
 	case *hir.ArrayIndex:
 		return c.buildArrayIndex(expr)
 	case *hir.Union:
@@ -237,15 +233,16 @@ func (c *CodeGenerator) buildCall(expr *hir.Call) cir.Expr {
 }
 
 func (c *CodeGenerator) buildTuple(expr *hir.Tuple) *cir.Struct {
+	t := c.buildType(expr.Type)
+	if len(expr.Elems) == 0 {
+		return cir.NewStruct(nil, t)
+	}
+
 	fields := make(map[string]cir.Expr, len(expr.Elems))
 	for i, e := range expr.Elems {
 		fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(e)
 	}
-	return cir.NewStruct(fields)
-}
-
-func (c *CodeGenerator) buildEmptyTuple(*hir.EmptyTuple) *cir.Struct {
-	return cir.NewStruct(nil)
+	return cir.NewStruct(fields, t)
 }
 
 func (c *CodeGenerator) buildTupleIndex(expr *hir.TupleIndex) *cir.GetMember {
@@ -255,18 +252,15 @@ func (c *CodeGenerator) buildTupleIndex(expr *hir.TupleIndex) *cir.GetMember {
 
 func (c *CodeGenerator) buildArray(expr *hir.Array) *cir.Struct {
 	at := c.buildType(expr.GetType())
+	if len(expr.Elems) == 0 {
+		return cir.NewStruct(nil, at)
+	}
+
 	elems := stlslices.Map(expr.Elems, func(_ int, argExpr hir.Expr) cir.Expr {
 		return c.buildExpr(argExpr)
 	})
 	return cir.NewStruct(map[string]cir.Expr{
-		"array": cir.NewArray(elems...),
-	}, at)
-}
-
-func (c *CodeGenerator) buildEmptyArray(expr *hir.EmptyArray) *cir.Struct {
-	at := c.buildType(expr.GetType())
-	return cir.NewStruct(map[string]cir.Expr{
-		"array": cir.NewArray(),
+		"array": cir.NewArray(elems),
 	}, at)
 }
 

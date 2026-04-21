@@ -1,3 +1,1 @@
-let a: i64
-
-let getPtr: () -> &i64 | &mut i64
+let getPtr: () -> ()

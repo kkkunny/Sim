@@ -3,20 +3,23 @@ package cir
 import (
 	"math/big"
 
+	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/enum"
 )
 
 type Type interface {
 	printWriter
 	printWithName(*printer, string)
-	typ()
+	zeroSize() bool
 }
 
 var Void = &VoidType{}
 
 type VoidType struct{}
 
-func (*VoidType) typ() {}
+func (*VoidType) zeroSize() bool {
+	panic("unreachable")
+}
 
 func (t *VoidType) print(p *printer) {
 	p.WriteString("void")
@@ -56,7 +59,9 @@ type IntegerType struct {
 	Kind IntTypeKind
 }
 
-func (*IntegerType) typ() {}
+func (*IntegerType) zeroSize() bool {
+	return false
+}
 
 func (t *IntegerType) print(p *printer) {
 	p.WriteString(string(t.Kind))
@@ -84,7 +89,9 @@ type FloatType struct {
 	Kind FloatTypeKind
 }
 
-func (*FloatType) typ() {}
+func (*FloatType) zeroSize() bool {
+	return false
+}
 
 func (t *FloatType) print(p *printer) {
 	p.WriteString(string(t.Kind))
@@ -106,7 +113,9 @@ func NewPointerType(elem Type) *PointerType {
 	return &PointerType{Elem: elem}
 }
 
-func (*PointerType) typ() {}
+func (*PointerType) zeroSize() bool {
+	return false
+}
 
 func (t *PointerType) print(p *printer) {
 	p.WriteBy(t.Elem)
@@ -122,7 +131,9 @@ type FuncType struct {
 	Params []Type
 }
 
-func (*FuncType) typ() {}
+func (*FuncType) zeroSize() bool {
+	return false
+}
 
 func (t *FuncType) print(*printer) {
 	panic("unreachable")
@@ -151,13 +162,25 @@ func NewAliasType(def *Typedef) *AliasType {
 	return &AliasType{Typedef: def}
 }
 
-func (*AliasType) typ() {}
+func (t *AliasType) zeroSize() bool {
+	return t.Type.zeroSize()
+}
 
 func (t *AliasType) print(p *printer) {
+	if t.zeroSize() {
+		p.WriteString("ZERO_TYPE")
+		return
+	}
+
 	p.WriteString(t.Name)
 }
 
 func (t *AliasType) printWithName(p *printer, name string) {
+	if t.zeroSize() {
+		p.WriteString("ZERO_TYPE")
+		return
+	}
+
 	p.WriteString(t.Name)
 	p.WriteString(" ")
 	p.WriteFormat(name)
@@ -172,7 +195,9 @@ func NewMacroType(name string, args ...Type) *MacroType {
 	return &MacroType{Name: name, Args: args}
 }
 
-func (*MacroType) typ() {}
+func (t *MacroType) zeroSize() bool {
+	return false
+}
 
 func (t *MacroType) print(p *printer) {
 	p.WriteString(t.Name)
@@ -213,10 +238,17 @@ func NewStructType(name string, fields ...*Member) *StructType {
 	return &StructType{Name: name, Fields: fields}
 }
 
-func (*StructType) typ() {}
+func (t *StructType) zeroSize() bool {
+	if len(t.Fields) == 0 {
+		return true
+	}
+	return stlslices.All(t.Fields, func(_ int, m *Member) bool {
+		return m.Type.zeroSize()
+	})
+}
 
 func (t *StructType) print(p *printer) {
-	if len(t.Fields) == 0 {
+	if t.zeroSize() {
 		p.WriteString("ZERO_TYPE")
 		return
 	}
@@ -240,7 +272,7 @@ func (t *StructType) print(p *printer) {
 }
 
 func (t *StructType) printWithName(p *printer, name string) {
-	if len(t.Fields) == 0 {
+	if t.zeroSize() {
 		p.WriteString("ZERO_TYPE")
 		return
 	}
@@ -259,10 +291,15 @@ func NewArrayType(elem Type, size *big.Int) *ArrayType {
 	return &ArrayType{Elem: elem, Size: size}
 }
 
-func (*ArrayType) typ() {}
+func (t *ArrayType) zeroSize() bool {
+	if t.Size.String() == "0" {
+		return true
+	}
+	return t.Elem.zeroSize()
+}
 
 func (t *ArrayType) print(p *printer) {
-	if t.Size.Int64() == 0 {
+	if t.zeroSize() {
 		p.WriteString("ZERO_TYPE")
 		return
 	}
@@ -274,7 +311,7 @@ func (t *ArrayType) print(p *printer) {
 }
 
 func (t *ArrayType) printWithName(p *printer, name string) {
-	if t.Size.Int64() == 0 {
+	if t.zeroSize() {
 		p.WriteString("ZERO_TYPE")
 		return
 	}
@@ -296,10 +333,17 @@ func NewUnionType(name string, members ...*Member) *UnionType {
 	return &UnionType{Name: name, Members: members}
 }
 
-func (*UnionType) typ() {}
+func (t *UnionType) zeroSize() bool {
+	if len(t.Members) == 0 {
+		return true
+	}
+	return stlslices.All(t.Members, func(i int, e *Member) bool {
+		return e.Type.zeroSize()
+	})
+}
 
 func (t *UnionType) print(p *printer) {
-	if len(t.Members) == 0 {
+	if t.zeroSize() {
 		p.WriteString("ZERO_TYPE")
 		return
 	}
@@ -323,7 +367,7 @@ func (t *UnionType) print(p *printer) {
 }
 
 func (t *UnionType) printWithName(p *printer, name string) {
-	if len(t.Members) == 0 {
+	if t.zeroSize() {
 		p.WriteString("ZERO_TYPE")
 		return
 	}

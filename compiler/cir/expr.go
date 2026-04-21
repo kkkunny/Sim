@@ -241,7 +241,7 @@ func (*Struct) local() {}
 func (*Struct) expr()  {}
 
 func (e *Struct) print(p *printer) {
-	if len(e.Fields) == 0 {
+	if t, ok := e.Type.Value(); ok && t.zeroSize() {
 		p.WriteString("ZERO_TYPE_VALUE")
 		return
 	}
@@ -268,20 +268,30 @@ func (e *Struct) print(p *printer) {
 }
 
 type Array struct {
+	Type  optional.Optional[Type]
 	Elems []Expr
 }
 
-func NewArray(elems ...Expr) *Array {
-	return &Array{Elems: elems}
+func NewArray(elems []Expr, t ...Type) *Array {
+	return &Array{
+		Type:  optional.UnEmpty(stlslices.Last(t)),
+		Elems: elems,
+	}
 }
 
 func (*Array) local() {}
 func (*Array) expr()  {}
 
 func (e *Array) print(p *printer) {
-	if len(e.Elems) == 0 {
+	if t, ok := e.Type.Value(); ok && t.zeroSize() {
 		p.WriteString("ZERO_TYPE_VALUE")
 		return
+	}
+
+	if t, ok := e.Type.Value(); ok {
+		p.WriteString("(")
+		p.WriteBy(t)
+		p.WriteString(")")
 	}
 
 	p.WriteString("{")
