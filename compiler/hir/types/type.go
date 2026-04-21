@@ -1,4 +1,4 @@
-package hir
+package types
 
 import (
 	"fmt"
@@ -7,10 +7,12 @@ import (
 
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
+
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 type Type interface {
-	printWriter
+	hir.PrintWriter
 	fmt.Stringer
 	Equal(Type) bool
 }
@@ -19,7 +21,7 @@ var Unit = &UnitType{}
 
 type UnitType struct{}
 
-func (t *UnitType) print(p *printer) {
+func (t *UnitType) Print(p *hir.Printer) {
 	p.WriteString(t.String())
 }
 
@@ -53,7 +55,7 @@ type SintType struct {
 	Bits uint8
 }
 
-func (t *SintType) print(p *printer) {
+func (t *SintType) Print(p *hir.Printer) {
 	p.WriteFormat(t.String())
 }
 
@@ -86,7 +88,7 @@ type UintType struct {
 	Bits uint8
 }
 
-func (t *UintType) print(p *printer) {
+func (t *UintType) Print(p *hir.Printer) {
 	p.WriteFormat(t.String())
 }
 
@@ -117,7 +119,7 @@ type FloatType struct {
 	Bits uint8
 }
 
-func (t *FloatType) print(p *printer) {
+func (t *FloatType) Print(p *hir.Printer) {
 	p.WriteFormat(t.String())
 }
 
@@ -141,7 +143,7 @@ var Bool = &BooleanType{}
 
 type BooleanType struct{}
 
-func (t *BooleanType) print(p *printer) {
+func (t *BooleanType) Print(p *hir.Printer) {
 	p.WriteFormat(t.String())
 }
 
@@ -165,7 +167,7 @@ func NewFuncType(ret Type, params ...Type) *FuncType {
 	}
 }
 
-func (t *FuncType) print(p *printer) {
+func (t *FuncType) Print(p *hir.Printer) {
 	p.WriteString("(")
 	for i, param := range t.Params {
 		p.WriteBy(param)
@@ -180,7 +182,7 @@ func (t *FuncType) print(p *printer) {
 
 func (t *FuncType) String() string {
 	var buf strings.Builder
-	t.print(newPrint(&buf))
+	hir.Print(&buf, t)
 	return buf.String()
 }
 
@@ -207,7 +209,7 @@ func NewTupleType(elems ...Type) *TupleType {
 	}
 }
 
-func (t *TupleType) print(p *printer) {
+func (t *TupleType) Print(p *hir.Printer) {
 	p.WriteString("(")
 	for i, param := range t.Elems {
 		p.WriteBy(param)
@@ -220,7 +222,7 @@ func (t *TupleType) print(p *printer) {
 
 func (t *TupleType) String() string {
 	var buf strings.Builder
-	t.print(newPrint(&buf))
+	hir.Print(&buf, t)
 	return buf.String()
 }
 
@@ -249,7 +251,7 @@ func NewArrayType(size *big.Int, elem Type) *ArrayType {
 	}
 }
 
-func (t *ArrayType) print(p *printer) {
+func (t *ArrayType) Print(p *hir.Printer) {
 	p.WriteFormat(t.String())
 }
 
@@ -276,7 +278,7 @@ func NewUnionType(elems ...Type) *UnionType {
 	return &UnionType{Elems: elems}
 }
 
-func (t *UnionType) print(p *printer) {
+func (t *UnionType) Print(p *hir.Printer) {
 	for i, elem := range t.Elems {
 		switch elem := elem.(type) {
 		case *FuncType:
@@ -302,7 +304,7 @@ func (t *UnionType) print(p *printer) {
 
 func (t *UnionType) String() string {
 	var buf strings.Builder
-	t.print(newPrint(&buf))
+	hir.Print(&buf, t)
 	return buf.String()
 }
 
@@ -328,7 +330,7 @@ func NewPointerType(mut bool, elem Type) *PointerType {
 	return &PointerType{Mut: mut, Elem: elem}
 }
 
-func (t *PointerType) print(p *printer) {
+func (t *PointerType) Print(p *hir.Printer) {
 	p.WriteFormat(t.String())
 }
 

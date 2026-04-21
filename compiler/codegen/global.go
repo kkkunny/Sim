@@ -4,21 +4,22 @@ import (
 	"github.com/kkkunny/stl/container/optional"
 	stlval "github.com/kkkunny/stl/value"
 
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (c *CodeGenerator) buildGlobal(global hir.Global) {
+func (c *CodeGenerator) buildGlobal(global stmts.Global) {
 	switch global := global.(type) {
-	case *hir.Let:
+	case *stmts.Let:
 		c.buildGlobalLet(global)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildGlobalLet(l *hir.Let) {
-	if stlval.Is[*hir.FuncType](l.GetType()) {
-		f := c.buildNativeFunc(l.Value.(*hir.Func))
+func (c *CodeGenerator) buildGlobalLet(l *stmts.Let) {
+	if stlval.Is[*types.FuncType](l.GetType()) {
+		f := c.buildNativeFunc(l.Value.(*stmts.Func))
 		c.idents[l] = f.Decl
 		if l.Name == "main" {
 			f.Decl.Name = "sim_main"
