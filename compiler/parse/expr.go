@@ -32,11 +32,22 @@ func (p *Parser) parseBinaryExpr(minPrec int) ast.Expr {
 
 func (p *Parser) parseUnaryExpr() ast.Expr {
 	switch p.nextToken.Kind {
-	case token.KindEnum.Not:
-		op := p.expect(token.KindEnum.Not)
+	case token.KindEnum.Not, token.KindEnum.Mul:
+		p.next()
+		op := p.curToken
 		p.skip(token.KindEnum.Br)
 		expr := p.parseUnaryExpr()
 		return &ast.Unary{Op: op, Expr: expr}
+	case token.KindEnum.And:
+		begin := p.expect(token.KindEnum.And).Position
+		mut := p.ifSkip(token.KindEnum.Mut)
+		p.skip(token.KindEnum.Br)
+		expr := p.parseUnaryExpr()
+		return &ast.GetReference{
+			BeginPosition: begin,
+			Mut:           mut,
+			Value:         expr,
+		}
 	default:
 		return p.parseSuffixExpr(p.parsePrimaryExpr())
 	}

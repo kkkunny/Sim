@@ -38,7 +38,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 	case *ast.Integer:
 		return a.analyzeInteger(expr, expect...)
 	case *ast.Unary:
-		return a.analyzeUnary(expr)
+		return a.analyzeUnary(expr, expect...)
 	case *ast.Binary:
 		return a.analyzeBinary(expr, expect...)
 	case *ast.Func:
@@ -55,6 +55,8 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 		return a.analyzeAs(expr)
 	case *ast.Boolean:
 		return a.analyzeBoolean(expr)
+	case *ast.GetReference:
+		return a.analyzeGetReference(expr, expect...)
 	default:
 		panic("unreachable")
 	}
@@ -120,18 +122,27 @@ func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...hir.Type) hir.Exp
 	}
 }
 
-func (a *Analyzer) analyzeUnary(expr *ast.Unary) *hir.Unary {
-	subExpr := a.analyzeExpr(expr.Expr)
-	var op hir.UnaryOp
+func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...hir.Type) hir.Expr {
 	switch expr.Op.Kind {
 	case token.KindEnum.Not:
-		op = hir.UnaryOpEnum.Not
+		v := a.analyzeExpr(expr.Expr, expect...)
+		return hir.NewUnary(hir.UnaryOpEnum.Not, v)
+	case token.KindEnum.Mul:
+		if len(expect) > 0 {
+			expect = []hir.Type{hir.NewPointerType(false, stlslices.Last(expect))}
+		}
+		v := a.analyzeExpr(expr.Expr, expect...)
+		vt := v.GetType()
+		if !stlval.Is[*hir.PointerType](vt) {
+			a.reporter.Fatalf(
+				expr.Expr.Position(),
+				report.Errors.UnexpectedExpressionType,
+				"PointerType", vt,
+			)
+		}
+		return hir.NewDeRef(v)
 	default:
 		panic("unreachable")
-	}
-	return &hir.Unary{
-		Op:   op,
-		Expr: subExpr,
 	}
 }
 
@@ -451,4 +462,15 @@ func (a *Analyzer) analyzeAs(expr *ast.As) hir.Expr {
 
 func (a *Analyzer) analyzeBoolean(expr *ast.Boolean) *hir.Boolean {
 	return hir.NewBoolean(expr.Value.Kind == token.KindEnum.True)
+}
+
+func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Type) *hir.GetRef {
+	from := a.analyzeExpr(expr.Value)
+	if from.Temporary() {
+		a.reporter.Fatalf(
+			expr.Value.Position(),
+			report.Errors.MustNotTemporary,
+		)
+	}
+	return hir.NewGetRef(expr.Mut, from)
 }
