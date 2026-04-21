@@ -38,8 +38,8 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildArray(expr)
 	case *hir.ArrayIndex:
 		return c.buildArrayIndex(expr)
-	case *hir.Union:
-		return c.buildUnion(expr)
+	case hir.Covert:
+		return c.buildCovert(expr)
 	default:
 		panic("unreachable")
 	}
@@ -270,13 +270,20 @@ func (c *CodeGenerator) buildArrayIndex(expr *hir.ArrayIndex) *cir.Offset {
 	return cir.NewOffset(cir.NewGetMember(from, "array"), offset)
 }
 
-func (c *CodeGenerator) buildUnion(expr *hir.Union) *cir.Struct {
+func (c *CodeGenerator) buildCovert(expr hir.Covert) cir.Expr {
 	t := c.buildType(expr.GetType())
-	v := c.buildExpr(expr.From)
-	return cir.NewStruct(map[string]cir.Expr{
-		"t": cir.NewInteger(big.NewInt(int64(expr.Index))),
-		"v": cir.NewStruct(map[string]cir.Expr{
-			fmt.Sprintf("t%d", expr.Index+1): v,
-		}),
-	}, t)
+	v := c.buildExpr(expr.GetFrom())
+	switch expr := expr.(type) {
+	case *hir.Union:
+		return cir.NewStruct(map[string]cir.Expr{
+			"t": cir.NewInteger(big.NewInt(int64(expr.Index))),
+			"v": cir.NewStruct(map[string]cir.Expr{
+				fmt.Sprintf("t%d", expr.Index+1): v,
+			}),
+		}, t)
+	case *hir.NumberCovert:
+		return cir.NewCovert(t, v)
+	default:
+		panic("unreachable")
+	}
 }

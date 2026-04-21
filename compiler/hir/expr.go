@@ -425,7 +425,6 @@ func (e *ArrayIndex) Temporary() bool {
 type Covert interface {
 	Expr
 	GetFrom() Expr
-	GetTo() Type
 }
 
 type Union struct {
@@ -467,6 +466,39 @@ func (e *Union) GetFrom() Expr {
 	return e.From
 }
 
-func (e *Union) GetTo() Type {
+type NumberCovert struct {
+	From Expr
+	To   Type
+}
+
+func NewNumberCovert(from Expr, to Type) *NumberCovert {
+	return &NumberCovert{
+		From: from,
+		To:   to,
+	}
+}
+
+func (*NumberCovert) expr()  {}
+func (*NumberCovert) local() {}
+
+func (e *NumberCovert) print(p *printer) {
+	p.WriteBy(e.From)
+	p.WriteString(" as ")
+	p.WriteBy(e.To)
+}
+
+func (e *NumberCovert) GetType() Type {
 	return e.To
+}
+
+func (e *NumberCovert) Mutable() bool {
+	return false
+}
+
+func (e *NumberCovert) Temporary() bool {
+	return true
+}
+
+func (e *NumberCovert) GetFrom() Expr {
+	return e.From
 }

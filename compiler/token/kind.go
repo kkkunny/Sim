@@ -53,6 +53,7 @@ var KindEnum = enum.New[struct {
 	Let    Kind `text:"let"`
 	Return Kind `text:"return"`
 	Mut    Kind `text:"mut"`
+	As     Kind `text:"as"`
 }]()
 
 var kind2Text = func() map[Kind]string {
