@@ -18,6 +18,19 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
+func (a *Analyzer) analyzeExprWithAutoCovert(expr ast.Expr, expect hir.Type) hir.Expr {
+	v := a.analyzeExpr(expr, expect)
+	vt := v.GetType()
+	if ut, ok := expect.(*hir.UnionType); ok {
+		for i, e := range ut.Elems {
+			if vt.Equal(e) {
+				return hir.NewUnion(v, expect, uint8(i))
+			}
+		}
+	}
+	return v
+}
+
 func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 	switch expr := expr.(type) {
 	case *ast.IdentExpr:
@@ -45,7 +58,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 
 // 期待类型，两个类型必须完全相同
 func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) hir.Expr {
-	v := a.analyzeExpr(expr, expect)
+	v := a.analyzeExprWithAutoCovert(expr, expect)
 	if vt := v.GetType(); !vt.Equal(expect) {
 		a.reporter.Fatalf(
 			expr.Position(),
