@@ -12,26 +12,28 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/scopes"
+	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/report"
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
-func (a *Analyzer) analyzeExprWithAutoCovert(expr ast.Expr, expect hir.Type) hir.Expr {
+func (a *Analyzer) analyzeExprWithAutoCovert(expr ast.Expr, expect types.Type) stmts.Expr {
 	v := a.analyzeExpr(expr, expect)
 	vt := v.GetType()
-	if ut, ok := expect.(*hir.UnionType); ok {
+	if ut, ok := expect.(*types.UnionType); ok {
 		for i, e := range ut.Elems {
 			if vt.Equal(e) {
-				return hir.NewUnion(v, expect, uint8(i))
+				return stmts.NewUnion(v, expect, uint8(i))
 			}
 		}
 	}
 	return v
 }
 
-func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
+func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
 	switch expr := expr.(type) {
 	case *ast.IdentExpr:
 		return a.analyzeIdentExpr(expr)
@@ -63,7 +65,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 }
 
 // 期待类型，两个类型必须完全相同
-func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) hir.Expr {
+func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect types.Type) stmts.Expr {
 	v := a.analyzeExprWithAutoCovert(expr, expect)
 	if vt := v.GetType(); !vt.Equal(expect) {
 		a.reporter.Fatalf(
@@ -76,7 +78,7 @@ func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) hir.Expr {
 }
 
 // 期待类型，属于制定的类型类
-func expectTypeExpr[TYPE hir.Type](a *Analyzer, expr ast.Expr) hir.Expr {
+func expectTypeExpr[TYPE types.Type](a *Analyzer, expr ast.Expr) stmts.Expr {
 	v := a.analyzeExpr(expr)
 	if vt := v.GetType(); !stlval.Is[TYPE](vt) {
 		a.reporter.Fatalf(
@@ -88,7 +90,7 @@ func expectTypeExpr[TYPE hir.Type](a *Analyzer, expr ast.Expr) hir.Expr {
 	return v
 }
 
-func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *hir.IdentExpr {
+func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *stmts.IdentExpr {
 	v, ok := a.scope.Lookup(expr.Name.OriginText)
 	if !ok {
 		a.reporter.Fatalf(
@@ -98,93 +100,93 @@ func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *hir.IdentExpr {
 		)
 		return nil
 	}
-	return hir.NewIdentExpr(v)
+	return stmts.NewIdentExpr(v)
 }
 
-func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...hir.Type) hir.Expr {
-	var t hir.Type
-	it, ok := stlslices.Last(expect).(hir.IntegerType)
+func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...types.Type) stmts.Expr {
+	var t types.Type
+	it, ok := stlslices.Last(expect).(types.IntegerType)
 	if ok {
 		t = it
 	} else {
-		ft, ok := stlslices.Last(expect).(*hir.FloatType)
+		ft, ok := stlslices.Last(expect).(*types.FloatType)
 		if ok {
 			t = ft
 		} else {
-			t = hir.I32
+			t = types.I32
 		}
 	}
 	v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
-	if stlval.Is[hir.IntegerType](t) {
-		return hir.NewInteger(t, big.NewInt(v))
+	if stlval.Is[types.IntegerType](t) {
+		return stmts.NewInteger(t, big.NewInt(v))
 	} else {
-		return hir.NewFloat(t, big.NewFloat(float64(v)))
+		return stmts.NewFloat(t, big.NewFloat(float64(v)))
 	}
 }
 
-func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...hir.Type) hir.Expr {
+func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Expr {
 	switch expr.Op.Kind {
 	case token.KindEnum.Not:
 		v := a.analyzeExpr(expr.Expr, expect...)
-		return hir.NewUnary(hir.UnaryOpEnum.Not, v)
+		return stmts.NewUnary(stmts.UnaryOpEnum.Not, v)
 	case token.KindEnum.Mul:
 		if len(expect) > 0 {
-			expect = []hir.Type{hir.NewPointerType(false, stlslices.Last(expect))}
+			expect = []types.Type{types.NewPointerType(false, stlslices.Last(expect))}
 		}
 		v := a.analyzeExpr(expr.Expr, expect...)
 		vt := v.GetType()
-		if !stlval.Is[*hir.PointerType](vt) {
+		if !stlval.Is[*types.PointerType](vt) {
 			a.reporter.Fatalf(
 				expr.Expr.Position(),
 				report.Errors.UnexpectedExpressionType,
 				"PointerType", vt,
 			)
 		}
-		return hir.NewDeRef(v)
+		return stmts.NewDeRef(v)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...hir.Type) *hir.Binary {
+func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.Binary {
 	left := a.analyzeExpr(expr.Left, expect...)
 	right := a.expectTypeExpr(expr.Right, left.GetType())
-	var op hir.BinaryOp
+	var op stmts.BinaryOp
 	switch expr.Op.Kind {
 	case token.KindEnum.Add:
-		op = hir.BinaryOpEnum.Add
+		op = stmts.BinaryOpEnum.Add
 	case token.KindEnum.Sub:
-		op = hir.BinaryOpEnum.Sub
+		op = stmts.BinaryOpEnum.Sub
 	case token.KindEnum.Mul:
-		op = hir.BinaryOpEnum.Mul
+		op = stmts.BinaryOpEnum.Mul
 	case token.KindEnum.Quo:
-		op = hir.BinaryOpEnum.Quo
+		op = stmts.BinaryOpEnum.Quo
 	case token.KindEnum.Rem:
-		op = hir.BinaryOpEnum.Rem
+		op = stmts.BinaryOpEnum.Rem
 	case token.KindEnum.And:
-		op = hir.BinaryOpEnum.And
+		op = stmts.BinaryOpEnum.And
 	case token.KindEnum.Or:
-		op = hir.BinaryOpEnum.Or
+		op = stmts.BinaryOpEnum.Or
 	case token.KindEnum.Xor:
-		op = hir.BinaryOpEnum.Xor
+		op = stmts.BinaryOpEnum.Xor
 	case token.KindEnum.Assign:
-		op = hir.BinaryOpEnum.Assign
+		op = stmts.BinaryOpEnum.Assign
 	case token.KindEnum.AddAssign:
-		op = hir.BinaryOpEnum.AddAssign
+		op = stmts.BinaryOpEnum.AddAssign
 	case token.KindEnum.SubAssign:
-		op = hir.BinaryOpEnum.SubAssign
+		op = stmts.BinaryOpEnum.SubAssign
 	case token.KindEnum.MulAssign:
-		op = hir.BinaryOpEnum.MulAssign
+		op = stmts.BinaryOpEnum.MulAssign
 	case token.KindEnum.QuoAssign:
-		op = hir.BinaryOpEnum.QuoAssign
+		op = stmts.BinaryOpEnum.QuoAssign
 	case token.KindEnum.RemAssign:
-		op = hir.BinaryOpEnum.RemAssign
+		op = stmts.BinaryOpEnum.RemAssign
 	case token.KindEnum.AndAssign:
-		op = hir.BinaryOpEnum.AndAssign
+		op = stmts.BinaryOpEnum.AndAssign
 	case token.KindEnum.OrAssign:
-		op = hir.BinaryOpEnum.OrAssign
+		op = stmts.BinaryOpEnum.OrAssign
 	case token.KindEnum.XorAssign:
-		op = hir.BinaryOpEnum.XorAssign
+		op = stmts.BinaryOpEnum.XorAssign
 	default:
 		panic("unreachable")
 	}
@@ -204,29 +206,29 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...hir.Type) *hir.Bina
 		}
 	}
 
-	return &hir.Binary{
+	return &stmts.Binary{
 		Op:    op,
 		Left:  left,
 		Right: right,
 	}
 }
 
-func (a *Analyzer) analyzeFunc(expr *ast.Func) *hir.Func {
-	scope := hir.NewBlockScope(a.scope)
+func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
+	scope := scopes.NewBlockScope(a.scope)
 	a.scope = scope
 
-	var params []*hir.Param
+	var params []*stmts.Param
 	for _, p := range expr.Params {
 		paramType := a.analyzeType(p.Type)
-		params = append(params, hir.NewParam(p.Mut, paramType, p.Name.OriginText))
+		params = append(params, stmts.NewParam(p.Mut, paramType, p.Name.OriginText))
 	}
 
-	var returnType hir.Type = hir.Unit
+	var returnType types.Type = types.Unit
 	if rtAst, ok := expr.ReturnType.Value(); ok {
 		returnType = a.analyzeTypeWithUnit(rtAst)
 	}
 
-	ft := hir.NewFuncType(returnType, stlslices.Map(params, func(i int, p *hir.Param) hir.Type {
+	ft := types.NewFuncType(returnType, stlslices.Map(params, func(i int, p *stmts.Param) types.Type {
 		return p.Type
 	})...)
 	scope.SetFuncType(ft)
@@ -235,7 +237,7 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *hir.Func {
 		a.scope.AddValue(p)
 	}
 
-	var body optional.Optional[*hir.Block]
+	var body optional.Optional[*stmts.Block]
 	if b, ok := expr.Body.Value(); ok {
 		body = optional.Some(a.analyzeBlock(b))
 	}
@@ -244,15 +246,15 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *hir.Func {
 
 	a.scope = stlval.IgnoreWith(a.scope.Parent())
 
-	f := hir.NewFunc(returnType, params...)
+	f := stmts.NewFunc(returnType, params...)
 	f.Body = body
 	f.UsedExternalVariables = externalVars
 	return f
 }
 
-func (a *Analyzer) analyzeCall(expr *ast.Call) *hir.Call {
-	f := expectTypeExpr[*hir.FuncType](a, expr.Func)
-	ft := f.GetType().(*hir.FuncType)
+func (a *Analyzer) analyzeCall(expr *ast.Call) *stmts.Call {
+	f := expectTypeExpr[*types.FuncType](a, expr.Func)
+	ft := f.GetType().(*types.FuncType)
 	if len(ft.Params) != len(expr.Args) {
 		a.reporter.Fatalf(
 			expr.Position(),
@@ -260,94 +262,94 @@ func (a *Analyzer) analyzeCall(expr *ast.Call) *hir.Call {
 			len(ft.Params), len(expr.Args),
 		)
 	}
-	args := stlslices.Map(expr.Args, func(i int, expr ast.Expr) hir.Expr {
+	args := stlslices.Map(expr.Args, func(i int, expr ast.Expr) stmts.Expr {
 		return a.analyzeExpr(expr, ft.Params[i])
 	})
-	return &hir.Call{
+	return &stmts.Call{
 		Func: f,
 		Args: args,
 	}
 }
 
-func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) hir.Expr {
+func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...types.Type) stmts.Expr {
 	if len(expr.Elems) == 1 {
 		return a.analyzeExpr(expr.Elems[0], expect...)
 	}
 
 	var hasType bool
-	expectElemTypes := make([]hir.Type, len(expr.Elems))
+	expectElemTypes := make([]types.Type, len(expr.Elems))
 	if len(expect) > 0 {
-		if tt, ok := stlslices.Last(expect).(*hir.TupleType); ok && (len(expr.Elems) == 0 || len(expr.Elems) == len(tt.Elems)) {
+		if tt, ok := stlslices.Last(expect).(*types.TupleType); ok && (len(expr.Elems) == 0 || len(expr.Elems) == len(tt.Elems)) {
 			hasType = true
 			expectElemTypes = tt.Elems
 		}
 	}
 
-	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) hir.Expr {
-		var elemExpect []hir.Type
+	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) stmts.Expr {
+		var elemExpect []types.Type
 		if et := expectElemTypes[i]; et != nil {
-			elemExpect = []hir.Type{et}
+			elemExpect = []types.Type{et}
 		}
 		return a.analyzeExpr(e, elemExpect...)
 	})
 
-	var t *hir.TupleType
+	var t *types.TupleType
 	if len(elems) == 0 && !hasType {
-		t = hir.NewTupleType()
+		t = types.NewTupleType()
 	} else if len(elems) == 0 {
-		t = hir.NewTupleType(expectElemTypes...)
+		t = types.NewTupleType(expectElemTypes...)
 	} else {
-		t = hir.NewTupleType(stlslices.Map(elems, func(_ int, e hir.Expr) hir.Type {
+		t = types.NewTupleType(stlslices.Map(elems, func(_ int, e stmts.Expr) types.Type {
 			return e.GetType()
 		})...)
 	}
 
-	return hir.NewTuple(t, elems...)
+	return stmts.NewTuple(t, elems...)
 }
 
-func (a *Analyzer) analyzeIndex(expr *ast.Index) hir.Expr {
+func (a *Analyzer) analyzeIndex(expr *ast.Index) stmts.Expr {
 	from := a.analyzeExpr(expr.From)
 	ft := from.GetType()
 
-	if stlval.Is[*hir.TupleType](ft) {
-		index := expectTypeExpr[hir.IntegerType](a, expr.Index)
-		indexValue, ok := index.(*hir.Integer)
+	if stlval.Is[*types.TupleType](ft) {
+		index := expectTypeExpr[types.IntegerType](a, expr.Index)
+		indexValue, ok := index.(*stmts.Integer)
 		if !ok {
 			a.reporter.Fatalf(
 				expr.Index.Position(),
 				report.Errors.ExpectedIntegerConstant,
 			)
 		}
-		return hir.NewTupleIndex(from, indexValue.Value)
+		return stmts.NewTupleIndex(from, indexValue.Value)
 	}
 
-	at, ok := ft.(*hir.ArrayType)
+	at, ok := ft.(*types.ArrayType)
 	if !ok {
 		a.reporter.Fatalf(
 			expr.From.Position(),
 			report.Errors.UnexpectedExpressionType,
-			fmt.Sprintf("%T", hir.ArrayType{}), at,
+			fmt.Sprintf("%T", types.ArrayType{}), at,
 		)
 	}
-	index := expectTypeExpr[hir.IntegerType](a, expr.Index)
-	return hir.NewArrayIndex(from, index)
+	index := expectTypeExpr[types.IntegerType](a, expr.Index)
+	return stmts.NewArrayIndex(from, index)
 }
 
-func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *hir.Array {
+func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...types.Type) *stmts.Array {
 	var size *big.Int
-	var expectElemType hir.Type
+	var expectElemType types.Type
 	if len(expect) > 0 {
-		if at, ok := stlslices.Last(expect).(*hir.ArrayType); ok && (len(expr.Elems) == 0 || strconv.FormatInt(int64(len(expr.Elems)), 10) == at.Size.String()) {
+		if at, ok := stlslices.Last(expect).(*types.ArrayType); ok && (len(expr.Elems) == 0 || strconv.FormatInt(int64(len(expr.Elems)), 10) == at.Size.String()) {
 			size = at.Size
 			expectElemType = at.Elem
 		}
 	}
 
-	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) hir.Expr {
+	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) stmts.Expr {
 		if i == 0 {
-			var elemExpect []hir.Type
+			var elemExpect []types.Type
 			if expectElemType != nil {
-				elemExpect = []hir.Type{expectElemType}
+				elemExpect = []types.Type{expectElemType}
 			}
 			v := a.analyzeExpr(e, elemExpect...)
 			expectElemType = v.GetType()
@@ -364,69 +366,69 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *hir.Array 
 		)
 	}
 
-	var t *hir.ArrayType
+	var t *types.ArrayType
 	if len(elems) == 0 {
-		t = hir.NewArrayType(size, expectElemType)
+		t = types.NewArrayType(size, expectElemType)
 	} else {
-		t = hir.NewArrayType(big.NewInt(int64(len(elems))), expectElemType)
+		t = types.NewArrayType(big.NewInt(int64(len(elems))), expectElemType)
 	}
-	return hir.NewArray(t, elems...)
+	return stmts.NewArray(t, elems...)
 }
 
 // 尝试获取类型的零值
-func (a *Analyzer) tryGetZeroExpr(t hir.Type) (hir.Expr, bool) {
+func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 	switch t := t.(type) {
-	case hir.IntegerType:
-		return hir.NewInteger(t, big.NewInt(0)), true
-	case *hir.FloatType:
-		return hir.NewFloat(t, big.NewFloat(0)), true
-	case *hir.BooleanType:
-		return hir.NewBoolean(false), true
-	case *hir.FuncType:
-		var returnValue hir.Expr
-		if !t.Return.Equal(hir.Unit) {
+	case types.IntegerType:
+		return stmts.NewInteger(t, big.NewInt(0)), true
+	case *types.FloatType:
+		return stmts.NewFloat(t, big.NewFloat(0)), true
+	case *types.BooleanType:
+		return stmts.NewBoolean(false), true
+	case *types.FuncType:
+		var returnValue stmts.Expr
+		if !t.Return.Equal(types.Unit) {
 			var ok bool
 			returnValue, ok = a.tryGetZeroExpr(t.Return)
 			if !ok {
 				return nil, false
 			}
 		}
-		f := hir.NewFunc(t.Return, stlslices.Map(t.Params, func(i int, pt hir.Type) *hir.Param {
-			return hir.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
+		f := stmts.NewFunc(t.Return, stlslices.Map(t.Params, func(i int, pt types.Type) *stmts.Param {
+			return stmts.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
 		})...)
-		block := hir.NewBlock()
+		block := stmts.NewBlock()
 		if returnValue != nil {
-			block.Stmts = append(block.Stmts, hir.NewReturn(returnValue))
+			block.Stmts = append(block.Stmts, stmts.NewReturn(returnValue))
 		}
 		f.Body = optional.Some(block)
 		return f, true
-	case *hir.TupleType:
+	case *types.TupleType:
 		for _, e := range t.Elems {
 			if _, ok := a.tryGetZeroExpr(e); !ok {
 				return nil, false
 			}
 		}
-		return hir.NewTuple(t), true
-	case *hir.ArrayType:
+		return stmts.NewTuple(t), true
+	case *types.ArrayType:
 		if t.Size.String() != "0" {
 			if _, ok := a.tryGetZeroExpr(t.Elem); !ok {
 				return nil, false
 			}
 		}
-		return hir.NewArray(t), true
-	case *hir.UnionType:
+		return stmts.NewArray(t), true
+	case *types.UnionType:
 		v, ok := a.tryGetZeroExpr(t.Elems[0])
 		if !ok {
 			return nil, false
 		}
-		return hir.NewUnion(v, t, 0), true
+		return stmts.NewUnion(v, t, 0), true
 	default:
 		return nil, false
 	}
 }
 
 // 获取类型的零值
-func (a *Analyzer) getZeroExpr(pos reader.Position, t hir.Type) hir.Expr {
+func (a *Analyzer) getZeroExpr(pos reader.Position, t types.Type) stmts.Expr {
 	v, ok := a.tryGetZeroExpr(t)
 	if !ok {
 		a.reporter.Fatalf(
@@ -438,7 +440,7 @@ func (a *Analyzer) getZeroExpr(pos reader.Position, t hir.Type) hir.Expr {
 	return v
 }
 
-func (a *Analyzer) analyzeAs(expr *ast.As) hir.Expr {
+func (a *Analyzer) analyzeAs(expr *ast.As) stmts.Expr {
 	to := a.analyzeType(expr.Right)
 	v := a.analyzeExprWithAutoCovert(expr.Left, to)
 	from := v.GetType()
@@ -448,8 +450,8 @@ func (a *Analyzer) analyzeAs(expr *ast.As) hir.Expr {
 	}
 
 	switch {
-	case stlval.Is[hir.NumberType](from) && stlval.Is[hir.NumberType](to):
-		return hir.NewNumberCovert(v, to)
+	case stlval.Is[types.NumberType](from) && stlval.Is[types.NumberType](to):
+		return stmts.NewNumberCovert(v, to)
 	}
 
 	a.reporter.Fatalf(
@@ -460,11 +462,11 @@ func (a *Analyzer) analyzeAs(expr *ast.As) hir.Expr {
 	return nil
 }
 
-func (a *Analyzer) analyzeBoolean(expr *ast.Boolean) *hir.Boolean {
-	return hir.NewBoolean(expr.Value.Kind == token.KindEnum.True)
+func (a *Analyzer) analyzeBoolean(expr *ast.Boolean) *stmts.Boolean {
+	return stmts.NewBoolean(expr.Value.Kind == token.KindEnum.True)
 }
 
-func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Type) *hir.GetRef {
+func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...types.Type) *stmts.GetRef {
 	from := a.analyzeExpr(expr.Value)
 	if from.Temporary() {
 		a.reporter.Fatalf(
@@ -472,5 +474,5 @@ func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Typ
 			report.Errors.MustNotTemporary,
 		)
 	}
-	return hir.NewGetRef(expr.Mut, from)
+	return stmts.NewGetRef(expr.Mut, from)
 }

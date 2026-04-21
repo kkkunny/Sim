@@ -7,11 +7,11 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/ast"
-	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/report"
 )
 
-func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
+func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 	switch t := t.(type) {
 	case *ast.IdentType:
 		switch t.Name.OriginText {
@@ -22,27 +22,27 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			)
 			return nil
 		case "i8":
-			return hir.I8
+			return types.I8
 		case "i16":
-			return hir.I16
+			return types.I16
 		case "i32":
-			return hir.I32
+			return types.I32
 		case "i64":
-			return hir.I64
+			return types.I64
 		case "u8":
-			return hir.U8
+			return types.U8
 		case "u16":
-			return hir.U16
+			return types.U16
 		case "u32":
-			return hir.U32
+			return types.U32
 		case "u64":
-			return hir.U64
+			return types.U64
 		case "f32":
-			return hir.F32
+			return types.F32
 		case "f64":
-			return hir.F64
+			return types.F64
 		case "bool":
-			return hir.Bool
+			return types.Bool
 		default:
 			a.reporter.Fatalf(
 				t.Name.Position,
@@ -52,40 +52,40 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			return nil
 		}
 	case *ast.FuncType:
-		params := stlslices.Map(t.Params, func(_ int, p ast.Type) hir.Type {
+		params := stlslices.Map(t.Params, func(_ int, p ast.Type) types.Type {
 			return a.analyzeType(p)
 		})
-		var rt hir.Type = hir.Unit
+		var rt types.Type = types.Unit
 		if returnType, ok := t.ReturnType.Value(); ok {
 			rt = a.analyzeTypeWithUnit(returnType)
 		}
-		return hir.NewFuncType(rt, params...)
+		return types.NewFuncType(rt, params...)
 	case *ast.TupleType:
-		elems := stlslices.Map(t.Elems, func(_ int, p ast.Type) hir.Type {
+		elems := stlslices.Map(t.Elems, func(_ int, p ast.Type) types.Type {
 			return a.analyzeType(p)
 		})
-		return hir.NewTupleType(elems...)
+		return types.NewTupleType(elems...)
 	case *ast.ArrayType:
 		v, _ := strconv.ParseInt(t.Size.OriginText, 10, 64)
 		size := big.NewInt(v)
 		elem := a.analyzeType(t.Elem)
-		return hir.NewArrayType(size, elem)
+		return types.NewArrayType(size, elem)
 	case *ast.UnionType:
-		elems := stlslices.Map(t.Elems, func(_ int, e ast.Type) hir.Type {
+		elems := stlslices.Map(t.Elems, func(_ int, e ast.Type) types.Type {
 			return a.analyzeType(e)
 		})
-		return hir.NewUnionType(elems...)
+		return types.NewUnionType(elems...)
 	case *ast.PointerType:
 		elem := a.analyzeType(t.Elem)
-		return hir.NewPointerType(t.Mut, elem)
+		return types.NewPointerType(t.Mut, elem)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (a *Analyzer) analyzeTypeWithUnit(t ast.Type) hir.Type {
+func (a *Analyzer) analyzeTypeWithUnit(t ast.Type) types.Type {
 	if it, ok := t.(*ast.IdentType); ok && it.Name.OriginText == "unit" {
-		return hir.Unit
+		return types.Unit
 	}
 	return a.analyzeType(t)
 }

@@ -1,12 +1,15 @@
-package hir
+package stmts
 
 import (
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 type Local interface {
-	printWriter
+	hir.PrintWriter
 	local()
 }
 
@@ -20,7 +23,7 @@ func NewBlock() *Block {
 
 func (*Block) local() {}
 
-func (b *Block) print(p *printer) {
+func (b *Block) Print(p *hir.Printer) {
 	p.WriteString("{")
 	if len(b.Stmts) == 0 {
 		p.WriteString("}")
@@ -50,7 +53,7 @@ func NewReturn(v ...Expr) *Return {
 
 func (*Return) local() {}
 
-func (r *Return) print(p *printer) {
+func (r *Return) Print(p *hir.Printer) {
 	if value, ok := r.Value.Value(); ok {
 		p.WriteString("return ")
 		p.WriteBy(value)
@@ -61,7 +64,7 @@ func (r *Return) print(p *printer) {
 
 type Let struct {
 	Mut   bool
-	Type  Type
+	Type  types.Type
 	Name  string
 	Value Expr
 }
@@ -69,7 +72,7 @@ type Let struct {
 func (*Let) local()  {}
 func (*Let) global() {}
 
-func (l *Let) print(p *printer) {
+func (l *Let) Print(p *hir.Printer) {
 	p.WriteString("let ")
 	p.WriteString(l.Name)
 	p.WriteString(": ")
@@ -82,7 +85,7 @@ func (l *Let) GetName() string {
 	return l.Name
 }
 
-func (l *Let) GetType() Type {
+func (l *Let) GetType() types.Type {
 	return l.Value.GetType()
 }
 
