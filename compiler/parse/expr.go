@@ -145,6 +145,9 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 		}
 		end := p.expect(token.KindEnum.Rba).Position
 		return &ast.Array{BeginPosition: begin, Elems: elems, EndPosition: end}
+	case token.KindEnum.True, token.KindEnum.False:
+		p.next()
+		return &ast.Boolean{Value: p.curToken}
 	default:
 		p.reporter.Fatalf(
 			p.nextToken.Position,

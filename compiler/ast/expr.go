@@ -229,3 +229,18 @@ func (e *As) print(p *printer) {
 func (e *As) Position() reader.Position {
 	return reader.MixPosition(e.Left.Position(), e.Right.Position())
 }
+
+type Boolean struct {
+	Value token.Token
+}
+
+func (e *Boolean) local() {}
+func (e *Boolean) expr()  {}
+
+func (e *Boolean) print(p *printer) {
+	p.WriteString(e.Value.OriginText)
+}
+
+func (e *Boolean) Position() reader.Position {
+	return e.Value.Position
+}

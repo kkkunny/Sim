@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
-	"github.com/kkkunny/stl/enum"
 )
 
 type Type interface {
@@ -26,78 +25,6 @@ func (t *VoidType) print(p *printer) {
 }
 
 func (t *VoidType) printWithName(p *printer, name string) {
-	p.WriteBy(t)
-	p.WriteString(" ")
-	p.WriteString(name)
-}
-
-var (
-	I8  = &IntegerType{Kind: IntTypeKindEnum.I8}
-	I16 = &IntegerType{Kind: IntTypeKindEnum.I16}
-	I32 = &IntegerType{Kind: IntTypeKindEnum.I32}
-	I64 = &IntegerType{Kind: IntTypeKindEnum.I64}
-	U8  = &IntegerType{Kind: IntTypeKindEnum.U8}
-	U16 = &IntegerType{Kind: IntTypeKindEnum.U16}
-	U32 = &IntegerType{Kind: IntTypeKindEnum.U32}
-	U64 = &IntegerType{Kind: IntTypeKindEnum.U64}
-)
-
-type IntTypeKind string
-
-var IntTypeKindEnum = enum.New[struct {
-	I8  IntTypeKind `enum:"i8"`
-	I16 IntTypeKind `enum:"i16"`
-	I32 IntTypeKind `enum:"i32"`
-	I64 IntTypeKind `enum:"i64"`
-	U8  IntTypeKind `enum:"u8"`
-	U16 IntTypeKind `enum:"u16"`
-	U32 IntTypeKind `enum:"u32"`
-	U64 IntTypeKind `enum:"u64"`
-}]()
-
-type IntegerType struct {
-	Kind IntTypeKind
-}
-
-func (*IntegerType) zeroSize() bool {
-	return false
-}
-
-func (t *IntegerType) print(p *printer) {
-	p.WriteString(string(t.Kind))
-}
-
-func (t *IntegerType) printWithName(p *printer, name string) {
-	p.WriteBy(t)
-	p.WriteString(" ")
-	p.WriteString(name)
-}
-
-var (
-	F32 = &FloatType{Kind: FloatTypeKindEnum.F32}
-	F64 = &FloatType{Kind: FloatTypeKindEnum.F64}
-)
-
-type FloatTypeKind string
-
-var FloatTypeKindEnum = enum.New[struct {
-	F32 FloatTypeKind `enum:"f32"`
-	F64 FloatTypeKind `enum:"f64"`
-}]()
-
-type FloatType struct {
-	Kind FloatTypeKind
-}
-
-func (*FloatType) zeroSize() bool {
-	return false
-}
-
-func (t *FloatType) print(p *printer) {
-	p.WriteString(string(t.Kind))
-}
-
-func (t *FloatType) printWithName(p *printer, name string) {
 	p.WriteBy(t)
 	p.WriteString(" ")
 	p.WriteString(name)
@@ -186,6 +113,22 @@ func (t *AliasType) printWithName(p *printer, name string) {
 	p.WriteFormat(name)
 }
 
+var (
+	I8  = NewMacroType("i8")
+	I16 = NewMacroType("i16")
+	I32 = NewMacroType("i32")
+	I64 = NewMacroType("i64")
+	U8  = NewMacroType("u8")
+	U16 = NewMacroType("u16")
+	U32 = NewMacroType("u32")
+	U64 = NewMacroType("u64")
+
+	F32 = NewMacroType("f32")
+	F64 = NewMacroType("f64")
+
+	Bool = NewMacroType("bool")
+)
+
 type MacroType struct {
 	Name string
 	Args []Type
@@ -201,14 +144,16 @@ func (t *MacroType) zeroSize() bool {
 
 func (t *MacroType) print(p *printer) {
 	p.WriteString(t.Name)
-	p.WriteString("(")
-	for i, arg := range t.Args {
-		p.WriteBy(arg)
-		if i < len(t.Args)-1 {
-			p.WriteString(", ")
+	if len(t.Args) > 0 {
+		p.WriteString("(")
+		for i, arg := range t.Args {
+			p.WriteBy(arg)
+			if i < len(t.Args)-1 {
+				p.WriteString(", ")
+			}
 		}
+		p.WriteString(")")
 	}
-	p.WriteString(")")
 }
 
 func (t *MacroType) printWithName(p *printer, name string) {
