@@ -137,6 +137,22 @@ func (t *FloatType) GetBits() uint8 {
 	return t.Bits
 }
 
+var Bool = &BooleanType{}
+
+type BooleanType struct{}
+
+func (t *BooleanType) print(p *printer) {
+	p.WriteFormat(t.String())
+}
+
+func (t *BooleanType) String() string {
+	return "bool"
+}
+
+func (t *BooleanType) Equal(p Type) bool {
+	return stlval.Is[*BooleanType](p)
+}
+
 type FuncType struct {
 	Return Type
 	Params []Type

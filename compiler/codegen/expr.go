@@ -22,6 +22,8 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return cir.NewInteger(expr.Value)
 	case *hir.Float:
 		return &cir.FloatExpr{Value: expr.Value}
+	case *hir.Boolean:
+		return cir.NewMacroExpr(stlval.If(expr.Value, "true", "false"))
 	case *hir.Unary:
 		return c.buildUnary(expr)
 	case *hir.Binary:

@@ -41,6 +41,8 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 			return hir.F32
 		case "f64":
 			return hir.F64
+		case "bool":
+			return hir.Bool
 		default:
 			a.reporter.Fatalf(
 				t.Name.Position,

@@ -143,14 +143,16 @@ func (*MacroExpr) expr()  {}
 
 func (e *MacroExpr) print(p *printer) {
 	p.WriteString(e.Name)
-	p.WriteString("(")
-	for i, arg := range e.Args {
-		p.WriteBy(arg)
-		if i < len(e.Args)-1 {
-			p.WriteString(", ")
+	if len(e.Args) > 0 {
+		p.WriteString("(")
+		for i, arg := range e.Args {
+			p.WriteBy(arg)
+			if i < len(e.Args)-1 {
+				p.WriteString(", ")
+			}
 		}
+		p.WriteString(")")
 	}
-	p.WriteString(")")
 }
 
 type Call struct {

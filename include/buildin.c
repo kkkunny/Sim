@@ -22,6 +22,10 @@ ZERO_TYPE ZERO_TYPE_VALUE = {};
 #define f32 float
 #define f64 double
 
+#define bool _Bool
+const bool true = 1==1;
+const bool false = 1!=1;
+
 #define ADD(x, y) _Generic((x), \
     i8: x + y, \
     i16: x + y, \

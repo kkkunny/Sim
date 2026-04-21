@@ -53,6 +53,8 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) hir.Expr {
 		return a.analyzeArray(expr, expect...)
 	case *ast.As:
 		return a.analyzeAs(expr)
+	case *ast.Boolean:
+		return a.analyzeBoolean(expr)
 	default:
 		panic("unreachable")
 	}
@@ -367,6 +369,8 @@ func (a *Analyzer) tryGetZeroExpr(t hir.Type) (hir.Expr, bool) {
 		return hir.NewInteger(t, big.NewInt(0)), true
 	case *hir.FloatType:
 		return hir.NewFloat(t, big.NewFloat(0)), true
+	case *hir.BooleanType:
+		return hir.NewBoolean(false), true
 	case *hir.FuncType:
 		var returnValue hir.Expr
 		if !t.Return.Equal(hir.Unit) {
@@ -443,4 +447,8 @@ func (a *Analyzer) analyzeAs(expr *ast.As) hir.Expr {
 		from, to,
 	)
 	return nil
+}
+
+func (a *Analyzer) analyzeBoolean(expr *ast.Boolean) *hir.Boolean {
+	return hir.NewBoolean(expr.Value.Kind == token.KindEnum.True)
 }

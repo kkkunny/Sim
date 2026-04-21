@@ -49,6 +49,8 @@ func (c *CodeGenerator) buildType(t hir.Type) cir.Type {
 		default:
 			panic("unreachable")
 		}
+	case *hir.BooleanType:
+		return cir.Bool
 	case *hir.FuncType:
 		return c.buildFuncType(t)
 	case *hir.TupleType:

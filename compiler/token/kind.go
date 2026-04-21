@@ -54,6 +54,8 @@ var KindEnum = enum.New[struct {
 	Return Kind `text:"return"`
 	Mut    Kind `text:"mut"`
 	As     Kind `text:"as"`
+	True   Kind `text:"true"`
+	False  Kind `text:"false"`
 }]()
 
 var kind2Text = func() map[Kind]string {
