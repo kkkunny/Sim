@@ -12,15 +12,12 @@ import (
 type Type interface {
 	printWriter
 	fmt.Stringer
-	typ()
 	Equal(Type) bool
 }
 
 var Unit = &UnitType{}
 
 type UnitType struct{}
-
-func (*UnitType) typ() {}
 
 func (t *UnitType) print(p *printer) {
 	p.WriteString(t.String())
@@ -50,8 +47,6 @@ var (
 type SintType struct {
 	Bits uint8
 }
-
-func (*SintType) typ() {}
 
 func (t *SintType) print(p *printer) {
 	p.WriteFormat(t.String())
@@ -86,8 +81,6 @@ type UintType struct {
 	Bits uint8
 }
 
-func (*UintType) typ() {}
-
 func (t *UintType) print(p *printer) {
 	p.WriteFormat(t.String())
 }
@@ -118,8 +111,6 @@ var (
 type FloatType struct {
 	Bits uint8
 }
-
-func (*FloatType) typ() {}
 
 func (t *FloatType) print(p *printer) {
 	p.WriteFormat(t.String())
@@ -152,8 +143,6 @@ func NewFuncType(ret Type, params ...Type) *FuncType {
 		Params: params,
 	}
 }
-
-func (*FuncType) typ() {}
 
 func (t *FuncType) print(p *printer) {
 	p.WriteString("(")
@@ -197,8 +186,6 @@ func NewTupleType(elems ...Type) *TupleType {
 	}
 }
 
-func (*TupleType) typ() {}
-
 func (t *TupleType) print(p *printer) {
 	p.WriteString("(")
 	for i, param := range t.Elems {
@@ -241,8 +228,6 @@ func NewArrayType(size *big.Int, elem Type) *ArrayType {
 	}
 }
 
-func (*ArrayType) typ() {}
-
 func (t *ArrayType) print(p *printer) {
 	p.WriteFormat(t.String())
 }
@@ -269,8 +254,6 @@ type UnionType struct {
 func NewUnionType(elems ...Type) *UnionType {
 	return &UnionType{Elems: elems}
 }
-
-func (*UnionType) typ() {}
 
 func (t *UnionType) print(p *printer) {
 	for i, elem := range t.Elems {
@@ -323,8 +306,6 @@ type PointerType struct {
 func NewPointerType(mut bool, elem Type) *PointerType {
 	return &PointerType{Mut: mut, Elem: elem}
 }
-
-func (*PointerType) typ() {}
 
 func (t *PointerType) print(p *printer) {
 	p.WriteFormat(t.String())

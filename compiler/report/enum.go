@@ -16,11 +16,10 @@ var Errors = enum.New[struct {
 	UnexpectedExpressionType Error `enum:"unexpected expression type" format:"expected a '%s' expression but got '%s'"`
 	InsufficientArguments    Error `enum:"insufficient arguments" format:"expected %d arguments but got %d"`
 	ExpectedIntegerConstant  Error `enum:"expected integer constant" format:"expected a integer constant"`
-	TypeLoss                 Error `enum:"type loss" format:"this expression must have a type"`
 	MustMutable              Error `enum:"must mutable" format:"the expression must be mutable"`
 	MustImmutable            Error `enum:"must immutable" format:"the expression must be immutable"`
 	MustNotTemporary         Error `enum:"must not temporary" format:"the expression must be not temporary"`
-	MissingType              Error `enum:"missing type" format:"a expression must have a type"`
+	MissingType              Error `enum:"missing type" format:"the expression must have a type"`
 	TypeMissingDefaultValue  Error `enum:"missing default value" format:"the type '%s' missing a default value"`
 	InvalidType              Error `enum:"invalid type" format:"expect a valid type"`
 }]()
