@@ -52,10 +52,8 @@ func (e *Unary) local() {}
 func (e *Unary) expr()  {}
 
 func (e *Unary) print(p *printer) {
-	p.WriteString("(")
 	p.WriteToken(e.Op)
 	p.WriteBy(e.Expr)
-	p.WriteString(")")
 }
 
 func (e *Unary) Position() reader.Position {
@@ -72,13 +70,11 @@ func (e *Binary) local() {}
 func (e *Binary) expr()  {}
 
 func (e *Binary) print(p *printer) {
-	p.WriteString("(")
 	p.WriteBy(e.Left)
 	p.WriteString(" ")
 	p.WriteToken(e.Op)
 	p.WriteString(" ")
 	p.WriteBy(e.Right)
-	p.WriteString(")")
 }
 
 func (e *Binary) Position() reader.Position {
@@ -243,4 +239,25 @@ func (e *Boolean) print(p *printer) {
 
 func (e *Boolean) Position() reader.Position {
 	return e.Value.Position
+}
+
+type GetReference struct {
+	BeginPosition reader.Position
+	Mut           bool
+	Value         Expr
+}
+
+func (e *GetReference) local() {}
+func (e *GetReference) expr()  {}
+
+func (e *GetReference) print(p *printer) {
+	p.WriteString("&")
+	if e.Mut {
+		p.WriteString("mut ")
+	}
+	p.WriteBy(e.Value)
+}
+
+func (e *GetReference) Position() reader.Position {
+	return reader.MixPosition(e.BeginPosition, e.Value.Position())
 }

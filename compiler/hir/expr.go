@@ -118,6 +118,13 @@ type Unary struct {
 	Expr Expr
 }
 
+func NewUnary(op UnaryOp, expr Expr) *Unary {
+	return &Unary{
+		Op:   op,
+		Expr: expr,
+	}
+}
+
 func (*Unary) expr()  {}
 func (*Unary) local() {}
 
@@ -453,6 +460,71 @@ func (e *Boolean) Mutable() bool {
 
 func (e *Boolean) Temporary() bool {
 	return true
+}
+
+type GetRef struct {
+	Mut   bool
+	Value Expr
+}
+
+func NewGetRef(mut bool, v Expr) *GetRef {
+	return &GetRef{
+		Mut:   mut,
+		Value: v,
+	}
+}
+
+func (*GetRef) expr()  {}
+func (*GetRef) local() {}
+
+func (e *GetRef) print(p *printer) {
+	p.WriteString("&")
+	if e.Mut {
+		p.WriteString("mut ")
+	}
+	p.WriteBy(e.Value)
+}
+
+func (e *GetRef) GetType() Type {
+	return NewPointerType(e.Mut, e.Value.GetType())
+}
+
+func (e *GetRef) Mutable() bool {
+	return e.Mut
+}
+
+func (e *GetRef) Temporary() bool {
+	return true
+}
+
+type DeRef struct {
+	Value Expr
+}
+
+func NewDeRef(v Expr) *DeRef {
+	return &DeRef{
+		Value: v,
+	}
+}
+
+func (*DeRef) expr()  {}
+func (*DeRef) local() {}
+
+func (e *DeRef) print(p *printer) {
+	p.WriteString("*")
+	p.WriteBy(e.Value)
+}
+
+func (e *DeRef) GetType() Type {
+	return e.Value.GetType().(*PointerType).Elem
+}
+
+func (e *DeRef) Mutable() bool {
+	return e.Value.Mutable()
+}
+
+func (e *DeRef) Temporary() bool {
+	return e.Value.Temporary()
 }
 
 type Covert interface {

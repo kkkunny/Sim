@@ -42,6 +42,10 @@ func (c *CodeGenerator) buildExpr(expr hir.Expr) cir.Expr {
 		return c.buildArrayIndex(expr)
 	case hir.Covert:
 		return c.buildCovert(expr)
+	case *hir.GetRef:
+		return c.buildGetRef(expr)
+	case *hir.DeRef:
+		return c.buildDeRef(expr)
 	default:
 		panic("unreachable")
 	}
@@ -288,4 +292,14 @@ func (c *CodeGenerator) buildCovert(expr hir.Covert) cir.Expr {
 	default:
 		panic("unreachable")
 	}
+}
+
+func (c *CodeGenerator) buildGetRef(expr *hir.GetRef) cir.Expr {
+	v := c.buildExpr(expr.Value)
+	return cir.NewUnaryExpr(cir.UnaryOpEnum.AND, v)
+}
+
+func (c *CodeGenerator) buildDeRef(expr *hir.DeRef) cir.Expr {
+	v := c.buildExpr(expr.Value)
+	return cir.NewUnaryExpr(cir.UnaryOpEnum.Mul, v)
 }
