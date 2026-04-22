@@ -39,16 +39,17 @@ var KindEnum = enum.New[struct {
 	OrAssign  Kind `text:"|="`
 	XorAssign Kind `text:"^="`
 
-	Lpa   Kind `text:"("`
-	Rpa   Kind `text:")"`
-	Lba   Kind `text:"["`
-	Rba   Kind `text:"]"`
-	Lbr   Kind `text:"{"`
-	Rbr   Kind `text:"}"`
-	Col   Kind `text:":"`
-	Comma Kind `text:","`
-	Sem   Kind `text:";"`
-	Arrow Kind `text:"->"`
+	Lpa      Kind `text:"("`
+	Rpa      Kind `text:")"`
+	Lba      Kind `text:"["`
+	Rba      Kind `text:"]"`
+	Lbr      Kind `text:"{"`
+	Rbr      Kind `text:"}"`
+	Col      Kind `text:":"`
+	Comma    Kind `text:","`
+	Question Kind `text:"?"`
+	Sem      Kind `text:";"`
+	Arrow    Kind `text:"->"`
 
 	Let    Kind `text:"let"`
 	Return Kind `text:"return"`

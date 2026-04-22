@@ -649,3 +649,40 @@ func (e *NumberCovert) Temporary() bool {
 func (e *NumberCovert) GetFrom() Expr {
 	return e.From
 }
+
+type Ternary struct {
+	Condition Expr
+	TrueExpr  Expr
+	FalseExpr Expr
+}
+
+func NewTernary(cond, trueExpr, falseExpr Expr) *Ternary {
+	return &Ternary{
+		Condition: cond,
+		TrueExpr:  trueExpr,
+		FalseExpr: falseExpr,
+	}
+}
+
+func (*Ternary) expr()  {}
+func (*Ternary) local() {}
+
+func (e *Ternary) Print(p *hir.Printer) {
+	p.WriteBy(e.Condition)
+	p.WriteString(" ? ")
+	p.WriteBy(e.TrueExpr)
+	p.WriteString(" : ")
+	p.WriteBy(e.FalseExpr)
+}
+
+func (e *Ternary) GetType() types.Type {
+	return e.TrueExpr.GetType()
+}
+
+func (e *Ternary) Mutable() bool {
+	return e.TrueExpr.Mutable() && e.FalseExpr.Mutable()
+}
+
+func (e *Ternary) Temporary() bool {
+	return e.TrueExpr.Temporary() || e.FalseExpr.Temporary()
+}

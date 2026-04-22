@@ -217,6 +217,8 @@ func (l *Lexer) Scan() token.Token {
 			}
 		case '!':
 			kind = token.KindEnum.Not
+		case '?':
+			kind = token.KindEnum.Question
 		}
 	}
 
