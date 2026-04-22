@@ -59,6 +59,8 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
 		return a.analyzeBoolean(expr)
 	case *ast.GetReference:
 		return a.analyzeGetReference(expr, expect...)
+	case *ast.Ternary:
+		return a.analyzeTernary(expr, expect...)
 	default:
 		panic("unreachable")
 	}
@@ -496,4 +498,11 @@ func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...types.T
 		)
 	}
 	return stmts.NewGetRef(expr.Mut, from)
+}
+
+func (a *Analyzer) analyzeTernary(expr *ast.Ternary, expect ...types.Type) *stmts.Ternary {
+	cond := a.expectTypeExpr(expr.Condition, types.Bool)
+	trueExpr := a.analyzeExpr(expr.TrueExpr, expect...)
+	falseExpr := a.expectTypeExpr(expr.FalseExpr, trueExpr.GetType())
+	return stmts.NewTernary(cond, trueExpr, falseExpr)
 }

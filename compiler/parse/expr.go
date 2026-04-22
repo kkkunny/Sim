@@ -206,6 +206,14 @@ func (p *Parser) parseSuffixExpr(prev ast.Expr) (expr ast.Expr) {
 				Left:  prev,
 				Right: t,
 			}
+		case token.KindEnum.Question:
+			p.expect(token.KindEnum.Question)
+			p.skip(token.KindEnum.Br)
+			trueExpr := p.parseExpr()
+			p.expect(token.KindEnum.Col)
+			p.skip(token.KindEnum.Br)
+			falseExpr := p.parseExpr()
+			prev = &ast.Ternary{Condition: prev, TrueExpr: trueExpr, FalseExpr: falseExpr}
 		default:
 			return prev
 		}
