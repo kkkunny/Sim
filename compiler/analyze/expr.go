@@ -78,13 +78,13 @@ func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect types.Type) stmts.Expr {
 }
 
 // 期待类型，属于制定的类型类
-func expectTypeExpr[TYPE types.Type](a *Analyzer, expr ast.Expr) stmts.Expr {
-	v := a.analyzeExpr(expr)
-	if vt := v.GetType(); !stlval.Is[TYPE](vt) {
+func expectTypeExpr[T types.Type](a *Analyzer, expr ast.Expr, expect ...types.Type) stmts.Expr {
+	v := a.analyzeExpr(expr, expect...)
+	if vt := v.GetType(); !stlval.Is[T](vt) {
 		a.reporter.Fatalf(
 			expr.Position(),
 			report.Errors.UnexpectedExpressionType,
-			fmt.Sprintf("%T", stlval.Default[TYPE]()), vt,
+			fmt.Sprintf("%T", stlval.Default[T]()), vt,
 		)
 	}
 	return v
@@ -124,24 +124,27 @@ func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...types.Type) stmts
 	}
 }
 
-func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Expr {
+func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Unary {
 	switch expr.Op.Kind {
 	case token.KindEnum.Not:
 		v := a.analyzeExpr(expr.Expr, expect...)
-		return stmts.NewUnary(stmts.UnaryOpEnum.Not, v)
+		if vt := v.GetType(); stlval.Is[types.IntegerType](vt) {
+			return stmts.NewBitReverse(v)
+		} else if stlval.Is[*types.BooleanType](vt) {
+			return stmts.NewBooleanReverse(v)
+		} else {
+			a.reporter.Fatalf(
+				expr.Position(),
+				report.Errors.UnexpectedExpressionType,
+				"IntegerType or BooleanType", vt,
+			)
+			return nil
+		}
 	case token.KindEnum.Mul:
 		if len(expect) > 0 {
 			expect = []types.Type{types.NewPointerType(false, stlslices.Last(expect))}
 		}
-		v := a.analyzeExpr(expr.Expr, expect...)
-		vt := v.GetType()
-		if !stlval.Is[*types.PointerType](vt) {
-			a.reporter.Fatalf(
-				expr.Expr.Position(),
-				report.Errors.UnexpectedExpressionType,
-				"PointerType", vt,
-			)
-		}
+		v := expectTypeExpr[*types.PointerType](a, expr.Expr, expect...)
 		return stmts.NewDeRef(v)
 	default:
 		panic("unreachable")
@@ -149,47 +152,64 @@ func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Exp
 }
 
 func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.Binary {
-	left := a.analyzeExpr(expr.Left, expect...)
-	right := a.expectTypeExpr(expr.Right, left.GetType())
+	var left stmts.Expr
 	var op stmts.BinaryOp
 	switch expr.Op.Kind {
 	case token.KindEnum.Add:
 		op = stmts.BinaryOpEnum.Add
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Sub:
 		op = stmts.BinaryOpEnum.Sub
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Mul:
 		op = stmts.BinaryOpEnum.Mul
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Quo:
 		op = stmts.BinaryOpEnum.Quo
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Rem:
 		op = stmts.BinaryOpEnum.Rem
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.And:
 		op = stmts.BinaryOpEnum.And
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Or:
 		op = stmts.BinaryOpEnum.Or
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Xor:
 		op = stmts.BinaryOpEnum.Xor
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Assign:
 		op = stmts.BinaryOpEnum.Assign
 	case token.KindEnum.AddAssign:
 		op = stmts.BinaryOpEnum.AddAssign
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.SubAssign:
 		op = stmts.BinaryOpEnum.SubAssign
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.MulAssign:
 		op = stmts.BinaryOpEnum.MulAssign
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.QuoAssign:
 		op = stmts.BinaryOpEnum.QuoAssign
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.RemAssign:
 		op = stmts.BinaryOpEnum.RemAssign
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.AndAssign:
 		op = stmts.BinaryOpEnum.AndAssign
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.OrAssign:
 		op = stmts.BinaryOpEnum.OrAssign
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.XorAssign:
 		op = stmts.BinaryOpEnum.XorAssign
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	default:
 		panic("unreachable")
 	}
+
+	right := a.expectTypeExpr(expr.Right, left.GetType())
 
 	if strings.Contains(expr.Op.Kind.String(), "=") {
 		if left.Temporary() {

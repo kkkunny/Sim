@@ -13,7 +13,7 @@ var Errors = enum.New[struct {
 	UnexpectedToken          Error `enum:"unexpected token" format:"unexpected token '%s'"`
 	UnknownIdentifier        Error `enum:"unknown identifier" format:"unknown identifier '%s'"`
 	UnexpectedExpression     Error `enum:"unexpected expression" format:"expected expression type '%s' but got '%s'"`
-	UnexpectedExpressionType Error `enum:"unexpected expression type" format:"expected a '%s' expression but got '%s'"`
+	UnexpectedExpressionType Error `enum:"unexpected expression type" format:"expected a %s expression but got '%s'"`
 	InsufficientArguments    Error `enum:"insufficient arguments" format:"expected %d arguments but got %d"`
 	ExpectedIntegerConstant  Error `enum:"expected integer constant" format:"expected a integer constant"`
 	MustMutable              Error `enum:"must mutable" format:"the expression must be mutable"`
