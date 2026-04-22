@@ -261,3 +261,24 @@ func (e *GetReference) print(p *printer) {
 func (e *GetReference) Position() reader.Position {
 	return reader.MixPosition(e.BeginPosition, e.Value.Position())
 }
+
+type Ternary struct {
+	Condition Expr
+	TrueExpr  Expr
+	FalseExpr Expr
+}
+
+func (e *Ternary) local() {}
+func (e *Ternary) expr()  {}
+
+func (e *Ternary) print(p *printer) {
+	p.WriteBy(e.Condition)
+	p.WriteString(" ? ")
+	p.WriteBy(e.TrueExpr)
+	p.WriteString(" : ")
+	p.WriteBy(e.FalseExpr)
+}
+
+func (e *Ternary) Position() reader.Position {
+	return reader.MixPosition(e.Condition.Position(), e.FalseExpr.Position())
+}

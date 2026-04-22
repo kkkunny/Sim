@@ -366,3 +366,30 @@ func (e *Assign) print(p *printer) {
 	p.WriteString(" ")
 	p.WriteBy(e.Right)
 }
+
+type TernaryExpr struct {
+	Condition Expr
+	TrueExpr  Expr
+	FalseExpr Expr
+}
+
+func NewTernaryExpr(cond, trueExpr, falseExpr Expr) *TernaryExpr {
+	return &TernaryExpr{
+		Condition: cond,
+		TrueExpr:  trueExpr,
+		FalseExpr: falseExpr,
+	}
+}
+
+func (*TernaryExpr) local() {}
+func (*TernaryExpr) expr()  {}
+
+func (e *TernaryExpr) print(p *printer) {
+	p.WriteString("(")
+	p.WriteBy(e.Condition)
+	p.WriteString(" ? ")
+	p.WriteBy(e.TrueExpr)
+	p.WriteString(" : ")
+	p.WriteBy(e.FalseExpr)
+	p.WriteString(")")
+}

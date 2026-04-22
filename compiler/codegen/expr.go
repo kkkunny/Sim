@@ -42,6 +42,8 @@ func (c *CodeGenerator) buildExpr(expr stmts.Expr) cir.Expr {
 		return c.buildArrayIndex(expr)
 	case stmts.Covert:
 		return c.buildCovert(expr)
+	case *stmts.Ternary:
+		return c.buildTernary(expr)
 	default:
 		panic("unreachable")
 	}
@@ -292,4 +294,11 @@ func (c *CodeGenerator) buildCovert(expr stmts.Covert) cir.Expr {
 	default:
 		panic("unreachable")
 	}
+}
+
+func (c *CodeGenerator) buildTernary(expr *stmts.Ternary) *cir.TernaryExpr {
+	cond := c.buildExpr(expr.Condition)
+	trueExpr := c.buildExpr(expr.TrueExpr)
+	falseExpr := c.buildExpr(expr.FalseExpr)
+	return cir.NewTernaryExpr(cond, trueExpr, falseExpr)
 }
