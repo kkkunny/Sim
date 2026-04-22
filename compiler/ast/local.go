@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/reader"
@@ -80,5 +81,30 @@ func (l *Let) print(p *printer) {
 	if v, ok := l.Value.Value(); ok {
 		p.WriteString(" = ")
 		p.WriteBy(v)
+	}
+}
+
+type If struct {
+	Condition Expr
+	Body      *Block
+	Else      optional.Optional[either.Either[*If, *Block]]
+}
+
+func (*If) local()  {}
+func (*If) global() {}
+
+func (l *If) print(p *printer) {
+	p.WriteString("if ")
+	p.WriteBy(l.Condition)
+	p.WriteString(" ")
+	p.WriteBy(l.Body)
+
+	if next, ok := l.Else.Value(); ok {
+		p.WriteString(" else ")
+		if elseif, ok := next.TryLeft(); ok {
+			p.WriteBy(elseif)
+		} else {
+			p.WriteBy(next.Right())
+		}
 	}
 }

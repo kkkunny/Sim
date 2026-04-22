@@ -1,6 +1,11 @@
 let a = () -> bool {
-	let v1 = true
-	let v2 = &mut v1
-	let v3 = !*v2
-	return v3
+	let mut v1 = true
+	if v1 {
+		v1 = false
+	} else if v1 {
+		v1 = false
+	} else {
+		v1 = true
+	}
+	return v1
 }

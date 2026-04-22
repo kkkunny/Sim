@@ -1,6 +1,7 @@
 package stmts
 
 import (
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
@@ -91,4 +92,37 @@ func (l *Let) GetType() types.Type {
 
 func (e *Let) Mutable() bool {
 	return e.Mut
+}
+
+type If struct {
+	Condition Expr
+	Body      *Block
+	Else      optional.Optional[either.Either[*If, *Block]]
+}
+
+func NewIf(cond Expr, body *Block, next ...either.Either[*If, *Block]) *If {
+	return &If{
+		Condition: cond,
+		Body:      body,
+		Else:      optional.UnEmpty(stlslices.Last(next)),
+	}
+}
+
+func (*If) local()  {}
+func (*If) global() {}
+
+func (l *If) Print(p *hir.Printer) {
+	p.WriteString("if ")
+	p.WriteBy(l.Condition)
+	p.WriteString(" ")
+	p.WriteBy(l.Body)
+
+	if next, ok := l.Else.Value(); ok {
+		p.WriteString(" else ")
+		if elseif, ok := next.TryLeft(); ok {
+			p.WriteBy(elseif)
+		} else {
+			p.WriteBy(next.Right())
+		}
+	}
 }

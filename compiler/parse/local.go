@@ -1,6 +1,7 @@
 package parse
 
 import (
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -15,6 +16,8 @@ func (p *Parser) parseLocal() ast.Local {
 		return p.parseReturn()
 	case token.KindEnum.Let:
 		return p.parseLet()
+	case token.KindEnum.If:
+		return p.parseIf()
 	default:
 		return p.parseExpr()
 	}
@@ -60,4 +63,19 @@ func (p *Parser) parseLet() *ast.Let {
 		value = optional.Some(p.parseExpr())
 	}
 	return &ast.Let{Mut: mut, Name: name, Type: t, Value: value}
+}
+
+func (p *Parser) parseIf() *ast.If {
+	p.expect(token.KindEnum.If)
+	cond := p.parseExpr()
+	body := p.parseBlock()
+	var next optional.Optional[either.Either[*ast.If, *ast.Block]]
+	if p.ifSkip(token.KindEnum.Else) {
+		if p.nextToken.Kind == token.KindEnum.If {
+			next = optional.Some(either.Left[*ast.If, *ast.Block](p.parseIf()))
+		} else {
+			next = optional.Some(either.Right[*ast.If, *ast.Block](p.parseBlock()))
+		}
+	}
+	return &ast.If{Condition: cond, Body: body, Else: next}
 }
