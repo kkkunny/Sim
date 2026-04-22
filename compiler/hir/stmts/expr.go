@@ -110,44 +110,150 @@ func (e *Float) Temporary() bool {
 	return true
 }
 
-type UnaryOp string
-
-var UnaryOpEnum = enum.New[struct {
-	Not UnaryOp `enum:"!"`
-}]()
-
-type Unary struct {
-	Op   UnaryOp
-	Expr Expr
+type Unary interface {
+	Expr
+	GetOpTarget() Expr
 }
 
-func NewUnary(op UnaryOp, expr Expr) *Unary {
-	return &Unary{
-		Op:   op,
-		Expr: expr,
+type BitReverse struct {
+	Target Expr
+}
+
+func NewBitReverse(t Expr) *BitReverse {
+	return &BitReverse{
+		Target: t,
 	}
 }
 
-func (*Unary) expr()  {}
-func (*Unary) local() {}
+func (*BitReverse) expr()  {}
+func (*BitReverse) local() {}
 
-func (e *Unary) Print(p *hir.Printer) {
-	p.WriteString("(")
-	p.WriteString(string(e.Op))
-	p.WriteBy(e.Expr)
-	p.WriteString(")")
+func (e *BitReverse) Print(p *hir.Printer) {
+	p.WriteString("!")
+	p.WriteBy(e.Target)
 }
 
-func (e *Unary) GetType() types.Type {
-	return e.Expr.GetType()
+func (e *BitReverse) GetType() types.Type {
+	return e.Target.GetType()
 }
 
-func (e *Unary) Mutable() bool {
+func (e *BitReverse) Mutable() bool {
 	return false
 }
 
-func (e *Unary) Temporary() bool {
+func (e *BitReverse) Temporary() bool {
 	return true
+}
+
+func (e *BitReverse) GetOpTarget() Expr {
+	return e.Target
+}
+
+type BooleanReverse struct {
+	Target Expr
+}
+
+func NewBooleanReverse(t Expr) *BooleanReverse {
+	return &BooleanReverse{
+		Target: t,
+	}
+}
+
+func (*BooleanReverse) expr()  {}
+func (*BooleanReverse) local() {}
+
+func (e *BooleanReverse) Print(p *hir.Printer) {
+	p.WriteString("!")
+	p.WriteBy(e.Target)
+}
+
+func (e *BooleanReverse) GetType() types.Type {
+	return e.Target.GetType()
+}
+
+func (e *BooleanReverse) Mutable() bool {
+	return false
+}
+
+func (e *BooleanReverse) Temporary() bool {
+	return true
+}
+
+func (e *BooleanReverse) GetOpTarget() Expr {
+	return e.Target
+}
+
+type GetRef struct {
+	Mut    bool
+	Target Expr
+}
+
+func NewGetRef(mut bool, t Expr) *GetRef {
+	return &GetRef{
+		Mut:    mut,
+		Target: t,
+	}
+}
+
+func (*GetRef) expr()  {}
+func (*GetRef) local() {}
+
+func (e *GetRef) Print(p *hir.Printer) {
+	p.WriteString("&")
+	if e.Mut {
+		p.WriteString("mut ")
+	}
+	p.WriteBy(e.Target)
+}
+
+func (e *GetRef) GetType() types.Type {
+	return types.NewPointerType(e.Mut, e.Target.GetType())
+}
+
+func (e *GetRef) Mutable() bool {
+	return e.Mut
+}
+
+func (e *GetRef) Temporary() bool {
+	return true
+}
+
+func (e *GetRef) GetOpTarget() Expr {
+	return e.Target
+}
+
+type DeRef struct {
+	Target Expr
+}
+
+func NewDeRef(t Expr) *DeRef {
+	return &DeRef{
+		Target: t,
+	}
+}
+
+func (*DeRef) expr()  {}
+func (*DeRef) local() {}
+
+func (e *DeRef) Print(p *hir.Printer) {
+	p.WriteString("*")
+	p.WriteBy(e.Target)
+}
+
+func (e *DeRef) GetType() types.Type {
+	return e.Target.GetType().(*types.PointerType).Elem
+}
+
+func (e *DeRef) Mutable() bool {
+	return e.Target.Mutable()
+}
+
+func (e *DeRef) Temporary() bool {
+	return e.Target.Temporary()
+}
+
+func (e *DeRef) GetOpTarget() Expr {
+	return e.Target
 }
 
 type BinaryOp string
@@ -463,71 +569,6 @@ func (e *Boolean) Mutable() bool {
 
 func (e *Boolean) Temporary() bool {
 	return true
-}
-
-type GetRef struct {
-	Mut   bool
-	Value Expr
-}
-
-func NewGetRef(mut bool, v Expr) *GetRef {
-	return &GetRef{
-		Mut:   mut,
-		Value: v,
-	}
-}
-
-func (*GetRef) expr()  {}
-func (*GetRef) local() {}
-
-func (e *GetRef) Print(p *hir.Printer) {
-	p.WriteString("&")
-	if e.Mut {
-		p.WriteString("mut ")
-	}
-	p.WriteBy(e.Value)
-}
-
-func (e *GetRef) GetType() types.Type {
-	return types.NewPointerType(e.Mut, e.Value.GetType())
-}
-
-func (e *GetRef) Mutable() bool {
-	return e.Mut
-}
-
-func (e *GetRef) Temporary() bool {
-	return true
-}
-
-type DeRef struct {
-	Value Expr
-}
-
-func NewDeRef(v Expr) *DeRef {
-	return &DeRef{
-		Value: v,
-	}
-}
-
-func (*DeRef) expr()  {}
-func (*DeRef) local() {}
-
-func (e *DeRef) Print(p *hir.Printer) {
-	p.WriteString("*")
-	p.WriteBy(e.Value)
-}
-
-func (e *DeRef) GetType() types.Type {
-	return e.Value.GetType().(*types.PointerType).Elem
-}
-
-func (e *DeRef) Mutable() bool {
-	return e.Value.Mutable()
-}
-
-func (e *DeRef) Temporary() bool {
-	return e.Value.Temporary()
 }
 
 type Covert interface {

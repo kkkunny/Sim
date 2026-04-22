@@ -24,7 +24,7 @@ func (c *CodeGenerator) buildExpr(expr stmts.Expr) cir.Expr {
 		return &cir.FloatExpr{Value: expr.Value}
 	case *stmts.Boolean:
 		return cir.NewMacroExpr(stlval.If(expr.Value, "true", "false"))
-	case *stmts.Unary:
+	case stmts.Unary:
 		return c.buildUnary(expr)
 	case *stmts.Binary:
 		return c.buildBinary(expr)
@@ -42,10 +42,6 @@ func (c *CodeGenerator) buildExpr(expr stmts.Expr) cir.Expr {
 		return c.buildArrayIndex(expr)
 	case stmts.Covert:
 		return c.buildCovert(expr)
-	case *stmts.GetRef:
-		return c.buildGetRef(expr)
-	case *stmts.DeRef:
-		return c.buildDeRef(expr)
 	default:
 		panic("unreachable")
 	}
@@ -68,15 +64,19 @@ func (c *CodeGenerator) buildIdentExpr(expr *stmts.IdentExpr) cir.Expr {
 	return value
 }
 
-func (c *CodeGenerator) buildUnary(expr *stmts.Unary) *cir.UnaryExpr {
-	var op cir.UnaryOp
-	switch expr.Op {
-	case stmts.UnaryOpEnum.Not:
-		op = cir.UnaryOpEnum.Not
+func (c *CodeGenerator) buildUnary(expr stmts.Unary) *cir.UnaryExpr {
+	switch expr := expr.(type) {
+	case *stmts.BitReverse, *stmts.BooleanReverse:
+		return cir.NewUnaryExpr(cir.UnaryOpEnum.Not, c.buildExpr(expr.GetOpTarget()))
+	case *stmts.GetRef:
+		v := c.buildExpr(expr.Target)
+		return cir.NewUnaryExpr(cir.UnaryOpEnum.AND, v)
+	case *stmts.DeRef:
+		v := c.buildExpr(expr.Target)
+		return cir.NewUnaryExpr(cir.UnaryOpEnum.Mul, v)
 	default:
 		panic("unreachable")
 	}
-	return cir.NewUnaryExpr(op, c.buildExpr(expr.Expr))
 }
 
 func (c *CodeGenerator) buildBinary(expr *stmts.Binary) cir.Expr {
@@ -292,14 +292,4 @@ func (c *CodeGenerator) buildCovert(expr stmts.Covert) cir.Expr {
 	default:
 		panic("unreachable")
 	}
-}
-
-func (c *CodeGenerator) buildGetRef(expr *stmts.GetRef) cir.Expr {
-	v := c.buildExpr(expr.Value)
-	return cir.NewUnaryExpr(cir.UnaryOpEnum.AND, v)
-}
-
-func (c *CodeGenerator) buildDeRef(expr *stmts.DeRef) cir.Expr {
-	v := c.buildExpr(expr.Value)
-	return cir.NewUnaryExpr(cir.UnaryOpEnum.Mul, v)
 }

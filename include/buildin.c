@@ -132,7 +132,8 @@ const bool false = 1!=1;
     u32: ~x, \
     u64: ~x, \
     f32: ~x, \
-    f64: ~x)
+    f64: ~x, \
+    _Bool: !x)
 
 // 函数胖指针与闭包
 #define FUNCTYPE(ft, ct) struct{union{ft f; ct c;} func; void* ctx;}
