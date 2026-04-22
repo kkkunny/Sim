@@ -56,6 +56,8 @@ var KindEnum = enum.New[struct {
 	As     Kind `text:"as"`
 	True   Kind `text:"true"`
 	False  Kind `text:"false"`
+	If     Kind `text:"if"`
+	Else   Kind `text:"else"`
 }]()
 
 var kind2Text = func() map[Kind]string {

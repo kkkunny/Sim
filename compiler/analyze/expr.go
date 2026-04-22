@@ -181,6 +181,7 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Assign:
 		op = stmts.BinaryOpEnum.Assign
+		left = a.analyzeExpr(expr.Left, expect...)
 	case token.KindEnum.AddAssign:
 		op = stmts.BinaryOpEnum.AddAssign
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
@@ -264,7 +265,7 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
 
 	externalVars := stlslices.DiffTo(a.scope.UsedValues(), stlmaps.Values(a.scope.Values()))
 
-	a.scope = stlval.IgnoreWith(a.scope.Parent())
+	a.scope, _ = a.scope.Parent()
 
 	f := stmts.NewFunc(returnType, params...)
 	f.Body = body

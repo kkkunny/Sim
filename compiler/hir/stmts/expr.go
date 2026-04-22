@@ -289,13 +289,11 @@ func (*Binary) expr()  {}
 func (*Binary) local() {}
 
 func (e *Binary) Print(p *hir.Printer) {
-	p.WriteString("(")
 	p.WriteBy(e.Left)
 	p.WriteString(" ")
 	p.WriteString(string(e.Op))
 	p.WriteString(" ")
 	p.WriteBy(e.Right)
-	p.WriteString(")")
 }
 
 func (e *Binary) GetType() types.Type {

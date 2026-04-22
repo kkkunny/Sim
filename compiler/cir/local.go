@@ -3,6 +3,7 @@ package cir
 import (
 	"fmt"
 
+	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 )
@@ -159,4 +160,39 @@ func (*ExprStmt) global() {}
 func (l *ExprStmt) print(p *printer) {
 	p.WriteBy(l.Expr)
 	p.WriteString(";")
+}
+
+type If struct {
+	Condition Expr
+	Body      *Block
+	Else      optional.Optional[either.Either[*If, *Block]]
+}
+
+func (c *Builder) BuildIf(cond Expr, body *Block, next ...either.Either[*If, *Block]) *If {
+	i := &If{
+		Condition: cond,
+		Body:      body,
+		Else:      optional.UnEmpty(stlslices.Last(next)),
+	}
+	c.at.Stmts = append(c.at.Stmts, i)
+	return i
+}
+
+func (*If) local()  {}
+func (*If) global() {}
+
+func (l *If) print(p *printer) {
+	p.WriteString("if (")
+	p.WriteBy(l.Condition)
+	p.WriteString(") ")
+	p.WriteBy(l.Body)
+
+	if next, ok := l.Else.Value(); ok {
+		p.WriteString(" else ")
+		if elseif, ok := next.TryLeft(); ok {
+			p.WriteBy(elseif)
+		} else {
+			p.WriteBy(next.Right())
+		}
+	}
 }
