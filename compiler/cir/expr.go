@@ -57,27 +57,28 @@ func (e *FloatExpr) print(p *printer) {
 type UnaryOp string
 
 var UnaryOpEnum = enum.New[struct {
-	Not UnaryOp `enum:"NOT"`
-	Mul UnaryOp `enum:"*"`
-	AND UnaryOp `enum:"&"`
+	Not     UnaryOp `enum:"NOT"`
+	Mul     UnaryOp `enum:"*"`
+	AND     UnaryOp `enum:"&"`
+	SelfAdd UnaryOp `enum:"SELFADD"`
 }]()
 
-type UnaryExpr struct {
+type Unary struct {
 	Op   UnaryOp
 	Expr Expr
 }
 
-func NewUnaryExpr(op UnaryOp, expr Expr) *UnaryExpr {
-	return &UnaryExpr{
+func NewUnary(op UnaryOp, expr Expr) *Unary {
+	return &Unary{
 		Op:   op,
 		Expr: expr,
 	}
 }
 
-func (*UnaryExpr) local() {}
-func (*UnaryExpr) expr()  {}
+func (*Unary) local() {}
+func (*Unary) expr()  {}
 
-func (e *UnaryExpr) print(p *printer) {
+func (e *Unary) print(p *printer) {
 	p.WriteString(string(e.Op))
 	p.WriteString("(")
 	p.WriteBy(e.Expr)
@@ -95,18 +96,27 @@ var BinaryOpEnum = enum.New[struct {
 	And BinaryOp `enum:"AND"`
 	Or  BinaryOp `enum:"OR"`
 	Xor BinaryOp `enum:"XOR"`
+	Lt  BinaryOp `enum:"LT"`
 }]()
 
-type BinaryExpr struct {
+type Binary struct {
 	Op    BinaryOp
 	Left  Expr
 	Right Expr
 }
 
-func (*BinaryExpr) local() {}
-func (*BinaryExpr) expr()  {}
+func NewBinary(op BinaryOp, left, right Expr) *Binary {
+	return &Binary{
+		Op:    op,
+		Left:  left,
+		Right: right,
+	}
+}
 
-func (e *BinaryExpr) print(p *printer) {
+func (*Binary) local() {}
+func (*Binary) expr()  {}
+
+func (e *Binary) print(p *printer) {
 	p.WriteString(string(e.Op))
 	p.WriteString("(")
 	p.WriteBy(e.Left)
@@ -367,24 +377,24 @@ func (e *Assign) print(p *printer) {
 	p.WriteBy(e.Right)
 }
 
-type TernaryExpr struct {
+type Ternary struct {
 	Condition Expr
 	TrueExpr  Expr
 	FalseExpr Expr
 }
 
-func NewTernaryExpr(cond, trueExpr, falseExpr Expr) *TernaryExpr {
-	return &TernaryExpr{
+func NewTernaryExpr(cond, trueExpr, falseExpr Expr) *Ternary {
+	return &Ternary{
 		Condition: cond,
 		TrueExpr:  trueExpr,
 		FalseExpr: falseExpr,
 	}
 }
 
-func (*TernaryExpr) local() {}
-func (*TernaryExpr) expr()  {}
+func (*Ternary) local() {}
+func (*Ternary) expr()  {}
 
-func (e *TernaryExpr) print(p *printer) {
+func (e *Ternary) print(p *printer) {
 	p.WriteString("(")
 	p.WriteBy(e.Condition)
 	p.WriteString(" ? ")

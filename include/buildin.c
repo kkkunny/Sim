@@ -135,6 +135,30 @@ const bool false = 1!=1;
     f64: ~x, \
     _Bool: !x)
 
+#define SELFADD(x) _Generic((x), \
+    i8: x++, \
+    i16: x++, \
+    i32: x++, \
+    i64: x++, \
+    u8: x++, \
+    u16: x++, \
+    u32: x++, \
+    u64: x++, \
+    f32: x++, \
+    f64: x++)
+
+#define LT(x, y) _Generic((x), \
+    i8: x < y, \
+    i16: x < y, \
+    i32: x < y, \
+    i64: x < y, \
+    u8: x < y, \
+    u16: x < y, \
+    u32: x < y, \
+    u64: x < y, \
+    f32: x < y, \
+    f64: x < y)
+
 // 函数胖指针与闭包
 #define FUNCTYPE(ft, ct) struct{union{ft f; ct c;} func; void* ctx;}
 #define FUNCEXPR_F(expr) {.func.f=expr, .ctx=NULL}

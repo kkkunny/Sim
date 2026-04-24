@@ -127,15 +127,39 @@ func (l *If) Print(p *hir.Printer) {
 	}
 }
 
-type For struct {
+type While struct {
 	Condition Expr
 	Body      *Block
 }
 
-func NewFor(cond Expr, body *Block) *For {
-	return &For{
+func NewWhile(cond Expr, body *Block) *While {
+	return &While{
 		Condition: cond,
 		Body:      body,
+	}
+}
+
+func (*While) local()  {}
+func (*While) global() {}
+
+func (l *While) Print(p *hir.Printer) {
+	p.WriteString("for ")
+	p.WriteBy(l.Condition)
+	p.WriteString(" ")
+	p.WriteBy(l.Body)
+}
+
+type For struct {
+	Var   *Param
+	Range Expr
+	Body  *Block
+}
+
+func NewFor(v *Param, rv Expr, body *Block) *For {
+	return &For{
+		Var:   v,
+		Range: rv,
+		Body:  body,
 	}
 }
 
@@ -144,7 +168,12 @@ func (*For) global() {}
 
 func (l *For) Print(p *hir.Printer) {
 	p.WriteString("for ")
-	p.WriteBy(l.Condition)
+	if l.Var.Mut {
+		p.WriteString("mut ")
+	}
+	p.WriteString(l.Var.Name)
+	p.WriteString(" in ")
+	p.WriteBy(l.Range)
 	p.WriteString(" ")
 	p.WriteBy(l.Body)
 }
