@@ -82,12 +82,34 @@ func (p *Parser) parseIf() *ast.If {
 	return &ast.If{Condition: cond, Body: body, Else: next}
 }
 
-func (p *Parser) parseFor() *ast.For {
+func (p *Parser) parseFor() ast.Local {
 	p.expect(token.KindEnum.For)
+	if p.ifSkip(token.KindEnum.Mut) {
+		varname := p.expect(token.KindEnum.Ident)
+		p.expect(token.KindEnum.In)
+		rangeValue := p.parseExpr()
+		body := p.parseBlock()
+		return &ast.For{
+			Mut:      true,
+			Variable: varname,
+			Range:    rangeValue,
+			Body:     body,
+		}
+	}
 	var cond optional.Optional[ast.Expr]
 	if p.nextToken.Kind != token.KindEnum.Lbr {
 		cond = optional.Some(p.parseExpr())
+		if ident, ok := cond.MustValue().(*ast.IdentExpr); ok && p.ifSkip(token.KindEnum.In) {
+			rangeValue := p.parseExpr()
+			body := p.parseBlock()
+			return &ast.For{
+				Mut:      false,
+				Variable: ident.Name,
+				Range:    rangeValue,
+				Body:     body,
+			}
+		}
 	}
 	body := p.parseBlock()
-	return &ast.For{Condition: cond, Body: body}
+	return &ast.While{Condition: cond, Body: body}
 }

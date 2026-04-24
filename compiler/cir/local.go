@@ -220,3 +220,41 @@ func (l *While) print(p *printer) {
 	p.WriteString(") ")
 	p.WriteBy(l.Body)
 }
+
+type For struct {
+	Init      optional.Optional[*VarDecl]
+	Condition optional.Optional[Expr]
+	Action    optional.Optional[Expr]
+	Body      *Block
+}
+
+func (c *Builder) BuildFor(init optional.Optional[*VarDecl], cond optional.Optional[Expr], action optional.Optional[Expr], body *Block) *For {
+	f := &For{
+		Init:      init,
+		Condition: cond,
+		Action:    action,
+		Body:      body,
+	}
+	c.at.Stmts = append(c.at.Stmts, f)
+	return f
+}
+
+func (*For) local()  {}
+func (*For) global() {}
+
+func (l *For) print(p *printer) {
+	p.WriteString("for (")
+	if init, ok := l.Init.Value(); ok {
+		p.WriteBy(init)
+	}
+	p.WriteString("; ")
+	if cond, ok := l.Condition.Value(); ok {
+		p.WriteBy(cond)
+	}
+	p.WriteString("; ")
+	if action, ok := l.Action.Value(); ok {
+		p.WriteBy(action)
+	}
+	p.WriteString(") ")
+	p.WriteBy(l.Body)
+}

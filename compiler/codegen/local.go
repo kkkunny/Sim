@@ -1,12 +1,15 @@
 package codegen
 
 import (
+	"math/big"
+
 	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 func (c *CodeGenerator) buildLocal(local stmts.Local) {
@@ -21,8 +24,10 @@ func (c *CodeGenerator) buildLocal(local stmts.Local) {
 		c.builder.BuildExpr(c.buildExpr(local))
 	case *stmts.If:
 		c.buildIf(local, true)
-	case *stmts.For:
+	case *stmts.While:
 		c.buildWhile(local)
+	case *stmts.For:
+		c.buildFor(local)
 	default:
 		panic("unreachable")
 	}
@@ -94,8 +99,25 @@ func (c *CodeGenerator) buildIf(l *stmts.If, isRoot bool) *cir.If {
 	return c.builder.BuildIf(cond, body, next...)
 }
 
-func (c *CodeGenerator) buildWhile(l *stmts.For) *cir.While {
+func (c *CodeGenerator) buildWhile(l *stmts.While) *cir.While {
 	cond := c.buildExpr(l.Condition)
 	body := c.buildFlatBlock(l.Body, nil)
 	return c.builder.BuildWhile(cond, body)
+}
+
+func (c *CodeGenerator) buildFor(l *stmts.For) *cir.For {
+	init := c.builder.BuildVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0)))
+	rangv := c.buildExpr(l.Range)
+	if l.Range.Temporary() {
+		rangvar := c.builder.BuildVarDecl(c.buildType(l.Range.GetType()), "", rangv)
+		rangv = cir.NewIdentExpr(rangvar.Name)
+	}
+	at := l.Range.GetType().(*types.ArrayType)
+	cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(at.Size))
+	action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
+	body := c.buildFlatBlock(l.Body, func() {
+		v := c.builder.BuildVarDecl(c.buildType(at), "", cir.NewOffset(cir.NewGetMember(rangv, "array"), cir.NewIdentExpr(init.Name)))
+		c.idents[l.Var] = v
+	})
+	return c.builder.BuildFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), body)
 }

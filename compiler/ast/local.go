@@ -109,9 +109,28 @@ func (l *If) print(p *printer) {
 	}
 }
 
-type For struct {
+type While struct {
 	Condition optional.Optional[Expr]
 	Body      *Block
+}
+
+func (*While) local()  {}
+func (*While) global() {}
+
+func (l *While) print(p *printer) {
+	p.WriteString("for ")
+	if cond, ok := l.Condition.Value(); ok {
+		p.WriteBy(cond)
+	}
+	p.WriteString(" ")
+	p.WriteBy(l.Body)
+}
+
+type For struct {
+	Mut      bool
+	Variable token.Token
+	Range    Expr
+	Body     *Block
 }
 
 func (*For) local()  {}
@@ -119,9 +138,12 @@ func (*For) global() {}
 
 func (l *For) print(p *printer) {
 	p.WriteString("for ")
-	if cond, ok := l.Condition.Value(); ok {
-		p.WriteBy(cond)
+	if l.Mut {
+		p.WriteString("mut ")
 	}
+	p.WriteString(l.Variable.OriginText)
+	p.WriteString(" in ")
+	p.WriteBy(l.Range)
 	p.WriteString(" ")
 	p.WriteBy(l.Body)
 }

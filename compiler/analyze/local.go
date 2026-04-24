@@ -30,6 +30,8 @@ func (a *Analyzer) analyzeLocal(local ast.Local) stmts.Local {
 		return a.analyzeLet(local, false)
 	case *ast.If:
 		return a.analyzeIf(local)
+	case *ast.While:
+		return a.analyzeWhile(local)
 	case *ast.For:
 		return a.analyzeFor(local)
 	default:
@@ -117,7 +119,7 @@ func (a *Analyzer) analyzeIf(local *ast.If) *stmts.If {
 	return stmts.NewIf(cond, body, next...)
 }
 
-func (a *Analyzer) analyzeFor(local *ast.For) *stmts.For {
+func (a *Analyzer) analyzeWhile(local *ast.While) *stmts.While {
 	var cond stmts.Expr
 	if condAst, ok := local.Condition.Value(); ok {
 		cond = a.expectTypeExpr(condAst, types.Bool)
@@ -129,5 +131,17 @@ func (a *Analyzer) analyzeFor(local *ast.For) *stmts.For {
 	body := a.analyzeBlock(local.Body)
 	a.scope, _ = a.scope.Parent()
 
-	return stmts.NewFor(cond, body)
+	return stmts.NewWhile(cond, body)
+}
+
+func (a *Analyzer) analyzeFor(local *ast.For) *stmts.For {
+	rangv := expectTypeExpr[*types.ArrayType](a, local.Range)
+	et := rangv.GetType().(*types.ArrayType).Elem
+	param := stmts.NewParam(local.Mut, et, local.Variable.OriginText)
+
+	a.scope = scopes.NewBlockScope(a.scope)
+	body := a.analyzeBlock(local.Body)
+	a.scope, _ = a.scope.Parent()
+
+	return stmts.NewFor(param, rangv, body)
 }

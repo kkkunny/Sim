@@ -66,16 +66,16 @@ func (c *CodeGenerator) buildIdentExpr(expr *stmts.IdentExpr) cir.Expr {
 	return value
 }
 
-func (c *CodeGenerator) buildUnary(expr stmts.Unary) *cir.UnaryExpr {
+func (c *CodeGenerator) buildUnary(expr stmts.Unary) *cir.Unary {
 	switch expr := expr.(type) {
 	case *stmts.BitReverse, *stmts.BooleanReverse:
-		return cir.NewUnaryExpr(cir.UnaryOpEnum.Not, c.buildExpr(expr.GetOpTarget()))
+		return cir.NewUnary(cir.UnaryOpEnum.Not, c.buildExpr(expr.GetOpTarget()))
 	case *stmts.GetRef:
 		v := c.buildExpr(expr.Target)
-		return cir.NewUnaryExpr(cir.UnaryOpEnum.AND, v)
+		return cir.NewUnary(cir.UnaryOpEnum.AND, v)
 	case *stmts.DeRef:
 		v := c.buildExpr(expr.Target)
-		return cir.NewUnaryExpr(cir.UnaryOpEnum.Mul, v)
+		return cir.NewUnary(cir.UnaryOpEnum.Mul, v)
 	default:
 		panic("unreachable")
 	}
@@ -131,11 +131,7 @@ func (c *CodeGenerator) buildBinary(expr *stmts.Binary) cir.Expr {
 	default:
 		panic("unreachable")
 	}
-	return &cir.BinaryExpr{
-		Op:    op,
-		Left:  left,
-		Right: right,
-	}
+	return cir.NewBinary(op, left, right)
 }
 
 func (c *CodeGenerator) buildNativeFunc(expr *stmts.Func) *cir.FuncExpr {
@@ -188,7 +184,7 @@ func (c *CodeGenerator) buildNativeClosureFunc(expr *stmts.Func, captureVars []s
 
 	initBodyFn := func() {
 		ctx := c.builder.BuildVarDecl(cir.NewAliasType(ctxT), "_ctx")
-		ctx.Value = optional.Some[cir.Expr](cir.NewUnaryExpr(cir.UnaryOpEnum.Mul, cir.NewCovert(cir.NewPointerType(cir.NewAliasType(ctxT)), cir.NewIdentExpr("_p0"))))
+		ctx.Value = optional.Some[cir.Expr](cir.NewUnary(cir.UnaryOpEnum.Mul, cir.NewCovert(cir.NewPointerType(cir.NewAliasType(ctxT)), cir.NewIdentExpr("_p0"))))
 	}
 
 	var body optional.Optional[*cir.Block]
@@ -223,7 +219,7 @@ func (c *CodeGenerator) buildFunc(expr *stmts.Func) *cir.MacroExpr {
 			fields[fmt.Sprintf("_f%d", i+1)] = c.buildExpr(stmts.NewIdentExpr(cv))
 		}
 		ctx := c.builder.BuildVarDecl(cir.NewAliasType(ctxT), "", cir.NewStruct(fields))
-		return cir.NewMacroExpr("FUNCEXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnaryExpr(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
+		return cir.NewMacroExpr("FUNCEXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnary(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
 	}
 }
 
@@ -296,7 +292,7 @@ func (c *CodeGenerator) buildCovert(expr stmts.Covert) cir.Expr {
 	}
 }
 
-func (c *CodeGenerator) buildTernary(expr *stmts.Ternary) *cir.TernaryExpr {
+func (c *CodeGenerator) buildTernary(expr *stmts.Ternary) *cir.Ternary {
 	cond := c.buildExpr(expr.Condition)
 	trueExpr := c.buildExpr(expr.TrueExpr)
 	falseExpr := c.buildExpr(expr.FalseExpr)
