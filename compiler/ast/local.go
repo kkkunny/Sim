@@ -108,3 +108,20 @@ func (l *If) print(p *printer) {
 		}
 	}
 }
+
+type For struct {
+	Condition optional.Optional[Expr]
+	Body      *Block
+}
+
+func (*For) local()  {}
+func (*For) global() {}
+
+func (l *For) print(p *printer) {
+	p.WriteString("for ")
+	if cond, ok := l.Condition.Value(); ok {
+		p.WriteBy(cond)
+	}
+	p.WriteString(" ")
+	p.WriteBy(l.Body)
+}

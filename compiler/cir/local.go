@@ -196,3 +196,27 @@ func (l *If) print(p *printer) {
 		}
 	}
 }
+
+type While struct {
+	Condition Expr
+	Body      *Block
+}
+
+func (c *Builder) BuildWhile(cond Expr, body *Block) *While {
+	f := &While{
+		Condition: cond,
+		Body:      body,
+	}
+	c.at.Stmts = append(c.at.Stmts, f)
+	return f
+}
+
+func (*While) local()  {}
+func (*While) global() {}
+
+func (l *While) print(p *printer) {
+	p.WriteString("while (")
+	p.WriteBy(l.Condition)
+	p.WriteString(") ")
+	p.WriteBy(l.Body)
+}

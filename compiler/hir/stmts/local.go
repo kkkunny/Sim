@@ -126,3 +126,25 @@ func (l *If) Print(p *hir.Printer) {
 		}
 	}
 }
+
+type For struct {
+	Condition Expr
+	Body      *Block
+}
+
+func NewFor(cond Expr, body *Block) *For {
+	return &For{
+		Condition: cond,
+		Body:      body,
+	}
+}
+
+func (*For) local()  {}
+func (*For) global() {}
+
+func (l *For) Print(p *hir.Printer) {
+	p.WriteString("for ")
+	p.WriteBy(l.Condition)
+	p.WriteString(" ")
+	p.WriteBy(l.Body)
+}

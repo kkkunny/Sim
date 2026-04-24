@@ -21,6 +21,8 @@ func (c *CodeGenerator) buildLocal(local stmts.Local) {
 		c.builder.BuildExpr(c.buildExpr(local))
 	case *stmts.If:
 		c.buildIf(local, true)
+	case *stmts.For:
+		c.buildWhile(local)
 	default:
 		panic("unreachable")
 	}
@@ -90,4 +92,10 @@ func (c *CodeGenerator) buildIf(l *stmts.If, isRoot bool) *cir.If {
 		}
 	}
 	return c.builder.BuildIf(cond, body, next...)
+}
+
+func (c *CodeGenerator) buildWhile(l *stmts.For) *cir.While {
+	cond := c.buildExpr(l.Condition)
+	body := c.buildFlatBlock(l.Body, nil)
+	return c.builder.BuildWhile(cond, body)
 }
