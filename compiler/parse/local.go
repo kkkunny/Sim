@@ -18,6 +18,8 @@ func (p *Parser) parseLocal() ast.Local {
 		return p.parseLet()
 	case token.KindEnum.If:
 		return p.parseIf()
+	case token.KindEnum.For:
+		return p.parseFor()
 	default:
 		return p.parseExpr()
 	}
@@ -78,4 +80,14 @@ func (p *Parser) parseIf() *ast.If {
 		}
 	}
 	return &ast.If{Condition: cond, Body: body, Else: next}
+}
+
+func (p *Parser) parseFor() *ast.For {
+	p.expect(token.KindEnum.For)
+	var cond optional.Optional[ast.Expr]
+	if p.nextToken.Kind != token.KindEnum.Lbr {
+		cond = optional.Some(p.parseExpr())
+	}
+	body := p.parseBlock()
+	return &ast.For{Condition: cond, Body: body}
 }
