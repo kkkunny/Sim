@@ -97,6 +97,9 @@ var BinaryOpEnum = enum.New[struct {
 	Or  BinaryOp `enum:"OR"`
 	Xor BinaryOp `enum:"XOR"`
 	Lt  BinaryOp `enum:"LT"`
+	Lte BinaryOp `enum:"LTE"`
+	Gt  BinaryOp `enum:"GT"`
+	Gte BinaryOp `enum:"GTE"`
 }]()
 
 type Binary struct {
