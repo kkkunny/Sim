@@ -159,6 +159,42 @@ const bool false = 1!=1;
     f32: x < y, \
     f64: x < y)
 
+#define LTE(x, y) _Generic((x), \
+    i8: x <= y, \
+    i16: x <= y, \
+    i32: x <= y, \
+    i64: x <= y, \
+    u8: x <= y, \
+    u16: x <= y, \
+    u32: x <= y, \
+    u64: x <= y, \
+    f32: x <= y, \
+    f64: x <= y)
+
+#define GT(x, y) _Generic((x), \
+    i8: x > y, \
+    i16: x > y, \
+    i32: x > y, \
+    i64: x > y, \
+    u8: x > y, \
+    u16: x > y, \
+    u32: x > y, \
+    u64: x > y, \
+    f32: x > y, \
+    f64: x > y)
+
+#define GTE(x, y) _Generic((x), \
+    i8: x >= y, \
+    i16: x >= y, \
+    i32: x >= y, \
+    i64: x >= y, \
+    u8: x >= y, \
+    u16: x >= y, \
+    u32: x >= y, \
+    u64: x >= y, \
+    f32: x >= y, \
+    f64: x >= y)
+
 // 函数胖指针与闭包
 #define FUNCTYPE(ft, ct) struct{union{ft f; ct c;} func; void* ctx;}
 #define FUNCEXPR_F(expr) {.func.f=expr, .ctx=NULL}

@@ -268,6 +268,13 @@ var BinaryOpEnum = enum.New[struct {
 	Or  BinaryOp `enum:"|"`
 	Xor BinaryOp `enum:"^"`
 
+	Eq  BinaryOp `enum:"=="`
+	Neq BinaryOp `enum:"!="`
+	Lt  BinaryOp `enum:"<"`
+	Lte BinaryOp `enum:"<="`
+	Gt  BinaryOp `enum:">"`
+	Gte BinaryOp `enum:">="`
+
 	Assign    BinaryOp `enum:"="`
 	AddAssign BinaryOp `enum:"+="`
 	SubAssign BinaryOp `enum:"-="`

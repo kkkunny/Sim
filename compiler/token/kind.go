@@ -29,6 +29,13 @@ var KindEnum = enum.New[struct {
 	Xor Kind `text:"^"`
 	Not Kind `text:"!"`
 
+	Eq  Kind `text:"=="`
+	Neq Kind `text:"!="`
+	Lt  Kind `text:"<"`
+	Lte Kind `text:"<="`
+	Gt  Kind `text:">"`
+	Gte Kind `text:">="`
+
 	Assign    Kind `text:"="`
 	AddAssign Kind `text:"+="`
 	SubAssign Kind `text:"-="`
@@ -102,8 +109,12 @@ func (k Kind) String() string {
 func (k Kind) Priority() int {
 	switch k {
 	case KindEnum.Mul, KindEnum.Quo, KindEnum.Rem:
-		return 6
+		return 8
 	case KindEnum.Add, KindEnum.Sub:
+		return 7
+	case KindEnum.Lt, KindEnum.Lte, KindEnum.Gt, KindEnum.Gte:
+		return 6
+	case KindEnum.Eq, KindEnum.Neq:
 		return 5
 	case KindEnum.And:
 		return 4
