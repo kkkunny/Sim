@@ -181,6 +181,24 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.
 	case token.KindEnum.Xor:
 		op = stmts.BinaryOpEnum.Xor
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
+	case token.KindEnum.Eq:
+		op = stmts.BinaryOpEnum.Eq
+		left = a.analyzeExpr(expr.Left, expect...)
+	case token.KindEnum.Neq:
+		op = stmts.BinaryOpEnum.Neq
+		left = a.analyzeExpr(expr.Left, expect...)
+	case token.KindEnum.Lt:
+		op = stmts.BinaryOpEnum.Lt
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
+	case token.KindEnum.Lte:
+		op = stmts.BinaryOpEnum.Lte
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
+	case token.KindEnum.Gt:
+		op = stmts.BinaryOpEnum.Gt
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
+	case token.KindEnum.Gte:
+		op = stmts.BinaryOpEnum.Gte
+		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Assign:
 		op = stmts.BinaryOpEnum.Assign
 		left = a.analyzeExpr(expr.Left, expect...)

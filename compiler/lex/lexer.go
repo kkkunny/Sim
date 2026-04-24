@@ -127,7 +127,13 @@ func (l *Lexer) Scan() token.Token {
 		case 0:
 			kind = token.KindEnum.Eof
 		case '=':
-			kind = token.KindEnum.Assign
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.Eq
+			default:
+				kind = token.KindEnum.Assign
+			}
 		case '(':
 			kind = token.KindEnum.Lpa
 		case ')':
@@ -216,9 +222,31 @@ func (l *Lexer) Scan() token.Token {
 				kind = token.KindEnum.Xor
 			}
 		case '!':
-			kind = token.KindEnum.Not
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.Neq
+			default:
+				kind = token.KindEnum.Not
+			}
 		case '?':
 			kind = token.KindEnum.Question
+		case '<':
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.Lte
+			default:
+				kind = token.KindEnum.Lt
+			}
+		case '>':
+			switch l.peek() {
+			case '=':
+				l.next()
+				kind = token.KindEnum.Gte
+			default:
+				kind = token.KindEnum.Gt
+			}
 		}
 	}
 
