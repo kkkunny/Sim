@@ -236,6 +236,15 @@ func (l *Lexer) Scan() token.Token {
 			case '=':
 				l.next()
 				kind = token.KindEnum.Lte
+			case '<':
+				l.next()
+				switch l.peek() {
+				case '=':
+					l.next()
+					kind = token.KindEnum.ShlAssign
+				default:
+					kind = token.KindEnum.Shl
+				}
 			default:
 				kind = token.KindEnum.Lt
 			}
@@ -244,6 +253,15 @@ func (l *Lexer) Scan() token.Token {
 			case '=':
 				l.next()
 				kind = token.KindEnum.Gte
+			case '>':
+				l.next()
+				switch l.peek() {
+				case '=':
+					l.next()
+					kind = token.KindEnum.ShrAssign
+				default:
+					kind = token.KindEnum.Shr
+				}
 			default:
 				kind = token.KindEnum.Gt
 			}

@@ -93,6 +93,8 @@ var BinaryOpEnum = enum.New[struct {
 	And BinaryOp `enum:"AND"`
 	Or  BinaryOp `enum:"OR"`
 	Xor BinaryOp `enum:"XOR"`
+	Shl BinaryOp `enum:"SHL"`
+	Shr BinaryOp `enum:"SHR"`
 	Eq  BinaryOp `enum:"EQ"`
 	Neq BinaryOp `enum:"NEQ"`
 	Lt  BinaryOp `enum:"LT"`
@@ -344,29 +346,13 @@ func (e *Offset) print(p *printer) {
 	p.WriteString("]")
 }
 
-type AssignOp string
-
-var AssignOpEnum = enum.New[struct {
-	Assign    AssignOp `enum:"="`
-	AddAssign AssignOp `enum:"+="`
-	SubAssign AssignOp `enum:"-="`
-	MulAssign AssignOp `enum:"*="`
-	QuoAssign AssignOp `enum:"/="`
-	RemAssign AssignOp `enum:"%="`
-	AndAssign AssignOp `enum:"&="`
-	OrAssign  AssignOp `enum:"|="`
-	XorAssign AssignOp `enum:"^="`
-}]()
-
 type Assign struct {
-	Op    AssignOp
 	Left  Expr
 	Right Expr
 }
 
-func NewAssign(op AssignOp, left Expr, right Expr) *Assign {
+func NewAssign(left Expr, right Expr) *Assign {
 	return &Assign{
-		Op:    op,
 		Left:  left,
 		Right: right,
 	}
@@ -376,9 +362,7 @@ func (*Assign) expr() {}
 
 func (e *Assign) print(p *printer) {
 	p.WriteBy(e.Left)
-	p.WriteString(" ")
-	p.WriteString(string(e.Op))
-	p.WriteString(" ")
+	p.WriteString(" = ")
 	p.WriteBy(e.Right)
 }
 
