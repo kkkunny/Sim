@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 
 	stlmaps "github.com/kkkunny/stl/container/maps"
 	"github.com/kkkunny/stl/container/optional"
@@ -144,9 +143,9 @@ func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Una
 		}
 	case token.KindEnum.Mul:
 		if len(expect) > 0 {
-			expect = []types.Type{types.NewPointerType(false, stlslices.Last(expect))}
+			expect = []types.Type{types.NewRefType(false, stlslices.Last(expect))}
 		}
-		v := expectTypeExpr[*types.PointerType](a, expr.Expr, expect...)
+		v := expectTypeExpr[*types.RefType](a, expr.Expr, expect...)
 		return stmts.NewDeRef(v)
 	default:
 		panic("unreachable")
@@ -232,7 +231,19 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.
 
 	right := a.expectTypeExpr(expr.Right, left.GetType())
 
-	if strings.Contains(expr.Op.Kind.String(), "=") {
+	if stlslices.Contain(
+		[]token.Kind{
+			token.KindEnum.Assign,
+			token.KindEnum.AddAssign,
+			token.KindEnum.SubAssign,
+			token.KindEnum.QuoAssign,
+			token.KindEnum.RemAssign,
+			token.KindEnum.AndAssign,
+			token.KindEnum.OrAssign,
+			token.KindEnum.XorAssign,
+		},
+		expr.Op.Kind,
+	) {
 		if left.Temporary() {
 			a.reporter.Fatalf(
 				expr.Left.Position(),

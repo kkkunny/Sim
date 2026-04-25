@@ -96,6 +96,8 @@ var BinaryOpEnum = enum.New[struct {
 	And BinaryOp `enum:"AND"`
 	Or  BinaryOp `enum:"OR"`
 	Xor BinaryOp `enum:"XOR"`
+	Eq  BinaryOp `enum:"EQ"`
+	Neq BinaryOp `enum:"NEQ"`
 	Lt  BinaryOp `enum:"LT"`
 	Lte BinaryOp `enum:"LTE"`
 	Gt  BinaryOp `enum:"GT"`
