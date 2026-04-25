@@ -2,11 +2,9 @@ package codegen
 
 import (
 	"github.com/kkkunny/stl/container/optional"
-	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
-	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 func (c *CodeGenerator) genGlobal(global stmts.Global) {
@@ -19,11 +17,17 @@ func (c *CodeGenerator) genGlobal(global stmts.Global) {
 }
 
 func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
-	if stlval.Is[types.FuncType](l.GetType()) {
-		f := c.genNativeFunc(l.Value.(*stmts.Func))
-		c.idents[l] = f.Decl
+	if expr, ok := l.Value.(*stmts.Func); ok {
+		decl := c.genNativeFuncDecl(expr)
+		c.idents[l] = decl
+		if b, ok := expr.Body.Value(); ok {
+			prevFunc := c.currentFunc
+			c.currentFunc = expr
+			decl.Body = optional.Some(c.genFuncBlock(b, nil))
+			c.currentFunc = prevFunc
+		}
 		if l.Name == "main" {
-			f.Decl.Name = "sim_main"
+			decl.Name = "sim_main"
 		}
 		return
 	}

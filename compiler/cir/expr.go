@@ -130,6 +130,10 @@ type FuncExpr struct {
 	Decl *FuncDecl
 }
 
+func NewFuncExpr(decl *FuncDecl) *FuncExpr {
+	return &FuncExpr{decl}
+}
+
 func (*FuncExpr) expr() {}
 
 func (e *FuncExpr) print(p *printer) {

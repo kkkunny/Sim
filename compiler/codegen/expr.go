@@ -147,7 +147,8 @@ func (c *CodeGenerator) genBinary(expr *stmts.Binary) cir.Expr {
 	return cir.NewBinary(op, left, right)
 }
 
-func (c *CodeGenerator) genNativeFunc(expr *stmts.Func) *cir.FuncExpr {
+func (c *CodeGenerator) genNativeFuncDecl(expr *stmts.Func) *cir.FuncDecl {
+	returnType := c.genType(expr.Return)
 	params := make([]*cir.Param, len(expr.Params))
 	for i, p := range expr.Params {
 		pn := fmt.Sprintf("_p%d", i+1)
@@ -155,20 +156,7 @@ func (c *CodeGenerator) genNativeFunc(expr *stmts.Func) *cir.FuncExpr {
 		params[i] = cir.NewParam(pn, pt)
 		c.idents[p] = params[i]
 	}
-
-	returnType := c.genType(expr.Return)
-
-	var body optional.Optional[*cir.Block]
-	if b, ok := expr.Body.Value(); ok {
-		prevFunc := c.currentFunc
-		c.currentFunc = expr
-		body = optional.Some(c.genFuncBlock(b, nil))
-		c.currentFunc = prevFunc
-	}
-
-	decl := cir.BuildStmt(c.builder, cir.NewFuncDecl("", returnType, params...))
-	decl.Body = body
-	return &cir.FuncExpr{Decl: decl}
+	return cir.BuildStmt(c.builder, cir.NewFuncDecl("", returnType, params...))
 }
 
 func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stmts.Ident) (*cir.Typedef, *cir.FuncExpr) {
@@ -207,20 +195,24 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 
 	decl := cir.BuildStmt(c.builder, cir.NewFuncDecl("", returnType, params...))
 	decl.Body = body
-	return ctxT, &cir.FuncExpr{Decl: decl}
+	return ctxT, cir.NewFuncExpr(decl)
 }
 
 func (c *CodeGenerator) genFunc(expr *stmts.Func) *cir.MacroExpr {
 	captureVars := stlslices.Filter(expr.UsedExternalVariables, func(i int, v stmts.Ident) bool {
 		return !stlval.Is[stmts.Global](v)
 	})
-	var f *cir.FuncExpr
 	if len(captureVars) == 0 {
-		f = c.genNativeFunc(expr)
-		return cir.NewMacroExpr("FUNC_EXPR_F", &cir.IdentExpr{Name: f.Decl.Name})
+		decl := c.genNativeFuncDecl(expr)
+		if b, ok := expr.Body.Value(); ok {
+			prevFunc := c.currentFunc
+			c.currentFunc = expr
+			decl.Body = optional.Some(c.genFuncBlock(b, nil))
+			c.currentFunc = prevFunc
+		}
+		return cir.NewMacroExpr("FUNC_EXPR_F", &cir.IdentExpr{Name: decl.Name})
 	} else {
-		var ctxT *cir.Typedef
-		ctxT, f = c.genNativeClosureFunc(expr, captureVars)
+		ctxT, f := c.genNativeClosureFunc(expr, captureVars)
 		fields := make(map[string]cir.Expr, len(captureVars))
 		for i, cv := range captureVars {
 			fields[fmt.Sprintf("_f%d", i+1)] = c.genExpr(stmts.NewIdentExpr(cv))
