@@ -83,10 +83,8 @@ func BuildStmt[T Stmt](b *Builder, g T) T {
 			namer.SetName(fmt.Sprintf("_t%d", b.typedefCount))
 		}
 	}
-	if local, ok := any(g).(Local); ok {
-		if b.at != nil {
-			b.at.Stmts = append(b.at.Stmts, local)
-		}
+	if local, ok := any(g).(Local); ok && b.at != nil {
+		b.at.Stmts = append(b.at.Stmts, local)
 	} else {
 		b.Globals = append(b.Globals, any(g).(Global))
 	}

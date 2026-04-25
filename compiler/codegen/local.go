@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
@@ -15,7 +16,7 @@ import (
 func (c *CodeGenerator) genLocal(local stmts.Local) {
 	switch local := local.(type) {
 	case *stmts.Block:
-		c.genBlock(local, nil)
+		c.genBlock(false, local, nil)
 	case *stmts.Return:
 		c.genReturn(local)
 	case *stmts.Let:
@@ -33,32 +34,51 @@ func (c *CodeGenerator) genLocal(local stmts.Local) {
 	}
 }
 
-func (c *CodeGenerator) genBlock(b *stmts.Block, initFn func()) *cir.Block {
-	prevBlock, _ := c.builder.CurrentAt()
-	block := cir.BuildStmt(c.builder, cir.NewBlock())
-	c.builder.MoveTo(block)
-	if initFn != nil {
-		initFn()
-	}
-	for _, s := range b.Stmts {
-		c.genLocal(s)
-	}
-	c.builder.MoveTo(prevBlock)
+func (c *CodeGenerator) buildFuncBlock(f func()) *cir.Block {
+	savedVarCount := c.builder.SaveFuncVarCount()
+	defer c.builder.RestoreFuncVarCount(savedVarCount)
+
+	block := c.buildBlock(true, f)
 	return block
 }
 
-func (c *CodeGenerator) genFlatBlock(b *stmts.Block, initFn func()) *cir.Block {
+func (c *CodeGenerator) buildBlock(flat bool, f func()) *cir.Block {
 	prevBlock, _ := c.builder.CurrentAt()
-	block := cir.NewBlock()
+
+	block := stlval.IfLazy(flat, func() *cir.Block {
+		return cir.NewBlock()
+	}, func() *cir.Block {
+		return cir.BuildStmt(c.builder, cir.NewBlock())
+	})
 	c.builder.MoveTo(block)
-	if initFn != nil {
-		initFn()
+	defer c.builder.MoveTo(prevBlock)
+
+	if f != nil {
+		f()
 	}
-	for _, s := range b.Stmts {
-		c.genLocal(s)
-	}
-	c.builder.MoveTo(prevBlock)
 	return block
+}
+
+func (c *CodeGenerator) genFuncBlock(b *stmts.Block, initFn func()) *cir.Block {
+	return c.buildFuncBlock(func() {
+		if initFn != nil {
+			initFn()
+		}
+		for _, s := range b.Stmts {
+			c.genLocal(s)
+		}
+	})
+}
+
+func (c *CodeGenerator) genBlock(flat bool, b *stmts.Block, initFn func()) *cir.Block {
+	return c.buildBlock(flat, func() {
+		if initFn != nil {
+			initFn()
+		}
+		for _, s := range b.Stmts {
+			c.genLocal(s)
+		}
+	})
 }
 
 func (c *CodeGenerator) genReturn(local *stmts.Return) *cir.Return {
@@ -79,13 +99,13 @@ func (c *CodeGenerator) genLocalLet(local *stmts.Let) *cir.VarDecl {
 
 func (c *CodeGenerator) genIf(l *stmts.If, isRoot bool) *cir.If {
 	cond := c.genExpr(l.Condition)
-	body := c.genFlatBlock(l.Body, nil)
+	body := c.genBlock(true, l.Body, nil)
 	var next []either.Either[*cir.If, *cir.Block]
 	if nextIf, ok := l.Else.Value(); ok {
 		if elseif, ok := nextIf.TryLeft(); ok {
 			next = append(next, either.Left[*cir.If, *cir.Block](c.genIf(elseif, false)))
 		} else {
-			next = append(next, either.Right[*cir.If, *cir.Block](c.genFlatBlock(nextIf.Right(), nil)))
+			next = append(next, either.Right[*cir.If, *cir.Block](c.genBlock(true, nextIf.Right(), nil)))
 		}
 	}
 
@@ -101,7 +121,7 @@ func (c *CodeGenerator) genIf(l *stmts.If, isRoot bool) *cir.If {
 
 func (c *CodeGenerator) genWhile(l *stmts.While) *cir.While {
 	cond := c.genExpr(l.Condition)
-	body := c.genFlatBlock(l.Body, nil)
+	body := c.genBlock(true, l.Body, nil)
 	return cir.BuildStmt(c.builder, cir.NewWhile(cond, body))
 }
 
@@ -115,7 +135,7 @@ func (c *CodeGenerator) genFor(l *stmts.For) *cir.For {
 	at := l.Range.GetType().(types.ArrayType)
 	cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(at.GetSize()))
 	action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
-	body := c.genFlatBlock(l.Body, func() {
+	body := c.genBlock(true, l.Body, func() {
 		v := cir.BuildStmt(c.builder, cir.NewVarDecl(c.genType(at), "", cir.NewOffset(cir.NewGetMember(rangv, "array"), cir.NewIdentExpr(init.Name))))
 		c.idents[l.Var] = v
 	})

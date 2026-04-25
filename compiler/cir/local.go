@@ -214,8 +214,10 @@ func (l *For) print(p *printer) {
 	p.WriteString("for (")
 	if init, ok := l.Init.Value(); ok {
 		p.WriteBy(init)
+		p.WriteString(" ")
+	} else {
+		p.WriteString("; ")
 	}
-	p.WriteString("; ")
 	if cond, ok := l.Condition.Value(); ok {
 		p.WriteBy(cond)
 	}
