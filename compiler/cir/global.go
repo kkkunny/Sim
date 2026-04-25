@@ -1,13 +1,11 @@
 package cir
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/stl/container/optional"
 )
 
 type Global interface {
-	printWriter
+	Stmt
 	global()
 }
 
@@ -18,20 +16,15 @@ type FuncDecl struct {
 	Body       optional.Optional[*Block]
 }
 
-func (b *Builder) BuildFuncDecl(name string, rt Type, params ...*Param) *FuncDecl {
-	b.globalVarCount++
-	if name == "" {
-		name = fmt.Sprintf("_g%d", b.globalVarCount)
-	}
-	g := &FuncDecl{
+func NewFuncDecl(name string, rt Type, params ...*Param) *FuncDecl {
+	return &FuncDecl{
 		Name:       name,
 		Params:     params,
 		ReturnType: rt,
 	}
-	b.Globals = append(b.Globals, g)
-	return g
 }
 
+func (*FuncDecl) stmt()   {}
 func (*FuncDecl) global() {}
 
 func (g *FuncDecl) print(p *printer) {
@@ -55,6 +48,10 @@ func (g *FuncDecl) print(p *printer) {
 	}
 }
 
+func (g *FuncDecl) SetName(s string) {
+	g.Name = s
+}
+
 func (g *FuncDecl) GetName() string {
 	return g.Name
 }
@@ -64,25 +61,24 @@ type Typedef struct {
 	Name string
 }
 
-func (b *Builder) BuildTypedef(t Type, name string) *Typedef {
-	b.typedefCount++
-	if name == "" {
-		name = fmt.Sprintf("_t%d", b.typedefCount)
-	}
-	g := &Typedef{
+func NewTypedef(t Type, name string) *Typedef {
+	return &Typedef{
 		Type: t,
 		Name: name,
 	}
-	b.Globals = append(b.Globals, g)
-	return g
 }
 
+func (*Typedef) stmt()   {}
 func (*Typedef) global() {}
 
 func (g *Typedef) print(p *printer) {
 	p.WriteString("typedef ")
 	g.Type.printWithName(p, g.Name)
 	p.WriteString(";")
+}
+
+func (g *Typedef) SetName(s string) {
+	g.Name = s
 }
 
 func (g *Typedef) GetName() string {

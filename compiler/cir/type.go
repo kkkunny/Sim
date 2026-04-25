@@ -82,15 +82,17 @@ func (t *FuncType) printWithName(p *printer, name string) {
 }
 
 type AliasType struct {
-	*Typedef
+	Def *Typedef
 }
 
 func NewAliasType(def *Typedef) *AliasType {
-	return &AliasType{Typedef: def}
+	return &AliasType{Def: def}
 }
 
+func (t *AliasType) stmt() {}
+
 func (t *AliasType) zeroSize() bool {
-	return t.Type.zeroSize()
+	return t.Def.Type.zeroSize()
 }
 
 func (t *AliasType) print(p *printer) {
@@ -99,7 +101,7 @@ func (t *AliasType) print(p *printer) {
 		return
 	}
 
-	p.WriteString(t.Name)
+	p.WriteString(t.Def.Name)
 }
 
 func (t *AliasType) printWithName(p *printer, name string) {
@@ -108,7 +110,7 @@ func (t *AliasType) printWithName(p *printer, name string) {
 		return
 	}
 
-	p.WriteString(t.Name)
+	p.WriteString(t.Def.Name)
 	p.WriteString(" ")
 	p.WriteFormat(name)
 }
