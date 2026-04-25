@@ -62,25 +62,23 @@ type Stmt interface {
 }
 
 func BuildStmt[T Stmt](b *Builder, g T) T {
-	if namer, ok := any(g).(Namer); ok && stlval.Is[Global](g) && stlval.Is[Local](g) {
-		if b.at != nil {
-			b.funcVarCount++
-			if namer.GetName() == "" {
-				namer.SetName(fmt.Sprintf("_v%d", b.funcVarCount))
-			}
-		} else {
-			if v, ok := namer.(*VarDecl); ok {
-				v.IsGlobal = true
-			}
-			b.globalVarCount++
-			if namer.GetName() == "" {
-				namer.SetName(fmt.Sprintf("_g%d", b.globalVarCount))
-			}
+	if namer, ok := any(g).(Namer); ok && stlval.Is[Local](g) && b.at != nil {
+		b.funcVarCount++
+		if namer.GetName() == "" {
+			namer.SetName(fmt.Sprintf("_v%d", b.funcVarCount))
 		}
 	} else if ok && stlval.Is[*Typedef](g) {
 		b.typedefCount++
 		if namer.GetName() == "" {
 			namer.SetName(fmt.Sprintf("_t%d", b.typedefCount))
+		}
+	} else if ok && stlval.Is[Global](g) {
+		if v, ok := namer.(*VarDecl); ok {
+			v.IsGlobal = true
+		}
+		b.globalVarCount++
+		if namer.GetName() == "" {
+			namer.SetName(fmt.Sprintf("_g%d", b.globalVarCount))
 		}
 	}
 	if local, ok := any(g).(Local); ok && b.at != nil {
