@@ -26,16 +26,19 @@ func (l *Block) print(p *printer) {
 	p.WriteString("{")
 	if len(l.Stmts) > 0 {
 		p.NextLine(+1)
-		for i, stmt := range l.Stmts {
-			p.WriteBy(stmt)
-			if i < len(l.Stmts)-1 {
-				p.NextLine()
-			} else {
-				p.NextLine(-1)
-			}
-		}
+		l.printFlat(p)
+		p.NextLine(-1)
 	}
 	p.WriteString("}")
+}
+
+func (l *Block) printFlat(p *printer) {
+	for i, stmt := range l.Stmts {
+		p.WriteBy(stmt)
+		if i < len(l.Stmts)-1 {
+			p.NextLine()
+		}
+	}
 }
 
 type Return struct {
@@ -108,8 +111,8 @@ func NewInclude(path string) *Include {
 }
 
 func (*Include) stmt()   {}
-func (*Include) local()  {}
 func (*Include) global() {}
+func (*Include) local()  {}
 
 func (l *Include) print(p *printer) {
 	p.WriteString("#include ")
@@ -124,9 +127,8 @@ func NewExpr(expr Expr) *ExprStmt {
 	return &ExprStmt{Expr: expr}
 }
 
-func (*ExprStmt) stmt()   {}
-func (*ExprStmt) local()  {}
-func (*ExprStmt) global() {}
+func (*ExprStmt) stmt()  {}
+func (*ExprStmt) local() {}
 
 func (l *ExprStmt) print(p *printer) {
 	p.WriteBy(l.Expr)
@@ -147,9 +149,8 @@ func NewIf(cond Expr, body *Block, next ...either.Either[*If, *Block]) *If {
 	}
 }
 
-func (*If) stmt()   {}
-func (*If) local()  {}
-func (*If) global() {}
+func (*If) stmt()  {}
+func (*If) local() {}
 
 func (l *If) print(p *printer) {
 	p.WriteString("if (")
@@ -179,9 +180,8 @@ func NewWhile(cond Expr, body *Block) *While {
 	}
 }
 
-func (*While) stmt()   {}
-func (*While) local()  {}
-func (*While) global() {}
+func (*While) stmt()  {}
+func (*While) local() {}
 
 func (l *While) print(p *printer) {
 	p.WriteString("while (")
@@ -206,9 +206,8 @@ func NewFor(init optional.Optional[*VarDecl], cond optional.Optional[Expr], acti
 	}
 }
 
-func (*For) stmt()   {}
-func (*For) local()  {}
-func (*For) global() {}
+func (*For) stmt()  {}
+func (*For) local() {}
 
 func (l *For) print(p *printer) {
 	p.WriteString("for (")
@@ -227,4 +226,59 @@ func (l *For) print(p *printer) {
 	}
 	p.WriteString(") ")
 	p.WriteBy(l.Body)
+}
+
+type Case struct {
+	Cond Expr
+	Body *Block
+}
+
+func NewCase(cond Expr, body *Block) *Case {
+	return &Case{Cond: cond, Body: body}
+}
+
+type Switch struct {
+	Cond    Expr
+	Cases   []*Case
+	Default optional.Optional[*Block]
+}
+
+func NewSwitch(cond Expr, cases ...*Case) *Switch {
+	return &Switch{
+		Cond:  cond,
+		Cases: cases,
+	}
+}
+
+func (*Switch) stmt()  {}
+func (*Switch) local() {}
+
+func (l *Switch) print(p *printer) {
+	p.WriteString("switch (")
+	p.WriteBy(l.Cond)
+	p.WriteString(") {")
+	p.NextLine()
+	for _, c := range l.Cases {
+		p.WriteString("case ")
+		p.WriteBy(c.Cond)
+		p.WriteString(":")
+		if len(c.Body.Stmts) > 0 {
+			p.NextLine(+1)
+			c.Body.printFlat(p)
+			p.NextLine(-1)
+		} else {
+			p.NextLine()
+		}
+	}
+	if dc, ok := l.Default.Value(); ok {
+		p.WriteString("default:")
+		if len(dc.Stmts) > 0 {
+			p.NextLine(+1)
+			dc.printFlat(p)
+			p.NextLine(-1)
+		} else {
+			p.NextLine()
+		}
+	}
+	p.WriteString("}")
 }

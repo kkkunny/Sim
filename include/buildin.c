@@ -246,6 +246,10 @@ const bool false = 1!=1;
 // 元组
 #define TUPLE_INDEX(t, i) t.e##i
 
+// 联合
+#define UNION_TYPE_INDEX(v) v.t
+#define UNION_VALUE_INDEX(v, i) v.v.t##i
+
 // 主函数
 static void sim_main();
 int main(){
