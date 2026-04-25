@@ -87,7 +87,7 @@ func (l *Let) GetName() string {
 }
 
 func (l *Let) GetType() types.Type {
-	return l.Value.GetType()
+	return l.Type
 }
 
 func (l *Let) Mutable() bool {

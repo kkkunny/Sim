@@ -2,6 +2,7 @@ package analyze
 
 import (
 	"github.com/kkkunny/stl/container/either"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
@@ -50,51 +51,70 @@ func (a *Analyzer) analyzeReturn(local *ast.Return) *stmts.Return {
 }
 
 func (a *Analyzer) analyzeLet(local *ast.Let, isGlobal bool) *stmts.Let {
+	if isGlobal && local.Name.OriginText == "main" && local.Mut {
+		a.reporter.Fatalf(
+			local.Name.Position,
+			report.Errors.MustImmutable,
+		)
+	}
+
 	var t types.Type
 	if tnode, ok := local.Type.Value(); ok {
 		t = a.analyzeType(tnode)
 	}
 
-	var value stmts.Expr
-	if isGlobal && local.Name.OriginText == "main" { // TODO: 同一个包下只允许存在一个main函数
-		if local.Mut {
-			a.reporter.Fatalf(
-				local.Name.Position,
-				report.Errors.MustImmutable,
-			)
-		}
+	let := stlval.IfLazy(
+		isGlobal && local.Value.IsSome() && stlval.Is[*ast.Func](local.Value.MustValue()),
+		func() *stmts.Let { // 允许自引用的let
+			v := local.Value.MustValue().(*ast.Func)
+			ft := a.analyzeFuncDecl(v)
 
+			let := &stmts.Let{
+				Mut:  local.Mut,
+				Type: ft,
+				Name: local.Name.OriginText,
+			}
+			a.scope.AddValue(let)
+
+			let.Value = stlval.IfLazy(t == nil, func() stmts.Expr {
+				return a.analyzeExpr(v)
+			}, func() stmts.Expr {
+				return a.expectTypeExpr(v, t)
+			})
+			return let
+		},
+		func() *stmts.Let {
+			var value stmts.Expr
+			if v, ok := local.Value.Value(); t != nil && ok {
+				value = a.expectTypeExpr(v, t)
+			} else if t != nil {
+				value = a.getZeroExpr(local.Name.Position, t)
+			} else {
+				value = a.analyzeExpr(v)
+			}
+
+			let := &stmts.Let{
+				Mut:   local.Mut,
+				Type:  value.GetType(),
+				Name:  local.Name.OriginText,
+				Value: value,
+			}
+			a.scope.AddValue(let)
+			return let
+		},
+	)
+
+	if isGlobal && local.Name.OriginText == "main" { // TODO: 同一个包下只允许存在一个main函数
 		expectType := types.NewFuncType(types.Unit)
-		v, ok := local.Value.Value()
-		if !ok && t != nil {
-			value = a.getZeroExpr(local.Name.Position, t)
-		} else if t != nil {
-			value = a.expectTypeExpr(v, expectType)
-		} else {
-			value = a.analyzeExpr(v, expectType)
-		}
-		if vt := value.GetType(); !vt.Equal(expectType) {
+		if vt := let.GetType(); !vt.Equal(expectType) {
 			a.reporter.Fatalf(
 				local.Type.MustValue().Position(),
 				report.Errors.UnexpectedExpression,
 				expectType, vt,
 			)
 		}
-	} else if v, ok := local.Value.Value(); t != nil && ok {
-		value = a.expectTypeExpr(v, t)
-	} else if t != nil {
-		value = a.getZeroExpr(local.Name.Position, t)
-	} else {
-		value = a.analyzeExpr(v)
 	}
 
-	let := &stmts.Let{
-		Mut:   local.Mut,
-		Type:  value.GetType(),
-		Name:  local.Name.OriginText,
-		Value: value,
-	}
-	a.scope.AddValue(let)
 	return let
 }
 

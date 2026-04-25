@@ -269,20 +269,13 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
 	scope := scopes.NewBlockScope(a.scope)
 	a.scope = scope
 
+	ft := a.analyzeFuncDecl(expr)
+
 	var params []*stmts.Param
-	for _, p := range expr.Params {
-		paramType := a.analyzeType(p.Type)
-		params = append(params, stmts.NewParam(p.Mut, paramType, p.Name.OriginText))
+	for i, p := range expr.Params {
+		params = append(params, stmts.NewParam(p.Mut, ft.GetParams()[i], p.Name.OriginText))
 	}
 
-	var returnType types.Type = types.Unit
-	if rtAst, ok := expr.ReturnType.Value(); ok {
-		returnType = a.analyzeTypeWithUnit(rtAst)
-	}
-
-	ft := types.NewFuncType(returnType, stlslices.Map(params, func(i int, p *stmts.Param) types.Type {
-		return p.Type
-	})...)
 	scope.SetFuncType(ft)
 
 	for _, p := range params {
@@ -298,7 +291,7 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
 
 	a.scope, _ = a.scope.Parent()
 
-	f := stmts.NewFunc(returnType, params...)
+	f := stmts.NewFunc(ft.GetReturn(), params...)
 	f.Body = body
 	f.UsedExternalVariables = externalVars
 	return f
