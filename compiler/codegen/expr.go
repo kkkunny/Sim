@@ -36,7 +36,7 @@ func (c *CodeGenerator) genExpr(expr stmts.Expr) cir.Expr {
 		return c.genTuple(expr)
 	case *stmts.TupleIndex:
 		from := c.genExpr(expr.From)
-		return c.buildTupleIndex(from, expr.Index.Add(expr.Index, big.NewInt(1)))
+		return c.buildTupleIndex(from, expr.Index)
 	case *stmts.Array:
 		return c.genArray(expr)
 	case *stmts.ArrayIndex:
@@ -344,8 +344,33 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 		}))
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.UnionType:
-		// TODO
-		panic("unreachable")
+		ut := c.genType(t)
+		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", ut), cir.NewParam("y", ut)))
+		f.Body = optional.Some(c.buildFuncBlock(func() {
+			lvi := c.getUnionTypeIndex(cir.NewIdentExpr("x"))
+			rvi := c.getUnionTypeIndex(cir.NewIdentExpr("y"))
+			ifcond := c.genEqual(true, types.U8, lvi, rvi)
+			ifBlock := c.buildBlock(true, func() {
+				cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.False, cir.True)))
+			})
+			cir.BuildStmt(c.builder, cir.NewIf(ifcond, ifBlock))
+
+			branch := cir.NewSwitch(lvi)
+			for i, et := range t.GetElems() {
+				cond := cir.NewInteger(big.NewInt(int64(i)))
+				body := c.buildBlock(true, func() {
+					lv := c.getUnionValueIndex(cir.NewIdentExpr("x"), big.NewInt(int64(i)))
+					rv := c.getUnionValueIndex(cir.NewIdentExpr("y"), big.NewInt(int64(i)))
+					cir.BuildStmt(c.builder, cir.NewReturn(c.genEqual(not, et, lv, rv)))
+				})
+				branch.Cases = append(branch.Cases, cir.NewCase(cond, body))
+			}
+			branch.Default = optional.Some(c.buildBlock(true, func() {
+				cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.True, cir.False)))
+			}))
+			cir.BuildStmt(c.builder, branch)
+		}))
+		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	default:
 		panic("unreachable")
 	}
@@ -356,5 +381,13 @@ func (c *CodeGenerator) buildArrayIndex(array, index cir.Expr) cir.Expr {
 }
 
 func (c *CodeGenerator) buildTupleIndex(tuple cir.Expr, index *big.Int) cir.Expr {
-	return cir.NewMacroExpr("TUPLE_INDEX", tuple, index)
+	return cir.NewMacroExpr("TUPLE_INDEX", tuple, cir.NewInteger(index.Add(index, big.NewInt(1))))
+}
+
+func (c *CodeGenerator) getUnionTypeIndex(union cir.Expr) cir.Expr {
+	return cir.NewMacroExpr("UNION_TYPE_INDEX", union)
+}
+
+func (c *CodeGenerator) getUnionValueIndex(union cir.Expr, index *big.Int) cir.Expr {
+	return cir.NewMacroExpr("UNION_VALUE_INDEX", union, cir.NewInteger(index.Add(index, big.NewInt(1))))
 }
