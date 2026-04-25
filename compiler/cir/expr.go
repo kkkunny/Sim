@@ -85,22 +85,24 @@ func (e *Unary) print(p *printer) {
 type BinaryOp string
 
 var BinaryOpEnum = enum.New[struct {
-	Add BinaryOp `enum:"ADD"`
-	Sub BinaryOp `enum:"SUB"`
-	Mul BinaryOp `enum:"MUL"`
-	Quo BinaryOp `enum:"QUO"`
-	Rem BinaryOp `enum:"REM"`
-	And BinaryOp `enum:"AND"`
-	Or  BinaryOp `enum:"OR"`
-	Xor BinaryOp `enum:"XOR"`
-	Shl BinaryOp `enum:"SHL"`
-	Shr BinaryOp `enum:"SHR"`
-	Eq  BinaryOp `enum:"EQ"`
-	Neq BinaryOp `enum:"NEQ"`
-	Lt  BinaryOp `enum:"LT"`
-	Lte BinaryOp `enum:"LTE"`
-	Gt  BinaryOp `enum:"GT"`
-	Gte BinaryOp `enum:"GTE"`
+	Add      BinaryOp `enum:"ADD"`
+	Sub      BinaryOp `enum:"SUB"`
+	Mul      BinaryOp `enum:"MUL"`
+	Quo      BinaryOp `enum:"QUO"`
+	Rem      BinaryOp `enum:"REM"`
+	And      BinaryOp `enum:"AND"`
+	Or       BinaryOp `enum:"OR"`
+	Xor      BinaryOp `enum:"XOR"`
+	Shl      BinaryOp `enum:"SHL"`
+	Shr      BinaryOp `enum:"SHR"`
+	Eq       BinaryOp `enum:"EQ"`
+	Neq      BinaryOp `enum:"NEQ"`
+	Lt       BinaryOp `enum:"LT"`
+	Lte      BinaryOp `enum:"LTE"`
+	Gt       BinaryOp `enum:"GT"`
+	Gte      BinaryOp `enum:"GTE"`
+	LogicAnd BinaryOp `enum:"LOGIC_AND"`
+	LogicOr  BinaryOp `enum:"LOGIC_OR"`
 }]()
 
 type Binary struct {

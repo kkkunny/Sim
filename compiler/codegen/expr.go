@@ -140,6 +140,10 @@ func (c *CodeGenerator) genBinary(expr *stmts.Binary) cir.Expr {
 		op = cir.BinaryOpEnum.Gt
 	case stmts.BinaryOpEnum.Gte:
 		op = cir.BinaryOpEnum.Gte
+	case stmts.BinaryOpEnum.LogicAnd:
+		op = cir.BinaryOpEnum.LogicAnd
+	case stmts.BinaryOpEnum.LogicOr:
+		op = cir.BinaryOpEnum.LogicOr
 	default:
 		panic("unreachable")
 	}

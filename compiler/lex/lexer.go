@@ -202,6 +202,9 @@ func (l *Lexer) Scan() token.Token {
 			case '=':
 				l.next()
 				kind = token.KindEnum.AndAssign
+			case '&':
+				l.next()
+				kind = token.KindEnum.LogicAnd
 			default:
 				kind = token.KindEnum.And
 			}
@@ -210,6 +213,9 @@ func (l *Lexer) Scan() token.Token {
 			case '=':
 				l.next()
 				kind = token.KindEnum.OrAssign
+			case '|':
+				l.next()
+				kind = token.KindEnum.LogicOr
 			default:
 				kind = token.KindEnum.Or
 			}

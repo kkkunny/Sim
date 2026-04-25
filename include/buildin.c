@@ -124,6 +124,26 @@ const bool false = 1!=1;
     f32: x ^ y, \
     f64: x ^ y)
 
+#define SHL(x, y) _Generic((x), \
+    i8: x << y, \
+    i16: x << y, \
+    i32: x << y, \
+    i64: x << y, \
+    u8: x << y, \
+    u16: x << y, \
+    u32: x << y, \
+    u64: x << y)
+
+#define SHR(x, y) _Generic((x), \
+    i8: x >> y, \
+    i16: x >> y, \
+    i32: x >> y, \
+    i64: x >> y, \
+    u8: x >> y, \
+    u16: x >> y, \
+    u32: x >> y, \
+    u64: x >> y)
+
 #define NOT(x) _Generic((x), \
     i8: ~x, \
     i16: ~x, \
@@ -224,6 +244,10 @@ const bool false = 1!=1;
     u64: x >= y, \
     f32: x >= y, \
     f64: x >= y)
+
+#define LOGIC_AND(x, y) x && y
+
+#define LOGIC_OR(x, y) x || y
 
 // 函数胖指针与闭包
 #define FUNC_TYPE(ret, ...) struct { \
