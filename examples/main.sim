@@ -1,6 +1,5 @@
-let a = () -> bool {
-	return a()
-}
-let a = () -> bool {
-	return a()
+let a = () -> i32{
+	let mut a = 1
+	a <<= 2
+	return a
 }

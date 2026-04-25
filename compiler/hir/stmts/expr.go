@@ -267,6 +267,8 @@ var BinaryOpEnum = enum.New[struct {
 	And BinaryOp `enum:"&"`
 	Or  BinaryOp `enum:"|"`
 	Xor BinaryOp `enum:"^"`
+	Shl BinaryOp `enum:"<<"`
+	Shr BinaryOp `enum:">>"`
 
 	Eq  BinaryOp `enum:"=="`
 	Neq BinaryOp `enum:"!="`
@@ -284,6 +286,8 @@ var BinaryOpEnum = enum.New[struct {
 	AndAssign BinaryOp `enum:"&="`
 	OrAssign  BinaryOp `enum:"|="`
 	XorAssign BinaryOp `enum:"^="`
+	ShlAssign BinaryOp `enum:"<<="`
+	ShrAssign BinaryOp `enum:">>="`
 }]()
 
 type Binary struct {
@@ -305,9 +309,12 @@ func (e *Binary) Print(p *hir.Printer) {
 
 func (e *Binary) GetType() types.Type {
 	switch e.Op {
-	case BinaryOpEnum.Add, BinaryOpEnum.Sub, BinaryOpEnum.Mul, BinaryOpEnum.Quo, BinaryOpEnum.Rem, BinaryOpEnum.And, BinaryOpEnum.Or, BinaryOpEnum.Xor:
+	case BinaryOpEnum.Add, BinaryOpEnum.Sub, BinaryOpEnum.Mul, BinaryOpEnum.Quo, BinaryOpEnum.Rem, BinaryOpEnum.And,
+		BinaryOpEnum.Or, BinaryOpEnum.Xor, BinaryOpEnum.Shl, BinaryOpEnum.Shr:
 		return e.Left.GetType()
-	case BinaryOpEnum.Assign, BinaryOpEnum.AddAssign, BinaryOpEnum.SubAssign, BinaryOpEnum.MulAssign, BinaryOpEnum.QuoAssign, BinaryOpEnum.RemAssign, BinaryOpEnum.AndAssign, BinaryOpEnum.OrAssign, BinaryOpEnum.XorAssign:
+	case BinaryOpEnum.Assign, BinaryOpEnum.AddAssign, BinaryOpEnum.SubAssign, BinaryOpEnum.MulAssign,
+		BinaryOpEnum.QuoAssign, BinaryOpEnum.RemAssign, BinaryOpEnum.AndAssign, BinaryOpEnum.OrAssign,
+		BinaryOpEnum.XorAssign, BinaryOpEnum.ShlAssign, BinaryOpEnum.ShrAssign:
 		return types.Unit
 	case BinaryOpEnum.Eq, BinaryOpEnum.Neq, BinaryOpEnum.Lt, BinaryOpEnum.Lte, BinaryOpEnum.Gt, BinaryOpEnum.Gte:
 		return types.Bool
