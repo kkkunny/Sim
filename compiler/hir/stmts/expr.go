@@ -270,12 +270,14 @@ var BinaryOpEnum = enum.New[struct {
 	Shl BinaryOp `enum:"<<"`
 	Shr BinaryOp `enum:">>"`
 
-	Eq  BinaryOp `enum:"=="`
-	Neq BinaryOp `enum:"!="`
-	Lt  BinaryOp `enum:"<"`
-	Lte BinaryOp `enum:"<="`
-	Gt  BinaryOp `enum:">"`
-	Gte BinaryOp `enum:">="`
+	Eq       BinaryOp `enum:"=="`
+	Neq      BinaryOp `enum:"!="`
+	Lt       BinaryOp `enum:"<"`
+	Lte      BinaryOp `enum:"<="`
+	Gt       BinaryOp `enum:">"`
+	Gte      BinaryOp `enum:">="`
+	LogicAnd BinaryOp `enum:"&&"`
+	LogicOr  BinaryOp `enum:"||"`
 
 	Assign    BinaryOp `enum:"="`
 	AddAssign BinaryOp `enum:"+="`
@@ -316,7 +318,8 @@ func (e *Binary) GetType() types.Type {
 		BinaryOpEnum.QuoAssign, BinaryOpEnum.RemAssign, BinaryOpEnum.AndAssign, BinaryOpEnum.OrAssign,
 		BinaryOpEnum.XorAssign, BinaryOpEnum.ShlAssign, BinaryOpEnum.ShrAssign:
 		return types.Unit
-	case BinaryOpEnum.Eq, BinaryOpEnum.Neq, BinaryOpEnum.Lt, BinaryOpEnum.Lte, BinaryOpEnum.Gt, BinaryOpEnum.Gte:
+	case BinaryOpEnum.Eq, BinaryOpEnum.Neq, BinaryOpEnum.Lt, BinaryOpEnum.Lte, BinaryOpEnum.Gt, BinaryOpEnum.Gte,
+		BinaryOpEnum.LogicAnd, BinaryOpEnum.LogicOr:
 		return types.Bool
 	default:
 		panic("unreachable")

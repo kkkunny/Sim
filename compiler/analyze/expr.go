@@ -204,6 +204,12 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.
 	case token.KindEnum.Gte:
 		op = stmts.BinaryOpEnum.Gte
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
+	case token.KindEnum.LogicAnd:
+		op = stmts.BinaryOpEnum.LogicAnd
+		left = expectTypeExpr[types.BooleanType](a, expr.Left, expect...)
+	case token.KindEnum.LogicOr:
+		op = stmts.BinaryOpEnum.LogicOr
+		left = expectTypeExpr[types.BooleanType](a, expr.Left, expect...)
 	case token.KindEnum.Assign:
 		op = stmts.BinaryOpEnum.Assign
 		left = a.analyzeExpr(expr.Left, expect...)
