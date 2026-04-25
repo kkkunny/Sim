@@ -23,6 +23,7 @@ var Errors = enum.New[struct {
 	TypeMissingDefaultValue  Error `enum:"missing default value" format:"the type '%s' missing a default value"`
 	InvalidType              Error `enum:"invalid type" format:"expect a valid type"`
 	InvalidTypeCovert        Error `enum:"invalid type covert" format:"the type '%s' can not covert to '%s'"`
+	RepeatedIdentifier       Error `enum:"repeated identifier" format:"the identifier '%s' be redefined"`
 }]()
 
 var errorFormats = func() map[Error]string {
