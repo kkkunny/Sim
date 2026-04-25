@@ -58,6 +58,17 @@ func (a *Analyzer) analyzeLet(local *ast.Let, isGlobal bool) *stmts.Let {
 		)
 	}
 
+	if isGlobal {
+		_, ok := a.scope.Lookup(local.Name.OriginText)
+		if ok {
+			a.reporter.Fatalf(
+				local.Name.Position,
+				report.Errors.RepeatedIdentifier,
+				local.Name.OriginText,
+			)
+		}
+	}
+
 	var t types.Type
 	if tnode, ok := local.Type.Value(); ok {
 		t = a.analyzeType(tnode)
@@ -104,7 +115,7 @@ func (a *Analyzer) analyzeLet(local *ast.Let, isGlobal bool) *stmts.Let {
 		},
 	)
 
-	if isGlobal && local.Name.OriginText == "main" { // TODO: 同一个包下只允许存在一个main函数
+	if isGlobal && local.Name.OriginText == "main" {
 		expectType := types.NewFuncType(types.Unit)
 		if vt := let.GetType(); !vt.Equal(expectType) {
 			a.reporter.Fatalf(
