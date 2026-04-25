@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 func (c *CodeGenerator) buildExpr(expr stmts.Expr) cir.Expr {
@@ -83,31 +83,29 @@ func (c *CodeGenerator) buildUnary(expr stmts.Unary) *cir.Unary {
 
 func (c *CodeGenerator) buildBinary(expr *stmts.Binary) cir.Expr {
 	left, right := c.buildExpr(expr.Left), c.buildExpr(expr.Right)
-	if strings.Contains(string(expr.Op), "=") {
-		var op cir.AssignOp
-		switch expr.Op {
-		case stmts.BinaryOpEnum.Assign:
-			op = cir.AssignOpEnum.Assign
-		case stmts.BinaryOpEnum.AddAssign:
-			op = cir.AssignOpEnum.AddAssign
-		case stmts.BinaryOpEnum.SubAssign:
-			op = cir.AssignOpEnum.SubAssign
-		case stmts.BinaryOpEnum.MulAssign:
-			op = cir.AssignOpEnum.MulAssign
-		case stmts.BinaryOpEnum.QuoAssign:
-			op = cir.AssignOpEnum.QuoAssign
-		case stmts.BinaryOpEnum.RemAssign:
-			op = cir.AssignOpEnum.RemAssign
-		case stmts.BinaryOpEnum.AndAssign:
-			op = cir.AssignOpEnum.AndAssign
-		case stmts.BinaryOpEnum.OrAssign:
-			op = cir.AssignOpEnum.OrAssign
-		case stmts.BinaryOpEnum.XorAssign:
-			op = cir.AssignOpEnum.XorAssign
-		default:
-			panic("unreachable")
-		}
-		return cir.NewAssign(op, left, right)
+	var assignOp cir.AssignOp
+	switch expr.Op {
+	case stmts.BinaryOpEnum.Assign:
+		assignOp = cir.AssignOpEnum.Assign
+	case stmts.BinaryOpEnum.AddAssign:
+		assignOp = cir.AssignOpEnum.AddAssign
+	case stmts.BinaryOpEnum.SubAssign:
+		assignOp = cir.AssignOpEnum.SubAssign
+	case stmts.BinaryOpEnum.MulAssign:
+		assignOp = cir.AssignOpEnum.MulAssign
+	case stmts.BinaryOpEnum.QuoAssign:
+		assignOp = cir.AssignOpEnum.QuoAssign
+	case stmts.BinaryOpEnum.RemAssign:
+		assignOp = cir.AssignOpEnum.RemAssign
+	case stmts.BinaryOpEnum.AndAssign:
+		assignOp = cir.AssignOpEnum.AndAssign
+	case stmts.BinaryOpEnum.OrAssign:
+		assignOp = cir.AssignOpEnum.OrAssign
+	case stmts.BinaryOpEnum.XorAssign:
+		assignOp = cir.AssignOpEnum.XorAssign
+	}
+	if assignOp != "" {
+		return cir.NewAssign(assignOp, left, right)
 	}
 
 	var op cir.BinaryOp
@@ -128,6 +126,10 @@ func (c *CodeGenerator) buildBinary(expr *stmts.Binary) cir.Expr {
 		op = cir.BinaryOpEnum.Or
 	case stmts.BinaryOpEnum.Xor:
 		op = cir.BinaryOpEnum.Xor
+	case stmts.BinaryOpEnum.Eq:
+		return c.buildEqual(false, expr.Left.GetType(), left, right)
+	case stmts.BinaryOpEnum.Neq:
+		return c.buildEqual(true, expr.Left.GetType(), left, right)
 	case stmts.BinaryOpEnum.Lt:
 		op = cir.BinaryOpEnum.Lt
 	case stmts.BinaryOpEnum.Lte:
@@ -164,7 +166,7 @@ func (c *CodeGenerator) buildNativeFunc(expr *stmts.Func) *cir.FuncExpr {
 		c.currentFunc = prevFunc
 	}
 
-	decl := c.builder.BuildFuncDecl("", returnType, params)
+	decl := c.builder.BuildFuncDecl("", returnType, params...)
 	decl.Body = body
 	return &cir.FuncExpr{Decl: decl}
 }
@@ -206,7 +208,7 @@ func (c *CodeGenerator) buildNativeClosureFunc(expr *stmts.Func, captureVars []s
 		c.currentFunc = prevFunc
 	}
 
-	decl := c.builder.BuildFuncDecl("", returnType, params)
+	decl := c.builder.BuildFuncDecl("", returnType, params...)
 	decl.Body = body
 	return ctxT, &cir.FuncExpr{Decl: decl}
 }
@@ -305,4 +307,54 @@ func (c *CodeGenerator) buildTernary(expr *stmts.Ternary) *cir.Ternary {
 	trueExpr := c.buildExpr(expr.TrueExpr)
 	falseExpr := c.buildExpr(expr.FalseExpr)
 	return cir.NewTernaryExpr(cond, trueExpr, falseExpr)
+}
+
+func (c *CodeGenerator) buildEqual(not bool, t types.Type, left, right cir.Expr) cir.Expr {
+	switch t := t.(type) {
+	case types.NumberType, *types.BooleanType, *types.RefType:
+		return cir.NewBinary(stlval.If(!not, cir.BinaryOpEnum.Eq, cir.BinaryOpEnum.Neq), left, right)
+	case *types.ArrayType:
+		at := c.buildType(t)
+		f := c.builder.BuildFuncDecl("", cir.Bool, cir.NewParam("x", at), cir.NewParam("y", at))
+		prevBlock, _ := c.builder.CurrentAt()
+		block := &cir.Block{}
+		f.Body = optional.Some(block)
+		c.builder.MoveTo(block)
+
+		init := c.builder.BuildVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0)))
+		cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.Size))
+		action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
+		loopBlock := &cir.Block{}
+		c.builder.MoveTo(loopBlock)
+
+		et := c.buildType(t.Elem)
+		lv := c.builder.BuildVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("x"), "array"), cir.NewIdentExpr(init.Name)))
+		rv := c.builder.BuildVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("y"), "array"), cir.NewIdentExpr(init.Name)))
+		ifcond := c.buildEqual(true, t.Elem, cir.NewIdentExpr(lv.Name), cir.NewIdentExpr(rv.Name))
+		ifBlock := &cir.Block{}
+		c.builder.MoveTo(ifBlock)
+
+		c.builder.BuildReturn(cir.NewMacroExpr("false"))
+
+		c.builder.MoveTo(loopBlock)
+		c.builder.BuildIf(ifcond, ifBlock)
+
+		c.builder.MoveTo(block)
+		c.builder.BuildFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), loopBlock)
+		c.builder.BuildReturn(cir.NewMacroExpr("true"))
+
+		c.builder.MoveTo(prevBlock)
+		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
+	case *types.TupleType:
+		// TODO
+		panic("unreachable")
+	case *types.FuncType:
+		// TODO
+		panic("unreachable")
+	case *types.UnionType:
+		// TODO
+		panic("unreachable")
+	default:
+		panic("unreachable")
+	}
 }

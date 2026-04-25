@@ -321,28 +321,28 @@ func (t *UnionType) Equal(p Type) bool {
 	})
 }
 
-type PointerType struct {
+type RefType struct {
 	Mut  bool
 	Elem Type
 }
 
-func NewPointerType(mut bool, elem Type) *PointerType {
-	return &PointerType{Mut: mut, Elem: elem}
+func NewRefType(mut bool, elem Type) *RefType {
+	return &RefType{Mut: mut, Elem: elem}
 }
 
-func (t *PointerType) Print(p *hir.Printer) {
+func (t *RefType) Print(p *hir.Printer) {
 	p.WriteFormat(t.String())
 }
 
-func (t *PointerType) String() string {
+func (t *RefType) String() string {
 	if t.Mut {
 		return fmt.Sprintf("&mut %s", t.Elem)
 	}
 	return fmt.Sprintf("&%s", t.Elem)
 }
 
-func (t *PointerType) Equal(p Type) bool {
-	dst, ok := p.(*PointerType)
+func (t *RefType) Equal(p Type) bool {
+	dst, ok := p.(*RefType)
 	if !ok {
 		return false
 	}

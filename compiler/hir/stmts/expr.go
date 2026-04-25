@@ -207,7 +207,7 @@ func (e *GetRef) Print(p *hir.Printer) {
 }
 
 func (e *GetRef) GetType() types.Type {
-	return types.NewPointerType(e.Mut, e.Target.GetType())
+	return types.NewRefType(e.Mut, e.Target.GetType())
 }
 
 func (e *GetRef) Mutable() bool {
@@ -241,7 +241,7 @@ func (e *DeRef) Print(p *hir.Printer) {
 }
 
 func (e *DeRef) GetType() types.Type {
-	return e.Target.GetType().(*types.PointerType).Elem
+	return e.Target.GetType().(*types.RefType).Elem
 }
 
 func (e *DeRef) Mutable() bool {
@@ -309,6 +309,8 @@ func (e *Binary) GetType() types.Type {
 		return e.Left.GetType()
 	case BinaryOpEnum.Assign, BinaryOpEnum.AddAssign, BinaryOpEnum.SubAssign, BinaryOpEnum.MulAssign, BinaryOpEnum.QuoAssign, BinaryOpEnum.RemAssign, BinaryOpEnum.AndAssign, BinaryOpEnum.OrAssign, BinaryOpEnum.XorAssign:
 		return types.Unit
+	case BinaryOpEnum.Eq, BinaryOpEnum.Neq, BinaryOpEnum.Lt, BinaryOpEnum.Lte, BinaryOpEnum.Gt, BinaryOpEnum.Gte:
+		return types.Bool
 	default:
 		panic("unreachable")
 	}

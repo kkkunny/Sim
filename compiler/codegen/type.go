@@ -59,7 +59,7 @@ func (c *CodeGenerator) buildType(t types.Type) cir.Type {
 		return c.buildArrayType(t)
 	case *types.UnionType:
 		return c.buildUnionType(t)
-	case *types.PointerType:
+	case *types.RefType:
 		return c.buildPointerType(t)
 	default:
 		panic("unreachable")
@@ -158,7 +158,7 @@ func (c *CodeGenerator) buildUnionType(t *types.UnionType) *cir.AliasType {
 	return ut
 }
 
-func (c *CodeGenerator) buildPointerType(t *types.PointerType) *cir.PointerType {
+func (c *CodeGenerator) buildPointerType(t *types.RefType) *cir.PointerType {
 	elem := c.buildType(t.Elem)
 	return cir.NewPointerType(elem)
 }

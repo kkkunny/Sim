@@ -18,7 +18,7 @@ type FuncDecl struct {
 	Body       optional.Optional[*Block]
 }
 
-func (b *Builder) BuildFuncDecl(name string, rt Type, params []*Param) *FuncDecl {
+func (b *Builder) BuildFuncDecl(name string, rt Type, params ...*Param) *FuncDecl {
 	b.globalVarCount++
 	if name == "" {
 		name = fmt.Sprintf("_g%d", b.globalVarCount)

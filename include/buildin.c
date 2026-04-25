@@ -1,6 +1,8 @@
 #ifndef _SIM_BUILDIN
 #define _SIM_BUILDIN	1
 
+#include <math.h>
+
 // 工具
 #ifndef NULL
 #define NULL ((void *)0)
@@ -83,8 +85,8 @@ const bool false = 1!=1;
     u16: x % y, \
     u32: x % y, \
     u64: x % y, \
-    f32: x % y, \
-    f64: x % y)
+    f32: fmodf(x, y), \
+    f64: fmod(x, y)
 
 #define AND(x, y) _Generic((x), \
     i8: x & y, \
@@ -146,6 +148,34 @@ const bool false = 1!=1;
     u64: x++, \
     f32: x++, \
     f64: x++)
+
+#define EQ(x, y) _Generic((x), \
+    i8: x == y, \
+    i16: x == y, \
+    i32: x == y, \
+    i64: x == y, \
+    u8: x == y, \
+    u16: x == y, \
+    u32: x == y, \
+    u64: x == y, \
+    f32: x == y, \
+    f64: x == y, \
+    bool: x == y, \
+    default: x == y)
+
+#define NEQ(x, y) _Generic((x), \
+    i8: x != y, \
+    i16: x != y, \
+    i32: x != y, \
+    i64: x != y, \
+    u8: x != y, \
+    u16: x != y, \
+    u32: x != y, \
+    u64: x != y, \
+    f32: x != y, \
+    f64: x != y, \
+    bool: x != y, \
+    default: x != y)
 
 #define LT(x, y) _Generic((x), \
     i8: x < y, \
