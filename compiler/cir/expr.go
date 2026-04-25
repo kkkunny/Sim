@@ -9,7 +9,7 @@ import (
 )
 
 type Expr interface {
-	Local
+	printWriter
 	expr()
 }
 
@@ -21,8 +21,7 @@ func NewIdentExpr(name string) *IdentExpr {
 	return &IdentExpr{name}
 }
 
-func (*IdentExpr) local() {}
-func (*IdentExpr) expr()  {}
+func (*IdentExpr) expr() {}
 
 func (e *IdentExpr) print(p *printer) {
 	p.WriteString(e.Name)
@@ -36,8 +35,7 @@ func NewInteger(v *big.Int) *Integer {
 	return &Integer{Value: v}
 }
 
-func (*Integer) local() {}
-func (*Integer) expr()  {}
+func (*Integer) expr() {}
 
 func (e *Integer) print(p *printer) {
 	p.WriteString(e.Value.String())
@@ -47,8 +45,7 @@ type FloatExpr struct {
 	Value *big.Float
 }
 
-func (*FloatExpr) local() {}
-func (*FloatExpr) expr()  {}
+func (*FloatExpr) expr() {}
 
 func (e *FloatExpr) print(p *printer) {
 	p.WriteString(e.Value.String())
@@ -75,8 +72,7 @@ func NewUnary(op UnaryOp, expr Expr) *Unary {
 	}
 }
 
-func (*Unary) local() {}
-func (*Unary) expr()  {}
+func (*Unary) expr() {}
 
 func (e *Unary) print(p *printer) {
 	p.WriteString(string(e.Op))
@@ -118,8 +114,7 @@ func NewBinary(op BinaryOp, left, right Expr) *Binary {
 	}
 }
 
-func (*Binary) local() {}
-func (*Binary) expr()  {}
+func (*Binary) expr() {}
 
 func (e *Binary) print(p *printer) {
 	p.WriteString(string(e.Op))
@@ -134,12 +129,16 @@ type FuncExpr struct {
 	Decl *FuncDecl
 }
 
-func (*FuncExpr) local() {}
-func (*FuncExpr) expr()  {}
+func (*FuncExpr) expr() {}
 
 func (e *FuncExpr) print(p *printer) {
 	p.WriteString(e.Decl.Name)
 }
+
+var (
+	True  = NewMacroExpr("true")
+	False = NewMacroExpr("false")
+)
 
 type MacroExpr struct {
 	Name string
@@ -153,8 +152,7 @@ func NewMacroExpr(name string, args ...Expr) *MacroExpr {
 	}
 }
 
-func (*MacroExpr) local() {}
-func (*MacroExpr) expr()  {}
+func (*MacroExpr) expr() {}
 
 func (e *MacroExpr) print(p *printer) {
 	p.WriteString(e.Name)
@@ -182,8 +180,7 @@ func NewCall(f Expr, args ...Expr) *Call {
 	}
 }
 
-func (*Call) local() {}
-func (*Call) expr()  {}
+func (*Call) expr() {}
 
 func (e *Call) print(p *printer) {
 	p.WriteBy(e.Func)
@@ -209,8 +206,7 @@ func NewCovert(t Type, v Expr) *Covert {
 	}
 }
 
-func (*Covert) local() {}
-func (*Covert) expr()  {}
+func (*Covert) expr() {}
 
 func (e *Covert) print(p *printer) {
 	p.WriteString("(")
@@ -233,8 +229,7 @@ func NewGetMember(f Expr, name string) *GetMember {
 	}
 }
 
-func (*GetMember) local() {}
-func (*GetMember) expr()  {}
+func (*GetMember) expr() {}
 
 func (e *GetMember) print(p *printer) {
 	p.WriteBy(e.From)
@@ -254,8 +249,7 @@ func NewStruct(fields map[string]Expr, t ...Type) *Struct {
 	}
 }
 
-func (*Struct) local() {}
-func (*Struct) expr()  {}
+func (*Struct) expr() {}
 
 func (e *Struct) print(p *printer) {
 	if t, ok := e.Type.Value(); ok && t.zeroSize() {
@@ -296,8 +290,7 @@ func NewArray(elems []Expr, t ...Type) *Array {
 	}
 }
 
-func (*Array) local() {}
-func (*Array) expr()  {}
+func (*Array) expr() {}
 
 func (e *Array) print(p *printer) {
 	if t, ok := e.Type.Value(); ok && t.zeroSize() {
@@ -333,8 +326,7 @@ func NewOffset(from, offset Expr) *Offset {
 	}
 }
 
-func (*Offset) local() {}
-func (*Offset) expr()  {}
+func (*Offset) expr() {}
 
 func (e *Offset) print(p *printer) {
 	p.WriteBy(e.From)
@@ -371,8 +363,7 @@ func NewAssign(op AssignOp, left Expr, right Expr) *Assign {
 	}
 }
 
-func (*Assign) local() {}
-func (*Assign) expr()  {}
+func (*Assign) expr() {}
 
 func (e *Assign) print(p *printer) {
 	p.WriteBy(e.Left)
@@ -396,8 +387,7 @@ func NewTernaryExpr(cond, trueExpr, falseExpr Expr) *Ternary {
 	}
 }
 
-func (*Ternary) local() {}
-func (*Ternary) expr()  {}
+func (*Ternary) expr() {}
 
 func (e *Ternary) print(p *printer) {
 	p.WriteString("(")

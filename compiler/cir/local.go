@@ -1,32 +1,25 @@
 package cir
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/stl/container/either"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 )
 
 type Local interface {
-	printWriter
+	Stmt
 	local()
 }
 
 type Block struct {
 	Stmts []Local
-
-	varCount int
 }
 
-func (c *Builder) BuildBlock() *Block {
-	local := &Block{}
-	if c.at != nil {
-		c.at.Stmts = append(c.at.Stmts, local)
-	}
-	return local
+func NewBlock() *Block {
+	return &Block{}
 }
 
+func (*Block) stmt()  {}
 func (*Block) local() {}
 
 func (l *Block) print(p *printer) {
@@ -49,14 +42,13 @@ type Return struct {
 	Value optional.Optional[Expr]
 }
 
-func (c *Builder) BuildReturn(value ...Expr) *Return {
-	local := &Return{
+func NewReturn(value ...Expr) *Return {
+	return &Return{
 		Value: optional.UnEmpty(stlslices.Last(value)),
 	}
-	c.at.Stmts = append(c.at.Stmts, local)
-	return local
 }
 
+func (*Return) stmt()  {}
 func (*Return) local() {}
 
 func (l *Return) print(p *printer) {
@@ -75,34 +67,15 @@ type VarDecl struct {
 	Value    optional.Optional[Expr]
 }
 
-func (c *Builder) BuildVarDecl(t Type, name string, value ...Expr) *VarDecl {
-	var isGlobal bool
-	if c.at != nil {
-		c.at.varCount++
-		if name == "" {
-			name = fmt.Sprintf("_v%d", c.at.varCount)
-		}
-	} else {
-		isGlobal = true
-		c.globalVarCount++
-		if name == "" {
-			name = fmt.Sprintf("_g%d", c.globalVarCount)
-		}
+func NewVarDecl(t Type, name string, value ...Expr) *VarDecl {
+	return &VarDecl{
+		Type:  t,
+		Name:  name,
+		Value: optional.UnEmpty(stlslices.Last(value)),
 	}
-	decl := &VarDecl{
-		IsGlobal: isGlobal,
-		Type:     t,
-		Name:     name,
-		Value:    optional.UnEmpty(stlslices.Last(value)),
-	}
-	if c.at != nil {
-		c.at.Stmts = append(c.at.Stmts, decl)
-	} else {
-		c.Globals = append(c.Globals, decl)
-	}
-	return decl
 }
 
+func (*VarDecl) stmt()   {}
 func (*VarDecl) global() {}
 func (*VarDecl) local()  {}
 
@@ -118,6 +91,10 @@ func (l *VarDecl) print(p *printer) {
 	p.WriteString(";")
 }
 
+func (l *VarDecl) SetName(s string) {
+	l.Name = s
+}
+
 func (l *VarDecl) GetName() string {
 	return l.Name
 }
@@ -126,16 +103,11 @@ type Include struct {
 	Path string
 }
 
-func (c *Builder) BuildInclude(path string) *Include {
-	i := &Include{Path: path}
-	if c.at == nil {
-		c.Globals = append(c.Globals, i)
-	} else {
-		c.at.Stmts = append(c.at.Stmts, i)
-	}
-	return i
+func NewInclude(path string) *Include {
+	return &Include{Path: path}
 }
 
+func (*Include) stmt()   {}
 func (*Include) local()  {}
 func (*Include) global() {}
 
@@ -148,12 +120,11 @@ type ExprStmt struct {
 	Expr Expr
 }
 
-func (c *Builder) BuildExpr(expr Expr) *ExprStmt {
-	i := &ExprStmt{Expr: expr}
-	c.at.Stmts = append(c.at.Stmts, i)
-	return i
+func NewExpr(expr Expr) *ExprStmt {
+	return &ExprStmt{Expr: expr}
 }
 
+func (*ExprStmt) stmt()   {}
 func (*ExprStmt) local()  {}
 func (*ExprStmt) global() {}
 
@@ -168,16 +139,15 @@ type If struct {
 	Else      optional.Optional[either.Either[*If, *Block]]
 }
 
-func (c *Builder) BuildIf(cond Expr, body *Block, next ...either.Either[*If, *Block]) *If {
-	i := &If{
+func NewIf(cond Expr, body *Block, next ...either.Either[*If, *Block]) *If {
+	return &If{
 		Condition: cond,
 		Body:      body,
 		Else:      optional.UnEmpty(stlslices.Last(next)),
 	}
-	c.at.Stmts = append(c.at.Stmts, i)
-	return i
 }
 
+func (*If) stmt()   {}
 func (*If) local()  {}
 func (*If) global() {}
 
@@ -202,15 +172,14 @@ type While struct {
 	Body      *Block
 }
 
-func (c *Builder) BuildWhile(cond Expr, body *Block) *While {
-	f := &While{
+func NewWhile(cond Expr, body *Block) *While {
+	return &While{
 		Condition: cond,
 		Body:      body,
 	}
-	c.at.Stmts = append(c.at.Stmts, f)
-	return f
 }
 
+func (*While) stmt()   {}
 func (*While) local()  {}
 func (*While) global() {}
 
@@ -228,17 +197,16 @@ type For struct {
 	Body      *Block
 }
 
-func (c *Builder) BuildFor(init optional.Optional[*VarDecl], cond optional.Optional[Expr], action optional.Optional[Expr], body *Block) *For {
-	f := &For{
+func NewFor(init optional.Optional[*VarDecl], cond optional.Optional[Expr], action optional.Optional[Expr], body *Block) *For {
+	return &For{
 		Init:      init,
 		Condition: cond,
 		Action:    action,
 		Body:      body,
 	}
-	c.at.Stmts = append(c.at.Stmts, f)
-	return f
 }
 
+func (*For) stmt()   {}
 func (*For) local()  {}
 func (*For) global() {}
 

@@ -16,6 +16,10 @@ func (p *Param) print(pr *printer) {
 	p.Type.printWithName(pr, p.Name)
 }
 
+func (p *Param) SetName(s string) {
+	p.Name = s
+}
+
 func (p *Param) GetName() string {
 	return p.Name
 }

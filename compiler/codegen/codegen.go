@@ -26,12 +26,12 @@ func New() *CodeGenerator {
 }
 
 func (c *CodeGenerator) Generate(program *stmts.Program) *cir.Builder {
-	c.buildProgram(program)
+	c.genProgram(program)
 	return c.builder
 }
 
-func (c *CodeGenerator) buildProgram(program *stmts.Program) {
+func (c *CodeGenerator) genProgram(program *stmts.Program) {
 	for _, g := range program.Globals {
-		c.buildGlobal(g)
+		c.genGlobal(g)
 	}
 }

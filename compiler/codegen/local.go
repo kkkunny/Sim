@@ -12,80 +12,80 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (c *CodeGenerator) buildLocal(local stmts.Local) {
+func (c *CodeGenerator) genLocal(local stmts.Local) {
 	switch local := local.(type) {
 	case *stmts.Block:
-		c.buildBlock(local, nil)
+		c.genBlock(local, nil)
 	case *stmts.Return:
-		c.buildReturn(local)
+		c.genReturn(local)
 	case *stmts.Let:
-		c.buildLocalLet(local)
+		c.genLocalLet(local)
 	case stmts.Expr:
-		c.builder.BuildExpr(c.buildExpr(local))
+		cir.BuildStmt(c.builder, cir.NewExpr(c.genExpr(local)))
 	case *stmts.If:
-		c.buildIf(local, true)
+		c.genIf(local, true)
 	case *stmts.While:
-		c.buildWhile(local)
+		c.genWhile(local)
 	case *stmts.For:
-		c.buildFor(local)
+		c.genFor(local)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *CodeGenerator) buildBlock(b *stmts.Block, initFn func()) *cir.Block {
+func (c *CodeGenerator) genBlock(b *stmts.Block, initFn func()) *cir.Block {
 	prevBlock, _ := c.builder.CurrentAt()
-	block := c.builder.BuildBlock()
+	block := cir.BuildStmt(c.builder, cir.NewBlock())
 	c.builder.MoveTo(block)
 	if initFn != nil {
 		initFn()
 	}
 	for _, s := range b.Stmts {
-		c.buildLocal(s)
+		c.genLocal(s)
 	}
 	c.builder.MoveTo(prevBlock)
 	return block
 }
 
-func (c *CodeGenerator) buildFlatBlock(b *stmts.Block, initFn func()) *cir.Block {
+func (c *CodeGenerator) genFlatBlock(b *stmts.Block, initFn func()) *cir.Block {
 	prevBlock, _ := c.builder.CurrentAt()
-	block := &cir.Block{}
+	block := cir.NewBlock()
 	c.builder.MoveTo(block)
 	if initFn != nil {
 		initFn()
 	}
 	for _, s := range b.Stmts {
-		c.buildLocal(s)
+		c.genLocal(s)
 	}
 	c.builder.MoveTo(prevBlock)
 	return block
 }
 
-func (c *CodeGenerator) buildReturn(local *stmts.Return) *cir.Return {
+func (c *CodeGenerator) genReturn(local *stmts.Return) *cir.Return {
 	if v, ok := local.Value.Value(); ok {
-		return c.builder.BuildReturn(c.buildExpr(v))
+		return cir.BuildStmt(c.builder, cir.NewReturn(c.genExpr(v)))
 	} else {
-		return c.builder.BuildReturn()
+		return cir.BuildStmt(c.builder, cir.NewReturn())
 	}
 }
 
-func (c *CodeGenerator) buildLocalLet(local *stmts.Let) *cir.VarDecl {
-	typ := c.buildType(local.Value.GetType())
-	value := c.buildExpr(local.Value)
-	v := c.builder.BuildVarDecl(typ, "", value)
+func (c *CodeGenerator) genLocalLet(local *stmts.Let) *cir.VarDecl {
+	typ := c.genType(local.Value.GetType())
+	value := c.genExpr(local.Value)
+	v := cir.BuildStmt(c.builder, cir.NewVarDecl(typ, "", value))
 	c.idents[local] = v
 	return v
 }
 
-func (c *CodeGenerator) buildIf(l *stmts.If, isRoot bool) *cir.If {
-	cond := c.buildExpr(l.Condition)
-	body := c.buildFlatBlock(l.Body, nil)
+func (c *CodeGenerator) genIf(l *stmts.If, isRoot bool) *cir.If {
+	cond := c.genExpr(l.Condition)
+	body := c.genFlatBlock(l.Body, nil)
 	var next []either.Either[*cir.If, *cir.Block]
 	if nextIf, ok := l.Else.Value(); ok {
 		if elseif, ok := nextIf.TryLeft(); ok {
-			next = append(next, either.Left[*cir.If, *cir.Block](c.buildIf(elseif, false)))
+			next = append(next, either.Left[*cir.If, *cir.Block](c.genIf(elseif, false)))
 		} else {
-			next = append(next, either.Right[*cir.If, *cir.Block](c.buildFlatBlock(nextIf.Right(), nil)))
+			next = append(next, either.Right[*cir.If, *cir.Block](c.genFlatBlock(nextIf.Right(), nil)))
 		}
 	}
 
@@ -96,28 +96,28 @@ func (c *CodeGenerator) buildIf(l *stmts.If, isRoot bool) *cir.If {
 			Else:      optional.UnEmpty(stlslices.Last(next)),
 		}
 	}
-	return c.builder.BuildIf(cond, body, next...)
+	return cir.BuildStmt(c.builder, cir.NewIf(cond, body, next...))
 }
 
-func (c *CodeGenerator) buildWhile(l *stmts.While) *cir.While {
-	cond := c.buildExpr(l.Condition)
-	body := c.buildFlatBlock(l.Body, nil)
-	return c.builder.BuildWhile(cond, body)
+func (c *CodeGenerator) genWhile(l *stmts.While) *cir.While {
+	cond := c.genExpr(l.Condition)
+	body := c.genFlatBlock(l.Body, nil)
+	return cir.BuildStmt(c.builder, cir.NewWhile(cond, body))
 }
 
-func (c *CodeGenerator) buildFor(l *stmts.For) *cir.For {
-	init := c.builder.BuildVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0)))
-	rangv := c.buildExpr(l.Range)
+func (c *CodeGenerator) genFor(l *stmts.For) *cir.For {
+	init := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0))))
+	rangv := c.genExpr(l.Range)
 	if l.Range.Temporary() {
-		rangvar := c.builder.BuildVarDecl(c.buildType(l.Range.GetType()), "", rangv)
+		rangvar := cir.BuildStmt(c.builder, cir.NewVarDecl(c.genType(l.Range.GetType()), "", rangv))
 		rangv = cir.NewIdentExpr(rangvar.Name)
 	}
 	at := l.Range.GetType().(types.ArrayType)
 	cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(at.GetSize()))
 	action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
-	body := c.buildFlatBlock(l.Body, func() {
-		v := c.builder.BuildVarDecl(c.buildType(at), "", cir.NewOffset(cir.NewGetMember(rangv, "array"), cir.NewIdentExpr(init.Name)))
+	body := c.genFlatBlock(l.Body, func() {
+		v := cir.BuildStmt(c.builder, cir.NewVarDecl(c.genType(at), "", cir.NewOffset(cir.NewGetMember(rangv, "array"), cir.NewIdentExpr(init.Name))))
 		c.idents[l.Var] = v
 	})
-	return c.builder.BuildFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), body)
+	return cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), body))
 }
