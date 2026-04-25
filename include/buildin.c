@@ -243,6 +243,9 @@ const bool false = 1!=1;
 #define ARRAY_TYPE(elem, size) struct{elem array[size];}
 #define ARRAY_INDEX(a, i) a.array[i]
 
+// 元组
+#define TUPLE_INDEX(t, i) t.e##i
+
 // 主函数
 static void sim_main();
 int main(){
