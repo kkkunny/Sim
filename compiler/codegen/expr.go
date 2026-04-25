@@ -315,17 +315,16 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 			cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.GetSize()))
 			action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
 			loopBlock := c.buildBlock(true, func() {
-				et := c.genType(t.GetElem())
-				lv := cir.BuildStmt(c.builder, cir.NewVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("x"), "array"), cir.NewIdentExpr(init.Name))))
-				rv := cir.BuildStmt(c.builder, cir.NewVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("y"), "array"), cir.NewIdentExpr(init.Name))))
-				ifcond := c.genEqual(true, t.GetElem(), cir.NewIdentExpr(lv.Name), cir.NewIdentExpr(rv.Name))
+				lv := cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("x"), "array"), cir.NewIdentExpr(init.Name))
+				rv := cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("y"), "array"), cir.NewIdentExpr(init.Name))
+				ifcond := c.genEqual(true, t.GetElem(), lv, rv)
 				ifBlock := c.buildBlock(true, func() {
-					cir.BuildStmt(c.builder, cir.NewReturn(cir.False))
+					cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.False, cir.True)))
 				})
 				cir.BuildStmt(c.builder, cir.NewIf(ifcond, ifBlock))
 			})
 			cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), loopBlock))
-			cir.BuildStmt(c.builder, cir.NewReturn(cir.True))
+			cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.True, cir.False)))
 		}))
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.TupleType:
