@@ -89,3 +89,14 @@ func (a *Analyzer) analyzeTypeWithUnit(t ast.Type) types.Type {
 	}
 	return a.analyzeType(t)
 }
+
+func (a *Analyzer) analyzeFuncDecl(f *ast.Func) types.FuncType {
+	var returnType types.Type = types.Unit
+	if rtAst, ok := f.ReturnType.Value(); ok {
+		returnType = a.analyzeTypeWithUnit(rtAst)
+	}
+	params := stlslices.Map(f.Params, func(_ int, p *ast.ParamDecl) types.Type {
+		return a.analyzeType(p.Type)
+	})
+	return types.NewFuncType(returnType, params...)
+}

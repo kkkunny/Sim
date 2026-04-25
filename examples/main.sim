@@ -1,4 +1,3 @@
 let a = () -> bool {
-	let i: i32 | i64 | [2]i32
-	return i != i
+	return a()
 }
