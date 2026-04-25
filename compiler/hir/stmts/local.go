@@ -90,8 +90,8 @@ func (l *Let) GetType() types.Type {
 	return l.Value.GetType()
 }
 
-func (e *Let) Mutable() bool {
-	return e.Mut
+func (l *Let) Mutable() bool {
+	return l.Mut
 }
 
 type If struct {
