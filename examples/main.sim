@@ -1,3 +1,6 @@
 let a = () -> bool {
 	return a()
 }
+let a = () -> bool {
+	return a()
+}
