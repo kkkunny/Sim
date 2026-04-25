@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
@@ -78,8 +77,8 @@ func (c *CodeGenerator) genNativeFuncType(t types.FuncType) *cir.FuncType {
 	}
 }
 
-// 函数指针类型
-func (c *CodeGenerator) genFuncPointerType(t types.FuncType) *cir.AliasType {
+// 函数胖类型，用于变量定义、赋值
+func (c *CodeGenerator) genFuncType(t types.FuncType) *cir.AliasType {
 	key := t.String()
 	at, ok := c.typeCache[key]
 	if ok {
@@ -87,25 +86,10 @@ func (c *CodeGenerator) genFuncPointerType(t types.FuncType) *cir.AliasType {
 	}
 
 	ft := c.genNativeFuncType(t)
-	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewPointerType(ft), "")))
+
+	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewMacroType("FUNC_TYPE", append([]any{ft.Return}, stlslices.AsAny(ft.Params)...)...), "")))
 	c.typeCache[key] = at
 	return at
-}
-
-// 函数胖类型，用于变量定义、赋值
-func (c *CodeGenerator) genFuncType(t types.FuncType) *cir.MacroType {
-	ft := c.genFuncPointerType(t)
-
-	key := fmt.Sprintf("closure:%s", t)
-	ct, ok := c.typeCache[key]
-	if !ok {
-		nativeFt := stlval.Ptr(*ft.Def.Type.(*cir.PointerType).Elem.(*cir.FuncType))
-		nativeFt.Params = append([]cir.Type{cir.VoidPtr}, nativeFt.Params...)
-		ct = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewPointerType(nativeFt), "")))
-		c.typeCache[key] = ct
-	}
-
-	return cir.NewMacroType("FUNCTYPE", ft, ct)
 }
 
 func (c *CodeGenerator) genTupleType(t types.TupleType) *cir.StructType {
