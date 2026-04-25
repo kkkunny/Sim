@@ -180,6 +180,12 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.
 	case token.KindEnum.Xor:
 		op = stmts.BinaryOpEnum.Xor
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
+	case token.KindEnum.Shl:
+		op = stmts.BinaryOpEnum.Shl
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
+	case token.KindEnum.Shr:
+		op = stmts.BinaryOpEnum.Shr
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Eq:
 		op = stmts.BinaryOpEnum.Eq
 		left = a.analyzeExpr(expr.Left, expect...)
@@ -225,6 +231,12 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.
 	case token.KindEnum.XorAssign:
 		op = stmts.BinaryOpEnum.XorAssign
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
+	case token.KindEnum.ShlAssign:
+		op = stmts.BinaryOpEnum.ShlAssign
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
+	case token.KindEnum.ShrAssign:
+		op = stmts.BinaryOpEnum.ShrAssign
+		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	default:
 		panic("unreachable")
 	}
@@ -241,6 +253,8 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.
 			token.KindEnum.AndAssign,
 			token.KindEnum.OrAssign,
 			token.KindEnum.XorAssign,
+			token.KindEnum.ShlAssign,
+			token.KindEnum.ShrAssign,
 		},
 		expr.Op.Kind,
 	) {

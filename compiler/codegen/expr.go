@@ -84,34 +84,29 @@ func (c *CodeGenerator) genUnary(expr stmts.Unary) *cir.Unary {
 	}
 }
 
+var AssignOp2BinaryOp = map[stmts.BinaryOp]cir.BinaryOp{
+	stmts.BinaryOpEnum.AddAssign: cir.BinaryOpEnum.Add,
+	stmts.BinaryOpEnum.SubAssign: cir.BinaryOpEnum.Sub,
+	stmts.BinaryOpEnum.MulAssign: cir.BinaryOpEnum.Mul,
+	stmts.BinaryOpEnum.QuoAssign: cir.BinaryOpEnum.Quo,
+	stmts.BinaryOpEnum.RemAssign: cir.BinaryOpEnum.Rem,
+	stmts.BinaryOpEnum.AndAssign: cir.BinaryOpEnum.And,
+	stmts.BinaryOpEnum.OrAssign:  cir.BinaryOpEnum.Or,
+	stmts.BinaryOpEnum.XorAssign: cir.BinaryOpEnum.Xor,
+	stmts.BinaryOpEnum.ShlAssign: cir.BinaryOpEnum.Shl,
+	stmts.BinaryOpEnum.ShrAssign: cir.BinaryOpEnum.Shr,
+}
+
 func (c *CodeGenerator) genBinary(expr *stmts.Binary) cir.Expr {
 	left, right := c.genExpr(expr.Left), c.genExpr(expr.Right)
-	var assignOp cir.AssignOp
-	switch expr.Op {
-	case stmts.BinaryOpEnum.Assign:
-		assignOp = cir.AssignOpEnum.Assign
-	case stmts.BinaryOpEnum.AddAssign:
-		assignOp = cir.AssignOpEnum.AddAssign
-	case stmts.BinaryOpEnum.SubAssign:
-		assignOp = cir.AssignOpEnum.SubAssign
-	case stmts.BinaryOpEnum.MulAssign:
-		assignOp = cir.AssignOpEnum.MulAssign
-	case stmts.BinaryOpEnum.QuoAssign:
-		assignOp = cir.AssignOpEnum.QuoAssign
-	case stmts.BinaryOpEnum.RemAssign:
-		assignOp = cir.AssignOpEnum.RemAssign
-	case stmts.BinaryOpEnum.AndAssign:
-		assignOp = cir.AssignOpEnum.AndAssign
-	case stmts.BinaryOpEnum.OrAssign:
-		assignOp = cir.AssignOpEnum.OrAssign
-	case stmts.BinaryOpEnum.XorAssign:
-		assignOp = cir.AssignOpEnum.XorAssign
-	}
-	if assignOp != "" {
-		return cir.NewAssign(assignOp, left, right)
+
+	op, ok := AssignOp2BinaryOp[expr.Op]
+	if ok {
+		return cir.NewAssign(left, cir.NewBinary(op, left, right))
+	} else if expr.Op == stmts.BinaryOpEnum.Assign {
+		return cir.NewAssign(left, right)
 	}
 
-	var op cir.BinaryOp
 	switch expr.Op {
 	case stmts.BinaryOpEnum.Add:
 		op = cir.BinaryOpEnum.Add
@@ -129,6 +124,10 @@ func (c *CodeGenerator) genBinary(expr *stmts.Binary) cir.Expr {
 		op = cir.BinaryOpEnum.Or
 	case stmts.BinaryOpEnum.Xor:
 		op = cir.BinaryOpEnum.Xor
+	case stmts.BinaryOpEnum.Shl:
+		op = cir.BinaryOpEnum.Shl
+	case stmts.BinaryOpEnum.Shr:
+		op = cir.BinaryOpEnum.Shr
 	case stmts.BinaryOpEnum.Eq:
 		return c.genEqual(false, expr.Left.GetType(), left, right)
 	case stmts.BinaryOpEnum.Neq:
