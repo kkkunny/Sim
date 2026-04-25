@@ -159,12 +159,7 @@ func (c *CodeGenerator) genNativeFunc(expr *stmts.Func) *cir.FuncExpr {
 	if b, ok := expr.Body.Value(); ok {
 		prevFunc := c.currentFunc
 		c.currentFunc = expr
-		savedVarCount := c.builder.SaveFuncVarCount()
-		prevBlock, _ := c.builder.CurrentAt()
-		c.builder.MoveTo(nil)
-		body = optional.Some(c.genBlock(b, nil))
-		c.builder.MoveTo(prevBlock)
-		c.builder.RestoreFuncVarCount(savedVarCount)
+		body = optional.Some(c.genFuncBlock(b, nil))
 		c.currentFunc = prevFunc
 	}
 
@@ -203,12 +198,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 	if b, ok := expr.Body.Value(); ok {
 		prevFunc := c.currentFunc
 		c.currentFunc = expr
-		savedVarCount := c.builder.SaveFuncVarCount()
-		prevBlock, _ := c.builder.CurrentAt()
-		c.builder.MoveTo(nil)
-		body = optional.Some(c.genBlock(b, initBodyFn))
-		c.builder.MoveTo(prevBlock)
-		c.builder.RestoreFuncVarCount(savedVarCount)
+		body = optional.Some(c.genFuncBlock(b, initBodyFn))
 		c.currentFunc = prevFunc
 	}
 
@@ -320,36 +310,23 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 	case types.ArrayType:
 		at := c.genType(t)
 		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", at), cir.NewParam("y", at)))
-		savedVarCount := c.builder.SaveFuncVarCount()
-		prevBlock, _ := c.builder.CurrentAt()
-		block := cir.NewBlock()
-		f.Body = optional.Some(block)
-		c.builder.MoveTo(block)
-
-		init := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0))))
-		cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.GetSize()))
-		action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
-		loopBlock := cir.NewBlock()
-		c.builder.MoveTo(loopBlock)
-
-		et := c.genType(t.GetElem())
-		lv := cir.BuildStmt(c.builder, cir.NewVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("x"), "array"), cir.NewIdentExpr(init.Name))))
-		rv := cir.BuildStmt(c.builder, cir.NewVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("y"), "array"), cir.NewIdentExpr(init.Name))))
-		ifcond := c.genEqual(true, t.GetElem(), cir.NewIdentExpr(lv.Name), cir.NewIdentExpr(rv.Name))
-		ifBlock := cir.NewBlock()
-		c.builder.MoveTo(ifBlock)
-
-		cir.BuildStmt(c.builder, cir.NewReturn(cir.False))
-
-		c.builder.MoveTo(loopBlock)
-		cir.BuildStmt(c.builder, cir.NewIf(ifcond, ifBlock))
-
-		c.builder.MoveTo(block)
-		cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), loopBlock))
-		cir.BuildStmt(c.builder, cir.NewReturn(cir.True))
-
-		c.builder.MoveTo(prevBlock)
-		c.builder.RestoreFuncVarCount(savedVarCount)
+		f.Body = optional.Some(c.buildFuncBlock(func() {
+			init := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0))))
+			cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.GetSize()))
+			action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
+			loopBlock := c.buildBlock(true, func() {
+				et := c.genType(t.GetElem())
+				lv := cir.BuildStmt(c.builder, cir.NewVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("x"), "array"), cir.NewIdentExpr(init.Name))))
+				rv := cir.BuildStmt(c.builder, cir.NewVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("y"), "array"), cir.NewIdentExpr(init.Name))))
+				ifcond := c.genEqual(true, t.GetElem(), cir.NewIdentExpr(lv.Name), cir.NewIdentExpr(rv.Name))
+				ifBlock := c.buildBlock(true, func() {
+					cir.BuildStmt(c.builder, cir.NewReturn(cir.False))
+				})
+				cir.BuildStmt(c.builder, cir.NewIf(ifcond, ifBlock))
+			})
+			cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), loopBlock))
+			cir.BuildStmt(c.builder, cir.NewReturn(cir.True))
+		}))
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.TupleType:
 		// TODO
