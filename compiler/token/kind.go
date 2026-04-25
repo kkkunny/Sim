@@ -31,12 +31,14 @@ var KindEnum = enum.New[struct {
 	Shl Kind `text:"<<"`
 	Shr Kind `text:">>"`
 
-	Eq  Kind `text:"=="`
-	Neq Kind `text:"!="`
-	Lt  Kind `text:"<"`
-	Lte Kind `text:"<="`
-	Gt  Kind `text:">"`
-	Gte Kind `text:">="`
+	Eq       Kind `text:"=="`
+	Neq      Kind `text:"!="`
+	Lt       Kind `text:"<"`
+	Lte      Kind `text:"<="`
+	Gt       Kind `text:">"`
+	Gte      Kind `text:">="`
+	LogicAnd Kind `text:"&&"`
+	LogicOr  Kind `text:"||"`
 
 	Assign    Kind `text:"="`
 	AddAssign Kind `text:"+="`
@@ -113,20 +115,24 @@ func (k Kind) String() string {
 func (k Kind) Priority() int {
 	switch k {
 	case KindEnum.Mul, KindEnum.Quo, KindEnum.Rem:
-		return 9
+		return 11
 	case KindEnum.Add, KindEnum.Sub:
-		return 8
+		return 10
 	case KindEnum.Shl, KindEnum.Shr:
-		return 7
+		return 9
 	case KindEnum.Lt, KindEnum.Lte, KindEnum.Gt, KindEnum.Gte:
-		return 6
+		return 8
 	case KindEnum.Eq, KindEnum.Neq:
-		return 5
+		return 7
 	case KindEnum.And:
-		return 4
+		return 6
 	case KindEnum.Xor:
-		return 3
+		return 5
 	case KindEnum.Or:
+		return 4
+	case KindEnum.LogicAnd:
+		return 3
+	case KindEnum.LogicOr:
 		return 2
 	case KindEnum.Assign, KindEnum.AddAssign, KindEnum.SubAssign, KindEnum.MulAssign, KindEnum.QuoAssign,
 		KindEnum.RemAssign, KindEnum.AndAssign, KindEnum.OrAssign, KindEnum.XorAssign, KindEnum.ShlAssign, KindEnum.ShrAssign:
