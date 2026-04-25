@@ -1,7 +1,4 @@
 let a = () -> bool {
 	let arr = [1, 2, 3] as [3]i32
-	for mut a in arr {
-		return true
-	}
-	return false
+	return arr == [1, 2, 3]
 }
