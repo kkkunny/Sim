@@ -1,6 +1,7 @@
 package cir
 
 import (
+	"fmt"
 	"math/big"
 
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -133,10 +134,10 @@ var (
 
 type MacroType struct {
 	Name string
-	Args []Type
+	Args []any
 }
 
-func NewMacroType(name string, args ...Type) *MacroType {
+func NewMacroType(name string, args ...any) *MacroType {
 	return &MacroType{Name: name, Args: args}
 }
 
@@ -149,7 +150,11 @@ func (t *MacroType) print(p *printer) {
 	if len(t.Args) > 0 {
 		p.WriteString("(")
 		for i, arg := range t.Args {
-			p.WriteBy(arg)
+			if pp, ok := arg.(printWriter); ok {
+				p.WriteBy(pp)
+			} else {
+				p.WriteString(fmt.Sprintf("%v", arg))
+			}
 			if i < len(t.Args)-1 {
 				p.WriteString(", ")
 			}

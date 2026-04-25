@@ -231,6 +231,10 @@ const bool false = 1!=1;
 #define FUNCEXPR_C(expr, ctxv) {.func.c=expr, .ctx=ctxv}
 #define FUNCCALL(expr, ...) expr.ctx==NULL?expr.func.f(__VA_ARGS__):expr.func.c(expr.ctx, __VA_ARGS__)
 
+// 数组
+#define ARRAY_TYPE(elem, size) struct{elem array[size];}
+#define ARRAY_INDEX(a, i) a.array[i]
+
 // 主函数
 static void sim_main();
 int main(){
