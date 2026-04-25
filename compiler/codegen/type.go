@@ -92,14 +92,22 @@ func (c *CodeGenerator) genFuncType(t types.FuncType) *cir.AliasType {
 	return at
 }
 
-func (c *CodeGenerator) genTupleType(t types.TupleType) *cir.StructType {
+func (c *CodeGenerator) genTupleType(t types.TupleType) *cir.AliasType {
+	key := t.String()
+	at, ok := c.typeCache[key]
+	if ok {
+		return at
+	}
+
 	fields := make([]*cir.Member, len(t.GetElems()))
 	for i, e := range t.GetElems() {
-		fn := fmt.Sprintf("_f%d", i+1)
+		fn := fmt.Sprintf("e%d", i+1)
 		ft := c.genType(e)
 		fields[i] = cir.NewMember(ft, fn)
 	}
-	return cir.NewStructType("", fields...)
+	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewStructType("", fields...), "")))
+	c.typeCache[key] = at
+	return at
 }
 
 func (c *CodeGenerator) genArrayType(t types.ArrayType) *cir.AliasType {

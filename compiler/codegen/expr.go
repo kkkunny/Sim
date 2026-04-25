@@ -35,11 +35,14 @@ func (c *CodeGenerator) genExpr(expr stmts.Expr) cir.Expr {
 	case *stmts.Tuple:
 		return c.genTuple(expr)
 	case *stmts.TupleIndex:
-		return c.genTupleIndex(expr)
+		from := c.genExpr(expr.From)
+		return c.buildTupleIndex(from, expr.Index.Add(expr.Index, big.NewInt(1)))
 	case *stmts.Array:
 		return c.genArray(expr)
 	case *stmts.ArrayIndex:
-		return c.genArrayIndex(expr)
+		from := c.genExpr(expr.From)
+		offset := c.genExpr(expr.Index)
+		return c.buildArrayIndex(from, offset)
 	case stmts.Covert:
 		return c.genCovert(expr)
 	case *stmts.Ternary:
@@ -254,11 +257,6 @@ func (c *CodeGenerator) genTuple(expr *stmts.Tuple) *cir.Struct {
 	return cir.NewStruct(fields, t)
 }
 
-func (c *CodeGenerator) genTupleIndex(expr *stmts.TupleIndex) *cir.GetMember {
-	from := c.genExpr(expr.From)
-	return cir.NewGetMember(from, fmt.Sprintf("_f%d", expr.Index.Int64()+1))
-}
-
 func (c *CodeGenerator) genArray(expr *stmts.Array) *cir.Struct {
 	at := c.genType(expr.GetType())
 	if len(expr.Elems) == 0 {
@@ -271,12 +269,6 @@ func (c *CodeGenerator) genArray(expr *stmts.Array) *cir.Struct {
 	return cir.NewStruct(map[string]cir.Expr{
 		"array": cir.NewArray(elems),
 	}, at)
-}
-
-func (c *CodeGenerator) genArrayIndex(expr *stmts.ArrayIndex) *cir.Offset {
-	from := c.genExpr(expr.From)
-	offset := c.genExpr(expr.Index)
-	return cir.NewOffset(cir.NewGetMember(from, "array"), offset)
 }
 
 func (c *CodeGenerator) genCovert(expr stmts.Covert) cir.Expr {
@@ -329,8 +321,21 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 		}))
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.TupleType:
-		// TODO
-		panic("unreachable")
+		tt := c.genType(t)
+		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", tt), cir.NewParam("y", tt)))
+		f.Body = optional.Some(c.buildFuncBlock(func() {
+			for i, et := range t.GetElems() {
+				lv := c.buildTupleIndex(cir.NewIdentExpr("x"), big.NewInt(int64(i)))
+				rv := c.buildTupleIndex(cir.NewIdentExpr("y"), big.NewInt(int64(i)))
+				ifcond := c.genEqual(true, et, lv, rv)
+				ifBlock := c.buildBlock(true, func() {
+					cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.False, cir.True)))
+				})
+				cir.BuildStmt(c.builder, cir.NewIf(ifcond, ifBlock))
+			}
+			cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.True, cir.False)))
+		}))
+		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.FuncType:
 		ft := c.genType(t)
 		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", ft), cir.NewParam("y", ft)))
@@ -348,4 +353,8 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 
 func (c *CodeGenerator) buildArrayIndex(array, index cir.Expr) cir.Expr {
 	return cir.NewMacroExpr("ARRAY_INDEX", array, index)
+}
+
+func (c *CodeGenerator) buildTupleIndex(tuple cir.Expr, index *big.Int) cir.Expr {
+	return cir.NewMacroExpr("TUPLE_INDEX", tuple, index)
 }
