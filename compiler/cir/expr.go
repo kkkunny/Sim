@@ -1,6 +1,7 @@
 package cir
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/kkkunny/stl/container/optional"
@@ -142,10 +143,10 @@ var (
 
 type MacroExpr struct {
 	Name string
-	Args []Expr
+	Args []any
 }
 
-func NewMacroExpr(name string, args ...Expr) *MacroExpr {
+func NewMacroExpr(name string, args ...any) *MacroExpr {
 	return &MacroExpr{
 		Name: name,
 		Args: args,
@@ -159,7 +160,11 @@ func (e *MacroExpr) print(p *printer) {
 	if len(e.Args) > 0 {
 		p.WriteString("(")
 		for i, arg := range e.Args {
-			p.WriteBy(arg)
+			if pp, ok := arg.(printWriter); ok {
+				p.WriteBy(pp)
+			} else {
+				p.WriteString(fmt.Sprintf("%v", arg))
+			}
 			if i < len(e.Args)-1 {
 				p.WriteString(", ")
 			}

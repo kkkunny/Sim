@@ -233,11 +233,12 @@ func (c *CodeGenerator) genCall(expr *stmts.Call) cir.Expr {
 		return c.genExpr(argExpr)
 	})
 	if macroF, ok := f.(*cir.MacroExpr); ok && macroF.Name == "FUNCEXPR_F" {
-		return cir.NewCall(macroF.Args[0], args...)
+		return cir.NewCall(macroF.Args[0].(cir.Expr), args...)
 	} else if ok && macroF.Name == "FUNCEXPR_C" {
-		return cir.NewCall(macroF.Args[0], append([]cir.Expr{macroF.Args[1]}, args...)...)
+		return cir.NewCall(macroF.Args[0].(cir.Expr), append([]cir.Expr{macroF.Args[1].(cir.Expr)}, args...)...)
 	}
-	return cir.NewMacroExpr("FUNCCALL", append([]cir.Expr{f}, args...)...)
+	call := cir.NewMacroExpr("FUNCCALL", append([]any{f}, stlslices.Map(args, func(_ int, a cir.Expr) any { return a })...)...)
+	return call
 }
 
 func (c *CodeGenerator) genTuple(expr *stmts.Tuple) *cir.Struct {
@@ -315,8 +316,8 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 			cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.GetSize()))
 			action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
 			loopBlock := c.buildBlock(true, func() {
-				lv := cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("x"), "array"), cir.NewIdentExpr(init.Name))
-				rv := cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("y"), "array"), cir.NewIdentExpr(init.Name))
+				lv := c.buildArrayIndex(cir.NewIdentExpr("x"), cir.NewIdentExpr(init.Name))
+				rv := c.buildArrayIndex(cir.NewIdentExpr("y"), cir.NewIdentExpr(init.Name))
 				ifcond := c.genEqual(true, t.GetElem(), lv, rv)
 				ifBlock := c.buildBlock(true, func() {
 					cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.False, cir.True)))
@@ -339,4 +340,8 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 	default:
 		panic("unreachable")
 	}
+}
+
+func (c *CodeGenerator) buildArrayIndex(array, index cir.Expr) cir.Expr {
+	return cir.NewMacroExpr("ARRAY_INDEX", array, index)
 }

@@ -136,7 +136,7 @@ func (c *CodeGenerator) genFor(l *stmts.For) *cir.For {
 	cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(at.GetSize()))
 	action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
 	body := c.genBlock(true, l.Body, func() {
-		v := cir.BuildStmt(c.builder, cir.NewVarDecl(c.genType(at), "", cir.NewOffset(cir.NewGetMember(rangv, "array"), cir.NewIdentExpr(init.Name))))
+		v := cir.BuildStmt(c.builder, cir.NewVarDecl(c.genType(at), "", c.buildArrayIndex(rangv, cir.NewIdentExpr(init.Name))))
 		c.idents[l.Var] = v
 	})
 	return cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), body))

@@ -126,7 +126,7 @@ func (c *CodeGenerator) genArrayType(t types.ArrayType) *cir.AliasType {
 	}
 
 	elem := c.genType(t.GetElem())
-	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewStructType("", cir.NewMember(cir.NewArrayType(elem, t.GetSize()), "array")), "")))
+	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewMacroType("ARRAY_TYPE", elem, cir.NewInteger(t.GetSize())), "")))
 	c.typeCache[key] = at
 	return at
 }
