@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/gookit/color v1.5.4
-	github.com/kkkunny/stl v0.0.0-20260419043926-054b0441b9a5
+	github.com/kkkunny/stl v0.0.0-20260425101325-0c7dcae4bfab
 )
 
 require golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect

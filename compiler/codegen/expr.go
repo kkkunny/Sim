@@ -61,7 +61,7 @@ func (c *CodeGenerator) genIdentExpr(expr *stmts.IdentExpr) cir.Expr {
 	}
 
 	if let, ok := expr.Define.(*stmts.Let); ok && stlval.Is[*stmts.Func](let.Value) {
-		return cir.NewMacroExpr("FUNCEXPR_F", value)
+		return cir.NewMacroExpr("FUNC_EXPR_F", value)
 	}
 	return value
 }
@@ -214,7 +214,7 @@ func (c *CodeGenerator) genFunc(expr *stmts.Func) *cir.MacroExpr {
 	var f *cir.FuncExpr
 	if len(captureVars) == 0 {
 		f = c.genNativeFunc(expr)
-		return cir.NewMacroExpr("FUNCEXPR_F", &cir.IdentExpr{Name: f.Decl.Name})
+		return cir.NewMacroExpr("FUNC_EXPR_F", &cir.IdentExpr{Name: f.Decl.Name})
 	} else {
 		var ctxT *cir.Typedef
 		ctxT, f = c.genNativeClosureFunc(expr, captureVars)
@@ -223,7 +223,7 @@ func (c *CodeGenerator) genFunc(expr *stmts.Func) *cir.MacroExpr {
 			fields[fmt.Sprintf("_f%d", i+1)] = c.genExpr(stmts.NewIdentExpr(cv))
 		}
 		ctx := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.NewAliasType(ctxT), "", cir.NewStruct(fields)))
-		return cir.NewMacroExpr("FUNCEXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnary(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
+		return cir.NewMacroExpr("FUNC_EXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnary(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
 	}
 }
 
@@ -232,12 +232,12 @@ func (c *CodeGenerator) genCall(expr *stmts.Call) cir.Expr {
 	args := stlslices.Map(expr.Args, func(_ int, argExpr stmts.Expr) cir.Expr {
 		return c.genExpr(argExpr)
 	})
-	if macroF, ok := f.(*cir.MacroExpr); ok && macroF.Name == "FUNCEXPR_F" {
+	if macroF, ok := f.(*cir.MacroExpr); ok && macroF.Name == "FUNC_EXPR_F" {
 		return cir.NewCall(macroF.Args[0].(cir.Expr), args...)
-	} else if ok && macroF.Name == "FUNCEXPR_C" {
+	} else if ok && macroF.Name == "FUNC_EXPR_C" {
 		return cir.NewCall(macroF.Args[0].(cir.Expr), append([]cir.Expr{macroF.Args[1].(cir.Expr)}, args...)...)
 	}
-	call := cir.NewMacroExpr("FUNCCALL", append([]any{f}, stlslices.Map(args, func(_ int, a cir.Expr) any { return a })...)...)
+	call := cir.NewMacroExpr("FUNC_CALL", append([]any{f}, stlslices.AsAny(args)...)...)
 	return call
 }
 
@@ -332,8 +332,12 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 		// TODO
 		panic("unreachable")
 	case types.FuncType:
-		// TODO
-		panic("unreachable")
+		ft := c.genType(t)
+		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", ft), cir.NewParam("y", ft)))
+		f.Body = optional.Some(c.buildFuncBlock(func() {
+			cir.BuildStmt(c.builder, cir.NewReturn(cir.NewMacroExpr(stlval.If(!not, "FUNC_EQ", "FUNC_NEQ"), cir.NewIdentExpr("x"), cir.NewIdentExpr("y"))))
+		}))
+		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.UnionType:
 		// TODO
 		panic("unreachable")

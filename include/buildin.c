@@ -226,10 +226,18 @@ const bool false = 1!=1;
     f64: x >= y)
 
 // 函数胖指针与闭包
-#define FUNCTYPE(ft, ct) struct{union{ft f; ct c;} func; void* ctx;}
-#define FUNCEXPR_F(expr) {.func.f=expr, .ctx=NULL}
-#define FUNCEXPR_C(expr, ctxv) {.func.c=expr, .ctx=ctxv}
-#define FUNCCALL(expr, ...) expr.ctx==NULL?expr.func.f(__VA_ARGS__):expr.func.c(expr.ctx, __VA_ARGS__)
+#define FUNC_TYPE(ret, ...) struct { \
+    union { \
+        ret (*f)(__VA_ARGS__);\
+        ret (*c)(void*, ##__VA_ARGS__);\
+    } func;\
+    void* ctx;\
+}
+#define FUNC_EXPR_F(expr) {.func.f=expr, .ctx=NULL}
+#define FUNC_EXPR_C(expr, ctxv) {.func.c=expr, .ctx=ctxv}
+#define FUNC_CALL(expr, ...) expr.ctx==NULL?expr.func.f(__VA_ARGS__):expr.func.c(expr.ctx, __VA_ARGS__)
+#define FUNC_EQ(x, y) x.ctx == y.ctx && (x.ctx == NULL ? x.func.f == y.func.f : x.func.c == y.func.c)
+#define FUNC_NEQ(x, y) x.ctx != y.ctx || (x.ctx == NULL ? x.func.f != y.func.f : x.func.c != y.func.c)
 
 // 数组
 #define ARRAY_TYPE(elem, size) struct{elem array[size];}
