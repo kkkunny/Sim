@@ -42,7 +42,7 @@ func (a *Analyzer) analyzeLocal(local ast.Local) stmts.Local {
 func (a *Analyzer) analyzeReturn(local *ast.Return) *stmts.Return {
 	ls := a.scope.(scopes.LocalScope)
 	if v, ok := local.Value.Value(); ok {
-		value := a.expectTypeExpr(v, ls.FuncType().Return)
+		value := a.expectTypeExpr(v, ls.FuncType().GetReturn())
 		return stmts.NewReturn(value)
 	} else {
 		return stmts.NewReturn()
@@ -135,8 +135,8 @@ func (a *Analyzer) analyzeWhile(local *ast.While) *stmts.While {
 }
 
 func (a *Analyzer) analyzeFor(local *ast.For) *stmts.For {
-	rangv := expectTypeExpr[*types.ArrayType](a, local.Range)
-	et := rangv.GetType().(*types.ArrayType).Elem
+	rangv := expectTypeExpr[types.ArrayType](a, local.Range)
+	et := rangv.GetType().(types.ArrayType).GetElem()
 	param := stmts.NewParam(local.Mut, et, local.Variable.OriginText)
 
 	a.scope = scopes.NewBlockScope(a.scope)

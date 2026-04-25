@@ -12,10 +12,10 @@ import (
 
 func (c *CodeGenerator) buildType(t types.Type) cir.Type {
 	switch t := t.(type) {
-	case *types.UnitType:
+	case types.UnitType:
 		return cir.Void
-	case *types.SintType:
-		switch t.Bits {
+	case types.SintType:
+		switch t.GetBits() {
 		case 8:
 			return cir.I8
 		case 16:
@@ -27,8 +27,8 @@ func (c *CodeGenerator) buildType(t types.Type) cir.Type {
 		default:
 			panic("unreachable")
 		}
-	case *types.UintType:
-		switch t.Bits {
+	case types.UintType:
+		switch t.GetBits() {
 		case 8:
 			return cir.U8
 		case 16:
@@ -40,8 +40,8 @@ func (c *CodeGenerator) buildType(t types.Type) cir.Type {
 		default:
 			panic("unreachable")
 		}
-	case *types.FloatType:
-		switch t.Bits {
+	case types.FloatType:
+		switch t.GetBits() {
 		case 32:
 			return cir.F32
 		case 64:
@@ -49,27 +49,27 @@ func (c *CodeGenerator) buildType(t types.Type) cir.Type {
 		default:
 			panic("unreachable")
 		}
-	case *types.BooleanType:
+	case types.BooleanType:
 		return cir.Bool
-	case *types.FuncType:
+	case types.FuncType:
 		return c.buildFuncType(t)
-	case *types.TupleType:
+	case types.TupleType:
 		return c.buildTupleType(t)
-	case *types.ArrayType:
+	case types.ArrayType:
 		return c.buildArrayType(t)
-	case *types.UnionType:
+	case types.UnionType:
 		return c.buildUnionType(t)
-	case *types.RefType:
-		return c.buildPointerType(t)
+	case types.RefType:
+		return c.buildRefType(t)
 	default:
 		panic("unreachable")
 	}
 }
 
 // 原生函数类型
-func (c *CodeGenerator) buildNativeFuncType(t *types.FuncType) *cir.FuncType {
-	r := c.buildType(t.Return)
-	ps := stlslices.Map(t.Params, func(i int, e types.Type) cir.Type {
+func (c *CodeGenerator) buildNativeFuncType(t types.FuncType) *cir.FuncType {
+	r := c.buildType(t.GetReturn())
+	ps := stlslices.Map(t.GetParams(), func(i int, e types.Type) cir.Type {
 		return c.buildType(e)
 	})
 	return &cir.FuncType{
@@ -79,7 +79,7 @@ func (c *CodeGenerator) buildNativeFuncType(t *types.FuncType) *cir.FuncType {
 }
 
 // 函数指针类型
-func (c *CodeGenerator) buildFuncPointerType(t *types.FuncType) *cir.AliasType {
+func (c *CodeGenerator) buildFuncPointerType(t types.FuncType) *cir.AliasType {
 	key := t.String()
 	at, ok := c.typeCache[key]
 	if ok {
@@ -93,7 +93,7 @@ func (c *CodeGenerator) buildFuncPointerType(t *types.FuncType) *cir.AliasType {
 }
 
 // 函数胖类型，用于变量定义、赋值
-func (c *CodeGenerator) buildFuncType(t *types.FuncType) *cir.MacroType {
+func (c *CodeGenerator) buildFuncType(t types.FuncType) *cir.MacroType {
 	ft := c.buildFuncPointerType(t)
 
 	key := fmt.Sprintf("closure:%s", t)
@@ -108,9 +108,9 @@ func (c *CodeGenerator) buildFuncType(t *types.FuncType) *cir.MacroType {
 	return cir.NewMacroType("FUNCTYPE", ft, ct)
 }
 
-func (c *CodeGenerator) buildTupleType(t *types.TupleType) *cir.StructType {
-	fields := make([]*cir.Member, len(t.Elems))
-	for i, e := range t.Elems {
+func (c *CodeGenerator) buildTupleType(t types.TupleType) *cir.StructType {
+	fields := make([]*cir.Member, len(t.GetElems()))
+	for i, e := range t.GetElems() {
 		fn := fmt.Sprintf("_f%d", i+1)
 		ft := c.buildType(e)
 		fields[i] = cir.NewMember(ft, fn)
@@ -118,27 +118,27 @@ func (c *CodeGenerator) buildTupleType(t *types.TupleType) *cir.StructType {
 	return cir.NewStructType("", fields...)
 }
 
-func (c *CodeGenerator) buildArrayType(t *types.ArrayType) *cir.AliasType {
+func (c *CodeGenerator) buildArrayType(t types.ArrayType) *cir.AliasType {
 	key := t.String()
 	at, ok := c.typeCache[key]
 	if ok {
 		return at
 	}
 
-	elem := c.buildType(t.Elem)
-	at = cir.NewAliasType(c.builder.BuildTypedef(cir.NewStructType("", cir.NewMember(cir.NewArrayType(elem, t.Size), "array")), ""))
+	elem := c.buildType(t.GetElem())
+	at = cir.NewAliasType(c.builder.BuildTypedef(cir.NewStructType("", cir.NewMember(cir.NewArrayType(elem, t.GetSize()), "array")), ""))
 	c.typeCache[key] = at
 	return at
 }
 
-func (c *CodeGenerator) buildUnionType(t *types.UnionType) *cir.AliasType {
+func (c *CodeGenerator) buildUnionType(t types.UnionType) *cir.AliasType {
 	key := t.String()
 	ut, ok := c.typeCache[key]
 	if ok {
 		return ut
 	}
 
-	elems := stlslices.Map(t.Elems, func(_ int, e types.Type) cir.Type {
+	elems := stlslices.Map(t.GetElems(), func(_ int, e types.Type) cir.Type {
 		return c.buildType(e)
 	})
 	ut = cir.NewAliasType(c.builder.BuildTypedef(cir.NewStructType(
@@ -158,7 +158,7 @@ func (c *CodeGenerator) buildUnionType(t *types.UnionType) *cir.AliasType {
 	return ut
 }
 
-func (c *CodeGenerator) buildPointerType(t *types.RefType) *cir.PointerType {
-	elem := c.buildType(t.Elem)
+func (c *CodeGenerator) buildRefType(t types.RefType) *cir.PointerType {
+	elem := c.buildType(t.PtrTo())
 	return cir.NewPointerType(elem)
 }

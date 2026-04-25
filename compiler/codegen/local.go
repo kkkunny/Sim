@@ -112,8 +112,8 @@ func (c *CodeGenerator) buildFor(l *stmts.For) *cir.For {
 		rangvar := c.builder.BuildVarDecl(c.buildType(l.Range.GetType()), "", rangv)
 		rangv = cir.NewIdentExpr(rangvar.Name)
 	}
-	at := l.Range.GetType().(*types.ArrayType)
-	cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(at.Size))
+	at := l.Range.GetType().(types.ArrayType)
+	cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(at.GetSize()))
 	action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
 	body := c.buildFlatBlock(l.Body, func() {
 		v := c.builder.BuildVarDecl(c.buildType(at), "", cir.NewOffset(cir.NewGetMember(rangv, "array"), cir.NewIdentExpr(init.Name)))

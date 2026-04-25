@@ -311,9 +311,9 @@ func (c *CodeGenerator) buildTernary(expr *stmts.Ternary) *cir.Ternary {
 
 func (c *CodeGenerator) buildEqual(not bool, t types.Type, left, right cir.Expr) cir.Expr {
 	switch t := t.(type) {
-	case types.NumberType, *types.BooleanType, *types.RefType:
+	case types.NumberType, types.BooleanType, types.RefType:
 		return cir.NewBinary(stlval.If(!not, cir.BinaryOpEnum.Eq, cir.BinaryOpEnum.Neq), left, right)
-	case *types.ArrayType:
+	case types.ArrayType:
 		at := c.buildType(t)
 		f := c.builder.BuildFuncDecl("", cir.Bool, cir.NewParam("x", at), cir.NewParam("y", at))
 		prevBlock, _ := c.builder.CurrentAt()
@@ -322,15 +322,15 @@ func (c *CodeGenerator) buildEqual(not bool, t types.Type, left, right cir.Expr)
 		c.builder.MoveTo(block)
 
 		init := c.builder.BuildVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0)))
-		cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.Size))
+		cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.GetSize()))
 		action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
 		loopBlock := &cir.Block{}
 		c.builder.MoveTo(loopBlock)
 
-		et := c.buildType(t.Elem)
+		et := c.buildType(t.GetElem())
 		lv := c.builder.BuildVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("x"), "array"), cir.NewIdentExpr(init.Name)))
 		rv := c.builder.BuildVarDecl(et, "", cir.NewOffset(cir.NewGetMember(cir.NewIdentExpr("y"), "array"), cir.NewIdentExpr(init.Name)))
-		ifcond := c.buildEqual(true, t.Elem, cir.NewIdentExpr(lv.Name), cir.NewIdentExpr(rv.Name))
+		ifcond := c.buildEqual(true, t.GetElem(), cir.NewIdentExpr(lv.Name), cir.NewIdentExpr(rv.Name))
 		ifBlock := &cir.Block{}
 		c.builder.MoveTo(ifBlock)
 
@@ -345,13 +345,13 @@ func (c *CodeGenerator) buildEqual(not bool, t types.Type, left, right cir.Expr)
 
 		c.builder.MoveTo(prevBlock)
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
-	case *types.TupleType:
+	case types.TupleType:
 		// TODO
 		panic("unreachable")
-	case *types.FuncType:
+	case types.FuncType:
 		// TODO
 		panic("unreachable")
-	case *types.UnionType:
+	case types.UnionType:
 		// TODO
 		panic("unreachable")
 	default:

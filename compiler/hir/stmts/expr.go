@@ -241,7 +241,7 @@ func (e *DeRef) Print(p *hir.Printer) {
 }
 
 func (e *DeRef) GetType() types.Type {
-	return e.Target.GetType().(*types.RefType).Elem
+	return e.Target.GetType().(types.RefType).PtrTo()
 }
 
 func (e *DeRef) Mutable() bool {
@@ -395,7 +395,7 @@ func (e *Call) Print(p *hir.Printer) {
 }
 
 func (e *Call) GetType() types.Type {
-	return e.Func.GetType().(*types.FuncType).Return
+	return e.Func.GetType().(types.FuncType).GetReturn()
 }
 
 func (e *Call) Mutable() bool {
@@ -464,7 +464,7 @@ func (e *TupleIndex) Print(p *hir.Printer) {
 }
 
 func (e *TupleIndex) GetType() types.Type {
-	elems := e.From.GetType().(*types.TupleType).Elems
+	elems := e.From.GetType().(types.TupleType).GetElems()
 	return elems[e.Index.Int64()]
 }
 
@@ -534,7 +534,7 @@ func (e *ArrayIndex) Print(p *hir.Printer) {
 }
 
 func (e *ArrayIndex) GetType() types.Type {
-	return e.From.GetType().(*types.ArrayType).Elem
+	return e.From.GetType().(types.ArrayType).GetElem()
 }
 
 func (e *ArrayIndex) Mutable() bool {

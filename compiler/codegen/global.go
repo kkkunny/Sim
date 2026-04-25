@@ -18,7 +18,7 @@ func (c *CodeGenerator) buildGlobal(global stmts.Global) {
 }
 
 func (c *CodeGenerator) buildGlobalLet(l *stmts.Let) {
-	if stlval.Is[*types.FuncType](l.GetType()) {
+	if stlval.Is[types.FuncType](l.GetType()) {
 		f := c.buildNativeFunc(l.Value.(*stmts.Func))
 		c.idents[l] = f.Decl
 		if l.Name == "main" {
