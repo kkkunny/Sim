@@ -22,8 +22,8 @@ import (
 func (a *Analyzer) analyzeExprWithAutoCovert(expr ast.Expr, expect types.Type) stmts.Expr {
 	v := a.analyzeExpr(expr, expect)
 	vt := v.GetType()
-	if ut, ok := expect.(*types.UnionType); ok {
-		for i, e := range ut.Elems {
+	if ut, ok := expect.(types.UnionType); ok {
+		for i, e := range ut.GetElems() {
 			if vt.Equal(e) {
 				return stmts.NewUnion(v, expect, uint8(i))
 			}
@@ -110,7 +110,7 @@ func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...types.Type) stmts
 	if ok {
 		t = it
 	} else {
-		ft, ok := stlslices.Last(expect).(*types.FloatType)
+		ft, ok := stlslices.Last(expect).(types.FloatType)
 		if ok {
 			t = ft
 		} else {
@@ -131,7 +131,7 @@ func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Una
 		v := a.analyzeExpr(expr.Expr, expect...)
 		if vt := v.GetType(); stlval.Is[types.IntegerType](vt) {
 			return stmts.NewBitReverse(v)
-		} else if stlval.Is[*types.BooleanType](vt) {
+		} else if stlval.Is[types.BooleanType](vt) {
 			return stmts.NewBooleanReverse(v)
 		} else {
 			a.reporter.Fatalf(
@@ -145,7 +145,7 @@ func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Una
 		if len(expect) > 0 {
 			expect = []types.Type{types.NewRefType(false, stlslices.Last(expect))}
 		}
-		v := expectTypeExpr[*types.RefType](a, expr.Expr, expect...)
+		v := expectTypeExpr[types.RefType](a, expr.Expr, expect...)
 		return stmts.NewDeRef(v)
 	default:
 		panic("unreachable")
@@ -305,17 +305,18 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
 }
 
 func (a *Analyzer) analyzeCall(expr *ast.Call) *stmts.Call {
-	f := expectTypeExpr[*types.FuncType](a, expr.Func)
-	ft := f.GetType().(*types.FuncType)
-	if len(ft.Params) != len(expr.Args) {
+	f := expectTypeExpr[types.FuncType](a, expr.Func)
+	ft := f.GetType().(types.FuncType)
+	params := ft.GetParams()
+	if len(params) != len(expr.Args) {
 		a.reporter.Fatalf(
 			expr.Position(),
 			report.Errors.InsufficientArguments,
-			len(ft.Params), len(expr.Args),
+			len(params), len(expr.Args),
 		)
 	}
 	args := stlslices.Map(expr.Args, func(i int, expr ast.Expr) stmts.Expr {
-		return a.analyzeExpr(expr, ft.Params[i])
+		return a.analyzeExpr(expr, params[i])
 	})
 	return &stmts.Call{
 		Func: f,
@@ -331,9 +332,9 @@ func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...types.Type) stmts.Exp
 	var hasType bool
 	expectElemTypes := make([]types.Type, len(expr.Elems))
 	if len(expect) > 0 {
-		if tt, ok := stlslices.Last(expect).(*types.TupleType); ok && (len(expr.Elems) == 0 || len(expr.Elems) == len(tt.Elems)) {
+		if tt, ok := stlslices.Last(expect).(types.TupleType); ok && (len(expr.Elems) == 0 || len(expr.Elems) == len(tt.GetElems())) {
 			hasType = true
-			expectElemTypes = tt.Elems
+			expectElemTypes = tt.GetElems()
 		}
 	}
 
@@ -345,7 +346,7 @@ func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...types.Type) stmts.Exp
 		return a.analyzeExpr(e, elemExpect...)
 	})
 
-	var t *types.TupleType
+	var t types.TupleType
 	if len(elems) == 0 && !hasType {
 		t = types.NewTupleType()
 	} else if len(elems) == 0 {
@@ -363,7 +364,7 @@ func (a *Analyzer) analyzeIndex(expr *ast.Index) stmts.Expr {
 	from := a.analyzeExpr(expr.From)
 	ft := from.GetType()
 
-	if stlval.Is[*types.TupleType](ft) {
+	if stlval.Is[types.TupleType](ft) {
 		index := expectTypeExpr[types.IntegerType](a, expr.Index)
 		indexValue, ok := index.(*stmts.Integer)
 		if !ok {
@@ -375,12 +376,12 @@ func (a *Analyzer) analyzeIndex(expr *ast.Index) stmts.Expr {
 		return stmts.NewTupleIndex(from, indexValue.Value)
 	}
 
-	at, ok := ft.(*types.ArrayType)
+	at, ok := ft.(types.ArrayType)
 	if !ok {
 		a.reporter.Fatalf(
 			expr.From.Position(),
 			report.Errors.UnexpectedExpressionType,
-			fmt.Sprintf("%T", types.ArrayType{}), at,
+			"ArrayType", at,
 		)
 	}
 	index := expectTypeExpr[types.IntegerType](a, expr.Index)
@@ -391,9 +392,9 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...types.Type) *stmts.Ar
 	var size *big.Int
 	var expectElemType types.Type
 	if len(expect) > 0 {
-		if at, ok := stlslices.Last(expect).(*types.ArrayType); ok && (len(expr.Elems) == 0 || strconv.FormatInt(int64(len(expr.Elems)), 10) == at.Size.String()) {
-			size = at.Size
-			expectElemType = at.Elem
+		if at, ok := stlslices.Last(expect).(types.ArrayType); ok && (len(expr.Elems) == 0 || strconv.FormatInt(int64(len(expr.Elems)), 10) == at.GetSize().String()) {
+			size = at.GetSize()
+			expectElemType = at.GetElem()
 		}
 	}
 
@@ -418,7 +419,7 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...types.Type) *stmts.Ar
 		)
 	}
 
-	var t *types.ArrayType
+	var t types.ArrayType
 	if len(elems) == 0 {
 		t = types.NewArrayType(size, expectElemType)
 	} else {
@@ -432,20 +433,20 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 	switch t := t.(type) {
 	case types.IntegerType:
 		return stmts.NewInteger(t, big.NewInt(0)), true
-	case *types.FloatType:
+	case types.FloatType:
 		return stmts.NewFloat(t, big.NewFloat(0)), true
-	case *types.BooleanType:
+	case types.BooleanType:
 		return stmts.NewBoolean(false), true
-	case *types.FuncType:
+	case types.FuncType:
 		var returnValue stmts.Expr
-		if !t.Return.Equal(types.Unit) {
+		if !t.GetReturn().Equal(types.Unit) {
 			var ok bool
-			returnValue, ok = a.tryGetZeroExpr(t.Return)
+			returnValue, ok = a.tryGetZeroExpr(t.GetReturn())
 			if !ok {
 				return nil, false
 			}
 		}
-		f := stmts.NewFunc(t.Return, stlslices.Map(t.Params, func(i int, pt types.Type) *stmts.Param {
+		f := stmts.NewFunc(t.GetReturn(), stlslices.Map(t.GetParams(), func(i int, pt types.Type) *stmts.Param {
 			return stmts.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
 		})...)
 		block := stmts.NewBlock()
@@ -454,22 +455,22 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 		}
 		f.Body = optional.Some(block)
 		return f, true
-	case *types.TupleType:
-		for _, e := range t.Elems {
+	case types.TupleType:
+		for _, e := range t.GetElems() {
 			if _, ok := a.tryGetZeroExpr(e); !ok {
 				return nil, false
 			}
 		}
 		return stmts.NewTuple(t), true
-	case *types.ArrayType:
-		if t.Size.String() != "0" {
-			if _, ok := a.tryGetZeroExpr(t.Elem); !ok {
+	case types.ArrayType:
+		if t.GetSize().String() != "0" {
+			if _, ok := a.tryGetZeroExpr(t.GetElem()); !ok {
 				return nil, false
 			}
 		}
 		return stmts.NewArray(t), true
-	case *types.UnionType:
-		v, ok := a.tryGetZeroExpr(t.Elems[0])
+	case types.UnionType:
+		v, ok := a.tryGetZeroExpr(t.GetElems()[0])
 		if !ok {
 			return nil, false
 		}

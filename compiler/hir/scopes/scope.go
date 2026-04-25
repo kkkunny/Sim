@@ -20,8 +20,8 @@ type Scope interface {
 
 type LocalScope interface {
 	Scope
-	SetFuncType(f *types.FuncType)
-	FuncType() *types.FuncType
+	SetFuncType(f types.FuncType)
+	FuncType() types.FuncType
 }
 
 type PkgScope struct {
@@ -77,7 +77,7 @@ func (s *PkgScope) UsedValues() []stmts.Ident {
 
 type BlockScope struct {
 	parent    Scope
-	funcType  optional.Optional[*types.FuncType]
+	funcType  optional.Optional[types.FuncType]
 	values    map[string]stmts.Ident
 	usedValue set.Set[stmts.Ident]
 }
@@ -98,11 +98,11 @@ func (s *BlockScope) Parent() (Scope, bool) {
 	return s.parent, true
 }
 
-func (s *BlockScope) SetFuncType(f *types.FuncType) {
+func (s *BlockScope) SetFuncType(f types.FuncType) {
 	s.funcType = optional.Some(f)
 }
 
-func (s *BlockScope) FuncType() *types.FuncType {
+func (s *BlockScope) FuncType() types.FuncType {
 	if f, ok := s.funcType.Value(); ok {
 		return f
 	}
