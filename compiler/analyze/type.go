@@ -15,7 +15,17 @@ func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 	switch t := t.(type) {
 	case *ast.IdentType:
 		if td, ok := a.scope.LookupType(t.Name.OriginText); ok {
-			return td
+			if td.Type == nil {
+				tdAst := a.typedefAsts[td]
+				if a.typedefStack.Contain(td) {
+					a.reporter.Fatalf(
+						tdAst.Name.Position,
+						report.Errors.InvalidRecursionType,
+					)
+				}
+				a.analyzeTypeDef(tdAst)
+			}
+			return td.Type
 		}
 		switch t.Name.OriginText {
 		case "unit":

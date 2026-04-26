@@ -14,10 +14,8 @@ type TypeDef struct {
 	Type types.CustomType
 }
 
-func NewTypeDef(name string, underlying types.Type) *TypeDef {
-	return &TypeDef{
-		Type: types.NewCustomType(name, underlying),
-	}
+func NewTypeDef() *TypeDef {
+	return &TypeDef{}
 }
 
 func (*TypeDef) global() {}

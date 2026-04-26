@@ -8,12 +8,37 @@ import (
 	"github.com/kkkunny/Sim/compiler/report"
 )
 
+func (a *Analyzer) analyzeTypeDecl(global *ast.TypeDef) *stmts.TypeDef {
+	_, ok := a.scope.LookupType(global.Name.OriginText)
+	if ok {
+		a.reporter.Fatalf(
+			global.Name.Position,
+			report.Errors.RepeatedIdentifier,
+			global.Name.OriginText,
+		)
+		return nil
+	}
+
+	decl := stmts.NewTypeDef()
+	a.scope.(*scopes.PkgScope).AddType(global.Name.OriginText, decl)
+	a.typedefAsts[decl] = global
+	return decl
+}
+
+func (a *Analyzer) analyzeTypeDef(global *ast.TypeDef) {
+	decl, _ := a.scope.LookupType(global.Name.OriginText)
+
+	a.typedefStack.Add(decl)
+	defer a.typedefStack.Remove(decl)
+
+	underlying := a.analyzeType(global.Type)
+	decl.Type = types.NewCustomType(global.Name.OriginText, underlying)
+}
+
 func (a *Analyzer) analyzeGlobalDecl(global ast.Global) {
 	switch global := global.(type) {
 	case *ast.Let:
 		a.analyzeGlobalLetDecl(global)
-		// case *ast.TypeDef:
-		// 	return a.analyzeTypeDef(global)
 	}
 }
 
@@ -75,26 +100,7 @@ func (a *Analyzer) analyzeGlobalDef(global ast.Global) stmts.Global {
 	switch global := global.(type) {
 	case *ast.Let:
 		return a.analyzeLetDef(global, true)
-	case *ast.TypeDef:
-		return a.analyzeTypeDef(global)
 	default:
 		panic("unreachable")
 	}
-}
-
-func (a *Analyzer) analyzeTypeDef(global *ast.TypeDef) *stmts.TypeDef {
-	_, ok := a.scope.LookupType(global.Name.OriginText)
-	if ok {
-		a.reporter.Fatalf(
-			global.Name.Position,
-			report.Errors.RepeatedIdentifier,
-			global.Name.OriginText,
-		)
-		return nil
-	}
-
-	underlying := a.analyzeType(global.Type)
-	td := stmts.NewTypeDef(global.Name.OriginText, underlying)
-	a.scope.(*scopes.PkgScope).AddType(global.Name.OriginText, td.Type)
-	return td
 }
