@@ -168,10 +168,12 @@ func (e *MacroExpr) print(p *printer) {
 	if len(e.Args) > 0 {
 		p.WriteString("(")
 		for i, arg := range e.Args {
-			if pp, ok := arg.(printWriter); ok {
-				p.WriteBy(pp)
-			} else {
-				p.WriteString(fmt.Sprintf("%v", arg))
+			if arg != nil {
+				if pp, ok := arg.(printWriter); ok {
+					p.WriteBy(pp)
+				} else {
+					p.WriteString(fmt.Sprintf("%v", arg))
+				}
 			}
 			if i < len(e.Args)-1 {
 				p.WriteString(", ")

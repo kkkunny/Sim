@@ -1,6 +1,12 @@
 package types
 
 import (
+	"reflect"
+
+	"github.com/kkkunny/stl/container/set"
+	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
+
 	"github.com/kkkunny/Sim/compiler/hir"
 )
 
@@ -15,70 +21,89 @@ type _CustomBaseType[T Type] struct {
 	Underlying T
 }
 
-func NewCustomType(name string, underlying Type) CustomType {
-	switch underlying := underlying.(type) {
-	case SintType:
-		return &_CustomSintType{
+func DelayNewCustomType[T Type](name string) (CustomType, func(underlying T)) {
+	t := reflect.TypeFor[T]()
+	switch {
+	case t.AssignableTo(reflect.TypeFor[SintType]()):
+		ct := &_CustomSintType{
 			_CustomBaseType[SintType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
 		}
-	case UintType:
-		return &_CustomUintType{
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, SintType](t)
+		}
+	case t.AssignableTo(reflect.TypeFor[UintType]()):
+		ct := &_CustomUintType{
 			_CustomBaseType[UintType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
 		}
-	case FloatType:
-		return &_CustomFloatType{
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, UintType](t)
+		}
+	case t.AssignableTo(reflect.TypeFor[FloatType]()):
+		ct := &_CustomFloatType{
 			_CustomBaseType[FloatType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
 		}
-	case BooleanType:
-		return &_CustomBooleanType{
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, FloatType](t)
+		}
+	case t.AssignableTo(reflect.TypeFor[BooleanType]()):
+		ct := &_CustomBooleanType{
 			_CustomBaseType[BooleanType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
 		}
-	case RefType:
-		return &_CustomRefType{
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, BooleanType](t)
+		}
+	case t.AssignableTo(reflect.TypeFor[RefType]()):
+		ct := &_CustomRefType{
 			_CustomBaseType[RefType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
 		}
-	case FuncType:
-		return &_CustomFuncType{
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, RefType](t)
+		}
+	case t.AssignableTo(reflect.TypeFor[FuncType]()):
+		ct := &_CustomFuncType{
 			_CustomBaseType[FuncType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
 		}
-	case ArrayType:
-		return &_CustomArrayType{
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, FuncType](t)
+		}
+	case t.AssignableTo(reflect.TypeFor[ArrayType]()):
+		ct := &_CustomArrayType{
 			_CustomBaseType[ArrayType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
 		}
-	case TupleType:
-		return &_CustomTupleType{
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, ArrayType](t)
+		}
+	case t.AssignableTo(reflect.TypeFor[TupleType]()):
+		ct := &_CustomTupleType{
 			_CustomBaseType[TupleType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
 		}
-	case UnionType:
-		return &_CustomUnionType{
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, TupleType](t)
+		}
+	case t.AssignableTo(reflect.TypeFor[UnionType]()):
+		ct := &_CustomUnionType{
 			_CustomBaseType[UnionType]{
-				Name:       name,
-				Underlying: underlying,
+				Name: name,
 			},
+		}
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, UnionType](t)
 		}
 	default:
 		panic("unreachable")
@@ -118,4 +143,31 @@ func GetUnderlying(t Type) Type {
 			return tt
 		}
 	}
+}
+
+func CheckRecursion(ct CustomType) bool {
+	var checkFn func(stack set.Set[CustomType], t Type) bool
+	checkFn = func(stack set.Set[CustomType], t Type) bool {
+		switch t := t.(type) {
+		case CustomType:
+			if !stack.Add(t) {
+				return true
+			}
+			defer stack.Remove(t)
+			return checkFn(stack, t.GetUnderlying())
+		case ArrayType:
+			return checkFn(stack, t.GetElem())
+		case TupleType:
+			return stlslices.Any(t.GetElems(), func(_ int, e Type) bool {
+				return checkFn(stack, e)
+			})
+		case UnionType:
+			return stlslices.Any(t.GetElems(), func(_ int, e Type) bool {
+				return checkFn(stack, e)
+			})
+		default:
+			return false
+		}
+	}
+	return checkFn(set.StdLinkedHashSetWith[CustomType](), ct)
 }

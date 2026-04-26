@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 )
 
@@ -57,6 +58,13 @@ func (t *PointerType) printWithName(p *printer, name string) {
 type FuncType struct {
 	Return Type
 	Params []Type
+}
+
+func NewFuncType(ret Type, param ...Type) *FuncType {
+	return &FuncType{
+		Return: ret,
+		Params: param,
+	}
 }
 
 func (*FuncType) zeroSize() bool {
@@ -150,10 +158,12 @@ func (t *MacroType) print(p *printer) {
 	if len(t.Args) > 0 {
 		p.WriteString("(")
 		for i, arg := range t.Args {
-			if pp, ok := arg.(printWriter); ok {
-				p.WriteBy(pp)
-			} else {
-				p.WriteString(fmt.Sprintf("%v", arg))
+			if arg != nil {
+				if pp, ok := arg.(printWriter); ok {
+					p.WriteBy(pp)
+				} else {
+					p.WriteString(fmt.Sprintf("%v", arg))
+				}
 			}
 			if i < len(t.Args)-1 {
 				p.WriteString(", ")
@@ -183,18 +193,20 @@ func NewMember(t Type, name string) *Member {
 
 type StructType struct {
 	Name   string
-	Fields []*Member
+	Fields optional.Optional[[]*Member]
 }
 
-func NewStructType(name string, fields ...*Member) *StructType {
+func NewStructType(name string, fields optional.Optional[[]*Member]) *StructType {
 	return &StructType{Name: name, Fields: fields}
 }
 
 func (t *StructType) zeroSize() bool {
-	if len(t.Fields) == 0 {
+	if t.Fields.IsNone() {
+		return false
+	} else if len(t.Fields.MustValue()) == 0 {
 		return true
 	}
-	return stlslices.All(t.Fields, func(_ int, m *Member) bool {
+	return stlslices.All(t.Fields.MustValue(), func(_ int, m *Member) bool {
 		return m.Type.zeroSize()
 	})
 }
@@ -207,20 +219,22 @@ func (t *StructType) print(p *printer) {
 
 	p.WriteString("struct ")
 	p.WriteString(t.Name)
-	p.WriteString("{")
-	if len(t.Fields) > 0 {
-		p.NextLine(+1)
-		for i, f := range t.Fields {
-			f.Type.printWithName(p, f.Name)
-			p.WriteString(";")
-			if i < len(t.Fields)-1 {
-				p.NextLine()
-			} else {
-				p.NextLine(-1)
+	if fields, ok := t.Fields.Value(); ok {
+		p.WriteString("{")
+		if len(fields) > 0 {
+			p.NextLine(+1)
+			for i, f := range fields {
+				f.Type.printWithName(p, f.Name)
+				p.WriteString(";")
+				if i < len(fields)-1 {
+					p.NextLine()
+				} else {
+					p.NextLine(-1)
+				}
 			}
 		}
+		p.WriteString("}")
 	}
-	p.WriteString("}")
 }
 
 func (t *StructType) printWithName(p *printer, name string) {

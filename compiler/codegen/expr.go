@@ -69,16 +69,16 @@ func (c *CodeGenerator) genIdentExpr(expr *stmts.IdentExpr) cir.Expr {
 	return value
 }
 
-func (c *CodeGenerator) genUnary(expr stmts.Unary) *cir.Unary {
+func (c *CodeGenerator) genUnary(expr stmts.Unary) cir.Expr {
 	switch expr := expr.(type) {
 	case *stmts.BitsReverse, *stmts.BooleanReverse:
 		return cir.NewUnary(cir.UnaryOpEnum.Not, c.genExpr(expr.GetOpTarget()))
 	case *stmts.GetRef:
 		v := c.genExpr(expr.Target)
-		return cir.NewUnary(cir.UnaryOpEnum.AND, v)
+		return cir.NewMacroExpr("GET_PTR", v)
 	case *stmts.DeRef:
 		v := c.genExpr(expr.Target)
-		return cir.NewUnary(cir.UnaryOpEnum.Mul, v)
+		return cir.NewMacroExpr("DE_PTR", v)
 	default:
 		panic("unreachable")
 	}
@@ -169,7 +169,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 		c.captureVarsMap[tuple.Pack2(expr, vexpr)] = cir.NewGetMember(cir.NewIdentExpr("_ctx"), fn)
 		return cir.NewMember(c.genType(vexpr.GetType()), fn)
 	})
-	ctxT := cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewStructType("", fields...), ""))
+	ctxT := cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewStructType("", optional.Some(fields)), ""))
 
 	// 函数
 	params := make([]*cir.Param, len(expr.Params)+1)

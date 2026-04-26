@@ -134,15 +134,15 @@ func (t *UnionType) Position() reader.Position {
 	return reader.MixPosition(stlslices.First(t.Elems).Position(), stlslices.Last(t.Elems).Position())
 }
 
-type PointerType struct {
+type RefType struct {
 	BeginPosition reader.Position
 	Mut           bool
 	Elem          Type
 }
 
-func (t *PointerType) typ() {}
+func (t *RefType) typ() {}
 
-func (t *PointerType) print(p *printer) {
+func (t *RefType) print(p *printer) {
 	p.WriteString("&")
 	if t.Mut {
 		p.WriteString("mut ")
@@ -150,6 +150,6 @@ func (t *PointerType) print(p *printer) {
 	p.WriteBy(t.Elem)
 }
 
-func (t *PointerType) Position() reader.Position {
+func (t *RefType) Position() reader.Position {
 	return reader.MixPosition(t.BeginPosition, t.Elem.Position())
 }

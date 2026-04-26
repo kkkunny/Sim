@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"github.com/kkkunny/stl/container/tuple"
-	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
@@ -33,23 +32,16 @@ func (c *CodeGenerator) Generate(program *stmts.Program) *cir.Builder {
 
 func (c *CodeGenerator) genProgram(program *stmts.Program) {
 	for _, g := range program.Globals {
-		td, ok := g.(*stmts.TypeDef)
-		if !ok {
-			continue
-		}
-		c.genCustomType(td.Type)
+		c.genTypeDecl(g)
+	}
+	for _, g := range program.Globals {
+		c.genTypeDef(g)
 	}
 
 	for _, g := range program.Globals {
-		if stlval.Is[*stmts.TypeDef](g) {
-			continue
-		}
 		c.genGlobalDecl(g)
 	}
 	for _, g := range program.Globals {
-		if stlval.Is[*stmts.TypeDef](g) {
-			continue
-		}
 		c.genGlobalDef(g)
 	}
 }

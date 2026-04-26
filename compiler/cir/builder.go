@@ -18,19 +18,12 @@ type Builder struct {
 }
 
 func NewBuilder() *Builder {
-	return &Builder{}
+	b := &Builder{}
+	BuildStmt(b, NewInclude("\"buildin.c\""))
+	return b
 }
 
 func (b *Builder) print(p *printer) {
-	p.WriteString("#include \"buildin.c\"\n")
-	for _, g := range b.Globals {
-		decl, ok := g.(GlobalDecl)
-		if !ok {
-			continue
-		}
-		decl.printDecl(p)
-		p.WriteString("\n")
-	}
 	for i, g := range b.Globals {
 		p.WriteBy(g)
 		if i != len(b.Globals)-1 {
@@ -74,7 +67,7 @@ func BuildStmt[T Stmt](b *Builder, g T) T {
 		if namer.GetName() == "" {
 			namer.SetName(fmt.Sprintf("_v%d", b.funcVarCount))
 		}
-	} else if ok && stlval.Is[*Typedef](g) {
+	} else if ok && (stlval.Is[*Typedef](g) || stlval.Is[*StructTypeDef](g)) {
 		b.typedefCount++
 		if namer.GetName() == "" {
 			namer.SetName(fmt.Sprintf("_t%d", b.typedefCount))
