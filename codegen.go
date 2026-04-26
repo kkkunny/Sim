@@ -6,23 +6,17 @@ import (
 	"fmt"
 	"os"
 
-	stlerror "github.com/kkkunny/stl/error"
+	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/analyze"
 	"github.com/kkkunny/Sim/compiler/codegen"
-	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
-	"github.com/kkkunny/Sim/compiler/reader"
 	simerr "github.com/kkkunny/Sim/compiler/report"
 )
 
 func main() {
-	file := stlerror.MustWith(os.Open(os.Args[1]))
-	defer file.Close()
-	lexer := lex.New(reader.NewFile(os.Args[1], file))
-
 	reporter := simerr.NewReporter()
-	ast := parse.New(lexer, reporter).Parse()
+	ast := stlerr.MustWith(parse.Parse(os.Args[1], reporter))
 	if reporter.HasErrors() {
 		reporter.Print()
 		os.Exit(1)
