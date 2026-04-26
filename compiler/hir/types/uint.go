@@ -44,3 +44,14 @@ func (t *_UintType) Equal(p Type) bool {
 func (t *_UintType) GetBits() uint8 {
 	return t.Bits
 }
+
+type _CustomUintType struct {
+	_CustomBaseType[UintType]
+}
+
+func (*_CustomUintType) uint()    {}
+func (*_CustomUintType) integer() {}
+
+func (t *_CustomUintType) GetBits() uint8 {
+	return t.Underlying.GetBits()
+}

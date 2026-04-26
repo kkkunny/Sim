@@ -11,6 +11,8 @@ import (
 
 func (c *CodeGenerator) genType(t types.Type) cir.Type {
 	switch t := t.(type) {
+	case types.CustomType:
+		return c.typeCache[t.GetName()]
 	case types.UnitType:
 		return cir.Void
 	case types.SintType:

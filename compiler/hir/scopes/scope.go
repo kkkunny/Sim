@@ -16,6 +16,7 @@ type Scope interface {
 	LocalLookup(name string) (stmts.Ident, bool)
 	Values() map[string]stmts.Ident
 	UsedValues() []stmts.Ident
+	LookupType(name string) (types.CustomType, bool)
 }
 
 type LocalScope interface {
@@ -27,12 +28,14 @@ type LocalScope interface {
 type PkgScope struct {
 	values    map[string]stmts.Ident
 	usedValue set.Set[stmts.Ident]
+	types     map[string]types.CustomType
 }
 
 func NewPkgScope() *PkgScope {
 	return &PkgScope{
 		values:    make(map[string]stmts.Ident),
 		usedValue: set.StdHashSetWith[stmts.Ident](),
+		types:     make(map[string]types.CustomType),
 	}
 }
 
@@ -73,6 +76,15 @@ func (s *PkgScope) Values() map[string]stmts.Ident {
 
 func (s *PkgScope) UsedValues() []stmts.Ident {
 	return s.usedValue.ToSlice()
+}
+
+func (s *PkgScope) AddType(name string, t types.CustomType) {
+	s.types[name] = t
+}
+
+func (s *PkgScope) LookupType(name string) (types.CustomType, bool) {
+	t, ok := s.types[name]
+	return t, ok
 }
 
 type BlockScope struct {
@@ -144,4 +156,8 @@ func (s *BlockScope) Values() map[string]stmts.Ident {
 
 func (s *BlockScope) UsedValues() []stmts.Ident {
 	return s.usedValue.ToSlice()
+}
+
+func (s *BlockScope) LookupType(name string) (types.CustomType, bool) {
+	return s.parent.LookupType(name)
 }

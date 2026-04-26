@@ -19,20 +19,27 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
-func (a *Analyzer) analyzeExprWithAutoCovert(expr ast.Expr, expect types.Type) stmts.Expr {
-	v := a.analyzeExpr(expr, expect)
-	vt := v.GetType()
-	if ut, ok := expect.(types.UnionType); ok {
-		for i, e := range ut.GetElems() {
-			if vt.Equal(e) {
-				return stmts.NewUnion(v, expect, uint8(i))
+// 带自动转换
+func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
+	v := a.analyzeStrictExpr(expr, expect...)
+	if len(expect) > 0 {
+		vt := v.GetType()
+		expectType := stlslices.Last(expect)
+		if ut, ok := expectType.(types.UnionType); ok {
+			for i, e := range ut.GetElems() {
+				if vt.Equal(e) {
+					return stmts.NewUnion(v, ut, uint8(i))
+				}
 			}
+		} else if literal, ok := v.(stmts.Literal); ok {
+			literal.TryToType(expectType)
 		}
 	}
 	return v
 }
 
-func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
+// 不带自动转换
+func (a *Analyzer) analyzeStrictExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
 	switch expr := expr.(type) {
 	case *ast.IdentExpr:
 		return a.analyzeIdentExpr(expr)
@@ -67,7 +74,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
 
 // 期待类型，两个类型必须完全相同
 func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect types.Type) stmts.Expr {
-	v := a.analyzeExprWithAutoCovert(expr, expect)
+	v := a.analyzeExpr(expr, expect)
 	if vt := v.GetType(); !vt.Equal(expect) {
 		a.reporter.Fatalf(
 			expr.Position(),
@@ -78,7 +85,7 @@ func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect types.Type) stmts.Expr {
 	return v
 }
 
-// 期待类型，属于制定的类型类
+// 期待类型，属于指定的类型
 func expectTypeExpr[T types.Type](a *Analyzer, expr ast.Expr, expect ...types.Type) stmts.Expr {
 	v := a.analyzeExpr(expr, expect...)
 	if vt := v.GetType(); !stlval.Is[T](vt) {
@@ -105,23 +112,11 @@ func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *stmts.IdentExpr {
 }
 
 func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...types.Type) stmts.Expr {
-	var t types.Type
-	it, ok := stlslices.Last(expect).(types.IntegerType)
-	if ok {
-		t = it
-	} else {
-		ft, ok := stlslices.Last(expect).(types.FloatType)
-		if ok {
-			t = ft
-		} else {
-			t = types.I32
-		}
-	}
 	v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
-	if stlval.Is[types.IntegerType](t) {
-		return stmts.NewInteger(t, big.NewInt(v))
+	if len(expect) == 0 || stlval.Is[types.IntegerType](stlslices.Last(expect)) {
+		return stmts.NewInteger(types.I64, big.NewInt(v))
 	} else {
-		return stmts.NewFloat(t, big.NewFloat(float64(v)))
+		return stmts.NewFloat(types.F64, big.NewFloat(float64(v)))
 	}
 }
 
@@ -311,7 +306,7 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
 
 	a.scope, _ = a.scope.Parent()
 
-	f := stmts.NewFunc(ft.GetReturn(), params...)
+	f := stmts.NewFunc(ft, params...)
 	f.Body = body
 	f.UsedExternalVariables = externalVars
 	return f
@@ -449,7 +444,7 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 	case types.FloatType:
 		return stmts.NewFloat(t, big.NewFloat(0)), true
 	case types.BooleanType:
-		return stmts.NewBoolean(false), true
+		return stmts.NewBoolean(t, false), true
 	case types.FuncType:
 		var returnValue stmts.Expr
 		if !t.GetReturn().Equal(types.Unit) {
@@ -459,7 +454,7 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 				return nil, false
 			}
 		}
-		f := stmts.NewFunc(t.GetReturn(), stlslices.Map(t.GetParams(), func(i int, pt types.Type) *stmts.Param {
+		f := stmts.NewFunc(t, stlslices.Map(t.GetParams(), func(i int, pt types.Type) *stmts.Param {
 			return stmts.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
 		})...)
 		block := stmts.NewBlock()
@@ -508,7 +503,7 @@ func (a *Analyzer) getZeroExpr(pos reader.Position, t types.Type) stmts.Expr {
 
 func (a *Analyzer) analyzeAs(expr *ast.As) stmts.Expr {
 	to := a.analyzeType(expr.Right)
-	v := a.analyzeExprWithAutoCovert(expr.Left, to)
+	v := a.analyzeExpr(expr.Left, to)
 	from := v.GetType()
 
 	if from.Equal(to) {
@@ -518,6 +513,8 @@ func (a *Analyzer) analyzeAs(expr *ast.As) stmts.Expr {
 	switch {
 	case stlval.Is[types.NumberType](from) && stlval.Is[types.NumberType](to):
 		return stmts.NewNumberCovert(v, to)
+	case types.GetUnderlying(from).Equal(types.GetUnderlying(to)):
+		return stmts.NewTypedefCovert(v, to)
 	}
 
 	a.reporter.Fatalf(
@@ -529,15 +526,27 @@ func (a *Analyzer) analyzeAs(expr *ast.As) stmts.Expr {
 }
 
 func (a *Analyzer) analyzeBoolean(expr *ast.Boolean) *stmts.Boolean {
-	return stmts.NewBoolean(expr.Value.Kind == token.KindEnum.True)
+	return stmts.NewBoolean(types.Bool, expr.Value.Kind == token.KindEnum.True)
 }
 
 func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...types.Type) *stmts.GetRef {
-	from := a.analyzeExpr(expr.Value)
+	var expectElemType []types.Type
+	if len(expect) > 0 {
+		if rt, ok := stlslices.Last(expect).(types.RefType); ok {
+			expectElemType = append(expectElemType, rt.PtrTo())
+		}
+	}
+	from := a.analyzeExpr(expr.Value, expectElemType...)
+
 	if from.Temporary() {
 		a.reporter.Fatalf(
 			expr.Value.Position(),
 			report.Errors.MustNotTemporary,
+		)
+	} else if expr.Mut && !from.Mutable() {
+		a.reporter.Fatalf(
+			expr.Value.Position(),
+			report.Errors.MustMutable,
 		)
 	}
 	return stmts.NewGetRef(expr.Mut, from)

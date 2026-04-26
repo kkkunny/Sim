@@ -10,6 +10,8 @@ func (p *Parser) parseGlobal() ast.Global {
 	switch p.nextToken.Kind {
 	case token.KindEnum.Let:
 		return p.parseLet()
+	case token.KindEnum.Type:
+		return p.parseTypeDef()
 	default:
 		p.reporter.Fatalf(
 			p.nextToken.Position,
@@ -18,4 +20,12 @@ func (p *Parser) parseGlobal() ast.Global {
 		)
 		return nil
 	}
+}
+
+func (p *Parser) parseTypeDef() *ast.TypeDef {
+	p.expect(token.KindEnum.Type)
+	p.skip(token.KindEnum.Br)
+	name := p.expect(token.KindEnum.Ident)
+	typ := p.parseType()
+	return &ast.TypeDef{Name: name, Type: typ}
 }

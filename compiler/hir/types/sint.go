@@ -44,3 +44,14 @@ func (t *_SintType) Equal(p Type) bool {
 func (t *_SintType) GetBits() uint8 {
 	return t.Bits
 }
+
+type _CustomSintType struct {
+	_CustomBaseType[SintType]
+}
+
+func (*_CustomSintType) sint()    {}
+func (*_CustomSintType) integer() {}
+
+func (t *_CustomSintType) GetBits() uint8 {
+	return t.Underlying.GetBits()
+}

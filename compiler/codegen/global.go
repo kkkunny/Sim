@@ -11,6 +11,8 @@ func (c *CodeGenerator) genGlobal(global stmts.Global) {
 	switch global := global.(type) {
 	case *stmts.Let:
 		c.genGlobalLet(global)
+	case *stmts.TypeDef:
+		c.genTypeDef(global)
 	default:
 		panic("unreachable")
 	}
@@ -36,4 +38,10 @@ func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
 	decl := cir.BuildStmt(c.builder, cir.NewVarDecl(t, ""))
 	c.idents[l] = decl
 	decl.Value = optional.Some(c.genExpr(l.Value))
+}
+
+func (c *CodeGenerator) genTypeDef(global *stmts.TypeDef) {
+	underlying := c.genType(global.Type.GetUnderlying())
+	def := cir.BuildStmt(c.builder, cir.NewTypedef(underlying, ""))
+	c.typeCache[global.Type.GetName()] = cir.NewAliasType(def)
 }

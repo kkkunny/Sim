@@ -1,3 +1,5 @@
-let a = () -> bool{
-	return true && false
+type T i32
+
+let main = () {
+	let a: T = 1
 }
