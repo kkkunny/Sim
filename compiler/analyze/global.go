@@ -25,14 +25,68 @@ func (a *Analyzer) analyzeTypeDecl(global *ast.TypeDef) *stmts.TypeDef {
 	return decl
 }
 
-func (a *Analyzer) analyzeTypeDef(global *ast.TypeDef) {
-	decl, _ := a.scope.LookupType(global.Name.OriginText)
+func (a *Analyzer) analyzeTypeDef(t *ast.IdentType) types.Type {
+	name := t.Name.OriginText
+	decl, _ := a.scope.LookupType(name)
+	if decl.Type != nil {
+		return decl.Type
+	}
 
-	a.typedefStack.Add(decl)
-	defer a.typedefStack.Remove(decl)
+	tdAst := a.typedefAsts[decl]
 
-	underlying := a.analyzeType(global.Type)
-	decl.Type = types.NewCustomType(global.Name.OriginText, underlying)
+	var ct types.CustomType
+	var setter func(types.Type)
+	switch t := tdAst.Type.(type) {
+	case *ast.IdentType:
+		if _, ok := a.scope.LookupType(t.Name.OriginText); ok {
+			a.reporter.Fatalf(
+				tdAst.Name.Position,
+				report.Errors.InvalidRecursionType,
+			)
+		}
+		switch a.analyzeBuildInIdentType(t).(type) {
+		case types.SintType:
+			ctt, s := types.DelayNewCustomType[types.SintType](name)
+			ct, setter = ctt, func(t types.Type) { s(t.(types.SintType)) }
+		case types.UintType:
+			ctt, s := types.DelayNewCustomType[types.UintType](name)
+			ct, setter = ctt, func(t types.Type) { s(t.(types.UintType)) }
+		case types.FloatType:
+			ctt, s := types.DelayNewCustomType[types.FloatType](name)
+			ct, setter = ctt, func(t types.Type) { s(t.(types.FloatType)) }
+		case types.BooleanType:
+			ctt, s := types.DelayNewCustomType[types.BooleanType](name)
+			ct, setter = ctt, func(t types.Type) { s(t.(types.BooleanType)) }
+		default:
+			panic("unreachable")
+		}
+	case *ast.FuncType:
+		ctt, s := types.DelayNewCustomType[types.FuncType](name)
+		ct, setter = ctt, func(t types.Type) { s(t.(types.FuncType)) }
+	case *ast.TupleType:
+		ctt, s := types.DelayNewCustomType[types.TupleType](name)
+		ct, setter = ctt, func(t types.Type) { s(t.(types.TupleType)) }
+	case *ast.ArrayType:
+		ctt, s := types.DelayNewCustomType[types.ArrayType](name)
+		ct, setter = ctt, func(t types.Type) { s(t.(types.ArrayType)) }
+	case *ast.UnionType:
+		ctt, s := types.DelayNewCustomType[types.UnionType](name)
+		ct, setter = ctt, func(t types.Type) { s(t.(types.UnionType)) }
+	case *ast.RefType:
+		ctt, s := types.DelayNewCustomType[types.RefType](name)
+		ct, setter = ctt, func(t types.Type) { s(t.(types.RefType)) }
+	}
+	decl.Type = ct
+	setter(a.analyzeType(tdAst.Type))
+
+	if types.CheckRecursion(ct) {
+		a.reporter.Fatalf(
+			tdAst.Name.Position,
+			report.Errors.InvalidRecursionType,
+		)
+	}
+
+	return ct
 }
 
 func (a *Analyzer) analyzeGlobalDecl(global ast.Global) {

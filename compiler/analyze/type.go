@@ -14,56 +14,10 @@ import (
 func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 	switch t := t.(type) {
 	case *ast.IdentType:
-		if td, ok := a.scope.LookupType(t.Name.OriginText); ok {
-			if td.Type == nil {
-				tdAst := a.typedefAsts[td]
-				if a.typedefStack.Contain(td) {
-					a.reporter.Fatalf(
-						tdAst.Name.Position,
-						report.Errors.InvalidRecursionType,
-					)
-				}
-				a.analyzeTypeDef(tdAst)
-			}
-			return td.Type
+		if _, ok := a.scope.LookupType(t.Name.OriginText); ok {
+			return a.analyzeTypeDef(t)
 		}
-		switch t.Name.OriginText {
-		case "unit":
-			a.reporter.Fatalf(
-				t.Name.Position,
-				report.Errors.InvalidType,
-			)
-			return nil
-		case "i8":
-			return types.I8
-		case "i16":
-			return types.I16
-		case "i32":
-			return types.I32
-		case "i64":
-			return types.I64
-		case "u8":
-			return types.U8
-		case "u16":
-			return types.U16
-		case "u32":
-			return types.U32
-		case "u64":
-			return types.U64
-		case "f32":
-			return types.F32
-		case "f64":
-			return types.F64
-		case "bool":
-			return types.Bool
-		default:
-			a.reporter.Fatalf(
-				t.Name.Position,
-				report.Errors.UnknownIdentifier,
-				t.Name.OriginText,
-			)
-			return nil
-		}
+		return a.analyzeBuildInIdentType(t)
 	case *ast.FuncType:
 		params := stlslices.Map(t.Params, func(_ int, p ast.Type) types.Type {
 			return a.analyzeType(p)
@@ -88,11 +42,51 @@ func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 			return a.analyzeType(e)
 		})
 		return types.NewUnionType(elems...)
-	case *ast.PointerType:
+	case *ast.RefType:
 		elem := a.analyzeType(t.Elem)
 		return types.NewRefType(t.Mut, elem)
 	default:
 		panic("unreachable")
+	}
+}
+
+func (a *Analyzer) analyzeBuildInIdentType(t *ast.IdentType) types.Type {
+	switch t.Name.OriginText {
+	case "unit":
+		a.reporter.Fatalf(
+			t.Name.Position,
+			report.Errors.InvalidType,
+		)
+		return nil
+	case "i8":
+		return types.I8
+	case "i16":
+		return types.I16
+	case "i32":
+		return types.I32
+	case "i64":
+		return types.I64
+	case "u8":
+		return types.U8
+	case "u16":
+		return types.U16
+	case "u32":
+		return types.U32
+	case "u64":
+		return types.U64
+	case "f32":
+		return types.F32
+	case "f64":
+		return types.F64
+	case "bool":
+		return types.Bool
+	default:
+		a.reporter.Fatalf(
+			t.Name.Position,
+			report.Errors.UnknownIdentifier,
+			t.Name.OriginText,
+		)
+		return nil
 	}
 }
 

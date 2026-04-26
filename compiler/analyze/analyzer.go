@@ -1,7 +1,6 @@
 package analyze
 
 import (
-	"github.com/kkkunny/stl/container/set"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -16,16 +15,13 @@ type Analyzer struct {
 	scope scopes.Scope
 
 	typedefAsts map[*stmts.TypeDef]*ast.TypeDef
-	// 类型定义栈，用于在类型定义时检测循环引用
-	typedefStack set.Set[*stmts.TypeDef]
 }
 
 func NewAnalyzer(reporter *report.Reporter) *Analyzer {
 	return &Analyzer{
-		reporter:     reporter,
-		scope:        scopes.NewPkgScope(),
-		typedefAsts:  make(map[*stmts.TypeDef]*ast.TypeDef),
-		typedefStack: set.StdLinkedHashSetWith[*stmts.TypeDef](),
+		reporter:    reporter,
+		scope:       scopes.NewPkgScope(),
+		typedefAsts: make(map[*stmts.TypeDef]*ast.TypeDef),
 	}
 }
 
@@ -42,7 +38,7 @@ func (a *Analyzer) Analyze(program *ast.Program) *stmts.Program {
 		ts = append(ts, t)
 	}
 	for _, t := range ts {
-		a.analyzeTypeDef(t)
+		a.analyzeTypeDef(&ast.IdentType{Name: t.Name})
 	}
 
 	for _, g := range program.Globals {
