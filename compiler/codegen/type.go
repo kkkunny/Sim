@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 
+	stlmaps "github.com/kkkunny/stl/container/maps"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/cir"
@@ -12,7 +13,7 @@ import (
 func (c *CodeGenerator) genType(t types.Type) cir.Type {
 	switch t := t.(type) {
 	case types.CustomType:
-		return c.typeCache[t.GetName()]
+		return c.genCustomType(t)
 	case types.UnitType:
 		return cir.Void
 	case types.SintType:
@@ -65,6 +66,15 @@ func (c *CodeGenerator) genType(t types.Type) cir.Type {
 	default:
 		panic("unreachable")
 	}
+}
+
+func (c *CodeGenerator) genCustomType(ct types.CustomType) cir.Type {
+	if !stlmaps.ContainKey(c.typeCache, ct.GetName()) {
+		underlying := c.genType(ct.GetUnderlying())
+		def := cir.BuildStmt(c.builder, cir.NewTypedef(underlying, ""))
+		c.typeCache[ct.GetName()] = cir.NewAliasType(def)
+	}
+	return c.typeCache[ct.GetName()]
 }
 
 // 原生函数类型
