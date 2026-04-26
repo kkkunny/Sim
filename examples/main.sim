@@ -1,9 +1,2 @@
-type A i32
-
-let a = (x: i32, y: i32) -> i32 {
-	return b(x, y)
-}
-
-let b = (x: i32, y: i32) -> i32 {
-	return a(x, y)
-}
+type A B
+type B i32
