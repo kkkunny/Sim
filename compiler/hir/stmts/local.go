@@ -64,10 +64,11 @@ func (r *Return) Print(p *hir.Printer) {
 }
 
 type Let struct {
-	Mut   bool
-	Type  types.Type
-	Name  string
-	Value Expr
+	Global bool
+	Mut    bool
+	Type   types.Type
+	Name   string
+	Value  Expr
 }
 
 func (*Let) local()  {}

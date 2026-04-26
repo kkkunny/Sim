@@ -8,7 +8,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
 	"github.com/kkkunny/Sim/compiler/hir/types"
-	"github.com/kkkunny/Sim/compiler/report"
 )
 
 func (a *Analyzer) analyzeBlock(block *ast.Block) *stmts.Block {
@@ -28,7 +27,7 @@ func (a *Analyzer) analyzeLocal(local ast.Local) stmts.Local {
 	case ast.Expr:
 		return a.analyzeExpr(local)
 	case *ast.Let:
-		return a.analyzeLet(local, false)
+		return a.analyzeLetDef(local, false)
 	case *ast.If:
 		return a.analyzeIf(local)
 	case *ast.While:
@@ -50,82 +49,34 @@ func (a *Analyzer) analyzeReturn(local *ast.Return) *stmts.Return {
 	}
 }
 
-func (a *Analyzer) analyzeLet(local *ast.Let, isGlobal bool) *stmts.Let {
-	if isGlobal && local.Name.OriginText == "main" && local.Mut {
-		a.reporter.Fatalf(
-			local.Name.Position,
-			report.Errors.MustImmutable,
-		)
-	}
-
-	if isGlobal {
-		_, ok := a.scope.Lookup(local.Name.OriginText)
-		if ok {
-			a.reporter.Fatalf(
-				local.Name.Position,
-				report.Errors.RepeatedIdentifier,
-				local.Name.OriginText,
-			)
-		}
-	}
-
+func (a *Analyzer) analyzeLetDef(local *ast.Let, isGlobal bool) *stmts.Let {
 	var t types.Type
-	if tnode, ok := local.Type.Value(); ok {
-		t = a.analyzeType(tnode)
+	if tAst, ok := local.Type.Value(); ok {
+		t = a.analyzeType(tAst)
 	}
 
-	let := stlval.IfLazy(
-		isGlobal && local.Value.IsSome() && stlval.Is[*ast.Func](local.Value.MustValue()),
-		func() *stmts.Let { // 允许自引用的let
-			v := local.Value.MustValue().(*ast.Func)
-			ft := a.analyzeFuncDecl(v)
+	var value stmts.Expr
+	if v, ok := local.Value.Value(); t != nil && ok {
+		value = a.expectTypeExpr(v, t)
+	} else if t != nil {
+		value = a.getZeroExpr(local.Name.Position, t)
+	} else {
+		value = a.analyzeExpr(v)
+	}
 
-			let := &stmts.Let{
-				Mut:  local.Mut,
-				Type: ft,
-				Name: local.Name.OriginText,
-			}
-			a.scope.AddValue(let)
-
-			let.Value = stlval.IfLazy(t == nil, func() stmts.Expr {
-				return a.analyzeExpr(v)
-			}, func() stmts.Expr {
-				return a.expectTypeExpr(v, t)
-			})
-			return let
-		},
-		func() *stmts.Let {
-			var value stmts.Expr
-			if v, ok := local.Value.Value(); t != nil && ok {
-				value = a.expectTypeExpr(v, t)
-			} else if t != nil {
-				value = a.getZeroExpr(local.Name.Position, t)
-			} else {
-				value = a.analyzeExpr(v)
-			}
-
-			let := &stmts.Let{
-				Mut:   local.Mut,
-				Type:  value.GetType(),
-				Name:  local.Name.OriginText,
-				Value: value,
-			}
-			a.scope.AddValue(let)
-			return let
-		},
-	)
-
-	if isGlobal && local.Name.OriginText == "main" {
-		expectType := types.NewFuncType(types.Unit)
-		if vt := let.GetType(); !vt.Equal(expectType) {
-			a.reporter.Fatalf(
-				local.Type.MustValue().Position(),
-				report.Errors.UnexpectedExpression,
-				expectType, vt,
-			)
+	var let *stmts.Let
+	if decl, ok := a.scope.Lookup(local.Name.OriginText); ok && isGlobal && stlval.Is[*stmts.Let](decl) && decl.(*stmts.Let).Global {
+		let = decl.(*stmts.Let)
+	} else {
+		let = &stmts.Let{
+			Global: isGlobal,
+			Mut:    local.Mut,
+			Type:   value.GetType(),
+			Name:   local.Name.OriginText,
 		}
+		a.scope.AddValue(let)
 	}
-
+	let.Value = value
 	return let
 }
 

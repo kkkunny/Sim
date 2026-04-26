@@ -1,5 +1,9 @@
-type T i32
+type A i32
 
-let main = () {
-	let a: T = 1
+let a = (x: i32, y: i32) -> i32 {
+	return b(x, y)
+}
+
+let b = (x: i32, y: i32) -> i32 {
+	return a(x, y)
 }
