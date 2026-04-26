@@ -14,6 +14,9 @@ import (
 func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 	switch t := t.(type) {
 	case *ast.IdentType:
+		if td, ok := a.scope.LookupType(t.Name.OriginText); ok {
+			return td
+		}
 		switch t.Name.OriginText {
 		case "unit":
 			a.reporter.Fatalf(

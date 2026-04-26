@@ -19,6 +19,11 @@ type Expr interface {
 	Temporary() bool
 }
 
+type Literal interface {
+	Expr
+	TryToType(t types.Type)
+}
+
 type IdentExpr struct {
 	Define Ident
 }
@@ -49,11 +54,11 @@ func (e *IdentExpr) Temporary() bool {
 }
 
 type Integer struct {
-	Type  types.Type
+	Type  types.IntegerType
 	Value *big.Int
 }
 
-func NewInteger(t types.Type, v *big.Int) *Integer {
+func NewInteger(t types.IntegerType, v *big.Int) *Integer {
 	return &Integer{
 		Type:  t,
 		Value: v,
@@ -63,28 +68,36 @@ func NewInteger(t types.Type, v *big.Int) *Integer {
 func (*Integer) expr()  {}
 func (*Integer) local() {}
 
-func (e *Integer) Print(p *hir.Printer) {
-	p.WriteString(e.Value.String())
+func (i *Integer) Print(p *hir.Printer) {
+	p.WriteString(i.Value.String())
 }
 
-func (e *Integer) GetType() types.Type {
-	return e.Type
+func (i *Integer) GetType() types.Type {
+	return i.Type
 }
 
-func (e *Integer) Mutable() bool {
+func (i *Integer) Mutable() bool {
 	return false
 }
 
-func (e *Integer) Temporary() bool {
+func (i *Integer) Temporary() bool {
 	return true
 }
 
+func (i *Integer) TryToType(t types.Type) {
+	it, ok := t.(types.IntegerType)
+	if !ok {
+		return
+	}
+	i.Type = it
+}
+
 type Float struct {
-	Type  types.Type
+	Type  types.FloatType
 	Value *big.Float
 }
 
-func NewFloat(t types.Type, v *big.Float) *Float {
+func NewFloat(t types.FloatType, v *big.Float) *Float {
 	return &Float{
 		Type:  t,
 		Value: v,
@@ -94,20 +107,71 @@ func NewFloat(t types.Type, v *big.Float) *Float {
 func (*Float) expr()  {}
 func (*Float) local() {}
 
-func (e *Float) Print(p *hir.Printer) {
-	p.WriteString(e.Value.String())
+func (f *Float) Print(p *hir.Printer) {
+	p.WriteString(f.Value.String())
 }
 
-func (e *Float) GetType() types.Type {
-	return e.Type
+func (f *Float) GetType() types.Type {
+	return f.Type
 }
 
-func (e *Float) Mutable() bool {
+func (f *Float) Mutable() bool {
 	return false
 }
 
-func (e *Float) Temporary() bool {
+func (f *Float) Temporary() bool {
 	return true
+}
+
+func (f *Float) TryToType(t types.Type) {
+	ft, ok := t.(types.FloatType)
+	if !ok {
+		return
+	}
+	f.Type = ft
+}
+
+type Boolean struct {
+	Type  types.BooleanType
+	Value bool
+}
+
+func NewBoolean(t types.BooleanType, v bool) *Boolean {
+	return &Boolean{
+		Type:  t,
+		Value: v,
+	}
+}
+
+func (*Boolean) expr()  {}
+func (*Boolean) local() {}
+
+func (b *Boolean) Print(p *hir.Printer) {
+	if b.Value {
+		p.WriteString("true")
+	} else {
+		p.WriteString("false")
+	}
+}
+
+func (b *Boolean) GetType() types.Type {
+	return b.Type
+}
+
+func (b *Boolean) Mutable() bool {
+	return false
+}
+
+func (b *Boolean) Temporary() bool {
+	return true
+}
+
+func (b *Boolean) TryToType(t types.Type) {
+	bt, ok := t.(types.BooleanType)
+	if !ok {
+		return
+	}
+	b.Type = bt
 }
 
 type Unary interface {
@@ -115,37 +179,37 @@ type Unary interface {
 	GetOpTarget() Expr
 }
 
-type BitReverse struct {
+type BitsReverse struct {
 	Target Expr
 }
 
-func NewBitReverse(t Expr) *BitReverse {
-	return &BitReverse{
+func NewBitReverse(t Expr) *BitsReverse {
+	return &BitsReverse{
 		Target: t,
 	}
 }
 
-func (*BitReverse) expr()  {}
-func (*BitReverse) local() {}
+func (*BitsReverse) expr()  {}
+func (*BitsReverse) local() {}
 
-func (e *BitReverse) Print(p *hir.Printer) {
+func (e *BitsReverse) Print(p *hir.Printer) {
 	p.WriteString("!")
 	p.WriteBy(e.Target)
 }
 
-func (e *BitReverse) GetType() types.Type {
+func (e *BitsReverse) GetType() types.Type {
 	return e.Target.GetType()
 }
 
-func (e *BitReverse) Mutable() bool {
+func (e *BitsReverse) Mutable() bool {
 	return false
 }
 
-func (e *BitReverse) Temporary() bool {
+func (e *BitsReverse) Temporary() bool {
 	return true
 }
 
-func (e *BitReverse) GetOpTarget() Expr {
+func (e *BitsReverse) GetOpTarget() Expr {
 	return e.Target
 }
 
@@ -188,10 +252,10 @@ type GetRef struct {
 	Target Expr
 }
 
-func NewGetRef(mut bool, t Expr) *GetRef {
+func NewGetRef(mut bool, target Expr) *GetRef {
 	return &GetRef{
 		Mut:    mut,
-		Target: t,
+		Target: target,
 	}
 }
 
@@ -335,16 +399,16 @@ func (e *Binary) Temporary() bool {
 }
 
 type Func struct {
-	Return types.Type
+	Type   types.FuncType
 	Params []*Param
 	Body   optional.Optional[*Block]
 
 	UsedExternalVariables []Ident
 }
 
-func NewFunc(rt types.Type, params ...*Param) *Func {
+func NewFunc(t types.FuncType, params ...*Param) *Func {
 	return &Func{
-		Return: rt,
+		Type:   t,
 		Params: params,
 	}
 }
@@ -352,36 +416,51 @@ func NewFunc(rt types.Type, params ...*Param) *Func {
 func (*Func) expr()  {}
 func (*Func) local() {}
 
-func (e *Func) Print(p *hir.Printer) {
+func (f *Func) Print(p *hir.Printer) {
 	p.WriteString("(")
-	for i, param := range e.Params {
+	for i, param := range f.Params {
 		p.WriteBy(param)
-		if i < len(e.Params)-1 {
+		if i < len(f.Params)-1 {
 			p.WriteString(", ")
 		}
 	}
 	p.WriteString(")")
 	p.WriteString(" -> ")
-	p.WriteBy(e.Return)
-	if body, ok := e.Body.Value(); ok {
+	p.WriteBy(f.Type.GetReturn())
+	if body, ok := f.Body.Value(); ok {
 		p.WriteString(" ")
 		p.WriteBy(body)
 	}
 }
 
-func (e *Func) GetType() types.Type {
-	params := stlslices.Map(e.Params, func(_ int, param *Param) types.Type {
+func (f *Func) GetType() types.Type {
+	params := stlslices.Map(f.Params, func(_ int, param *Param) types.Type {
 		return param.Type
 	})
-	return types.NewFuncType(e.Return, params...)
+	return types.NewFuncType(f.Type.GetReturn(), params...)
 }
 
-func (e *Func) Mutable() bool {
+func (f *Func) Mutable() bool {
 	return false
 }
 
-func (e *Func) Temporary() bool {
+func (f *Func) Temporary() bool {
 	return true
+}
+
+func (f *Func) TryToType(t types.Type) {
+	ft, ok := t.(types.FuncType)
+	if !ok ||
+		len(ft.GetParams()) != len(f.Type.GetParams()) ||
+		!ft.GetReturn().Equal(f.Type.GetReturn()) {
+		return
+	}
+	for i, p := range ft.GetParams() {
+		if !p.Equal(f.Type.GetParams()[i]) {
+			return
+		}
+	}
+	f.Type = ft
 }
 
 type Call struct {
@@ -417,11 +496,11 @@ func (e *Call) Temporary() bool {
 }
 
 type Tuple struct {
-	Type  types.Type
+	Type  types.TupleType
 	Elems []Expr
 }
 
-func NewTuple(t types.Type, elems ...Expr) *Tuple {
+func NewTuple(t types.TupleType, elems ...Expr) *Tuple {
 	return &Tuple{Type: t, Elems: elems}
 }
 
@@ -449,6 +528,20 @@ func (e *Tuple) Mutable() bool {
 
 func (e *Tuple) Temporary() bool {
 	return true
+}
+
+func (e *Tuple) TryToType(t types.Type) {
+	tt, ok := t.(types.TupleType)
+	if !ok ||
+		len(tt.GetElems()) != len(e.Type.GetElems()) {
+		return
+	}
+	for i, et := range tt.GetElems() {
+		if !et.Equal(e.Type.GetElems()[i]) {
+			return
+		}
+	}
+	e.Type = tt
 }
 
 type TupleIndex struct {
@@ -487,11 +580,11 @@ func (e *TupleIndex) Temporary() bool {
 }
 
 type Array struct {
-	Type  types.Type
+	Type  types.ArrayType
 	Elems []Expr
 }
 
-func NewArray(t types.Type, elems ...Expr) *Array {
+func NewArray(t types.ArrayType, elems ...Expr) *Array {
 	return &Array{Type: t, Elems: elems}
 }
 
@@ -519,6 +612,16 @@ func (e *Array) Mutable() bool {
 
 func (e *Array) Temporary() bool {
 	return true
+}
+
+func (e *Array) TryToType(t types.Type) {
+	at, ok := t.(types.ArrayType)
+	if !ok ||
+		at.GetSize().String() != e.Type.GetSize().String() ||
+		!at.GetElem().Equal(e.Type.GetElem()) {
+		return
+	}
+	e.Type = at
 }
 
 type ArrayIndex struct {
@@ -553,39 +656,6 @@ func (e *ArrayIndex) Mutable() bool {
 
 func (e *ArrayIndex) Temporary() bool {
 	return e.From.Temporary()
-}
-
-type Boolean struct {
-	Value bool
-}
-
-func NewBoolean(v bool) *Boolean {
-	return &Boolean{
-		Value: v,
-	}
-}
-
-func (*Boolean) expr()  {}
-func (*Boolean) local() {}
-
-func (e *Boolean) Print(p *hir.Printer) {
-	if e.Value {
-		p.WriteString("true")
-	} else {
-		p.WriteString("false")
-	}
-}
-
-func (e *Boolean) GetType() types.Type {
-	return types.Bool
-}
-
-func (e *Boolean) Mutable() bool {
-	return false
-}
-
-func (e *Boolean) Temporary() bool {
-	return true
 }
 
 type Covert interface {
@@ -666,6 +736,43 @@ func (e *NumberCovert) Temporary() bool {
 }
 
 func (e *NumberCovert) GetFrom() Expr {
+	return e.From
+}
+
+type TypedefCovert struct {
+	From Expr
+	To   types.Type
+}
+
+func NewTypedefCovert(from Expr, to types.Type) *TypedefCovert {
+	return &TypedefCovert{
+		From: from,
+		To:   to,
+	}
+}
+
+func (*TypedefCovert) expr()  {}
+func (*TypedefCovert) local() {}
+
+func (e *TypedefCovert) Print(p *hir.Printer) {
+	p.WriteBy(e.From)
+	p.WriteString(" as ")
+	p.WriteBy(e.To)
+}
+
+func (e *TypedefCovert) GetType() types.Type {
+	return e.To
+}
+
+func (e *TypedefCovert) Mutable() bool {
+	return e.From.Mutable()
+}
+
+func (e *TypedefCovert) Temporary() bool {
+	return e.From.Temporary()
+}
+
+func (e *TypedefCovert) GetFrom() Expr {
 	return e.From
 }
 

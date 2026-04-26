@@ -71,3 +71,13 @@ func (t *_UnionType) Equal(p Type) bool {
 func (t *_UnionType) GetElems() []Type {
 	return t.Elems
 }
+
+type _CustomUnionType struct {
+	_CustomBaseType[UnionType]
+}
+
+func (*_CustomUnionType) union() {}
+
+func (t *_CustomUnionType) GetElems() []Type {
+	return t.Underlying.GetElems()
+}

@@ -155,7 +155,7 @@ func (a *Analyzer) analyzeWhile(local *ast.While) *stmts.While {
 	if condAst, ok := local.Condition.Value(); ok {
 		cond = a.expectTypeExpr(condAst, types.Bool)
 	} else {
-		cond = stmts.NewBoolean(true)
+		cond = stmts.NewBoolean(types.Bool, true)
 	}
 
 	a.scope = scopes.NewBlockScope(a.scope)

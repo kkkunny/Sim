@@ -74,6 +74,7 @@ var KindEnum = enum.New[struct {
 	Else   Kind `text:"else"`
 	For    Kind `text:"for"`
 	In     Kind `text:"in"`
+	Type   Kind `text:"type"`
 }]()
 
 var kind2Text = func() map[Kind]string {

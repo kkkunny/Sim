@@ -28,3 +28,9 @@ func (t *_BooleanType) String() string {
 func (t *_BooleanType) Equal(p Type) bool {
 	return stlval.Is[BooleanType](p)
 }
+
+type _CustomBooleanType struct {
+	_CustomBaseType[BooleanType]
+}
+
+func (t *_CustomBooleanType) boolean() {}
