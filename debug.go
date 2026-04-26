@@ -14,20 +14,15 @@ import (
 	"github.com/kkkunny/Sim/compiler/codegen"
 	"github.com/kkkunny/Sim/compiler/compile"
 	"github.com/kkkunny/Sim/compiler/config"
-	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
-	"github.com/kkkunny/Sim/compiler/reader"
 	simerr "github.com/kkkunny/Sim/compiler/report"
 )
 
 func main() {
 	testFilePath := "examples/main.sim"
-	file := stlerr.MustWith(os.Open(testFilePath))
-	defer file.Close()
-	lexer := lex.New(reader.NewFile(testFilePath, file))
 
 	reporter := simerr.NewReporter()
-	ast := parse.New(lexer, reporter).Parse()
+	ast := stlerr.MustWith(parse.Parse(testFilePath, reporter))
 	if reporter.HasErrors() {
 		reporter.Print()
 		os.Exit(1)
