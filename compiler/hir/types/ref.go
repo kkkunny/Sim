@@ -50,3 +50,15 @@ func (t *_RefType) Mutable() bool {
 func (t *_RefType) PtrTo() Type {
 	return t.Elem
 }
+
+type _CustomRefType struct {
+	_CustomBaseType[RefType]
+}
+
+func (t *_CustomRefType) Mutable() bool {
+	return t.Underlying.Mutable()
+}
+
+func (t *_CustomRefType) PtrTo() Type {
+	return t.Underlying.PtrTo()
+}

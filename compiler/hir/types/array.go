@@ -51,3 +51,15 @@ func (t *_ArrayType) GetSize() *big.Int {
 func (t *_ArrayType) GetElem() Type {
 	return t.Elem
 }
+
+type _CustomArrayType struct {
+	_CustomBaseType[ArrayType]
+}
+
+func (t *_CustomArrayType) GetSize() *big.Int {
+	return t.Underlying.GetSize()
+}
+
+func (t *_CustomArrayType) GetElem() Type {
+	return t.Underlying.GetElem()
+}

@@ -60,3 +60,13 @@ func (t *_TupleType) Equal(p Type) bool {
 func (t *_TupleType) GetElems() []Type {
 	return t.Elems
 }
+
+type _CustomTupleType struct {
+	_CustomBaseType[TupleType]
+}
+
+func (*_CustomTupleType) tuple() {}
+
+func (t *_CustomTupleType) GetElems() []Type {
+	return t.Underlying.GetElems()
+}

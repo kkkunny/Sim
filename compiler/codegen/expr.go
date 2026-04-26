@@ -71,7 +71,7 @@ func (c *CodeGenerator) genIdentExpr(expr *stmts.IdentExpr) cir.Expr {
 
 func (c *CodeGenerator) genUnary(expr stmts.Unary) *cir.Unary {
 	switch expr := expr.(type) {
-	case *stmts.BitReverse, *stmts.BooleanReverse:
+	case *stmts.BitsReverse, *stmts.BooleanReverse:
 		return cir.NewUnary(cir.UnaryOpEnum.Not, c.genExpr(expr.GetOpTarget()))
 	case *stmts.GetRef:
 		v := c.genExpr(expr.Target)
@@ -151,7 +151,7 @@ func (c *CodeGenerator) genBinary(expr *stmts.Binary) cir.Expr {
 }
 
 func (c *CodeGenerator) genNativeFuncDecl(expr *stmts.Func) *cir.FuncDecl {
-	returnType := c.genType(expr.Return)
+	returnType := c.genType(expr.Type.GetReturn())
 	params := make([]*cir.Param, len(expr.Params))
 	for i, p := range expr.Params {
 		pn := fmt.Sprintf("_p%d", i+1)
@@ -181,7 +181,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 		c.idents[p] = params[i+1]
 	}
 
-	returnType := c.genType(expr.Return)
+	returnType := c.genType(expr.Type.GetReturn())
 
 	initBodyFn := func() {
 		ctx := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.NewAliasType(ctxT), "_ctx"))
@@ -279,6 +279,8 @@ func (c *CodeGenerator) genCovert(expr stmts.Covert) cir.Expr {
 		}, t)
 	case *stmts.NumberCovert:
 		return cir.NewCovert(t, v)
+	case *stmts.TypedefCovert:
+		return cir.NewCovert(t, v)
 	default:
 		panic("unreachable")
 	}
@@ -293,6 +295,8 @@ func (c *CodeGenerator) genTernary(expr *stmts.Ternary) *cir.Ternary {
 
 func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) cir.Expr {
 	switch t := t.(type) {
+	case types.CustomType:
+		return c.genEqual(not, t.GetUnderlying(), left, right)
 	case types.NumberType, types.BooleanType, types.RefType:
 		return cir.NewBinary(stlval.If(!not, cir.BinaryOpEnum.Eq, cir.BinaryOpEnum.Neq), left, right)
 	case types.ArrayType:

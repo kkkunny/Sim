@@ -90,8 +90,7 @@ type If struct {
 	Else      optional.Optional[either.Either[*If, *Block]]
 }
 
-func (*If) local()  {}
-func (*If) global() {}
+func (*If) local() {}
 
 func (l *If) print(p *printer) {
 	p.WriteString("if ")
@@ -114,8 +113,7 @@ type While struct {
 	Body      *Block
 }
 
-func (*While) local()  {}
-func (*While) global() {}
+func (*While) local() {}
 
 func (l *While) print(p *printer) {
 	p.WriteString("for ")
@@ -133,8 +131,7 @@ type For struct {
 	Body     *Block
 }
 
-func (*For) local()  {}
-func (*For) global() {}
+func (*For) local() {}
 
 func (l *For) print(p *printer) {
 	p.WriteString("for ")

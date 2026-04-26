@@ -66,3 +66,15 @@ func (t *_FuncType) GetReturn() Type {
 func (t *_FuncType) GetParams() []Type {
 	return t.Params
 }
+
+type _CustomFuncType struct {
+	_CustomBaseType[FuncType]
+}
+
+func (t *_CustomFuncType) GetReturn() Type {
+	return t.Underlying.GetReturn()
+}
+
+func (t *_CustomFuncType) GetParams() []Type {
+	return t.Underlying.GetParams()
+}

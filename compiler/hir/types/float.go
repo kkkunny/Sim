@@ -41,3 +41,13 @@ func (t *_FloatType) Equal(p Type) bool {
 func (t *_FloatType) GetBits() uint8 {
 	return t.Bits
 }
+
+type _CustomFloatType struct {
+	_CustomBaseType[FloatType]
+}
+
+func (t *_CustomFloatType) float() {}
+
+func (t *_CustomFloatType) GetBits() uint8 {
+	return t.Underlying.GetBits()
+}
