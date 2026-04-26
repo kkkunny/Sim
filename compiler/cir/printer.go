@@ -21,9 +21,9 @@ func newPrint(w io.Writer) *printer {
 	return &printer{w: w}
 }
 
-func (c *Builder) Output(w io.Writer) {
+func (b *Builder) Output(w io.Writer) {
 	p := newPrint(w)
-	p.WriteBy(c)
+	p.WriteBy(b)
 }
 
 func (p *printer) WriteBy(w printWriter) {
