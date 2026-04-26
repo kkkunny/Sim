@@ -61,8 +61,8 @@ func (r *Return) print(p *printer) {
 type Let struct {
 	Mut   bool
 	Name  token.Token
-	Type  optional.Optional[Type]
-	Value optional.Optional[Expr]
+	Type  optional.Optional[Type] // Type和Value必有一个不为空
+	Value optional.Optional[Expr] // Type和Value必有一个不为空
 }
 
 func (*Let) local()  {}

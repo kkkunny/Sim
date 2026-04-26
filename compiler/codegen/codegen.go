@@ -32,6 +32,9 @@ func (c *CodeGenerator) Generate(program *stmts.Program) *cir.Builder {
 
 func (c *CodeGenerator) genProgram(program *stmts.Program) {
 	for _, g := range program.Globals {
-		c.genGlobal(g)
+		c.genGlobalDecl(g)
+	}
+	for _, g := range program.Globals {
+		c.genGlobalDef(g)
 	}
 }

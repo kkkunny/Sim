@@ -17,23 +17,20 @@ type Builder struct {
 	funcVarCount   int
 }
 
-func (b *Builder) SaveFuncVarCount() int {
-	n := b.funcVarCount
-	b.funcVarCount = 0
-	return n
-}
-
-func (b *Builder) RestoreFuncVarCount(n int) {
-	b.funcVarCount = n
-}
-
 func NewBuilder() *Builder {
-	b := &Builder{}
-	BuildStmt(b, NewInclude("\"buildin.c\""))
-	return b
+	return &Builder{}
 }
 
 func (b *Builder) print(p *printer) {
+	p.WriteString("#include \"buildin.c\"\n")
+	for _, g := range b.Globals {
+		decl, ok := g.(GlobalDecl)
+		if !ok {
+			continue
+		}
+		decl.printDecl(p)
+		p.WriteString("\n")
+	}
 	for i, g := range b.Globals {
 		p.WriteBy(g)
 		if i != len(b.Globals)-1 {
@@ -42,18 +39,28 @@ func (b *Builder) print(p *printer) {
 	}
 }
 
-func (c *Builder) String() string {
+func (b *Builder) String() string {
 	var buf strings.Builder
-	c.Output(&buf)
+	b.Output(&buf)
 	return buf.String()
 }
 
-func (c *Builder) MoveTo(b *Block) {
-	c.at = b
+func (b *Builder) MoveTo(block *Block) {
+	b.at = block
 }
 
-func (c *Builder) CurrentAt() (*Block, bool) {
-	return c.at, c.at != nil
+func (b *Builder) CurrentAt() (*Block, bool) {
+	return b.at, b.at != nil
+}
+
+func (b *Builder) SaveFuncVarCount() int {
+	n := b.funcVarCount
+	b.funcVarCount = 0
+	return n
+}
+
+func (b *Builder) RestoreFuncVarCount(n int) {
+	b.funcVarCount = n
 }
 
 type Stmt interface {

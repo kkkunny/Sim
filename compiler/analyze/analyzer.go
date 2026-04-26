@@ -21,9 +21,13 @@ func NewAnalyzer(reporter *report.Reporter) *Analyzer {
 }
 
 func (a *Analyzer) Analyze(program *ast.Program) *stmts.Program {
+	for _, g := range program.Globals {
+		a.analyzeGlobalDecl(g)
+	}
+
 	hirProg := &stmts.Program{}
 	for _, g := range program.Globals {
-		hirProg.Globals = append(hirProg.Globals, a.analyzeGlobal(g))
+		hirProg.Globals = append(hirProg.Globals, a.analyzeGlobalDef(g))
 	}
 	return hirProg
 }
