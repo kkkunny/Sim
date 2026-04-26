@@ -45,7 +45,7 @@ func (p *Parser) parsePrimaryType() ast.Type {
 		begin := p.expect(token.KindEnum.And).Position
 		mut := p.ifSkip(token.KindEnum.Mut)
 		elem := p.parseType()
-		return &ast.PointerType{BeginPosition: begin, Mut: mut, Elem: elem}
+		return &ast.RefType{BeginPosition: begin, Mut: mut, Elem: elem}
 	default:
 		name := p.expect(token.KindEnum.Ident)
 		return &ast.IdentType{Name: name}

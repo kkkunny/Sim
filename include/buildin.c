@@ -249,6 +249,11 @@ const bool false = 1!=1;
 
 #define LOGIC_OR(x, y) x || y
 
+// 指针
+#define PTR_TYPE(elem) struct {elem *ptr;}
+#define GET_PTR(v) {.ptr=&(v)}
+#define DE_PTR(v) *((v).ptr)
+
 // 函数胖指针与闭包
 #define FUNC_TYPE(ret, ...) struct { \
     union { \
@@ -264,7 +269,7 @@ const bool false = 1!=1;
 #define FUNC_NEQ(x, y) x.ctx != y.ctx || (x.ctx == NULL ? x.func.f != y.func.f : x.func.c != y.func.c)
 
 // 数组
-#define ARRAY_TYPE(elem, size) struct{elem array[size];}
+#define ARRAY_TYPE(elem, size) struct {elem array[size];}
 #define ARRAY_INDEX(a, i) a.array[i]
 
 // 元组

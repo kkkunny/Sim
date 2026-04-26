@@ -9,11 +9,6 @@ type Global interface {
 	global()
 }
 
-type GlobalDecl interface {
-	Global
-	printDecl(p *printer)
-}
-
 type FuncDecl struct {
 	Name       string
 	Params     []*Param
@@ -53,20 +48,6 @@ func (g *FuncDecl) print(p *printer) {
 	}
 }
 
-func (g *FuncDecl) printDecl(p *printer) {
-	p.WriteString("static ")
-	p.WriteBy(g.ReturnType)
-	p.WriteString(" ")
-	p.WriteString(g.Name + "(")
-	for i, param := range g.Params {
-		p.WriteBy(param)
-		if i < len(g.Params)-1 {
-			p.WriteString(", ")
-		}
-	}
-	p.WriteString(");")
-}
-
 func (g *FuncDecl) SetName(s string) {
 	g.Name = s
 }
@@ -102,4 +83,30 @@ func (g *Typedef) SetName(s string) {
 
 func (g *Typedef) GetName() string {
 	return g.Name
+}
+
+type StructTypeDef struct {
+	Type *StructType
+}
+
+func NewStructTypeDef(t *StructType) *StructTypeDef {
+	return &StructTypeDef{
+		Type: t,
+	}
+}
+
+func (*StructTypeDef) stmt()   {}
+func (*StructTypeDef) global() {}
+
+func (g *StructTypeDef) print(p *printer) {
+	p.WriteBy(g.Type)
+	p.WriteString(";")
+}
+
+func (g *StructTypeDef) SetName(s string) {
+	g.Type.Name = s
+}
+
+func (g *StructTypeDef) GetName() string {
+	return g.Type.Name
 }

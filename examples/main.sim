@@ -1,2 +1,1 @@
-type A B
-type B i32
+type B &B

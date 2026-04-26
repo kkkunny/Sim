@@ -2,10 +2,84 @@ package codegen
 
 import (
 	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
+
+func (c *CodeGenerator) genTypeDecl(global stmts.Global) {
+	switch global := global.(type) {
+	case *stmts.TypeDef:
+		c.genCustomTypeDecl(global)
+	}
+}
+
+func (c *CodeGenerator) genCustomTypeDecl(global *stmts.TypeDef) {
+	switch global.Type.GetUnderlying().(type) {
+	case types.TupleType, types.ArrayType, types.UnionType, types.FuncType, types.RefType:
+	default:
+		return
+	}
+
+	st := cir.NewStructType("", optional.None[[]*cir.Member]())
+	def := cir.BuildStmt(c.builder, cir.NewTypedef(st, ""))
+	st.Name = def.Name
+	c.typeCache[global.Type.GetName()] = cir.NewAliasType(def)
+}
+
+func (c *CodeGenerator) genTypeDef(global stmts.Global) {
+	switch global := global.(type) {
+	case *stmts.TypeDef:
+		c.genCustomTypeDef(global.Type)
+	}
+}
+
+func (c *CodeGenerator) genCustomTypeDef(ct types.CustomType) cir.Type {
+	t, ok := c.typeCache[ct.GetName()]
+	switch underlyingHir := ct.GetUnderlying().(type) {
+	case types.TupleType:
+		st := c.genFlatTupleType(underlyingHir)
+		st.Name = t.Def.Name
+		cir.BuildStmt(c.builder, cir.NewStructTypeDef(st))
+	case types.ArrayType:
+		at := cir.NewStructType(t.Def.Name, optional.Some([]*cir.Member{
+			cir.NewMember(cir.NewArrayType(c.genType(underlyingHir.GetElem()), underlyingHir.GetSize()), "array"),
+		}))
+		cir.BuildStmt(c.builder, cir.NewStructTypeDef(at))
+	case types.UnionType:
+		ut := c.genFlatUnionType(underlyingHir)
+		ut.Name = t.Def.Name
+		cir.BuildStmt(c.builder, cir.NewStructTypeDef(ut))
+	case types.FuncType:
+		r := c.genType(underlyingHir.GetReturn())
+		ps := stlslices.Map(underlyingHir.GetParams(), func(i int, e types.Type) cir.Type {
+			return c.genType(e)
+		})
+		ft := cir.NewStructType(t.Def.Name, optional.Some([]*cir.Member{
+			cir.NewMember(cir.NewUnionType(
+				"",
+				cir.NewMember(cir.NewPointerType(cir.NewFuncType(r, ps...)), "f"),
+				cir.NewMember(cir.NewPointerType(cir.NewFuncType(r, append([]cir.Type{cir.VoidPtr}, ps...)...)), "c"),
+			), "func"),
+			cir.NewMember(cir.VoidPtr, "ctx"),
+		}))
+		cir.BuildStmt(c.builder, cir.NewStructTypeDef(ft))
+	case types.RefType:
+		cir.BuildStmt(c.builder, cir.NewStructTypeDef(cir.NewStructType(t.Def.Name, optional.Some([]*cir.Member{
+			cir.NewMember(cir.NewPointerType(c.genType(underlyingHir.PtrTo())), "ptr"),
+		}))))
+	default:
+		if ok {
+			return t
+		}
+		underlying := c.genType(ct.GetUnderlying())
+		def := cir.BuildStmt(c.builder, cir.NewTypedef(underlying, ""))
+		c.typeCache[ct.GetName()] = cir.NewAliasType(def)
+	}
+	return c.typeCache[ct.GetName()]
+}
 
 func (c *CodeGenerator) genGlobalDecl(global stmts.Global) {
 	switch global := global.(type) {
@@ -33,8 +107,6 @@ func (c *CodeGenerator) genGlobalDef(global stmts.Global) {
 	switch global := global.(type) {
 	case *stmts.Let:
 		c.genGlobalLetDef(global)
-	default:
-		panic("unreachable")
 	}
 }
 
@@ -42,16 +114,18 @@ func (c *CodeGenerator) genGlobalLetDef(l *stmts.Let) {
 	decl := c.idents[l]
 
 	if expr, ok := l.Value.(*stmts.Func); ok {
-		funcDecl := decl.(*cir.FuncDecl)
+		def := c.genNativeFuncDecl(expr)
+		def.Name = decl.GetName()
 		if b, ok := expr.Body.Value(); ok {
 			prevFunc := c.currentFunc
 			c.currentFunc = expr
-			funcDecl.Body = optional.Some(c.genFuncBlock(b, nil))
+			def.Body = optional.Some(c.genFuncBlock(b, nil))
 			c.currentFunc = prevFunc
 		}
 		return
 	}
 
-	varDecl := decl.(*cir.VarDecl)
-	varDecl.Value = optional.Some(c.genExpr(l.Value))
+	t := c.genType(l.GetType())
+	def := cir.BuildStmt(c.builder, cir.NewVarDecl(t, decl.GetName()))
+	def.Value = optional.Some(c.genExpr(l.Value))
 }

@@ -3,7 +3,7 @@ package codegen
 import (
 	"fmt"
 
-	stlmaps "github.com/kkkunny/stl/container/maps"
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/cir"
@@ -13,7 +13,10 @@ import (
 func (c *CodeGenerator) genType(t types.Type) cir.Type {
 	switch t := t.(type) {
 	case types.CustomType:
-		return c.genCustomType(t)
+		if t, ok := c.typeCache[t.GetName()]; ok {
+			return t
+		}
+		return c.genCustomTypeDef(t)
 	case types.UnitType:
 		return cir.Void
 	case types.SintType:
@@ -68,25 +71,13 @@ func (c *CodeGenerator) genType(t types.Type) cir.Type {
 	}
 }
 
-func (c *CodeGenerator) genCustomType(ct types.CustomType) cir.Type {
-	if !stlmaps.ContainKey(c.typeCache, ct.GetName()) {
-		underlying := c.genType(ct.GetUnderlying())
-		def := cir.BuildStmt(c.builder, cir.NewTypedef(underlying, ""))
-		c.typeCache[ct.GetName()] = cir.NewAliasType(def)
-	}
-	return c.typeCache[ct.GetName()]
-}
-
 // 原生函数类型
 func (c *CodeGenerator) genNativeFuncType(t types.FuncType) *cir.FuncType {
 	r := c.genType(t.GetReturn())
 	ps := stlslices.Map(t.GetParams(), func(i int, e types.Type) cir.Type {
 		return c.genType(e)
 	})
-	return &cir.FuncType{
-		Return: r,
-		Params: ps,
-	}
+	return cir.NewFuncType(r, ps...)
 }
 
 // 函数胖类型，用于变量定义、赋值
@@ -111,15 +102,19 @@ func (c *CodeGenerator) genTupleType(t types.TupleType) *cir.AliasType {
 		return at
 	}
 
+	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(c.genFlatTupleType(t), "")))
+	c.typeCache[key] = at
+	return at
+}
+
+func (c *CodeGenerator) genFlatTupleType(t types.TupleType) *cir.StructType {
 	fields := make([]*cir.Member, len(t.GetElems()))
 	for i, e := range t.GetElems() {
 		fn := fmt.Sprintf("e%d", i+1)
 		ft := c.genType(e)
 		fields[i] = cir.NewMember(ft, fn)
 	}
-	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewStructType("", fields...), "")))
-	c.typeCache[key] = at
-	return at
+	return cir.NewStructType("", optional.Some(fields))
 }
 
 func (c *CodeGenerator) genArrayType(t types.ArrayType) *cir.AliasType {
@@ -129,10 +124,14 @@ func (c *CodeGenerator) genArrayType(t types.ArrayType) *cir.AliasType {
 		return at
 	}
 
-	elem := c.genType(t.GetElem())
-	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewMacroType("ARRAY_TYPE", elem, cir.NewInteger(t.GetSize())), "")))
+	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(c.genFlatArrayType(t), "")))
 	c.typeCache[key] = at
 	return at
+}
+
+func (c *CodeGenerator) genFlatArrayType(t types.ArrayType) *cir.MacroType {
+	elem := c.genType(t.GetElem())
+	return cir.NewMacroType("ARRAY_TYPE", elem, cir.NewInteger(t.GetSize()))
 }
 
 func (c *CodeGenerator) genUnionType(t types.UnionType) *cir.AliasType {
@@ -142,27 +141,33 @@ func (c *CodeGenerator) genUnionType(t types.UnionType) *cir.AliasType {
 		return ut
 	}
 
-	elems := stlslices.Map(t.GetElems(), func(_ int, e types.Type) cir.Type {
-		return c.genType(e)
-	})
-	ut = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewStructType(
-		"",
-		cir.NewMember(cir.U8, "t"),
-		cir.NewMember(
-			cir.NewUnionType(
-				"",
-				stlslices.Map(elems, func(i int, e cir.Type) *cir.Member {
-					return cir.NewMember(e, fmt.Sprintf("t%d", i+1))
-				})...,
-			),
-			"v",
-		),
-	), "")))
+	ut = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(c.genFlatUnionType(t), "")))
 	c.typeCache[key] = ut
 	return ut
 }
 
-func (c *CodeGenerator) genRefType(t types.RefType) *cir.PointerType {
+func (c *CodeGenerator) genFlatUnionType(t types.UnionType) *cir.StructType {
+	elems := stlslices.Map(t.GetElems(), func(_ int, e types.Type) cir.Type {
+		return c.genType(e)
+	})
+	return cir.NewStructType(
+		"",
+		optional.Some([]*cir.Member{
+			cir.NewMember(cir.U8, "t"),
+			cir.NewMember(
+				cir.NewUnionType(
+					"",
+					stlslices.Map(elems, func(i int, e cir.Type) *cir.Member {
+						return cir.NewMember(e, fmt.Sprintf("t%d", i+1))
+					})...,
+				),
+				"v",
+			),
+		}),
+	)
+}
+
+func (c *CodeGenerator) genRefType(t types.RefType) *cir.MacroType {
 	elem := c.genType(t.PtrTo())
-	return cir.NewPointerType(elem)
+	return cir.NewMacroType("PTR_TYPE", elem)
 }
