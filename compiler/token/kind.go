@@ -63,6 +63,7 @@ var KindEnum = enum.New[struct {
 	Question Kind `text:"?"`
 	Sem      Kind `text:";"`
 	Arrow    Kind `text:"->"`
+	Scope    Kind `text:"::"`
 
 	Let    Kind `text:"let"`
 	Return Kind `text:"return"`
@@ -75,6 +76,7 @@ var KindEnum = enum.New[struct {
 	For    Kind `text:"for"`
 	In     Kind `text:"in"`
 	Type   Kind `text:"type"`
+	Import Kind `text:"import"`
 }]()
 
 var kind2Text = func() map[Kind]string {

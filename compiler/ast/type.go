@@ -15,16 +15,24 @@ type Type interface {
 }
 
 type IdentType struct {
+	Pkg  optional.Optional[token.Token]
 	Name token.Token
 }
 
 func (t *IdentType) typ() {}
 
 func (t *IdentType) print(p *printer) {
+	if pkg, ok := t.Pkg.Value(); ok {
+		p.WriteToken(pkg)
+		p.WriteString("::")
+	}
 	p.WriteToken(t.Name)
 }
 
 func (t *IdentType) Position() reader.Position {
+	if pkg, ok := t.Pkg.Value(); ok {
+		return reader.MixPosition(pkg.Position, t.Name.Position)
+	}
 	return t.Name.Position
 }
 

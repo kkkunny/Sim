@@ -99,14 +99,25 @@ func expectTypeExpr[T types.Type](a *Analyzer, expr ast.Expr, expect ...types.Ty
 }
 
 func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *stmts.IdentExpr {
-	v, ok := a.scope.Lookup(expr.Name.OriginText)
+	pkg := a.scope
+	if pkgAst, ok := expr.Pkg.Value(); ok {
+		pkg, ok = pkg.LookupPkg(pkgAst.OriginText)
+		if !ok {
+			a.reporter.Fatalf(
+				pkgAst.Position,
+				report.Errors.UnknownIdentifier,
+				pkgAst.OriginText,
+			)
+		}
+	}
+
+	v, ok := pkg.LookupValue(expr.Name.OriginText)
 	if !ok {
 		a.reporter.Fatalf(
 			expr.Name.Position,
 			report.Errors.UnknownIdentifier,
 			expr.Name.OriginText,
 		)
-		return nil
 	}
 	return stmts.NewIdentExpr(v)
 }
@@ -286,16 +297,13 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
 
 	ft := a.analyzeFuncDecl(expr)
 
-	var params []*stmts.Param
-	for i, p := range expr.Params {
-		params = append(params, stmts.NewParam(p.Mut, ft.GetParams()[i], p.Name.OriginText))
-	}
+	params := stlslices.Map(expr.Params, func(i int, pAst *ast.ParamDecl) *stmts.Param {
+		p := stmts.NewParam(pAst.Mut, ft.GetParams()[i], pAst.Name.OriginText)
+		a.scope.AddValue(p)
+		return p
+	})
 
 	scope.SetFuncType(ft)
-
-	for _, p := range params {
-		a.scope.AddValue(p)
-	}
 
 	var body optional.Optional[*stmts.Block]
 	if b, ok := expr.Body.Value(); ok {

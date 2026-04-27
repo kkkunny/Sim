@@ -14,10 +14,7 @@ import (
 func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 	switch t := t.(type) {
 	case *ast.IdentType:
-		if _, ok := a.scope.LookupType(t.Name.OriginText); ok {
-			return a.analyzeTypeDef(t)
-		}
-		return a.analyzeBuildInIdentType(t)
+		return a.analyzeIdentType(t)
 	case *ast.FuncType:
 		params := stlslices.Map(t.Params, func(_ int, p ast.Type) types.Type {
 			return a.analyzeType(p)
@@ -48,6 +45,35 @@ func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 	default:
 		panic("unreachable")
 	}
+}
+
+func (a *Analyzer) analyzeIdentType(t *ast.IdentType) types.Type {
+	pkg := a.scope.Package()
+	if pkgAst, ok := t.Pkg.Value(); ok {
+		pkg, ok = pkg.LookupPkg(pkgAst.OriginText)
+		if !ok {
+			a.reporter.Fatalf(
+				pkgAst.Position,
+				report.Errors.UnknownIdentifier,
+				pkgAst.OriginText,
+			)
+		}
+	}
+	samePkg := pkg == a.scope.Package()
+
+	if typeDef, ok := pkg.LookupType(t.Name.OriginText); ok {
+		if samePkg || typeDef.Type != nil {
+			return typeDef.Type
+		}
+		return a.analyzeCustomTypeDef(a.typedefAsts[typeDef])
+	} else if !samePkg {
+		a.reporter.Fatalf(
+			t.Name.Position,
+			report.Errors.UnknownIdentifier,
+			t.Name.OriginText,
+		)
+	}
+	return a.analyzeBuildInIdentType(t)
 }
 
 func (a *Analyzer) analyzeBuildInIdentType(t *ast.IdentType) types.Type {

@@ -8,18 +8,20 @@ import (
 	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
-	simerr "github.com/kkkunny/Sim/compiler/report"
+	"github.com/kkkunny/Sim/compiler/reader"
+	"github.com/kkkunny/Sim/compiler/report"
 )
 
 func main() {
-	reporter := simerr.NewReporter()
-	node := stlerr.MustWith(parse.Parse(os.Args[1], reporter))
-
+	file := stlerr.MustWith(os.Open(os.Args[1]))
+	defer file.Close()
+	reporter := report.NewReporter()
+	fileAst := parse.New(lex.New(reader.NewFile(os.Args[1], file)), reporter).Parse()
 	if reporter.HasErrors() {
 		reporter.Print()
 		os.Exit(1)
 	}
-
-	ast.Print(os.Stdout, node)
+	ast.Print(os.Stdout, fileAst)
 }

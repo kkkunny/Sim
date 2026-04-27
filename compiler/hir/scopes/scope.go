@@ -10,10 +10,11 @@ import (
 
 type Scope interface {
 	Package() *PkgScope
+	LookupPkg(name string) (*PkgScope, bool)
 	Parent() (Scope, bool)
 	AddValue(v stmts.Ident)
-	Lookup(name string) (stmts.Ident, bool)
-	LocalLookup(name string) (stmts.Ident, bool)
+	LookupValue(name string) (stmts.Ident, bool)
+	LocalLookupValue(name string) (stmts.Ident, bool)
 	Values() map[string]stmts.Ident
 	UsedValues() []stmts.Ident
 	LookupType(name string) (*stmts.TypeDef, bool)
@@ -26,13 +27,17 @@ type LocalScope interface {
 }
 
 type PkgScope struct {
+	Name      string
+	externals map[string]*PkgScope
 	values    map[string]stmts.Ident
 	usedValue set.Set[stmts.Ident]
 	types     map[string]*stmts.TypeDef
 }
 
-func NewPkgScope() *PkgScope {
+func NewPkgScope(name string) *PkgScope {
 	return &PkgScope{
+		Name:      name,
+		externals: make(map[string]*PkgScope),
 		values:    make(map[string]stmts.Ident),
 		usedValue: set.StdHashSetWith[stmts.Ident](),
 		types:     make(map[string]*stmts.TypeDef),
@@ -43,6 +48,15 @@ func (s *PkgScope) Package() *PkgScope {
 	return s
 }
 
+func (s *PkgScope) AddExternal(name string, pkg *PkgScope) {
+	s.externals[name] = pkg
+}
+
+func (s *PkgScope) LookupPkg(name string) (*PkgScope, bool) {
+	p, ok := s.externals[name]
+	return p, ok
+}
+
 func (s *PkgScope) Parent() (Scope, bool) {
 	return nil, false
 }
@@ -51,16 +65,16 @@ func (s *PkgScope) AddValue(v stmts.Ident) {
 	s.values[v.GetName()] = v
 }
 
-func (s *PkgScope) Lookup(name string) (v stmts.Ident, ok bool) {
+func (s *PkgScope) LookupValue(name string) (v stmts.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)
 		}
 	}()
-	return s.LocalLookup(name)
+	return s.LocalLookupValue(name)
 }
 
-func (s *PkgScope) LocalLookup(name string) (v stmts.Ident, ok bool) {
+func (s *PkgScope) LocalLookupValue(name string) (v stmts.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)
@@ -106,6 +120,10 @@ func (s *BlockScope) Package() *PkgScope {
 	return s.parent.Package()
 }
 
+func (s *BlockScope) LookupPkg(name string) (*PkgScope, bool) {
+	return s.parent.LookupPkg(name)
+}
+
 func (s *BlockScope) Parent() (Scope, bool) {
 	return s.parent, true
 }
@@ -128,19 +146,19 @@ func (s *BlockScope) AddValue(v stmts.Ident) {
 	s.values[v.GetName()] = v
 }
 
-func (s *BlockScope) Lookup(name string) (v stmts.Ident, ok bool) {
+func (s *BlockScope) LookupValue(name string) (v stmts.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)
 		}
 	}()
-	if v, ok = s.LocalLookup(name); ok {
+	if v, ok = s.LocalLookupValue(name); ok {
 		return v, true
 	}
-	return s.parent.Lookup(name)
+	return s.parent.LookupValue(name)
 }
 
-func (s *BlockScope) LocalLookup(name string) (v stmts.Ident, ok bool) {
+func (s *BlockScope) LocalLookupValue(name string) (v stmts.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)

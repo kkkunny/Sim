@@ -48,7 +48,12 @@ func (p *Parser) parsePrimaryType() ast.Type {
 		return &ast.RefType{BeginPosition: begin, Mut: mut, Elem: elem}
 	default:
 		name := p.expect(token.KindEnum.Ident)
-		return &ast.IdentType{Name: name}
+		var pkg optional.Optional[token.Token]
+		if p.ifSkip(token.KindEnum.Scope) {
+			pkg = optional.Some(name)
+			name = p.expect(token.KindEnum.Ident)
+		}
+		return &ast.IdentType{Pkg: pkg, Name: name}
 	}
 }
 
