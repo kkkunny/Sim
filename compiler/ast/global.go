@@ -7,6 +7,22 @@ type Global interface {
 	printWriter
 }
 
+type Import struct {
+	Pkgs []token.Token
+}
+
+func (*Import) global() {}
+
+func (i *Import) print(p *printer) {
+	p.WriteString("import ")
+	for index, pkg := range i.Pkgs {
+		p.WriteToken(pkg)
+		if index < len(i.Pkgs)-1 {
+			p.WriteString("::")
+		}
+	}
+}
+
 type TypeDef struct {
 	Name token.Token
 	Type Type

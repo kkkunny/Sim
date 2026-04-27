@@ -1,15 +1,10 @@
 package parse
 
 import (
-	"os"
-	"path/filepath"
-
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/lex"
-	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/report"
 	"github.com/kkkunny/Sim/compiler/token"
 )
@@ -59,7 +54,7 @@ func (p *Parser) expect(k token.Kind, skip ...token.Kind) token.Token {
 	return p.curToken
 }
 
-func (p *Parser) Parse() *ast.Program {
+func (p *Parser) Parse() *ast.File {
 	p.next()
 	var globals []ast.Global
 	for {
@@ -69,49 +64,5 @@ func (p *Parser) Parse() *ast.Program {
 		}
 		globals = append(globals, p.parseGlobal())
 	}
-	return &ast.Program{Globals: globals}
-}
-
-func parseDir(dirPath string, reporter *report.Reporter) (*ast.Program, error) {
-	entries, err := stlerr.ErrorWith(os.ReadDir(dirPath))
-	if err != nil {
-		return nil, err
-	}
-	var globals []ast.Global
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sim" {
-			continue
-		}
-		filePath := filepath.Join(dirPath, entry.Name())
-		fileProgram, err := parseFile(filePath, reporter)
-		if err != nil {
-			return nil, err
-		}
-		globals = append(globals, fileProgram.Globals...)
-	}
-	return &ast.Program{Globals: globals}, nil
-}
-
-func parseFile(filePath string, reporter *report.Reporter) (*ast.Program, error) {
-	file, err := stlerr.ErrorWith(os.Open(filePath))
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	lexer := lex.New(reader.NewFile(filePath, file))
-	parser := New(lexer, reporter)
-	return parser.Parse(), nil
-}
-
-func Parse(path string, reporter *report.Reporter) (*ast.Program, error) {
-	info, err := stlerr.ErrorWith(os.Stat(path))
-	if err != nil {
-		return nil, err
-	}
-	if info.IsDir() {
-		return parseDir(path, reporter)
-	} else {
-		return parseFile(path, reporter)
-	}
+	return &ast.File{Globals: globals}
 }

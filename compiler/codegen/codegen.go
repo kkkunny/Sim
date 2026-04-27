@@ -25,23 +25,27 @@ func New() *CodeGenerator {
 	}
 }
 
-func (c *CodeGenerator) Generate(program *stmts.Program) *cir.Builder {
-	c.genProgram(program)
+func (c *CodeGenerator) Generate(pkg *stmts.Package) *cir.Builder {
+	c.genPackage(pkg)
 	return c.builder
 }
 
-func (c *CodeGenerator) genProgram(program *stmts.Program) {
-	for _, g := range program.Globals {
+func (c *CodeGenerator) genPackage(pkg *stmts.Package) {
+	for _, depPkg := range pkg.Dependencies {
+		c.genPackage(depPkg)
+	}
+
+	for _, g := range pkg.Globals {
 		c.genTypeDecl(g)
 	}
-	for _, g := range program.Globals {
+	for _, g := range pkg.Globals {
 		c.genTypeDef(g)
 	}
 
-	for _, g := range program.Globals {
+	for _, g := range pkg.Globals {
 		c.genGlobalDecl(g)
 	}
-	for _, g := range program.Globals {
+	for _, g := range pkg.Globals {
 		c.genGlobalDef(g)
 	}
 }

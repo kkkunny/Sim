@@ -1,14 +1,62 @@
 package analyze
 
 import (
+	"path/filepath"
+
+	stlslices "github.com/kkkunny/stl/container/slices"
+
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/config"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/report"
+	"github.com/kkkunny/Sim/compiler/token"
 )
 
-func (a *Analyzer) analyzeTypeDecl(global *ast.TypeDef) *stmts.TypeDef {
+func (a *Analyzer) analyzeImport(global *ast.Import) error {
+	lastPkgToken := stlslices.Last(global.Pkgs)
+	name := lastPkgToken.OriginText
+
+	_, ok := a.scope.LookupPkg(name)
+	if ok {
+		a.reporter.Fatalf(
+			lastPkgToken.Position,
+			report.Errors.RepeatedIdentifier,
+			name,
+		)
+	}
+
+	paths := stlslices.Map(global.Pkgs, func(_ int, tok token.Token) string {
+		return tok.OriginText
+	})
+	dirpath := filepath.Join(append([]string{config.StdPkgPath}, paths...)...)
+
+	if _, ok = a.pkgScopes[dirpath]; !ok {
+		_, err := analyzeDir(dirpath, a.reporter, a)
+		if err != nil {
+			return err
+		}
+	}
+
+	ir, scope := a.pkgScopes[dirpath].Unpack()
+	a.scope.Package().AddExternal(name, scope)
+	a.ir.Dependencies = append(a.ir.Dependencies, ir)
+	return nil
+}
+
+func (a *Analyzer) analyzeTypeDecl(global ast.Global) *stmts.TypeDef {
+	switch global := global.(type) {
+	case *ast.Let, *ast.Import:
+		return nil
+	case *ast.TypeDef:
+		return a.analyzeCustomTypeDecl(global)
+	default:
+		panic("unreachable")
+	}
+}
+
+func (a *Analyzer) analyzeCustomTypeDecl(global *ast.TypeDef) *stmts.TypeDef {
 	_, ok := a.scope.LookupType(global.Name.OriginText)
 	if ok {
 		a.reporter.Fatalf(
@@ -25,22 +73,31 @@ func (a *Analyzer) analyzeTypeDecl(global *ast.TypeDef) *stmts.TypeDef {
 	return decl
 }
 
-func (a *Analyzer) analyzeTypeDef(t *ast.IdentType) types.Type {
-	name := t.Name.OriginText
+func (a *Analyzer) analyzeTypeDef(global ast.Global) {
+	switch global := global.(type) {
+	case *ast.Let, *ast.Import:
+		return
+	case *ast.TypeDef:
+		a.analyzeCustomTypeDef(global)
+	default:
+		panic("unreachable")
+	}
+}
+
+func (a *Analyzer) analyzeCustomTypeDef(global *ast.TypeDef) types.Type {
+	name := global.Name.OriginText
 	decl, _ := a.scope.LookupType(name)
 	if decl.Type != nil {
 		return decl.Type
 	}
 
-	tdAst := a.typedefAsts[decl]
-
 	var ct types.CustomType
 	var setter func(types.Type)
-	switch t := tdAst.Type.(type) {
+	switch t := global.Type.(type) {
 	case *ast.IdentType:
 		if _, ok := a.scope.LookupType(t.Name.OriginText); ok {
 			a.reporter.Fatalf(
-				tdAst.Name.Position,
+				global.Name.Position,
 				report.Errors.InvalidRecursionType,
 			)
 		}
@@ -77,11 +134,11 @@ func (a *Analyzer) analyzeTypeDef(t *ast.IdentType) types.Type {
 		ct, setter = ctt, func(t types.Type) { s(t.(types.RefType)) }
 	}
 	decl.Type = ct
-	setter(a.analyzeType(tdAst.Type))
+	setter(a.analyzeType(global.Type))
 
 	if types.CheckRecursion(ct) {
 		a.reporter.Fatalf(
-			tdAst.Name.Position,
+			global.Name.Position,
 			report.Errors.InvalidRecursionType,
 		)
 	}
@@ -89,15 +146,19 @@ func (a *Analyzer) analyzeTypeDef(t *ast.IdentType) types.Type {
 	return ct
 }
 
-func (a *Analyzer) analyzeGlobalDecl(global ast.Global) {
+func (a *Analyzer) analyzeGlobalValueDecl(global ast.Global) {
 	switch global := global.(type) {
+	case *ast.TypeDef, *ast.Import:
+		return
 	case *ast.Let:
 		a.analyzeGlobalLetDecl(global)
+	default:
+		panic("unreachable")
 	}
 }
 
 func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
-	_, ok := a.scope.Lookup(global.Name.OriginText)
+	_, ok := a.scope.LookupValue(global.Name.OriginText)
 	if ok {
 		a.reporter.Fatalf(
 			global.Name.Position,
@@ -150,8 +211,10 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 	})
 }
 
-func (a *Analyzer) analyzeGlobalDef(global ast.Global) stmts.Global {
+func (a *Analyzer) analyzeGlobalValueDef(global ast.Global) stmts.Global {
 	switch global := global.(type) {
+	case *ast.TypeDef, *ast.Import:
+		return nil
 	case *ast.Let:
 		return a.analyzeLetDef(global, true)
 	default:

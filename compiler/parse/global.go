@@ -8,6 +8,8 @@ import (
 
 func (p *Parser) parseGlobal() ast.Global {
 	switch p.nextToken.Kind {
+	case token.KindEnum.Import:
+		return p.parseImport()
 	case token.KindEnum.Let:
 		return p.parseLet()
 	case token.KindEnum.Type:
@@ -20,6 +22,18 @@ func (p *Parser) parseGlobal() ast.Global {
 		)
 		return nil
 	}
+}
+
+func (p *Parser) parseImport() *ast.Import {
+	p.expect(token.KindEnum.Import)
+	var pkgs []token.Token
+	for {
+		pkgs = append(pkgs, p.expect(token.KindEnum.Ident))
+		if !p.ifSkip(token.KindEnum.Scope) {
+			break
+		}
+	}
+	return &ast.Import{Pkgs: pkgs}
 }
 
 func (p *Parser) parseTypeDef() *ast.TypeDef {

@@ -4,11 +4,11 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
-type Program struct {
+type File struct {
 	Globals []Global
 }
 
-func (p *Program) print(pr *printer) {
+func (p *File) print(pr *printer) {
 	for i, f := range p.Globals {
 		pr.WriteBy(f)
 		pr.NextLine()

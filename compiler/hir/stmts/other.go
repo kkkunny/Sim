@@ -11,11 +11,13 @@ type Ident interface {
 	Mutable() bool
 }
 
-type Program struct {
-	Globals []Global
+type Package struct {
+	Name         string
+	Dependencies []*Package
+	Globals      []Global
 }
 
-func (p *Program) Print(pr *hir.Printer) {
+func (p *Package) Print(pr *hir.Printer) {
 	for i, f := range p.Globals {
 		pr.WriteBy(f)
 		pr.NextLine()

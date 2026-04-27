@@ -99,7 +99,7 @@ func (p *Parser) parseFor() ast.Local {
 	var cond optional.Optional[ast.Expr]
 	if p.nextToken.Kind != token.KindEnum.Lbr {
 		cond = optional.Some(p.parseExpr())
-		if ident, ok := cond.MustValue().(*ast.IdentExpr); ok && p.ifSkip(token.KindEnum.In) {
+		if ident, ok := cond.MustValue().(*ast.IdentExpr); ok && ident.Pkg.IsNone() && p.ifSkip(token.KindEnum.In) {
 			rangeValue := p.parseExpr()
 			body := p.parseBlock()
 			return &ast.For{
