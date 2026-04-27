@@ -23,7 +23,7 @@ func newPrint(w io.Writer) *printer {
 	return &printer{w: w}
 }
 
-func Print(w io.Writer, program *Program) {
+func Print(w io.Writer, program *File) {
 	p := newPrint(w)
 	p.WriteBy(program)
 }

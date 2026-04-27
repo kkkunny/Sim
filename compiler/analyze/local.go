@@ -65,7 +65,7 @@ func (a *Analyzer) analyzeLetDef(local *ast.Let, isGlobal bool) *stmts.Let {
 	}
 
 	var let *stmts.Let
-	if decl, ok := a.scope.Lookup(local.Name.OriginText); ok && isGlobal && stlval.Is[*stmts.Let](decl) && decl.(*stmts.Let).Global {
+	if decl, ok := a.scope.LookupValue(local.Name.OriginText); ok && isGlobal && stlval.Is[*stmts.Let](decl) && decl.(*stmts.Let).Global {
 		let = decl.(*stmts.Let)
 	} else {
 		let = &stmts.Let{

@@ -149,7 +149,13 @@ func (l *Lexer) Scan() token.Token {
 		case ',':
 			kind = token.KindEnum.Comma
 		case ':':
-			kind = token.KindEnum.Col
+			switch l.peek() {
+			case ':':
+				l.next()
+				kind = token.KindEnum.Scope
+			default:
+				kind = token.KindEnum.Col
+			}
 		case ';':
 			kind = token.KindEnum.Sem
 		case '\n':

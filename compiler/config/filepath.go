@@ -10,5 +10,6 @@ import (
 var (
 	WorkPath    = stlerr.MustWith(os.Getwd())
 	SimRootPath = WorkPath
-	IncludePath = filepath.Join(WorkPath, "include")
+	IncludePath = filepath.Join(SimRootPath, "include")
+	StdPkgPath  = filepath.Join(SimRootPath, "std")
 )

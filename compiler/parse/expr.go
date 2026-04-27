@@ -57,7 +57,12 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 	switch p.nextToken.Kind {
 	case token.KindEnum.Ident:
 		name := p.expect(token.KindEnum.Ident)
-		return &ast.IdentExpr{Name: name}
+		var pkg optional.Optional[token.Token]
+		if p.ifSkip(token.KindEnum.Scope) {
+			pkg = optional.Some(name)
+			name = p.expect(token.KindEnum.Ident)
+		}
+		return &ast.IdentExpr{Pkg: pkg, Name: name}
 	case token.KindEnum.Integer:
 		value := p.expect(token.KindEnum.Integer)
 		return &ast.Integer{Value: value}
@@ -97,7 +102,7 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 			params = append(params, &ast.ParamDecl{Mut: true, Name: pn, Type: pt})
 		} else {
 			expr = p.parseExpr()
-			if identExpr, ok := expr.(*ast.IdentExpr); ok && p.nextToken.Kind == token.KindEnum.Col {
+			if identExpr, ok := expr.(*ast.IdentExpr); ok && identExpr.Pkg.IsNone() && p.nextToken.Kind == token.KindEnum.Col {
 				p.expect(token.KindEnum.Col)
 				pt := p.parseType()
 				params = append(params, &ast.ParamDecl{Name: identExpr.Name, Type: pt})

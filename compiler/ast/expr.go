@@ -14,6 +14,7 @@ type Expr interface {
 }
 
 type IdentExpr struct {
+	Pkg  optional.Optional[token.Token]
 	Name token.Token
 }
 
@@ -21,10 +22,17 @@ func (e *IdentExpr) local() {}
 func (e *IdentExpr) expr()  {}
 
 func (e *IdentExpr) print(p *printer) {
+	if pkg, ok := e.Pkg.Value(); ok {
+		p.WriteToken(pkg)
+		p.WriteString("::")
+	}
 	p.WriteToken(e.Name)
 }
 
 func (e *IdentExpr) Position() reader.Position {
+	if pkg, ok := e.Pkg.Value(); ok {
+		return reader.MixPosition(pkg.Position, e.Name.Position)
+	}
 	return e.Name.Position
 }
 
