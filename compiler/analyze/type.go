@@ -62,7 +62,13 @@ func (a *Analyzer) analyzeIdentType(t *ast.IdentType) types.Type {
 	samePkg := pkg == a.scope.Package()
 
 	if typeDef, ok := pkg.LookupType(t.Name.OriginText); ok {
-		if samePkg || typeDef.Type != nil {
+		if !samePkg && !typeDef.Pub {
+			a.reporter.Fatalf(
+				t.Name.Position,
+				report.Errors.UnknownIdentifier,
+				t.Name.OriginText,
+			)
+		} else if !samePkg || typeDef.Type != nil {
 			return typeDef.Type
 		}
 		return a.analyzeCustomTypeDef(a.typedefAsts[typeDef])

@@ -11,14 +11,19 @@ type Global interface {
 }
 
 type TypeDef struct {
+	Pub  bool
 	Type types.CustomType
 }
 
-func NewTypeDef() *TypeDef {
-	return &TypeDef{}
+func NewTypeDef(pub bool) *TypeDef {
+	return &TypeDef{Pub: pub}
 }
 
 func (*TypeDef) global() {}
+
+func (t *TypeDef) Public() bool {
+	return t.Pub
+}
 
 func (t *TypeDef) Print(p *hir.Printer) {
 	p.WriteString("type ")

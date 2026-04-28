@@ -6,6 +6,7 @@ import (
 )
 
 type Ident interface {
+	Public() bool
 	GetType() types.Type
 	GetName() string
 	Mutable() bool
@@ -39,6 +40,10 @@ func NewParam(mut bool, t types.Type, name string) *Param {
 		Name: name,
 		Type: t,
 	}
+}
+
+func (p *Param) Public() bool {
+	return false
 }
 
 func (p *Param) Print(pr *hir.Printer) {

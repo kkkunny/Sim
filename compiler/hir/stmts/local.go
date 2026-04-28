@@ -65,6 +65,7 @@ func (r *Return) Print(p *hir.Printer) {
 
 type Let struct {
 	Global bool
+	Pub    bool
 	Mut    bool
 	Type   types.Type
 	Name   string
@@ -81,6 +82,10 @@ func (l *Let) Print(p *hir.Printer) {
 	p.WriteBy(l.Type)
 	p.WriteString(" = ")
 	p.WriteBy(l.Value)
+}
+
+func (l *Let) Public() bool {
+	return l.Pub
 }
 
 func (l *Let) GetName() string {

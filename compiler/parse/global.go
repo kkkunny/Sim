@@ -7,13 +7,14 @@ import (
 )
 
 func (p *Parser) parseGlobal() ast.Global {
+	pub := p.ifSkip(token.KindEnum.Pub)
 	switch p.nextToken.Kind {
 	case token.KindEnum.Import:
 		return p.parseImport()
 	case token.KindEnum.Let:
-		return p.parseLet()
+		return p.parseLet(pub)
 	case token.KindEnum.Type:
-		return p.parseTypeDef()
+		return p.parseTypeDef(pub)
 	default:
 		p.reporter.Fatalf(
 			p.nextToken.Position,
@@ -36,10 +37,14 @@ func (p *Parser) parseImport() *ast.Import {
 	return &ast.Import{Pkgs: pkgs}
 }
 
-func (p *Parser) parseTypeDef() *ast.TypeDef {
+func (p *Parser) parseTypeDef(pub bool) *ast.TypeDef {
 	p.expect(token.KindEnum.Type)
 	p.skip(token.KindEnum.Br)
 	name := p.expect(token.KindEnum.Ident)
 	typ := p.parseType()
-	return &ast.TypeDef{Name: name, Type: typ}
+	return &ast.TypeDef{
+		Public: pub,
+		Name:   name,
+		Type:   typ,
+	}
 }
