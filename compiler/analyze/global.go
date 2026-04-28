@@ -67,7 +67,7 @@ func (a *Analyzer) analyzeCustomTypeDecl(global *ast.TypeDef) *stmts.TypeDef {
 		return nil
 	}
 
-	decl := stmts.NewTypeDef()
+	decl := stmts.NewTypeDef(global.Public)
 	a.scope.(*scopes.PkgScope).AddType(global.Name.OriginText, decl)
 	a.typedefAsts[decl] = global
 	return decl
@@ -204,6 +204,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 	}
 
 	a.scope.AddValue(&stmts.Let{
+		Pub:    global.Public,
 		Global: true,
 		Mut:    global.Mut,
 		Type:   t,

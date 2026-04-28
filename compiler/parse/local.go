@@ -15,7 +15,7 @@ func (p *Parser) parseLocal() ast.Local {
 	case token.KindEnum.Return:
 		return p.parseReturn()
 	case token.KindEnum.Let:
-		return p.parseLet()
+		return p.parseLet(false)
 	case token.KindEnum.If:
 		return p.parseIf()
 	case token.KindEnum.For:
@@ -51,7 +51,7 @@ func (p *Parser) parseReturn() *ast.Return {
 	return &ast.Return{Value: value}
 }
 
-func (p *Parser) parseLet() *ast.Let {
+func (p *Parser) parseLet(pub bool) *ast.Let {
 	p.expect(token.KindEnum.Let)
 	mut := p.ifSkip(token.KindEnum.Mut)
 	name := p.expect(token.KindEnum.Ident)
@@ -64,7 +64,13 @@ func (p *Parser) parseLet() *ast.Let {
 		p.expect(token.KindEnum.Assign)
 		value = optional.Some(p.parseExpr())
 	}
-	return &ast.Let{Mut: mut, Name: name, Type: t, Value: value}
+	return &ast.Let{
+		Public: pub,
+		Mut:    mut,
+		Name:   name,
+		Type:   t,
+		Value:  value,
+	}
 }
 
 func (p *Parser) parseIf() *ast.If {
