@@ -24,13 +24,17 @@ func (i *Import) print(p *printer) {
 }
 
 type TypeDef struct {
-	Name token.Token
-	Type Type
+	Public bool
+	Name   token.Token
+	Type   Type
 }
 
 func (*TypeDef) global() {}
 
 func (t *TypeDef) print(p *printer) {
+	if t.Public {
+		p.WriteString("pub ")
+	}
 	p.WriteString("type ")
 	p.WriteToken(t.Name)
 	p.WriteString(" ")

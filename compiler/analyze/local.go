@@ -69,6 +69,7 @@ func (a *Analyzer) analyzeLetDef(local *ast.Let, isGlobal bool) *stmts.Let {
 		let = decl.(*stmts.Let)
 	} else {
 		let = &stmts.Let{
+			Pub:    local.Public,
 			Global: isGlobal,
 			Mut:    local.Mut,
 			Type:   value.GetType(),

@@ -99,8 +99,10 @@ func expectTypeExpr[T types.Type](a *Analyzer, expr ast.Expr, expect ...types.Ty
 }
 
 func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *stmts.IdentExpr {
+	samePkg := true
 	pkg := a.scope
 	if pkgAst, ok := expr.Pkg.Value(); ok {
+		samePkg = false
 		pkg, ok = pkg.LookupPkg(pkgAst.OriginText)
 		if !ok {
 			a.reporter.Fatalf(
@@ -112,7 +114,8 @@ func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *stmts.IdentExpr {
 	}
 
 	v, ok := pkg.LookupValue(expr.Name.OriginText)
-	if !ok {
+	if !ok ||
+		(!samePkg && !v.Public()) {
 		a.reporter.Fatalf(
 			expr.Name.Position,
 			report.Errors.UnknownIdentifier,
