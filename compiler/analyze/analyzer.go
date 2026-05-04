@@ -32,7 +32,7 @@ func analyzeFile(filePath string, reporter *report.Reporter) (*stmts.Package, er
 		os.Exit(1)
 	}
 
-	analyzer := NewAnalyzer("main", reporter)
+	analyzer := NewAnalyzer("main", filepath.Base(filePath), reporter)
 	pkgHir := analyzer.Analyze(fileAst)
 	if reporter.HasErrors() {
 		reporter.Print()
@@ -73,10 +73,11 @@ func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) 
 
 	var analyzer *Analyzer
 	if p := stlslices.Last(parent); p != nil {
-		analyzer = NewImportAnalyzer(pkgName, p, reporter)
+		analyzer = NewImportAnalyzer(pkgName, dirPath, p, reporter)
 	} else {
-		analyzer = NewAnalyzer(pkgName, reporter)
+		analyzer = NewAnalyzer(pkgName, dirPath, reporter)
 	}
+	analyzer.ir.Path = dirPath
 	analyzer.pkgScopes[dirPath] = tuple.Pack2(analyzer.ir, analyzer.scope.Package())
 
 	pkgHir := analyzer.Analyze(dirAsts)
@@ -110,20 +111,20 @@ type Analyzer struct {
 	typedefAsts map[*stmts.TypeDef]*ast.TypeDef
 }
 
-func NewAnalyzer(pkgName string, reporter *report.Reporter) *Analyzer {
+func NewAnalyzer(pkgName string, pkgPath string, reporter *report.Reporter) *Analyzer {
 	return &Analyzer{
 		reporter:    reporter,
-		ir:          &stmts.Package{Name: pkgName},
+		ir:          &stmts.Package{Name: pkgName, Path: pkgPath},
 		scope:       scopes.NewPkgScope(pkgName),
 		pkgScopes:   make(map[string]tuple.Tuple2[*stmts.Package, *scopes.PkgScope]),
 		typedefAsts: make(map[*stmts.TypeDef]*ast.TypeDef),
 	}
 }
 
-func NewImportAnalyzer(pkgName string, parent *Analyzer, reporter *report.Reporter) *Analyzer {
+func NewImportAnalyzer(pkgName string, pkgPath string, parent *Analyzer, reporter *report.Reporter) *Analyzer {
 	return &Analyzer{
 		reporter:    reporter,
-		ir:          &stmts.Package{Name: pkgName},
+		ir:          &stmts.Package{Name: pkgName, Path: pkgPath},
 		scope:       scopes.NewPkgScope(pkgName),
 		pkgScopes:   parent.pkgScopes,
 		typedefAsts: make(map[*stmts.TypeDef]*ast.TypeDef),
