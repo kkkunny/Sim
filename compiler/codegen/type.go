@@ -13,7 +13,7 @@ import (
 func (c *CodeGenerator) genType(t types.Type) cir.Type {
 	switch t := t.(type) {
 	case types.CustomType:
-		if t, ok := c.typeCache[t.GetName()]; ok {
+		if t, ok := c.ctx.typeCache[t.GetName()]; ok {
 			return t
 		}
 		return c.genCustomTypeDef(t)
@@ -83,7 +83,7 @@ func (c *CodeGenerator) genNativeFuncType(t types.FuncType) *cir.FuncType {
 // 函数胖类型，用于变量定义、赋值
 func (c *CodeGenerator) genFuncType(t types.FuncType) *cir.AliasType {
 	key := t.String()
-	at, ok := c.typeCache[key]
+	at, ok := c.ctx.typeCache[key]
 	if ok {
 		return at
 	}
@@ -91,19 +91,19 @@ func (c *CodeGenerator) genFuncType(t types.FuncType) *cir.AliasType {
 	ft := c.genNativeFuncType(t)
 
 	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewMacroType("FUNC_TYPE", append([]any{ft.Return}, stlslices.AsAny(ft.Params)...)...), "")))
-	c.typeCache[key] = at
+	c.ctx.typeCache[key] = at
 	return at
 }
 
 func (c *CodeGenerator) genTupleType(t types.TupleType) *cir.AliasType {
 	key := t.String()
-	at, ok := c.typeCache[key]
+	at, ok := c.ctx.typeCache[key]
 	if ok {
 		return at
 	}
 
 	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(c.genFlatTupleType(t), "")))
-	c.typeCache[key] = at
+	c.ctx.typeCache[key] = at
 	return at
 }
 
@@ -119,13 +119,13 @@ func (c *CodeGenerator) genFlatTupleType(t types.TupleType) *cir.StructType {
 
 func (c *CodeGenerator) genArrayType(t types.ArrayType) *cir.AliasType {
 	key := t.String()
-	at, ok := c.typeCache[key]
+	at, ok := c.ctx.typeCache[key]
 	if ok {
 		return at
 	}
 
 	at = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(c.genFlatArrayType(t), "")))
-	c.typeCache[key] = at
+	c.ctx.typeCache[key] = at
 	return at
 }
 
@@ -136,13 +136,13 @@ func (c *CodeGenerator) genFlatArrayType(t types.ArrayType) *cir.MacroType {
 
 func (c *CodeGenerator) genUnionType(t types.UnionType) *cir.AliasType {
 	key := t.String()
-	ut, ok := c.typeCache[key]
+	ut, ok := c.ctx.typeCache[key]
 	if ok {
 		return ut
 	}
 
 	ut = cir.NewAliasType(cir.BuildStmt(c.builder, cir.NewTypedef(c.genFlatUnionType(t), "")))
-	c.typeCache[key] = ut
+	c.ctx.typeCache[key] = ut
 	return ut
 }
 

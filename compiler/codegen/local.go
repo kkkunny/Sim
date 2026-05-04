@@ -93,7 +93,7 @@ func (c *CodeGenerator) genLocalLet(local *stmts.Let) *cir.Variable {
 	typ := c.genType(local.Value.GetType())
 	value := c.genExpr(local.Value)
 	v := cir.BuildStmt(c.builder, cir.NewVariable(typ, "", value))
-	c.idents[local] = v
+	c.ctx.idents[local] = v.GetName()
 	return v
 }
 
@@ -137,7 +137,7 @@ func (c *CodeGenerator) genFor(l *stmts.For) *cir.For {
 	action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
 	body := c.genBlock(true, l.Body, func() {
 		v := cir.BuildStmt(c.builder, cir.NewVariable(c.genType(at), "", c.buildArrayIndex(rangv, cir.NewIdentExpr(init.Name))))
-		c.idents[l.Var] = v
+		c.ctx.idents[l.Var] = v.GetName()
 	})
 	return cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.Variable](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), body))
 }

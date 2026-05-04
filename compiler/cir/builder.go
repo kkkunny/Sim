@@ -18,9 +18,7 @@ type Builder struct {
 }
 
 func NewBuilder() *Builder {
-	b := &Builder{}
-	BuildStmt(b, NewInclude("\"buildin.c\""))
-	return b
+	return &Builder{}
 }
 
 func (b *Builder) String() string {
@@ -52,6 +50,11 @@ type Stmt interface {
 	stmt()
 }
 
+type Namer interface {
+	SetName(s string)
+	GetName() string
+}
+
 func BuildStmt[T Stmt](b *Builder, g T) T {
 	if namer, ok := any(g).(Namer); ok && stlval.Is[Local](g) && b.at != nil {
 		b.funcVarCount++
@@ -64,9 +67,6 @@ func BuildStmt[T Stmt](b *Builder, g T) T {
 			namer.SetName(fmt.Sprintf("_t%d", b.typedefCount))
 		}
 	} else if ok && stlval.Is[Global](g) {
-		if v, ok := namer.(*Variable); ok {
-			v.IsGlobal = true
-		}
 		b.globalVarCount++
 		if namer.GetName() == "" {
 			namer.SetName(fmt.Sprintf("_g%d", b.globalVarCount))

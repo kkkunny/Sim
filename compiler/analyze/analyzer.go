@@ -32,7 +32,7 @@ func analyzeFile(filePath string, reporter *report.Reporter) (*stmts.Package, er
 		os.Exit(1)
 	}
 
-	analyzer := NewAnalyzer("main", filepath.Base(filePath), reporter)
+	analyzer := NewAnalyzer("main", filepath.Dir(filePath), reporter)
 	pkgHir := analyzer.Analyze(fileAst)
 	if reporter.HasErrors() {
 		reporter.Print()

@@ -23,11 +23,11 @@ func (c *CodeGenerator) genCustomTypeDecl(global *stmts.TypeDef) {
 		return
 	}
 
-	name := stableName(c.currentPkg, global.Type.GetName())
+	name := stableName(c.pkg, global.Type.GetName())
 	st := cir.NewStructType(name, optional.None[[]*cir.Member]())
 	def := cir.BuildStmt(c.builder, cir.NewTypedef(st, name))
 	st.Name = def.Name
-	c.typeCache[global.Type.GetName()] = cir.NewAliasType(def)
+	c.ctx.typeCache[global.Type.GetName()] = cir.NewAliasType(def)
 }
 
 func (c *CodeGenerator) genTypeDef(global stmts.Global) {
@@ -38,7 +38,7 @@ func (c *CodeGenerator) genTypeDef(global stmts.Global) {
 }
 
 func (c *CodeGenerator) genCustomTypeDef(ct types.CustomType) cir.Type {
-	t, ok := c.typeCache[ct.GetName()]
+	t, ok := c.ctx.typeCache[ct.GetName()]
 	switch underlyingHir := ct.GetUnderlying().(type) {
 	case types.TupleType:
 		st := c.genFlatTupleType(underlyingHir)
@@ -76,61 +76,44 @@ func (c *CodeGenerator) genCustomTypeDef(ct types.CustomType) cir.Type {
 			return t
 		}
 		underlying := c.genType(ct.GetUnderlying())
-		name := stableName(c.currentPkg, ct.GetName())
+		name := stableName(c.pkg, ct.GetName())
 		def := cir.BuildStmt(c.builder, cir.NewTypedef(underlying, name))
-		c.typeCache[ct.GetName()] = cir.NewAliasType(def)
+		c.ctx.typeCache[ct.GetName()] = cir.NewAliasType(def)
 	}
-	return c.typeCache[ct.GetName()]
+	return c.ctx.typeCache[ct.GetName()]
 }
 
-func (c *CodeGenerator) genGlobalDecl(global stmts.Global) {
+func (c *CodeGenerator) genGlobalValue(global stmts.Global) {
 	switch global := global.(type) {
 	case *stmts.Let:
-		c.genGlobalLetDecl(global)
+		c.genGlobalLet(global)
 	}
 }
 
-func (c *CodeGenerator) genGlobalLetDecl(l *stmts.Let) {
+func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
 	if expr, ok := l.Value.(*stmts.Func); ok {
 		decl := c.genNativeFuncDecl(expr)
-		c.idents[l] = decl
+		decl.Static = !l.Pub
 		if l.Name == "main" {
 			decl.Name = "sim_main"
+			decl.Static = true
 		} else {
-			decl.Name = stableName(c.currentPkg, l.Name)
+			decl.Name = stableName(c.pkg, l.Name)
 		}
-		return
-	}
-
-	t := c.genType(l.GetType())
-	name := stableName(c.currentPkg, l.Name)
-	decl := cir.BuildStmt(c.builder, cir.NewVariable(t, name))
-	c.idents[l] = decl
-}
-
-func (c *CodeGenerator) genGlobalDef(global stmts.Global) {
-	switch global := global.(type) {
-	case *stmts.Let:
-		c.genGlobalLetDef(global)
-	}
-}
-
-func (c *CodeGenerator) genGlobalLetDef(l *stmts.Let) {
-	decl := c.idents[l]
-
-	if expr, ok := l.Value.(*stmts.Func); ok {
-		def := c.genNativeFuncDecl(expr)
-		def.Name = decl.GetName()
+		c.ctx.idents[l] = decl.GetName()
 		if b, ok := expr.Body.Value(); ok {
 			prevFunc := c.currentFunc
 			c.currentFunc = expr
-			def.Body = optional.Some(c.genFuncBlock(b, nil))
+			decl.Body = optional.Some(c.genFuncBlock(b, nil))
 			c.currentFunc = prevFunc
 		}
 		return
 	}
 
 	t := c.genType(l.GetType())
-	def := cir.BuildStmt(c.builder, cir.NewVariable(t, decl.GetName()))
-	def.Value = optional.Some(c.genExpr(l.Value))
+	name := stableName(c.pkg, l.Name)
+	decl := cir.BuildStmt(c.builder, cir.NewVariable(t, name))
+	decl.Static = !l.Pub
+	c.ctx.idents[l] = name
+	decl.Value = optional.Some(c.genExpr(l.Value))
 }

@@ -64,10 +64,10 @@ func (l *Return) print(p *printer) {
 }
 
 type Variable struct {
-	IsGlobal bool
-	Type     Type
-	Name     string
-	Value    optional.Optional[Expr]
+	Static bool
+	Type   Type
+	Name   string
+	Value  optional.Optional[Expr]
 }
 
 func NewVariable(t Type, name string, value ...Expr) *Variable {
@@ -83,7 +83,7 @@ func (*Variable) global() {}
 func (*Variable) local()  {}
 
 func (l *Variable) print(p *printer) {
-	if l.IsGlobal {
+	if l.Static {
 		p.WriteString("static ")
 	}
 	l.Type.printWithName(p, l.Name)
@@ -95,7 +95,7 @@ func (l *Variable) print(p *printer) {
 }
 
 func (l *Variable) printDecl(p *printer) {
-	if l.IsGlobal {
+	if l.Static {
 		p.WriteString("static ")
 	}
 	l.Type.printWithName(p, l.Name)

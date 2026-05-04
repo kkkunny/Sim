@@ -10,6 +10,7 @@ type Global interface {
 }
 
 type Func struct {
+	Static     bool
 	Name       string
 	Params     []*Param
 	ReturnType Type
@@ -28,7 +29,9 @@ func (*Func) stmt()   {}
 func (*Func) global() {}
 
 func (g *Func) print(p *printer) {
-	p.WriteString("static ")
+	if g.Static {
+		p.WriteString("static ")
+	}
 	p.WriteBy(g.ReturnType)
 	p.WriteString(" ")
 	p.WriteString(g.Name + "(")
@@ -49,7 +52,9 @@ func (g *Func) print(p *printer) {
 }
 
 func (g *Func) printDecl(p *printer) {
-	p.WriteString("static ")
+	if g.Static {
+		p.WriteString("static ")
+	}
 	p.WriteBy(g.ReturnType)
 	p.WriteString(" ")
 	p.WriteString(g.Name + "(")

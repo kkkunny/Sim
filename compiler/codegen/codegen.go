@@ -7,50 +7,49 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
 )
 
-type CodeGenerator struct {
-	builder *cir.Builder
-
-	idents         map[stmts.Ident]cir.Namer
-	typeCache      map[string]*cir.AliasType
-	captureVarsMap map[tuple.Tuple2[*stmts.Func, stmts.Ident]]*cir.GetMember
-	currentFunc    *stmts.Func
-	currentPkg     *stmts.Package
+type Context struct {
+	idents    map[stmts.Ident]string
+	typeCache map[string]*cir.AliasType
 }
 
-func New() *CodeGenerator {
+func NewContext() *Context {
+	return &Context{
+		idents:    make(map[stmts.Ident]string),
+		typeCache: make(map[string]*cir.AliasType),
+	}
+}
+
+type CodeGenerator struct {
+	pkg     *stmts.Package
+	builder *cir.Builder
+
+	ctx *Context
+
+	captureVarsMap map[tuple.Tuple2[*stmts.Func, stmts.Ident]]*cir.GetMember
+	currentFunc    *stmts.Func
+}
+
+func New(ctx *Context, pkg *stmts.Package) *CodeGenerator {
 	return &CodeGenerator{
-		builder:        cir.NewBuilder(),
-		idents:         make(map[stmts.Ident]cir.Namer),
-		typeCache:      make(map[string]*cir.AliasType),
+		pkg:     pkg,
+		builder: cir.NewBuilder(),
+
+		ctx: ctx,
+
 		captureVarsMap: make(map[tuple.Tuple2[*stmts.Func, stmts.Ident]]*cir.GetMember),
 	}
 }
 
-func (c *CodeGenerator) Generate(pkg *stmts.Package) *cir.Builder {
-	c.genPackage(pkg)
-	return c.builder
-}
-
-func (c *CodeGenerator) genPackage(pkg *stmts.Package) {
-	for _, depPkg := range pkg.Dependencies {
-		c.genPackage(depPkg)
-	}
-
-	prevPkg := c.currentPkg
-	c.currentPkg = pkg
-	defer func() { c.currentPkg = prevPkg }()
-
-	for _, g := range pkg.Globals {
+func (c *CodeGenerator) Generate() *cir.Builder {
+	for _, g := range c.pkg.Globals {
 		c.genTypeDecl(g)
 	}
-	for _, g := range pkg.Globals {
+	for _, g := range c.pkg.Globals {
 		c.genTypeDef(g)
 	}
 
-	for _, g := range pkg.Globals {
-		c.genGlobalDecl(g)
+	for _, g := range c.pkg.Globals {
+		c.genGlobalValue(g)
 	}
-	for _, g := range pkg.Globals {
-		c.genGlobalDef(g)
-	}
+	return c.builder
 }
