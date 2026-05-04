@@ -9,25 +9,25 @@ type Global interface {
 	global()
 }
 
-type FuncDecl struct {
+type Func struct {
 	Name       string
 	Params     []*Param
 	ReturnType Type
 	Body       optional.Optional[*Block]
 }
 
-func NewFuncDecl(name string, rt Type, params ...*Param) *FuncDecl {
-	return &FuncDecl{
+func NewFunc(name string, rt Type, params ...*Param) *Func {
+	return &Func{
 		Name:       name,
 		Params:     params,
 		ReturnType: rt,
 	}
 }
 
-func (*FuncDecl) stmt()   {}
-func (*FuncDecl) global() {}
+func (*Func) stmt()   {}
+func (*Func) global() {}
 
-func (g *FuncDecl) print(p *printer) {
+func (g *Func) print(p *printer) {
 	p.WriteString("static ")
 	p.WriteBy(g.ReturnType)
 	p.WriteString(" ")
@@ -48,11 +48,25 @@ func (g *FuncDecl) print(p *printer) {
 	}
 }
 
-func (g *FuncDecl) SetName(s string) {
+func (g *Func) printDecl(p *printer) {
+	p.WriteString("static ")
+	p.WriteBy(g.ReturnType)
+	p.WriteString(" ")
+	p.WriteString(g.Name + "(")
+	for i, param := range g.Params {
+		p.WriteBy(param)
+		if i < len(g.Params)-1 {
+			p.WriteString(", ")
+		}
+	}
+	p.WriteString(");")
+}
+
+func (g *Func) SetName(s string) {
 	g.Name = s
 }
 
-func (g *FuncDecl) GetName() string {
+func (g *Func) GetName() string {
 	return g.Name
 }
 

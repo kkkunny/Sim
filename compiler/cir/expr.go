@@ -131,10 +131,10 @@ func (e *Binary) print(p *printer) {
 }
 
 type FuncExpr struct {
-	Decl *FuncDecl
+	Decl *Func
 }
 
-func NewFuncExpr(decl *FuncDecl) *FuncExpr {
+func NewFuncExpr(decl *Func) *FuncExpr {
 	return &FuncExpr{decl}
 }
 

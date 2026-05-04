@@ -104,7 +104,7 @@ func (c *CodeGenerator) genGlobalLetDecl(l *stmts.Let) {
 
 	t := c.genType(l.GetType())
 	name := stableName(c.currentPkg, l.Name)
-	decl := cir.BuildStmt(c.builder, cir.NewVarDecl(t, name))
+	decl := cir.BuildStmt(c.builder, cir.NewVariable(t, name))
 	c.idents[l] = decl
 }
 
@@ -131,6 +131,6 @@ func (c *CodeGenerator) genGlobalLetDef(l *stmts.Let) {
 	}
 
 	t := c.genType(l.GetType())
-	def := cir.BuildStmt(c.builder, cir.NewVarDecl(t, decl.GetName()))
+	def := cir.BuildStmt(c.builder, cir.NewVariable(t, decl.GetName()))
 	def.Value = optional.Some(c.genExpr(l.Value))
 }

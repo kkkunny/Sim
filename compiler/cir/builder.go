@@ -23,15 +23,6 @@ func NewBuilder() *Builder {
 	return b
 }
 
-func (b *Builder) print(p *printer) {
-	for i, g := range b.Globals {
-		p.WriteBy(g)
-		if i != len(b.Globals)-1 {
-			p.WriteString("\n")
-		}
-	}
-}
-
 func (b *Builder) String() string {
 	var buf strings.Builder
 	b.Output(&buf)
@@ -73,7 +64,7 @@ func BuildStmt[T Stmt](b *Builder, g T) T {
 			namer.SetName(fmt.Sprintf("_t%d", b.typedefCount))
 		}
 	} else if ok && stlval.Is[Global](g) {
-		if v, ok := namer.(*VarDecl); ok {
+		if v, ok := namer.(*Variable); ok {
 			v.IsGlobal = true
 		}
 		b.globalVarCount++

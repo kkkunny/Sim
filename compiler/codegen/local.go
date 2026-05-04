@@ -89,10 +89,10 @@ func (c *CodeGenerator) genReturn(local *stmts.Return) *cir.Return {
 	}
 }
 
-func (c *CodeGenerator) genLocalLet(local *stmts.Let) *cir.VarDecl {
+func (c *CodeGenerator) genLocalLet(local *stmts.Let) *cir.Variable {
 	typ := c.genType(local.Value.GetType())
 	value := c.genExpr(local.Value)
-	v := cir.BuildStmt(c.builder, cir.NewVarDecl(typ, "", value))
+	v := cir.BuildStmt(c.builder, cir.NewVariable(typ, "", value))
 	c.idents[local] = v
 	return v
 }
@@ -126,18 +126,18 @@ func (c *CodeGenerator) genWhile(l *stmts.While) *cir.While {
 }
 
 func (c *CodeGenerator) genFor(l *stmts.For) *cir.For {
-	init := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0))))
+	init := cir.BuildStmt(c.builder, cir.NewVariable(cir.I64, "", cir.NewInteger(big.NewInt(0))))
 	rangv := c.genExpr(l.Range)
 	if l.Range.Temporary() {
-		rangvar := cir.BuildStmt(c.builder, cir.NewVarDecl(c.genType(l.Range.GetType()), "", rangv))
+		rangvar := cir.BuildStmt(c.builder, cir.NewVariable(c.genType(l.Range.GetType()), "", rangv))
 		rangv = cir.NewIdentExpr(rangvar.Name)
 	}
 	at := l.Range.GetType().(types.ArrayType)
 	cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(at.GetSize()))
 	action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
 	body := c.genBlock(true, l.Body, func() {
-		v := cir.BuildStmt(c.builder, cir.NewVarDecl(c.genType(at), "", c.buildArrayIndex(rangv, cir.NewIdentExpr(init.Name))))
+		v := cir.BuildStmt(c.builder, cir.NewVariable(c.genType(at), "", c.buildArrayIndex(rangv, cir.NewIdentExpr(init.Name))))
 		c.idents[l.Var] = v
 	})
-	return cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), body))
+	return cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.Variable](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), body))
 }
