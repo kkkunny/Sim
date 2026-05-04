@@ -23,8 +23,9 @@ func (c *CodeGenerator) genCustomTypeDecl(global *stmts.TypeDef) {
 		return
 	}
 
-	st := cir.NewStructType("", optional.None[[]*cir.Member]())
-	def := cir.BuildStmt(c.builder, cir.NewTypedef(st, ""))
+	name := stableName(c.currentPkg, global.Type.GetName())
+	st := cir.NewStructType(name, optional.None[[]*cir.Member]())
+	def := cir.BuildStmt(c.builder, cir.NewTypedef(st, name))
 	st.Name = def.Name
 	c.typeCache[global.Type.GetName()] = cir.NewAliasType(def)
 }
@@ -75,7 +76,8 @@ func (c *CodeGenerator) genCustomTypeDef(ct types.CustomType) cir.Type {
 			return t
 		}
 		underlying := c.genType(ct.GetUnderlying())
-		def := cir.BuildStmt(c.builder, cir.NewTypedef(underlying, ""))
+		name := stableName(c.currentPkg, ct.GetName())
+		def := cir.BuildStmt(c.builder, cir.NewTypedef(underlying, name))
 		c.typeCache[ct.GetName()] = cir.NewAliasType(def)
 	}
 	return c.typeCache[ct.GetName()]
@@ -94,12 +96,15 @@ func (c *CodeGenerator) genGlobalLetDecl(l *stmts.Let) {
 		c.idents[l] = decl
 		if l.Name == "main" {
 			decl.Name = "sim_main"
+		} else {
+			decl.Name = stableName(c.currentPkg, l.Name)
 		}
 		return
 	}
 
 	t := c.genType(l.GetType())
-	decl := cir.BuildStmt(c.builder, cir.NewVarDecl(t, ""))
+	name := stableName(c.currentPkg, l.Name)
+	decl := cir.BuildStmt(c.builder, cir.NewVarDecl(t, name))
 	c.idents[l] = decl
 }
 

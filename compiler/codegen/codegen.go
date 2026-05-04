@@ -14,6 +14,7 @@ type CodeGenerator struct {
 	typeCache      map[string]*cir.AliasType
 	captureVarsMap map[tuple.Tuple2[*stmts.Func, stmts.Ident]]*cir.GetMember
 	currentFunc    *stmts.Func
+	currentPkg     *stmts.Package
 }
 
 func New() *CodeGenerator {
@@ -34,6 +35,10 @@ func (c *CodeGenerator) genPackage(pkg *stmts.Package) {
 	for _, depPkg := range pkg.Dependencies {
 		c.genPackage(depPkg)
 	}
+
+	prevPkg := c.currentPkg
+	c.currentPkg = pkg
+	defer func() { c.currentPkg = prevPkg }()
 
 	for _, g := range pkg.Globals {
 		c.genTypeDecl(g)
