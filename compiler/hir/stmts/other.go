@@ -14,6 +14,7 @@ type Ident interface {
 
 type Package struct {
 	Name         string
+	Path         string
 	Dependencies []*Package
 	Globals      []Global
 }

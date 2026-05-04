@@ -25,6 +25,10 @@ func (t *TypeDef) Public() bool {
 	return t.Pub
 }
 
+func (t *TypeDef) GetName() string {
+	return t.Type.GetName()
+}
+
 func (t *TypeDef) Print(p *hir.Printer) {
 	p.WriteString("type ")
 	p.WriteString(t.Type.GetName())
