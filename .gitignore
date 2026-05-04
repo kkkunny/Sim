@@ -20,3 +20,6 @@
 
 # Output
 output
+
+# Cache
+.sim_cache

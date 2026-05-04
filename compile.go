@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/kkkunny/Sim/compiler/analyze"
-	"github.com/kkkunny/Sim/compiler/codegen"
 	"github.com/kkkunny/Sim/compiler/compile"
 )
 
@@ -15,8 +14,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	builder := codegen.New().Generate(pkg)
-	err = compile.NewCompiler(builder).Compile()
+	err = compile.NewCompiler().Compile(pkg)
 	if err != nil {
 		panic(err)
 	}

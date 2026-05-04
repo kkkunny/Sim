@@ -10,6 +10,9 @@ import (
 var (
 	WorkPath    = stlerr.MustWith(os.Getwd())
 	SimRootPath = WorkPath
-	IncludePath = filepath.Join(SimRootPath, "include")
 	StdPkgPath  = filepath.Join(SimRootPath, "std")
+)
+
+const (
+	CacheDirName = ".sim_cache"
 )

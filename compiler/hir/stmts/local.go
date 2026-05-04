@@ -114,8 +114,7 @@ func NewIf(cond Expr, body *Block, next ...either.Either[*If, *Block]) *If {
 	}
 }
 
-func (*If) local()  {}
-func (*If) global() {}
+func (*If) local() {}
 
 func (l *If) Print(p *hir.Printer) {
 	p.WriteString("if ")
@@ -145,8 +144,7 @@ func NewWhile(cond Expr, body *Block) *While {
 	}
 }
 
-func (*While) local()  {}
-func (*While) global() {}
+func (*While) local() {}
 
 func (l *While) Print(p *hir.Printer) {
 	p.WriteString("for ")
@@ -169,8 +167,7 @@ func NewFor(v *Param, rv Expr, body *Block) *For {
 	}
 }
 
-func (*For) local()  {}
-func (*For) global() {}
+func (*For) local() {}
 
 func (l *For) Print(p *hir.Printer) {
 	p.WriteString("for ")
