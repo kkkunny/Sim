@@ -150,7 +150,7 @@ func (c *CodeGenerator) genBinary(expr *stmts.Binary) cir.Expr {
 	return cir.NewBinary(op, left, right)
 }
 
-func (c *CodeGenerator) genNativeFuncDecl(expr *stmts.Func) *cir.FuncDecl {
+func (c *CodeGenerator) genNativeFuncDecl(expr *stmts.Func) *cir.Func {
 	returnType := c.genType(expr.Type.GetReturn())
 	params := make([]*cir.Param, len(expr.Params))
 	for i, p := range expr.Params {
@@ -159,7 +159,7 @@ func (c *CodeGenerator) genNativeFuncDecl(expr *stmts.Func) *cir.FuncDecl {
 		params[i] = cir.NewParam(pn, pt)
 		c.idents[p] = params[i]
 	}
-	return cir.BuildStmt(c.builder, cir.NewFuncDecl("", returnType, params...))
+	return cir.BuildStmt(c.builder, cir.NewFunc("", returnType, params...))
 }
 
 func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stmts.Ident) (*cir.Typedef, *cir.FuncExpr) {
@@ -184,7 +184,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 	returnType := c.genType(expr.Type.GetReturn())
 
 	initBodyFn := func() {
-		ctx := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.NewAliasType(ctxT), "_ctx"))
+		ctx := cir.BuildStmt(c.builder, cir.NewVariable(cir.NewAliasType(ctxT), "_ctx"))
 		ctx.Value = optional.Some[cir.Expr](cir.NewUnary(cir.UnaryOpEnum.Mul, cir.NewCovert(cir.NewPointerType(cir.NewAliasType(ctxT)), cir.NewIdentExpr("_p0"))))
 	}
 
@@ -196,7 +196,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 		c.currentFunc = prevFunc
 	}
 
-	decl := cir.BuildStmt(c.builder, cir.NewFuncDecl("", returnType, params...))
+	decl := cir.BuildStmt(c.builder, cir.NewFunc("", returnType, params...))
 	decl.Body = body
 	return ctxT, cir.NewFuncExpr(decl)
 }
@@ -220,7 +220,7 @@ func (c *CodeGenerator) genFunc(expr *stmts.Func) *cir.MacroExpr {
 		for i, cv := range captureVars {
 			fields[fmt.Sprintf("_f%d", i+1)] = c.genExpr(stmts.NewIdentExpr(cv))
 		}
-		ctx := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.NewAliasType(ctxT), "", cir.NewStruct(fields)))
+		ctx := cir.BuildStmt(c.builder, cir.NewVariable(cir.NewAliasType(ctxT), "", cir.NewStruct(fields)))
 		return cir.NewMacroExpr("FUNC_EXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnary(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
 	}
 }
@@ -301,9 +301,9 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 		return cir.NewBinary(stlval.If(!not, cir.BinaryOpEnum.Eq, cir.BinaryOpEnum.Neq), left, right)
 	case types.ArrayType:
 		at := c.genType(t)
-		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", at), cir.NewParam("y", at)))
+		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", at), cir.NewParam("y", at)))
 		f.Body = optional.Some(c.buildFuncBlock(func() {
-			init := cir.BuildStmt(c.builder, cir.NewVarDecl(cir.I64, "", cir.NewInteger(big.NewInt(0))))
+			init := cir.BuildStmt(c.builder, cir.NewVariable(cir.I64, "", cir.NewInteger(big.NewInt(0))))
 			cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.GetSize()))
 			action := cir.NewUnary(cir.UnaryOpEnum.SelfAdd, cir.NewIdentExpr(init.Name))
 			loopBlock := c.buildBlock(true, func() {
@@ -315,13 +315,13 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 				})
 				cir.BuildStmt(c.builder, cir.NewIf(ifcond, ifBlock))
 			})
-			cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.VarDecl](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), loopBlock))
+			cir.BuildStmt(c.builder, cir.NewFor(optional.None[*cir.Variable](), optional.Some[cir.Expr](cond), optional.Some[cir.Expr](action), loopBlock))
 			cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.True, cir.False)))
 		}))
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.TupleType:
 		tt := c.genType(t)
-		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", tt), cir.NewParam("y", tt)))
+		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", tt), cir.NewParam("y", tt)))
 		f.Body = optional.Some(c.buildFuncBlock(func() {
 			for i, et := range t.GetElems() {
 				lv := c.buildTupleIndex(cir.NewIdentExpr("x"), big.NewInt(int64(i)))
@@ -337,14 +337,14 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.FuncType:
 		ft := c.genType(t)
-		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", ft), cir.NewParam("y", ft)))
+		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", ft), cir.NewParam("y", ft)))
 		f.Body = optional.Some(c.buildFuncBlock(func() {
 			cir.BuildStmt(c.builder, cir.NewReturn(cir.NewMacroExpr(stlval.If(!not, "FUNC_EQ", "FUNC_NEQ"), cir.NewIdentExpr("x"), cir.NewIdentExpr("y"))))
 		}))
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	case types.UnionType:
 		ut := c.genType(t)
-		f := cir.BuildStmt(c.builder, cir.NewFuncDecl("", cir.Bool, cir.NewParam("x", ut), cir.NewParam("y", ut)))
+		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", ut), cir.NewParam("y", ut)))
 		f.Body = optional.Some(c.buildFuncBlock(func() {
 			lvi := c.getUnionTypeIndex(cir.NewIdentExpr("x"))
 			rvi := c.getUnionTypeIndex(cir.NewIdentExpr("y"))

@@ -63,26 +63,26 @@ func (l *Return) print(p *printer) {
 	p.WriteString(";")
 }
 
-type VarDecl struct {
+type Variable struct {
 	IsGlobal bool
 	Type     Type
 	Name     string
 	Value    optional.Optional[Expr]
 }
 
-func NewVarDecl(t Type, name string, value ...Expr) *VarDecl {
-	return &VarDecl{
+func NewVariable(t Type, name string, value ...Expr) *Variable {
+	return &Variable{
 		Type:  t,
 		Name:  name,
 		Value: optional.UnEmpty(stlslices.Last(value)),
 	}
 }
 
-func (*VarDecl) stmt()   {}
-func (*VarDecl) global() {}
-func (*VarDecl) local()  {}
+func (*Variable) stmt()   {}
+func (*Variable) global() {}
+func (*Variable) local()  {}
 
-func (l *VarDecl) print(p *printer) {
+func (l *Variable) print(p *printer) {
 	if l.IsGlobal {
 		p.WriteString("static ")
 	}
@@ -94,11 +94,19 @@ func (l *VarDecl) print(p *printer) {
 	p.WriteString(";")
 }
 
-func (l *VarDecl) SetName(s string) {
+func (l *Variable) printDecl(p *printer) {
+	if l.IsGlobal {
+		p.WriteString("static ")
+	}
+	l.Type.printWithName(p, l.Name)
+	p.WriteString(";")
+}
+
+func (l *Variable) SetName(s string) {
 	l.Name = s
 }
 
-func (l *VarDecl) GetName() string {
+func (l *Variable) GetName() string {
 	return l.Name
 }
 
@@ -191,13 +199,13 @@ func (l *While) print(p *printer) {
 }
 
 type For struct {
-	Init      optional.Optional[*VarDecl]
+	Init      optional.Optional[*Variable]
 	Condition optional.Optional[Expr]
 	Action    optional.Optional[Expr]
 	Body      *Block
 }
 
-func NewFor(init optional.Optional[*VarDecl], cond optional.Optional[Expr], action optional.Optional[Expr], body *Block) *For {
+func NewFor(init optional.Optional[*Variable], cond optional.Optional[Expr], action optional.Optional[Expr], body *Block) *For {
 	return &For{
 		Init:      init,
 		Condition: cond,
