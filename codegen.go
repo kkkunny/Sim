@@ -15,6 +15,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	builder := codegen.New().Generate(pkg)
+	builder := codegen.New(codegen.NewContext(), pkg).Generate()
 	fmt.Println(builder)
 }

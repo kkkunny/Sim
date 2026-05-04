@@ -22,36 +22,19 @@ func newPrint(w io.Writer) *printer {
 }
 
 func (b *Builder) Output(w io.Writer) {
-	b.OutputHeader(w)
-	b.OutputSource(w)
-}
-
-func (b *Builder) OutputHeader(w io.Writer) {
 	p := newPrint(w)
-	for i, g := range b.Globals {
+	for _, g := range b.Globals {
 		switch g := g.(type) {
 		case *Func:
-			if g.Body.IsSome() {
-				continue
-			}
 			g.printDecl(p)
 		case *Variable:
-			if g.Value.IsSome() {
-				continue
-			}
 			g.printDecl(p)
 		default:
-			p.WriteBy(g)
+			continue
 		}
-		if i != len(b.Globals)-1 {
-			p.WriteString("\n")
-		}
+		p.WriteString("\n")
 	}
-}
-
-func (b *Builder) OutputSource(w io.Writer) {
-	p := newPrint(w)
-	for i, g := range b.Globals {
+	for _, g := range b.Globals {
 		switch g := g.(type) {
 		case *Func:
 			if g.Body.IsNone() {
@@ -65,9 +48,28 @@ func (b *Builder) OutputSource(w io.Writer) {
 			continue
 		}
 		g.print(p)
-		if i != len(b.Globals)-1 {
-			p.WriteString("\n")
+		p.WriteString("\n")
+	}
+}
+
+func (b *Builder) OutputHeader(w io.Writer) {
+	p := newPrint(w)
+	for _, g := range b.Globals {
+		switch g := g.(type) {
+		case *Func:
+			if g.Static {
+				continue
+			}
+			g.printDecl(p)
+		case *Variable:
+			if g.Static {
+				continue
+			}
+			g.printDecl(p)
+		default:
+			p.WriteBy(g)
 		}
+		p.WriteString("\n")
 	}
 }
 

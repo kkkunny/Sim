@@ -53,7 +53,7 @@ func (c *CodeGenerator) genExpr(expr stmts.Expr) cir.Expr {
 }
 
 func (c *CodeGenerator) genIdentExpr(expr *stmts.IdentExpr) cir.Expr {
-	name := c.idents[expr.Define].GetName()
+	name := c.ctx.idents[expr.Define]
 	var value cir.Expr = cir.NewIdentExpr(name)
 
 	// 如果是闭包中捕获的外部变量，转换成ctx的成员变量
@@ -157,7 +157,7 @@ func (c *CodeGenerator) genNativeFuncDecl(expr *stmts.Func) *cir.Func {
 		pn := fmt.Sprintf("_p%d", i+1)
 		pt := c.genType(p.Type)
 		params[i] = cir.NewParam(pn, pt)
-		c.idents[p] = params[i]
+		c.ctx.idents[p] = pn
 	}
 	return cir.BuildStmt(c.builder, cir.NewFunc("", returnType, params...))
 }
@@ -178,7 +178,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 		pn := fmt.Sprintf("_p%d", i+1)
 		pt := c.genType(p.Type)
 		params[i+1] = cir.NewParam(pn, pt)
-		c.idents[p] = params[i+1]
+		c.ctx.idents[p] = pn
 	}
 
 	returnType := c.genType(expr.Type.GetReturn())
@@ -197,6 +197,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 	}
 
 	decl := cir.BuildStmt(c.builder, cir.NewFunc("", returnType, params...))
+	decl.Static = true
 	decl.Body = body
 	return ctxT, cir.NewFuncExpr(decl)
 }
@@ -207,6 +208,7 @@ func (c *CodeGenerator) genFunc(expr *stmts.Func) *cir.MacroExpr {
 	})
 	if len(captureVars) == 0 {
 		decl := c.genNativeFuncDecl(expr)
+		decl.Static = true
 		if b, ok := expr.Body.Value(); ok {
 			prevFunc := c.currentFunc
 			c.currentFunc = expr
@@ -302,6 +304,7 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 	case types.ArrayType:
 		at := c.genType(t)
 		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", at), cir.NewParam("y", at)))
+		f.Static = true
 		f.Body = optional.Some(c.buildFuncBlock(func() {
 			init := cir.BuildStmt(c.builder, cir.NewVariable(cir.I64, "", cir.NewInteger(big.NewInt(0))))
 			cond := cir.NewBinary(cir.BinaryOpEnum.Lt, cir.NewIdentExpr(init.Name), cir.NewInteger(t.GetSize()))
@@ -322,6 +325,7 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 	case types.TupleType:
 		tt := c.genType(t)
 		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", tt), cir.NewParam("y", tt)))
+		f.Static = true
 		f.Body = optional.Some(c.buildFuncBlock(func() {
 			for i, et := range t.GetElems() {
 				lv := c.buildTupleIndex(cir.NewIdentExpr("x"), big.NewInt(int64(i)))
@@ -338,6 +342,7 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 	case types.FuncType:
 		ft := c.genType(t)
 		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", ft), cir.NewParam("y", ft)))
+		f.Static = true
 		f.Body = optional.Some(c.buildFuncBlock(func() {
 			cir.BuildStmt(c.builder, cir.NewReturn(cir.NewMacroExpr(stlval.If(!not, "FUNC_EQ", "FUNC_NEQ"), cir.NewIdentExpr("x"), cir.NewIdentExpr("y"))))
 		}))
@@ -345,6 +350,7 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 	case types.UnionType:
 		ut := c.genType(t)
 		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", ut), cir.NewParam("y", ut)))
+		f.Static = true
 		f.Body = optional.Some(c.buildFuncBlock(func() {
 			lvi := c.getUnionTypeIndex(cir.NewIdentExpr("x"))
 			rvi := c.getUnionTypeIndex(cir.NewIdentExpr("y"))
