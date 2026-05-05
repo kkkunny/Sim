@@ -2,6 +2,7 @@
 #define _SIM_BUILDIN_H 1
 
 #include <math.h>
+#include <stdbool.h>
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -21,10 +22,6 @@ static const ZERO_TYPE ZERO_TYPE_VALUE = {};
 
 #define f32 float
 #define f64 double
-
-#define bool _Bool
-static const bool true = 1==1;
-static const bool false = 1!=1;
 
 typedef struct {
     const char* data;

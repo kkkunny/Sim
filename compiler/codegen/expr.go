@@ -49,6 +49,10 @@ func (c *CodeGenerator) genExpr(expr stmts.Expr) cir.Expr {
 		return c.genCovert(expr)
 	case *stmts.Ternary:
 		return c.genTernary(expr)
+	case *stmts.Struct:
+		return c.genStruct(expr)
+	case *stmts.Member:
+		return c.genMember(expr)
 	default:
 		panic("unreachable")
 	}
@@ -378,6 +382,23 @@ func (c *CodeGenerator) genEqual(not bool, t types.Type, left, right cir.Expr) c
 			cir.BuildStmt(c.builder, branch)
 		}))
 		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
+	case types.StructType:
+		st := c.genType(t)
+		f := cir.BuildStmt(c.builder, cir.NewFunc("", cir.Bool, cir.NewParam("x", st), cir.NewParam("y", st)))
+		f.Static = true
+		f.Body = optional.Some(c.buildFuncBlock(func() {
+			for _, field := range t.GetFields() {
+				lv := cir.NewGetMember(cir.NewIdentExpr("x"), field.Name)
+				rv := cir.NewGetMember(cir.NewIdentExpr("y"), field.Name)
+				ifcond := c.genEqual(true, field.Type, lv, rv)
+				ifBlock := c.buildBlock(true, func() {
+					cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.False, cir.True)))
+				})
+				cir.BuildStmt(c.builder, cir.NewIf(ifcond, ifBlock))
+			}
+			cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.True, cir.False)))
+		}))
+		return cir.NewCall(cir.NewIdentExpr(f.Name), left, right)
 	default:
 		panic("unreachable")
 	}
@@ -397,4 +418,22 @@ func (c *CodeGenerator) getUnionTypeIndex(union cir.Expr) cir.Expr {
 
 func (c *CodeGenerator) getUnionValueIndex(union cir.Expr, index *big.Int) cir.Expr {
 	return cir.NewMacroExpr("UNION_VALUE_INDEX", union, cir.NewInteger(index.Add(index, big.NewInt(1))))
+}
+
+func (c *CodeGenerator) genStruct(expr *stmts.Struct) *cir.Struct {
+	t := c.genType(expr.Type)
+	if len(expr.Fields) == 0 {
+		return cir.NewStruct(nil, t)
+	}
+
+	fields := make(map[string]cir.Expr, len(expr.Fields))
+	for fn, fv := range expr.Fields {
+		fields[fn] = c.genExpr(fv)
+	}
+	return cir.NewStruct(fields, t)
+}
+
+func (c *CodeGenerator) genMember(expr *stmts.Member) *cir.GetMember {
+	from := c.genExpr(expr.From)
+	return cir.NewGetMember(from, expr.Name)
 }

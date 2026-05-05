@@ -853,3 +853,90 @@ func (e *Ternary) Mutable() bool {
 func (e *Ternary) Temporary() bool {
 	return e.TrueExpr.Temporary() || e.FalseExpr.Temporary()
 }
+
+type Struct struct {
+	Type   types.StructType
+	Fields map[string]Expr
+}
+
+func NewStruct(t types.StructType, fields map[string]Expr) *Struct {
+	return &Struct{Type: t, Fields: fields}
+}
+
+func (*Struct) expr()  {}
+func (*Struct) local() {}
+
+func (e *Struct) Print(p *hir.Printer) {
+	p.WriteBy(e.Type)
+	p.WriteString("{")
+	if len(e.Fields) > 0 {
+		p.NextLine(+1)
+		var i int
+		for fn, fv := range e.Fields {
+			p.WriteString(fn)
+			p.WriteString(": ")
+			p.WriteBy(fv)
+			p.WriteString(",")
+			if i < len(e.Fields)-1 {
+				p.NextLine()
+			}
+			i++
+		}
+		p.NextLine(-1)
+	}
+	p.WriteString("}")
+}
+
+func (e *Struct) GetType() types.Type {
+	return e.Type
+}
+
+func (e *Struct) Mutable() bool {
+	return false
+}
+
+func (e *Struct) Temporary() bool {
+	return true
+}
+
+type Member struct {
+	From Expr
+	Name string
+}
+
+func NewMember(from Expr, name string) *Member {
+	return &Member{From: from, Name: name}
+}
+
+func (*Member) expr()  {}
+func (*Member) local() {}
+
+func (e *Member) Print(p *hir.Printer) {
+	p.WriteBy(e.From)
+	p.WriteString(".")
+	p.WriteString(e.Name)
+}
+
+func (e *Member) GetType() types.Type {
+	st := e.From.GetType().(types.StructType)
+	for _, f := range st.GetFields() {
+		if f.Name == e.Name {
+			return f.Type
+		}
+	}
+	panic("unreachable")
+}
+
+func (e *Member) Mutable() bool {
+	st := e.From.GetType().(types.StructType)
+	for _, f := range st.GetFields() {
+		if f.Name == e.Name {
+			return f.Mut
+		}
+	}
+	panic("unreachable")
+}
+
+func (e *Member) Temporary() bool {
+	return e.From.Temporary()
+}

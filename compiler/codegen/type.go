@@ -68,6 +68,8 @@ func (c *CodeGenerator) genType(t types.Type) cir.Type {
 		return c.genUnionType(t)
 	case types.RefType:
 		return c.genRefType(t)
+	case types.StructType:
+		return c.genStructType(t)
 	default:
 		panic("unreachable")
 	}
@@ -172,4 +174,12 @@ func (c *CodeGenerator) genFlatUnionType(t types.UnionType) *cir.StructType {
 func (c *CodeGenerator) genRefType(t types.RefType) *cir.MacroType {
 	elem := c.genType(t.PtrTo())
 	return cir.NewMacroType("PTR_TYPE", elem)
+}
+
+func (c *CodeGenerator) genStructType(t types.StructType) *cir.StructType {
+	fields := make([]*cir.Member, len(t.GetFields()))
+	for i, f := range t.GetFields() {
+		fields[i] = cir.NewMember(c.genType(f.Type), f.Name)
+	}
+	return cir.NewStructType("", optional.Some(fields))
 }

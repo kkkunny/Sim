@@ -320,3 +320,59 @@ func (e *Ternary) print(p *printer) {
 func (e *Ternary) Position() reader.Position {
 	return reader.MixPosition(e.Condition.Position(), e.FalseExpr.Position())
 }
+
+type StructFieldInit struct {
+	Name  token.Token
+	Value Expr
+}
+
+type Struct struct {
+	Type        Type
+	Fields      []*StructFieldInit
+	EndPosition reader.Position
+}
+
+func (e *Struct) local() {}
+func (e *Struct) expr()  {}
+
+func (e *Struct) print(p *printer) {
+	p.WriteBy(e.Type)
+	p.WriteString("{")
+	if len(e.Fields) > 0 {
+		p.NextLine(+1)
+		for i, f := range e.Fields {
+			p.WriteToken(f.Name)
+			p.WriteString(": ")
+			p.WriteBy(f.Value)
+			p.WriteString(",")
+			if i < len(e.Fields)-1 {
+				p.NextLine()
+			} else {
+				p.NextLine(-1)
+			}
+		}
+	}
+	p.WriteString("}")
+}
+
+func (e *Struct) Position() reader.Position {
+	return reader.MixPosition(e.Type.Position(), e.EndPosition)
+}
+
+type Member struct {
+	From Expr
+	Name token.Token
+}
+
+func (e *Member) local() {}
+func (e *Member) expr()  {}
+
+func (e *Member) print(p *printer) {
+	p.WriteBy(e.From)
+	p.WriteString(".")
+	p.WriteToken(e.Name)
+}
+
+func (e *Member) Position() reader.Position {
+	return reader.MixPosition(e.From.Position(), e.Name.Position)
+}
