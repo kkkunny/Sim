@@ -20,16 +20,22 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 
 	name := lastPkgToken.OriginText
 	if alias, ok := global.Alias.Value(); ok {
-		name = alias.OriginText
+		if alias.Is(token.KindEnum.Dot) {
+			name = ""
+		} else {
+			name = alias.OriginText
+		}
 	}
 
-	_, ok := a.scope.LookupPkg(name)
-	if ok {
-		a.reporter.Fatalf(
-			lastPkgToken.Position,
-			report.Errors.RepeatedIdentifier,
-			name,
-		)
+	if name != "" {
+		_, ok := a.scope.LookupPkg(name)
+		if ok {
+			a.reporter.Fatalf(
+				lastPkgToken.Position,
+				report.Errors.RepeatedIdentifier,
+				name,
+			)
+		}
 	}
 
 	paths := stlslices.Map(global.Pkgs, func(_ int, tok token.Token) string {
@@ -37,7 +43,7 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	})
 	dirpath := filepath.Join(append([]string{config.SimRootPath}, paths...)...)
 
-	if _, ok = a.pkgScopes[dirpath]; !ok {
+	if _, ok := a.pkgScopes[dirpath]; !ok {
 		_, err := analyzeDir(dirpath, a.reporter, a)
 		if err != nil {
 			return err
@@ -45,7 +51,11 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	}
 
 	ir, scope := a.pkgScopes[dirpath].Unpack()
-	a.scope.Root().AddExternal(name, scope)
+	if name == "" {
+		a.scope.Root().AddExternal(name, scope)
+	} else {
+		a.scope.Root().AddInclude(scope)
+	}
 	a.ir.Dependencies = append(a.ir.Dependencies, ir)
 	return nil
 }
