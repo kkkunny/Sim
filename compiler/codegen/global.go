@@ -21,7 +21,7 @@ func (c *CodeGenerator) genTypeDecl(global stmts.Global) {
 
 func (c *CodeGenerator) genCustomTypeDecl(global *stmts.TypeDef) {
 	switch global.Type.GetUnderlying().(type) {
-	case types.TupleType, types.ArrayType, types.UnionType, types.FuncType, types.RefType:
+	case types.TupleType, types.ArrayType, types.UnionType, types.FuncType, types.RefType, types.StructType:
 	default:
 		return
 	}
@@ -74,6 +74,10 @@ func (c *CodeGenerator) genCustomTypeDef(ct types.CustomType) cir.Type {
 		cir.BuildStmt(c.builder, cir.NewStructTypeDef(cir.NewStructType(t.Def.Name, optional.Some([]*cir.Member{
 			cir.NewMember(cir.NewPointerType(c.genType(underlyingHir.PtrTo())), "ptr"),
 		}))))
+	case types.StructType:
+		st := c.genStructType(underlyingHir)
+		st.Name = t.Def.Name
+		cir.BuildStmt(c.builder, cir.NewStructTypeDef(st))
 	default:
 		if ok {
 			return t

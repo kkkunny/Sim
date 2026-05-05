@@ -1,9 +1,13 @@
-import lib
-
-@extern(puts)
-let puts: (str) -> i32
+type str struct {
+	mut data: &i8
+	pub mut length: u64
+}
 
 let main = () {
-	let b = "123"
-	puts(b)
+	let c: i8 = 'a'
+	let s = str{
+		data: &c,
+		length: 1,
+	}
+	let len = s.length
 }

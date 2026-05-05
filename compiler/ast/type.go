@@ -161,3 +161,46 @@ func (t *RefType) print(p *printer) {
 func (t *RefType) Position() reader.Position {
 	return reader.MixPosition(t.BeginPosition, t.Elem.Position())
 }
+
+type StructField struct {
+	Pub  bool
+	Mut  bool
+	Name token.Token
+	Type Type
+}
+
+type StructType struct {
+	BeginPosition reader.Position
+	Fields        []*StructField
+	EndPosition   reader.Position
+}
+
+func (t *StructType) typ() {}
+
+func (t *StructType) print(p *printer) {
+	p.WriteString("struct {")
+	if len(t.Fields) > 0 {
+		p.NextLine(+1)
+		for i, f := range t.Fields {
+			if f.Pub {
+				p.WriteString("pub ")
+			}
+			if f.Mut {
+				p.WriteString("mut ")
+			}
+			p.WriteToken(f.Name)
+			p.WriteString(": ")
+			p.WriteBy(f.Type)
+			if i < len(t.Fields)-1 {
+				p.NextLine()
+			} else {
+				p.NextLine(-1)
+			}
+		}
+	}
+	p.WriteString("}")
+}
+
+func (t *StructType) Position() reader.Position {
+	return reader.MixPosition(t.BeginPosition, t.EndPosition)
+}

@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -42,6 +43,26 @@ func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 	case *ast.RefType:
 		elem := a.analyzeType(t.Elem)
 		return types.NewRefType(t.Mut, elem)
+	case *ast.StructType:
+		names := set.StdHashSetWithCap[string](uint(len(t.Fields)))
+		fields := make([]*types.StructField, len(t.Fields))
+		for i, f := range t.Fields {
+			name := f.Name.OriginText
+			if !names.Add(name) {
+				a.reporter.Fatalf(
+					f.Name.Position,
+					report.Errors.RepeatedIdentifier,
+					name,
+				)
+			}
+			fields[i] = &types.StructField{
+				Pub:  f.Pub,
+				Mut:  f.Mut,
+				Name: name,
+				Type: a.analyzeType(f.Type),
+			}
+		}
+		return types.NewStructType(fields...)
 	default:
 		panic("unreachable")
 	}
