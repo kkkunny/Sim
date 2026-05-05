@@ -65,7 +65,7 @@ func (c *CodeGenerator) genIdentExpr(expr *stmts.IdentExpr) cir.Expr {
 		}
 	}
 
-	if let, ok := expr.Define.(*stmts.Let); ok && stlval.Is[*stmts.Func](let.Value) {
+	if let, ok := expr.Define.(*stmts.Let); ok && let.Value.IsSome() && stlval.Is[*stmts.Func](let.Value.MustValue()) {
 		return cir.NewMacroExpr("FUNC_EXPR_F", value)
 	}
 	return value

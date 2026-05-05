@@ -208,7 +208,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 	for _, attrAst := range global.Attributes {
 		switch attrAst := attrAst.(type) {
 		case *ast.Extern:
-			let.Extern = optional.Some(attrAst.Name.OriginText)
+			let.ExternalName = optional.Some(attrAst.Name.OriginText)
 		default:
 			panic("unreachable")
 		}

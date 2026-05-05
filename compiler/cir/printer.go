@@ -24,6 +24,14 @@ func newPrint(w io.Writer) *printer {
 func (b *Builder) Output(w io.Writer) {
 	p := newPrint(w)
 	for _, g := range b.Globals {
+		switch g.(type) {
+		case *Func, *Variable:
+			continue
+		}
+		g.print(p)
+		p.WriteString("\n")
+	}
+	for _, g := range b.Globals {
 		switch g := g.(type) {
 		case *Func:
 			g.printDecl(p)

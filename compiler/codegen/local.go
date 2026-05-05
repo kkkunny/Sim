@@ -90,8 +90,8 @@ func (c *CodeGenerator) genReturn(local *stmts.Return) *cir.Return {
 }
 
 func (c *CodeGenerator) genLocalLet(local *stmts.Let) *cir.Variable {
-	typ := c.genType(local.Value.GetType())
-	value := c.genExpr(local.Value)
+	typ := c.genType(local.GetType())
+	value := c.genExpr(local.Value.MustValue())
 	v := cir.BuildStmt(c.builder, cir.NewVariable(typ, "", value))
 	c.ctx.idents[local] = v.GetName()
 	return v
