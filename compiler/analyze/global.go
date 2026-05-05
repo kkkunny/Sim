@@ -133,6 +133,9 @@ func (a *Analyzer) analyzeCustomTypeDef(global *ast.TypeDef) types.Type {
 	case *ast.RefType:
 		ctt, s := types.DelayNewCustomType[types.RefType](name)
 		ct, setter = ctt, func(t types.Type) { s(t.(types.RefType)) }
+	case *ast.StructType:
+		ctt, s := types.DelayNewCustomType[types.StructType](name)
+		ct, setter = ctt, func(t types.Type) { s(t.(types.StructType)) }
 	}
 	decl.Type = ct
 	setter(a.analyzeType(global.Type))

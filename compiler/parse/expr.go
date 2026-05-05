@@ -53,6 +53,10 @@ func (p *Parser) parseUnaryExpr() ast.Expr {
 	}
 }
 
+type A struct {
+	a int
+}
+
 func (p *Parser) parsePrimaryExpr() ast.Expr {
 	switch p.nextToken.Kind {
 	case token.KindEnum.Ident:
@@ -62,7 +66,26 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 			pkg = optional.Some(name)
 			name = p.expect(token.KindEnum.Ident)
 		}
-		return &ast.IdentExpr{Pkg: pkg, Name: name}
+		if !p.ifSkip(token.KindEnum.Lbr) {
+			return &ast.IdentExpr{Pkg: pkg, Name: name}
+		}
+
+		var fields []*ast.StructFieldInit
+		for {
+			p.skip(token.KindEnum.Br)
+			if p.nextToken.Kind == token.KindEnum.Rbr {
+				break
+			}
+			fn := p.expect(token.KindEnum.Ident)
+			p.expect(token.KindEnum.Col)
+			value := p.parseExpr()
+			fields = append(fields, &ast.StructFieldInit{Name: fn, Value: value})
+			if !p.ifSkip(token.KindEnum.Comma) {
+				break
+			}
+		}
+		end := p.expect(token.KindEnum.Rbr).Position
+		return &ast.Struct{Type: &ast.IdentType{Pkg: pkg, Name: name}, Fields: fields, EndPosition: end}
 	case token.KindEnum.Integer:
 		value := p.expect(token.KindEnum.Integer)
 		return &ast.Integer{Value: value}
@@ -225,6 +248,13 @@ func (p *Parser) parseSuffixExpr(prev ast.Expr) (expr ast.Expr) {
 			p.skip(token.KindEnum.Br)
 			falseExpr := p.parseExpr()
 			prev = &ast.Ternary{Condition: prev, TrueExpr: trueExpr, FalseExpr: falseExpr}
+		case token.KindEnum.Dot:
+			p.expect(token.KindEnum.Dot)
+			name := p.expect(token.KindEnum.Ident)
+			prev = &ast.Member{
+				From: prev,
+				Name: name,
+			}
 		default:
 			return prev
 		}

@@ -180,6 +180,8 @@ func (l *Lexer) Scan() token.Token {
 			kind = token.KindEnum.Lbr
 		case '}':
 			kind = token.KindEnum.Rbr
+		case '.':
+			kind = token.KindEnum.Dot
 		case ',':
 			kind = token.KindEnum.Comma
 		case ':':

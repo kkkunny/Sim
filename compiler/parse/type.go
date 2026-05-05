@@ -46,6 +46,8 @@ func (p *Parser) parsePrimaryType() ast.Type {
 		mut := p.ifSkip(token.KindEnum.Mut)
 		elem := p.parseType()
 		return &ast.RefType{BeginPosition: begin, Mut: mut, Elem: elem}
+	case token.KindEnum.Struct:
+		return p.parseStructType()
 	default:
 		name := p.expect(token.KindEnum.Ident)
 		var pkg optional.Optional[token.Token]
@@ -72,4 +74,24 @@ func (p *Parser) parseSuffixType(prev ast.Type) ast.Type {
 			return prev
 		}
 	}
+}
+
+func (p *Parser) parseStructType() *ast.StructType {
+	begin := p.expect(token.KindEnum.Struct).Position
+	p.expect(token.KindEnum.Lbr)
+	var fields []*ast.StructField
+	for {
+		p.skip(token.KindEnum.Br)
+		if p.nextToken.Kind == token.KindEnum.Rbr {
+			break
+		}
+		pub := p.ifSkip(token.KindEnum.Pub)
+		mut := p.ifSkip(token.KindEnum.Mut)
+		name := p.expect(token.KindEnum.Ident)
+		p.expect(token.KindEnum.Col)
+		typ := p.parseType()
+		fields = append(fields, &ast.StructField{Pub: pub, Mut: mut, Name: name, Type: typ})
+	}
+	end := p.expect(token.KindEnum.Rbr).Position
+	return &ast.StructType{BeginPosition: begin, Fields: fields, EndPosition: end}
 }

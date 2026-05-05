@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	stlmaps "github.com/kkkunny/stl/container/maps"
@@ -74,6 +75,10 @@ func (a *Analyzer) analyzeStrictExpr(expr ast.Expr, expect ...types.Type) stmts.
 		return a.analyzeGetReference(expr, expect...)
 	case *ast.Ternary:
 		return a.analyzeTernary(expr, expect...)
+	case *ast.Struct:
+		return a.analyzeStruct(expr)
+	case *ast.Member:
+		return a.analyzeMember(expr)
 	default:
 		panic("unreachable")
 	}
@@ -96,10 +101,12 @@ func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect types.Type) stmts.Expr {
 func expectTypeExpr[T types.Type](a *Analyzer, expr ast.Expr, expect ...types.Type) stmts.Expr {
 	v := a.analyzeExpr(expr, expect...)
 	if vt := v.GetType(); !stlval.Is[T](vt) {
+		typename := fmt.Sprintf("%T", stlval.Default[T]())
+		typename = strings.TrimSuffix(strings.ToLower(typename), "type")
 		a.reporter.Fatalf(
 			expr.Position(),
-			report.Errors.UnexpectedExpressionType,
-			fmt.Sprintf("%T", stlval.Default[T]()), vt,
+			report.Errors.UnexpectedExpressionCategory,
+			typename, vt,
 		)
 	}
 	return v
@@ -185,8 +192,8 @@ func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Una
 		} else {
 			a.reporter.Fatalf(
 				expr.Position(),
-				report.Errors.UnexpectedExpressionType,
-				"IntegerType or BooleanType", vt,
+				report.Errors.UnexpectedExpressionCategory,
+				"integer or boolean", vt,
 			)
 			return nil
 		}
@@ -439,8 +446,8 @@ func (a *Analyzer) analyzeIndex(expr *ast.Index) stmts.Expr {
 	if !ok {
 		a.reporter.Fatalf(
 			expr.From.Position(),
-			report.Errors.UnexpectedExpressionType,
-			"ArrayType", at,
+			report.Errors.UnexpectedExpressionCategory,
+			"array", at,
 		)
 	}
 	index := expectTypeExpr[types.IntegerType](a, expr.Index)
@@ -536,6 +543,16 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 			return nil, false
 		}
 		return stmts.NewUnion(v, t, 0), true
+	case types.StructType:
+		fields := make(map[string]stmts.Expr, len(t.GetFields()))
+		for _, f := range t.GetFields() {
+			v, ok := a.tryGetZeroExpr(f.Type)
+			if !ok {
+				return nil, false
+			}
+			fields[f.Name] = v
+		}
+		return stmts.NewStruct(t, fields), true
 	default:
 		return nil, false
 	}
@@ -610,4 +627,55 @@ func (a *Analyzer) analyzeTernary(expr *ast.Ternary, expect ...types.Type) *stmt
 	trueExpr := a.analyzeExpr(expr.TrueExpr, expect...)
 	falseExpr := a.expectTypeExpr(expr.FalseExpr, trueExpr.GetType())
 	return stmts.NewTernary(cond, trueExpr, falseExpr)
+}
+
+func (a *Analyzer) analyzeStruct(expr *ast.Struct) *stmts.Struct {
+	t := a.analyzeType(expr.Type)
+	st, ok := t.(types.StructType)
+	if !ok {
+		a.reporter.Fatalf(
+			expr.Position(),
+			report.Errors.UnexpectedExpressionCategory,
+			"struct", t,
+		)
+	}
+
+	fields := make(map[string]stmts.Expr, len(expr.Fields))
+	for _, f := range expr.Fields {
+		field, ok := stlslices.FindFirst(st.GetFields(), func(_ int, sf *types.StructField) bool {
+			return f.Name.OriginText == sf.Name
+		})
+		if !ok {
+			a.reporter.Fatalf(
+				f.Name.Position,
+				report.Errors.UnknownIdentifier,
+				f.Name.OriginText,
+			)
+		}
+		if _, ok = fields[f.Name.OriginText]; ok {
+			a.reporter.Fatalf(
+				f.Name.Position,
+				report.Errors.RepeatedIdentifier,
+				f.Name.OriginText,
+			)
+		}
+		fields[f.Name.OriginText] = a.expectTypeExpr(f.Value, field.Type)
+	}
+	return stmts.NewStruct(st, fields)
+}
+
+func (a *Analyzer) analyzeMember(expr *ast.Member) *stmts.Member {
+	from := expectTypeExpr[types.StructType](a, expr.From)
+	st := from.GetType().(types.StructType)
+	field, ok := stlslices.FindFirst(st.GetFields(), func(_ int, f *types.StructField) bool {
+		return f.Name == expr.Name.OriginText
+	})
+	if !ok {
+		a.reporter.Fatalf(
+			expr.Name.Position,
+			report.Errors.UnknownIdentifier,
+			expr.Name.OriginText,
+		)
+	}
+	return stmts.NewMember(from, field.Name)
 }

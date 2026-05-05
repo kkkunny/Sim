@@ -67,6 +67,7 @@ var KindEnum = enum.New[struct {
 	Arrow    Kind `text:"->"`
 	Scope    Kind `text:"::"`
 	At       Kind `text:"@"`
+	Dot      Kind `text:"."`
 
 	Let    Kind `text:"let"`
 	Return Kind `text:"return"`
@@ -81,6 +82,7 @@ var KindEnum = enum.New[struct {
 	Type   Kind `text:"type"`
 	Import Kind `text:"import"`
 	Pub    Kind `text:"pub"`
+	Struct Kind `text:"struct"`
 }]()
 
 var kind2Text = func() map[Kind]string {

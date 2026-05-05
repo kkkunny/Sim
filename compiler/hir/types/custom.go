@@ -114,6 +114,15 @@ func DelayNewCustomType[T Type](name string) (CustomType, func(underlying T)) {
 		return ct, func(t T) {
 			ct.Underlying = stlval.As[T, UnionType](t)
 		}
+	case t.AssignableTo(reflect.TypeFor[StructType]()):
+		ct := &_CustomStructType{
+			_CustomBaseType[StructType]{
+				Name: name,
+			},
+		}
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, StructType](t)
+		}
 	default:
 		panic("unreachable")
 	}
@@ -173,6 +182,10 @@ func CheckRecursion(ct CustomType) bool {
 		case UnionType:
 			return stlslices.Any(t.GetElems(), func(_ int, e Type) bool {
 				return checkFn(stack, e)
+			})
+		case StructType:
+			return stlslices.Any(t.GetFields(), func(_ int, f *StructField) bool {
+				return checkFn(stack, f.Type)
 			})
 		default:
 			return false
