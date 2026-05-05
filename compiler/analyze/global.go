@@ -17,7 +17,11 @@ import (
 
 func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	lastPkgToken := stlslices.Last(global.Pkgs)
+
 	name := lastPkgToken.OriginText
+	if alias, ok := global.Alias.Value(); ok {
+		name = alias.OriginText
+	}
 
 	_, ok := a.scope.LookupPkg(name)
 	if ok {
@@ -31,7 +35,7 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	paths := stlslices.Map(global.Pkgs, func(_ int, tok token.Token) string {
 		return tok.OriginText
 	})
-	dirpath := filepath.Join(append([]string{config.StdPkgPath}, paths...)...)
+	dirpath := filepath.Join(append([]string{config.SimRootPath}, paths...)...)
 
 	if _, ok = a.pkgScopes[dirpath]; !ok {
 		_, err := analyzeDir(dirpath, a.reporter, a)
@@ -41,7 +45,7 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	}
 
 	ir, scope := a.pkgScopes[dirpath].Unpack()
-	a.scope.Package().AddExternal(name, scope)
+	a.scope.Root().AddExternal(name, scope)
 	a.ir.Dependencies = append(a.ir.Dependencies, ir)
 	return nil
 }

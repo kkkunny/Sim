@@ -1,6 +1,8 @@
 package parse
 
 import (
+	"github.com/kkkunny/stl/container/optional"
+
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/report"
 	"github.com/kkkunny/Sim/compiler/token"
@@ -34,7 +36,14 @@ func (p *Parser) parseImport() *ast.Import {
 			break
 		}
 	}
-	return &ast.Import{Pkgs: pkgs}
+	var alias optional.Optional[token.Token]
+	if p.ifSkip(token.KindEnum.As) {
+		if !p.ifSkip(token.KindEnum.Dot) {
+			p.expect(token.KindEnum.Ident)
+		}
+		alias = optional.Some(p.curToken)
+	}
+	return &ast.Import{Alias: alias, Pkgs: pkgs}
 }
 
 func (p *Parser) parseTypeDef(pub bool) *ast.TypeDef {

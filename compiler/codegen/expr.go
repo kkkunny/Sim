@@ -59,8 +59,8 @@ func (c *CodeGenerator) genExpr(expr stmts.Expr) cir.Expr {
 }
 
 func (c *CodeGenerator) genIdentExpr(expr *stmts.IdentExpr) cir.Expr {
-	name := c.ctx.idents[expr.Define]
-	var value cir.Expr = cir.NewIdentExpr(name)
+	ident := c.ctx.idents[expr.Define]
+	var value cir.Expr = cir.NewIdentExpr(ident.Name)
 
 	// 如果是闭包中捕获的外部变量，转换成ctx的成员变量
 	if c.currentFunc != nil {
@@ -70,6 +70,8 @@ func (c *CodeGenerator) genIdentExpr(expr *stmts.IdentExpr) cir.Expr {
 	}
 
 	if let, ok := expr.Define.(*stmts.Let); ok && let.Value.IsSome() && stlval.Is[*stmts.Func](let.Value.MustValue()) {
+		return cir.NewMacroExpr("FUNC_EXPR_F", value)
+	} else if ident.ExternalFunc {
 		return cir.NewMacroExpr("FUNC_EXPR_F", value)
 	}
 	return value
@@ -163,7 +165,7 @@ func (c *CodeGenerator) genNativeFuncDecl(expr *stmts.Func) *cir.Func {
 		pn := fmt.Sprintf("_p%d", i+1)
 		pt := c.genType(p.Type)
 		params[i] = cir.NewParam(pn, pt)
-		c.ctx.idents[p] = pn
+		c.ctx.idents[p] = &Ident{Name: pn}
 	}
 	return cir.BuildStmt(c.builder, cir.NewFunc("", returnType, params...))
 }
@@ -184,7 +186,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *stmts.Func, captureVars []stm
 		pn := fmt.Sprintf("_p%d", i+1)
 		pt := c.genType(p.Type)
 		params[i+1] = cir.NewParam(pn, pt)
-		c.ctx.idents[p] = pn
+		c.ctx.idents[p] = &Ident{Name: pn}
 	}
 
 	returnType := c.genType(expr.Type.GetReturn())

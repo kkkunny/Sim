@@ -111,7 +111,7 @@ func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
 				decl.Name = stableName(c.pkg, l.Name)
 				decl.Static = !l.Pub
 			}
-			c.ctx.idents[l] = decl.GetName()
+			c.ctx.idents[l] = &Ident{Name: decl.GetName()}
 			if b, ok := expr.Body.Value(); ok {
 				prevFunc := c.currentFunc
 				c.currentFunc = expr
@@ -126,8 +126,7 @@ func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
 				return cir.NewParam(fmt.Sprintf("_p%d", i+1), c.genType(p))
 			})
 			decl := cir.BuildStmt(c.builder, cir.NewFunc(l.ExternalName.MustValue(), rt, params...))
-			def := cir.BuildStmt(c.builder, cir.NewVariable(c.genType(ftHir), "", cir.NewMacroExpr("FUNC_EXPR_F", decl.GetName())))
-			c.ctx.idents[l] = def.GetName()
+			c.ctx.idents[l] = &Ident{Name: decl.GetName(), ExternalFunc: true}
 			return
 		}
 	}
@@ -143,7 +142,7 @@ func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
 	}
 	decl := cir.BuildStmt(c.builder, cir.NewVariable(t, name))
 	decl.Static = !pub
-	c.ctx.idents[l] = name
+	c.ctx.idents[l] = &Ident{Name: decl.GetName()}
 	if v, ok := l.Value.Value(); ok {
 		decl.Value = optional.Some(c.genExpr(v))
 	}

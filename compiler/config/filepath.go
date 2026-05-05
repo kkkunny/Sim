@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	WorkPath    = stlerr.MustWith(os.Getwd())
-	SimRootPath = WorkPath
-	StdPkgPath  = filepath.Join(SimRootPath, "std")
+	WorkPath       = stlerr.MustWith(os.Getwd())
+	SimRootPath    = WorkPath
+	StdPkgPath     = filepath.Join(SimRootPath, "std")
+	BuildinPkgPath = filepath.Join(StdPkgPath, "buildin")
 )
 
 const (
