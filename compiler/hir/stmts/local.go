@@ -69,16 +69,16 @@ type Let struct {
 	Mut    bool
 	Type   types.Type
 	Name   string
-	Value  Expr
+	Value  optional.Optional[Expr]
 
-	Extern optional.Optional[string]
+	ExternalName optional.Optional[string]
 }
 
 func (*Let) local()  {}
 func (*Let) global() {}
 
 func (l *Let) Print(p *hir.Printer) {
-	if ext, ok := l.Extern.Value(); ok {
+	if ext, ok := l.ExternalName.Value(); ok {
 		p.WriteString("@extern(")
 		p.WriteString(ext)
 		p.WriteString(")")
@@ -88,8 +88,10 @@ func (l *Let) Print(p *hir.Printer) {
 	p.WriteString(l.Name)
 	p.WriteString(": ")
 	p.WriteBy(l.Type)
-	p.WriteString(" = ")
-	p.WriteBy(l.Value)
+	if v, ok := l.Value.Value(); ok {
+		p.WriteString(" = ")
+		p.WriteBy(v)
+	}
 }
 
 func (l *Let) Public() bool {
