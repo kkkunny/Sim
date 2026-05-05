@@ -24,6 +24,8 @@ func (c *CodeGenerator) genExpr(expr stmts.Expr) cir.Expr {
 		return &cir.FloatExpr{Value: expr.Value}
 	case *stmts.Boolean:
 		return stlval.If(expr.Value, cir.True, cir.False)
+	case *stmts.String:
+		return cir.NewMacroExpr("string", "\""+expr.Value+"\"")
 	case stmts.Unary:
 		return c.genUnary(expr)
 	case *stmts.Binary:

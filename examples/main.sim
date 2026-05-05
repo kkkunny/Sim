@@ -1,9 +1,9 @@
 import lib
 
 @extern(puts)
-let puts: (&i8) -> i32
+let puts: (str) -> i32
 
-@extern(puts2)
-let puts2: i32
-
-let main = () {}
+let main = () {
+	let b = "123"
+	puts(b)
+}

@@ -112,6 +112,8 @@ func (a *Analyzer) analyzeBuildInIdentType(t *ast.IdentType) types.Type {
 		return types.F64
 	case "bool":
 		return types.Bool
+	case "str":
+		return types.Str
 	default:
 		a.reporter.Fatalf(
 			t.Name.Position,
