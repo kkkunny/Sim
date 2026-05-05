@@ -64,7 +64,7 @@ func (s *PkgScope) LookupValue(name string) (v stmts.Ident, ok bool) {
 	if v, ok = s.values[name]; ok {
 		return v, true
 	}
-	for _, pkg := range s.externals {
+	for pkg := range s.includes.Iter() {
 		if v, ok = pkg.LookupValue(name); ok {
 			return v, true
 		}
@@ -85,6 +85,13 @@ func (s *PkgScope) AddType(name string, td *stmts.TypeDef) {
 }
 
 func (s *PkgScope) LookupType(name string) (*stmts.TypeDef, bool) {
-	t, ok := s.types[name]
-	return t, ok
+	if t, ok := s.types[name]; ok {
+		return t, true
+	}
+	for pkg := range s.includes.Iter() {
+		if t, ok := pkg.LookupType(name); ok {
+			return t, true
+		}
+	}
+	return nil, false
 }

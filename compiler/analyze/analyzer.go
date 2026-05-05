@@ -136,12 +136,16 @@ func (a *Analyzer) Scope() scopes.Scope {
 }
 
 func (a *Analyzer) Analyze(program *ast.File) *stmts.Package {
+	err := a.importBuildin()
+	if err != nil {
+		panic(err)
+	}
 	for _, g := range program.Globals {
 		importAst, ok := g.(*ast.Import)
 		if !ok {
 			continue
 		}
-		err := a.analyzeImport(importAst)
+		err = a.analyzeImport(importAst)
 		if err != nil {
 			panic(err)
 		}

@@ -15,6 +15,24 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
+// 导入buildin包，一定最先导入
+func (a *Analyzer) importBuildin() error {
+	dirpath := config.BuildinPkgPath
+	if a.ir.Path == dirpath {
+		return nil
+	}
+
+	_, err := analyzeDir(dirpath, a.reporter, a)
+	if err != nil {
+		return err
+	}
+
+	ir, scope := a.pkgScopes[dirpath].Unpack()
+	a.scope.Root().AddInclude(scope)
+	a.ir.Dependencies = append(a.ir.Dependencies, ir)
+	return nil
+}
+
 func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	lastPkgToken := stlslices.Last(global.Pkgs)
 
