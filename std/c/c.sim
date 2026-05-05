@@ -1,1 +1,2 @@
-type int i32
+@extern(puts)
+pub let puts: (str) -> unit

@@ -1,13 +1,5 @@
-type str struct {
-	mut data: &i8
-	pub mut length: u64
-}
+import std::c as b
 
 let main = () {
-	let c: i8 = 'a'
-	let s = str{
-		data: &c,
-		length: 1,
-	}
-	let len = s.length
+	b::puts("123")
 }

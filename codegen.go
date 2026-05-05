@@ -15,6 +15,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	builder := codegen.New(codegen.NewContext(), pkg).Generate()
+	ctx := codegen.NewContext()
+	for _, depPkg := range pkg.Dependencies {
+		codegen.New(ctx, depPkg).Generate()
+	}
+	builder := codegen.New(ctx, pkg).Generate()
 	fmt.Println(builder)
 }

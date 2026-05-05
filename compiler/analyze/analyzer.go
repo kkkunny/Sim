@@ -78,7 +78,7 @@ func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) 
 		analyzer = NewAnalyzer(pkgName, dirPath, reporter)
 	}
 	analyzer.ir.Path = dirPath
-	analyzer.pkgScopes[dirPath] = tuple.Pack2(analyzer.ir, analyzer.scope.Package())
+	analyzer.pkgScopes[dirPath] = tuple.Pack2(analyzer.ir, analyzer.scope.Root())
 
 	pkgHir := analyzer.Analyze(dirAsts)
 	if reporter.HasErrors() {
