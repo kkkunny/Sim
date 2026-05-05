@@ -1,5 +1,5 @@
-#ifndef _SIM_BUILDIN
-#define _SIM_BUILDIN	1
+#ifndef _SIM_BUILDIN_H
+#define _SIM_BUILDIN_H 1
 
 #include <math.h>
 
