@@ -81,7 +81,6 @@ var KindEnum = enum.New[struct {
 	Type   Kind `text:"type"`
 	Import Kind `text:"import"`
 	Pub    Kind `text:"pub"`
-	Extern Kind `text:"extern"`
 }]()
 
 var kind2Text = func() map[Kind]string {

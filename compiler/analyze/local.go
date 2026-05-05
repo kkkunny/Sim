@@ -2,6 +2,8 @@ package analyze
 
 import (
 	"github.com/kkkunny/stl/container/either"
+	"github.com/kkkunny/stl/container/optional"
+	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -55,13 +57,14 @@ func (a *Analyzer) analyzeLetDef(local *ast.Let, isGlobal bool) *stmts.Let {
 		t = a.analyzeType(tAst)
 	}
 
-	var value stmts.Expr
+	var value optional.Optional[stmts.Expr]
 	if v, ok := local.Value.Value(); t != nil && ok {
-		value = a.expectTypeExpr(v, t)
-	} else if t != nil {
-		value = a.getZeroExpr(local.Name.Position, t)
-	} else {
-		value = a.analyzeExpr(v)
+		value = optional.Some(a.expectTypeExpr(v, t))
+	} else if t == nil {
+		value = optional.Some(a.analyzeExpr(v))
+		t = value.MustValue().GetType()
+	} else if extern := stlslices.Any(local.Attributes, func(_ int, a ast.Attribute) bool { return stlval.Is[*ast.Extern](a) }); !extern {
+		value = optional.Some(a.getZeroExpr(local.Name.Position, t))
 	}
 
 	var let *stmts.Let
@@ -72,7 +75,7 @@ func (a *Analyzer) analyzeLetDef(local *ast.Let, isGlobal bool) *stmts.Let {
 			Pub:    local.Public,
 			Global: isGlobal,
 			Mut:    local.Mut,
-			Type:   value.GetType(),
+			Type:   t,
 			Name:   local.Name.OriginText,
 		}
 		a.scope.AddValue(let)
