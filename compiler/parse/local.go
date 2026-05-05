@@ -5,6 +5,7 @@ import (
 	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/report"
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
@@ -15,7 +16,7 @@ func (p *Parser) parseLocal() ast.Local {
 	case token.KindEnum.Return:
 		return p.parseReturn()
 	case token.KindEnum.Let:
-		return p.parseLet(false)
+		return p.parseLet(nil, false)
 	case token.KindEnum.If:
 		return p.parseIf()
 	case token.KindEnum.For:
@@ -51,10 +52,26 @@ func (p *Parser) parseReturn() *ast.Return {
 	return &ast.Return{Value: value}
 }
 
-func (p *Parser) parseLet(pub bool) *ast.Let {
+func (p *Parser) parseLet(attrs []ast.Attribute, pub bool) *ast.Let {
 	p.expect(token.KindEnum.Let)
 	mut := p.ifSkip(token.KindEnum.Mut)
 	name := p.expect(token.KindEnum.Ident)
+
+	if name.OriginText == "main" {
+		if mut {
+			p.reporter.Fatalf(
+				name.Position,
+				report.Errors.MustImmutable,
+			)
+		} else if len(attrs) > 0 {
+			p.reporter.Fatalf(
+				attrs[0].Position(),
+				report.Errors.InvalidAttribute,
+				attrs[0].AttrName(), "main",
+			)
+		}
+	}
+
 	var t optional.Optional[ast.Type]
 	if p.ifSkip(token.KindEnum.Col) {
 		t = optional.Some(p.parseType())
@@ -65,11 +82,12 @@ func (p *Parser) parseLet(pub bool) *ast.Let {
 		value = optional.Some(p.parseExpr())
 	}
 	return &ast.Let{
-		Public: pub,
-		Mut:    mut,
-		Name:   name,
-		Type:   t,
-		Value:  value,
+		Attributes: attrs,
+		Public:     pub,
+		Mut:        mut,
+		Name:       name,
+		Type:       t,
+		Value:      value,
 	}
 }
 

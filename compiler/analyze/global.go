@@ -3,6 +3,7 @@ package analyze
 import (
 	"path/filepath"
 
+	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/ast"
@@ -167,13 +168,6 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		)
 	}
 
-	if global.Name.OriginText == "main" && global.Mut {
-		a.reporter.Fatalf(
-			global.Name.Position,
-			report.Errors.MustImmutable,
-		)
-	}
-
 	var t types.Type
 	if tAst, ok := global.Type.Value(); ok {
 		t = a.analyzeType(tAst)
@@ -203,13 +197,24 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		}
 	}
 
-	a.scope.AddValue(&stmts.Let{
+	let := &stmts.Let{
 		Pub:    global.Public,
 		Global: true,
 		Mut:    global.Mut,
 		Type:   t,
 		Name:   global.Name.OriginText,
-	})
+	}
+
+	for _, attrAst := range global.Attributes {
+		switch attrAst := attrAst.(type) {
+		case *ast.Extern:
+			let.Extern = optional.Some(attrAst.Name.OriginText)
+		default:
+			panic("unreachable")
+		}
+	}
+
+	a.scope.AddValue(let)
 }
 
 func (a *Analyzer) analyzeGlobalValueDef(global ast.Global) stmts.Global {

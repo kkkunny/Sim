@@ -93,12 +93,14 @@ func (c *CodeGenerator) genGlobalValue(global stmts.Global) {
 func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
 	if expr, ok := l.Value.(*stmts.Func); ok {
 		decl := c.genNativeFuncDecl(expr)
-		decl.Static = !l.Pub
 		if l.Name == "main" {
 			decl.Name = "sim_main"
 			decl.Static = true
+		} else if externalName, ok := l.Extern.Value(); ok {
+			decl.Name = externalName
 		} else {
 			decl.Name = stableName(c.pkg, l.Name)
+			decl.Static = !l.Pub
 		}
 		c.ctx.idents[l] = decl.GetName()
 		if b, ok := expr.Body.Value(); ok {
@@ -111,9 +113,16 @@ func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
 	}
 
 	t := c.genType(l.GetType())
-	name := stableName(c.pkg, l.Name)
+	pub := l.Pub
+	var name string
+	if externalName, ok := l.Extern.Value(); ok {
+		pub = true
+		name = externalName
+	} else {
+		name = stableName(c.pkg, l.Name)
+	}
 	decl := cir.BuildStmt(c.builder, cir.NewVariable(t, name))
-	decl.Static = !l.Pub
+	decl.Static = !pub
 	c.ctx.idents[l] = name
 	decl.Value = optional.Some(c.genExpr(l.Value))
 }

@@ -6,13 +6,13 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
-func (p *Parser) parseGlobal() ast.Global {
+func (p *Parser) parseGlobal(attrs []ast.Attribute) ast.Global {
 	pub := p.ifSkip(token.KindEnum.Pub)
 	switch p.nextToken.Kind {
 	case token.KindEnum.Import:
 		return p.parseImport()
 	case token.KindEnum.Let:
-		return p.parseLet(pub)
+		return p.parseLet(attrs, pub)
 	case token.KindEnum.Type:
 		return p.parseTypeDef(pub)
 	default:

@@ -58,11 +58,12 @@ func (p *Parser) Parse() *ast.File {
 	p.next()
 	var globals []ast.Global
 	for {
-		p.skip(token.KindEnum.Sem, token.KindEnum.Br)
+		p.skip(token.KindEnum.Br)
 		if p.nextToken.Kind == token.KindEnum.Eof {
 			break
 		}
-		globals = append(globals, p.parseGlobal())
+		attrs := p.parseAttribute()
+		globals = append(globals, p.parseGlobal(attrs))
 	}
 	return &ast.File{Globals: globals}
 }

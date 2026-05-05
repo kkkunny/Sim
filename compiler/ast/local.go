@@ -59,17 +59,22 @@ func (r *Return) print(p *printer) {
 }
 
 type Let struct {
-	Public bool
-	Mut    bool
-	Name   token.Token
-	Type   optional.Optional[Type] // Type和Value必有一个不为空
-	Value  optional.Optional[Expr] // Type和Value必有一个不为空
+	Attributes []Attribute
+	Public     bool
+	Mut        bool
+	Name       token.Token
+	Type       optional.Optional[Type] // Type和Value必有一个不为空
+	Value      optional.Optional[Expr] // Type和Value必有一个不为空
 }
 
 func (*Let) local()  {}
 func (*Let) global() {}
 
 func (l *Let) print(p *printer) {
+	for _, a := range l.Attributes {
+		p.WriteBy(a)
+		p.NextLine()
+	}
 	if l.Public {
 		p.WriteString("pub ")
 	}
