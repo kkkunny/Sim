@@ -108,13 +108,19 @@ func (a *Analyzer) analyzeCustomTypeDef(global *ast.TypeDef) types.Type {
 
 	var ct types.CustomType
 	var setter func(types.Type)
+	var underlying types.Type
 	switch t := global.Type.(type) {
 	case *ast.IdentType:
 		if _, ok := a.scope.LookupType(t.Name.OriginText); ok {
-			a.reporter.Fatalf(
-				global.Name.Position,
-				report.Errors.InvalidRecursionType,
-			)
+			if tast, ok := global.Type.(*ast.IdentType); ok && a.ir.Path == config.BuildinPkgPath && tast.Pkg.IsNone() && global.Name.OriginText == tast.Name.OriginText {
+				// 允许buildin包内自定义类型名和底层类型同名
+				underlying = a.analyzeBuildInIdentType(tast)
+			} else {
+				a.reporter.Fatalf(
+					global.Name.Position,
+					report.Errors.InvalidRecursionType,
+				)
+			}
 		}
 		switch a.analyzeBuildInIdentType(t).(type) {
 		case types.SintType:
@@ -129,6 +135,9 @@ func (a *Analyzer) analyzeCustomTypeDef(global *ast.TypeDef) types.Type {
 		case types.BooleanType:
 			ctt, s := types.DelayNewCustomType[types.BooleanType](name)
 			ct, setter = ctt, func(t types.Type) { s(t.(types.BooleanType)) }
+		case types.StringType:
+			ctt, s := types.DelayNewCustomType[types.StringType](name)
+			ct, setter = ctt, func(t types.Type) { s(t.(types.StringType)) }
 		default:
 			panic("unreachable")
 		}
@@ -152,7 +161,10 @@ func (a *Analyzer) analyzeCustomTypeDef(global *ast.TypeDef) types.Type {
 		ct, setter = ctt, func(t types.Type) { s(t.(types.StructType)) }
 	}
 	decl.Type = ct
-	setter(a.analyzeType(global.Type))
+	if underlying == nil {
+		underlying = a.analyzeType(global.Type)
+	}
+	setter(underlying)
 
 	if types.CheckRecursion(ct) {
 		a.reporter.Fatalf(
