@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/heimdalr/dag"
 	stlerr "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
@@ -16,25 +17,68 @@ import (
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
-type Compiler struct{}
+type Compiler struct {
+	ctx *codegen.Context
+}
 
 func NewCompiler() *Compiler {
-	return &Compiler{}
+	return &Compiler{
+		ctx: codegen.NewContext(),
+	}
 }
 
 func (c *Compiler) Compile(pkg *stmts.Package) error {
-	return c.compileMainPkg(pkg)
+	dagger := dag.NewDAG()
+	pkg2Vertex := make(map[*stmts.Package]string)
+	var buildDAG func(pkg *stmts.Package) (string, error)
+	buildDAG = func(pkg *stmts.Package) (string, error) {
+		if v, ok := pkg2Vertex[pkg]; ok {
+			return v, nil
+		}
+		v, err := stlerr.ErrorWith(dagger.AddVertex(pkg))
+		if err != nil {
+			return "", err
+		}
+		pkg2Vertex[pkg] = v
+		for _, dep := range pkg.Dependencies {
+			depV, err := buildDAG(dep)
+			if err != nil {
+				return "", err
+			}
+			err = stlerr.ErrorWrap(dagger.AddEdge(depV, v))
+			if err != nil {
+				return "", err
+			}
+		}
+		return v, nil
+	}
+	_, err := buildDAG(pkg)
+	if err != nil {
+		return err
+	}
+
+	dagger.OrderedWalk(c)
+	return nil
+}
+
+func (c *Compiler) Visit(v dag.Vertexer) {
+	_, obj := v.Vertex()
+	pkg := obj.(*stmts.Package)
+	if pkg.Name == "main" {
+		err := c.compileMainPkg(pkg)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		err := c.compileDepPkg(pkg)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 // 编译依赖包
-func (c *Compiler) compileDepPkg(ctx *codegen.Context, pkg *stmts.Package) error {
-	for _, depPkg := range pkg.Dependencies {
-		err := c.compileDepPkg(ctx, depPkg)
-		if err != nil {
-			return err
-		}
-	}
-
+func (c *Compiler) compileDepPkg(pkg *stmts.Package) error {
 	cacheDir := filepath.Join(pkg.Path, config.CacheDirName)
 	err := stlerr.ErrorWrap(os.RemoveAll(cacheDir))
 	if err != nil {
@@ -46,7 +90,7 @@ func (c *Compiler) compileDepPkg(ctx *codegen.Context, pkg *stmts.Package) error
 		return err
 	}
 
-	cir := codegen.New(ctx, pkg).Generate()
+	cir := codegen.New(c.ctx, pkg).Generate()
 
 	headerPath := filepath.Join(cacheDir, pkg.Name+".h")
 	err = stlerr.ErrorWrap(os.RemoveAll(headerPath))
@@ -84,6 +128,11 @@ func (c *Compiler) compileDepPkg(ctx *codegen.Context, pkg *stmts.Package) error
 	defer file.Close()
 
 	fmt.Fprintf(file, "#include \"include/buildin.h\"\n")
+	for _, depPkg := range pkg.Dependencies {
+		relpath, _ = filepath.Rel(config.StdPkgPath, depPkg.Path)
+		relpath = strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "")
+		fmt.Fprintf(file, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDirName, depPkg.Name)
+	}
 
 	cir.Output(file)
 	err = stlerr.ErrorWrap(file.Sync())
@@ -106,14 +155,6 @@ func (c *Compiler) compileDepPkg(ctx *codegen.Context, pkg *stmts.Package) error
 
 // 编译主包
 func (c *Compiler) compileMainPkg(pkg *stmts.Package) error {
-	ctx := codegen.NewContext()
-	for _, depPkg := range pkg.Dependencies {
-		err := c.compileDepPkg(ctx, depPkg)
-		if err != nil {
-			return err
-		}
-	}
-
 	file, err := stlerr.ErrorWith(stlos.CreateTempFileWithCloser("sim_compile", "c"))
 	if err != nil {
 		return err
@@ -127,7 +168,7 @@ func (c *Compiler) compileMainPkg(pkg *stmts.Package) error {
 	}
 
 	file.Write([]byte("#include \"include/buildin.c\"\n"))
-	codegen.New(ctx, pkg).Generate().Output(file)
+	codegen.New(c.ctx, pkg).Generate().Output(file)
 	err = stlerr.ErrorWrap(file.Sync())
 	if err != nil {
 		return err

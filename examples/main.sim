@@ -1,3 +1,5 @@
+import std::c
+
 let main = () {
-	let a: str2
+	c::puts("123")
 }
