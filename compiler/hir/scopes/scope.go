@@ -11,7 +11,6 @@ type Scope interface {
 	Parent() (Scope, bool)
 	AddValue(v stmts.Ident)
 	LookupValue(name string) (stmts.Ident, bool)
-	LocalLookupValue(name string) (stmts.Ident, bool)
 	Values() map[string]stmts.Ident
 	UsedValues() []stmts.Ident
 	LookupType(name string) (*stmts.TypeDef, bool)

@@ -59,20 +59,10 @@ func (s *BlockScope) LookupValue(name string) (v stmts.Ident, ok bool) {
 			s.usedValue.Add(v)
 		}
 	}()
-	if v, ok = s.LocalLookupValue(name); ok {
+	if v, ok = s.values[name]; ok {
 		return v, true
 	}
 	return s.parent.LookupValue(name)
-}
-
-func (s *BlockScope) LocalLookupValue(name string) (v stmts.Ident, ok bool) {
-	defer func() {
-		if ok {
-			s.usedValue.Add(v)
-		}
-	}()
-	v, ok = s.values[name]
-	return v, ok
 }
 
 func (s *BlockScope) Values() map[string]stmts.Ident {

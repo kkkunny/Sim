@@ -1,5 +1,5 @@
-import std::c as b
+import std::c as .
 
 let main = () {
-	b::puts("123")
+	puts("123")
 }
