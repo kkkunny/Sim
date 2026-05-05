@@ -1,5 +1,3 @@
-import std::buildin as .
-
 let main = () {
-
+	let a: str2
 }
