@@ -1,5 +1,5 @@
-import std::c as .
+import std::buildin as .
 
 let main = () {
-	puts("123")
+
 }
