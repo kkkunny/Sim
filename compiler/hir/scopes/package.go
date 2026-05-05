@@ -7,8 +7,11 @@ import (
 )
 
 type PkgScope struct {
-	Name      string
+	Name string
+
 	externals map[string]*PkgScope
+	includes  set.Set[*PkgScope]
+
 	values    map[string]stmts.Ident
 	usedValue set.Set[stmts.Ident]
 	types     map[string]*stmts.TypeDef
@@ -16,8 +19,11 @@ type PkgScope struct {
 
 func NewPkgScope(name string) *PkgScope {
 	return &PkgScope{
-		Name:      name,
+		Name: name,
+
 		externals: make(map[string]*PkgScope),
+		includes:  set.StdHashSetWith[*PkgScope](),
+
 		values:    make(map[string]stmts.Ident),
 		usedValue: set.StdHashSetWith[stmts.Ident](),
 		types:     make(map[string]*stmts.TypeDef),
@@ -30,6 +36,10 @@ func (s *PkgScope) Root() *PkgScope {
 
 func (s *PkgScope) AddExternal(name string, pkg *PkgScope) {
 	s.externals[name] = pkg
+}
+
+func (s *PkgScope) AddInclude(pkg *PkgScope) {
+	s.includes.Add(pkg)
 }
 
 func (s *PkgScope) LookupPkg(name string) (*PkgScope, bool) {
@@ -51,17 +61,15 @@ func (s *PkgScope) LookupValue(name string) (v stmts.Ident, ok bool) {
 			s.usedValue.Add(v)
 		}
 	}()
-	return s.LocalLookupValue(name)
-}
-
-func (s *PkgScope) LocalLookupValue(name string) (v stmts.Ident, ok bool) {
-	defer func() {
-		if ok {
-			s.usedValue.Add(v)
+	if v, ok = s.values[name]; ok {
+		return v, true
+	}
+	for _, pkg := range s.externals {
+		if v, ok = pkg.LookupValue(name); ok {
+			return v, true
 		}
-	}()
-	v, ok = s.values[name]
-	return v, ok
+	}
+	return v, false
 }
 
 func (s *PkgScope) Values() map[string]stmts.Ident {
