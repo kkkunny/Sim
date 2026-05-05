@@ -70,12 +70,20 @@ type Let struct {
 	Type   types.Type
 	Name   string
 	Value  Expr
+
+	Extern optional.Optional[string]
 }
 
 func (*Let) local()  {}
 func (*Let) global() {}
 
 func (l *Let) Print(p *hir.Printer) {
+	if ext, ok := l.Extern.Value(); ok {
+		p.WriteString("@extern(")
+		p.WriteString(ext)
+		p.WriteString(")")
+		p.NextLine()
+	}
 	p.WriteString("let ")
 	p.WriteString(l.Name)
 	p.WriteString(": ")
