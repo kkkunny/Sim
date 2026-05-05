@@ -22,9 +22,11 @@ func (a *Analyzer) importBuildin() error {
 		return nil
 	}
 
-	_, err := analyzeDir(dirpath, a.reporter, a)
-	if err != nil {
-		return err
+	if _, ok := a.pkgScopes[dirpath]; !ok {
+		_, err := analyzeDir(dirpath, a.reporter, a)
+		if err != nil {
+			return err
+		}
 	}
 
 	ir, scope := a.pkgScopes[dirpath].Unpack()
@@ -69,7 +71,7 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	}
 
 	ir, scope := a.pkgScopes[dirpath].Unpack()
-	if name == "" {
+	if name != "" {
 		a.scope.Root().AddExternal(name, scope)
 	} else {
 		a.scope.Root().AddInclude(scope)

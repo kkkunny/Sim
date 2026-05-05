@@ -13,7 +13,4 @@ type f64 f64
 
 type bool bool
 
-type str struct {
-	data: &i8
-	pub length: u64
-}
+type str str
