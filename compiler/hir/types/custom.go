@@ -60,6 +60,15 @@ func DelayNewCustomType[T Type](name string) (CustomType, func(underlying T)) {
 		return ct, func(t T) {
 			ct.Underlying = stlval.As[T, BooleanType](t)
 		}
+	case t.AssignableTo(reflect.TypeFor[StringType]()):
+		ct := &_CustomStringType{
+			_CustomBaseType[StringType]{
+				Name: name,
+			},
+		}
+		return ct, func(t T) {
+			ct.Underlying = stlval.As[T, StringType](t)
+		}
 	case t.AssignableTo(reflect.TypeFor[RefType]()):
 		ct := &_CustomRefType{
 			_CustomBaseType[RefType]{

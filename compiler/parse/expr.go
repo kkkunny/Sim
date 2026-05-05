@@ -66,6 +66,12 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 	case token.KindEnum.Integer:
 		value := p.expect(token.KindEnum.Integer)
 		return &ast.Integer{Value: value}
+	case token.KindEnum.Char:
+		value := p.expect(token.KindEnum.Char)
+		return &ast.Char{Value: value}
+	case token.KindEnum.String:
+		value := p.expect(token.KindEnum.String)
+		return &ast.String{Value: value}
 	case token.KindEnum.Lpa:
 		begin := p.expect(token.KindEnum.Lpa).Position
 		p.skip(token.KindEnum.Br)

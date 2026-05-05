@@ -56,6 +56,8 @@ func (c *CodeGenerator) genType(t types.Type) cir.Type {
 		}
 	case types.BooleanType:
 		return cir.Bool
+	case types.StringType:
+		return cir.NewMacroType("str")
 	case types.FuncType:
 		return c.genFuncType(t)
 	case types.TupleType:

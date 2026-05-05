@@ -51,6 +51,36 @@ func (e *Integer) Position() reader.Position {
 	return e.Value.Position
 }
 
+type Char struct {
+	Value token.Token
+}
+
+func (e *Char) local() {}
+func (e *Char) expr()  {}
+
+func (e *Char) print(p *printer) {
+	p.WriteToken(e.Value)
+}
+
+func (e *Char) Position() reader.Position {
+	return e.Value.Position
+}
+
+type String struct {
+	Value token.Token
+}
+
+func (e *String) local() {}
+func (e *String) expr()  {}
+
+func (e *String) print(p *printer) {
+	p.WriteToken(e.Value)
+}
+
+func (e *String) Position() reader.Position {
+	return e.Value.Position
+}
+
 type Unary struct {
 	Op   token.Token
 	Expr Expr

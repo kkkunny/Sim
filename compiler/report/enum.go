@@ -27,6 +27,7 @@ var Errors = enum.New[struct {
 	InvalidMainFunction      Error `enum:"invalid main function" format:"the global 'main' must be a function"`
 	InvalidRecursionType     Error `enum:"invalid recursion type" format:"the type is invalid because of recursion"`
 	InvalidAttribute         Error `enum:"invalid attribute" format:"the attribute '%s' cannot be used for the '%s'"`
+	InvalidChar              Error `enum:"invalid char" format:"char '%s' is invalid"`
 }]()
 
 var errorFormats = func() map[Error]string {

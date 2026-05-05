@@ -26,6 +26,12 @@ static const ZERO_TYPE ZERO_TYPE_VALUE = {};
 static const bool true = 1==1;
 static const bool false = 1!=1;
 
+typedef struct {
+    const char* data;
+    i64 length;
+} str;
+#define string(s) (str){.data=s, .length=sizeof(s)/sizeof(char)-1}
+
 #define ADD(x, y) _Generic((x), \
     i8: x + y, \
     i16: x + y, \

@@ -18,6 +18,7 @@ var KindEnum = enum.New[struct {
 	Ident   Kind `text:"ident"`
 	Integer Kind `text:"integer"`
 	String  Kind `text:"string"`
+	Char    Kind `text:"char"`
 
 	Add Kind `text:"+"`
 	Sub Kind `text:"-"`

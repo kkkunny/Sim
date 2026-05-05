@@ -20,7 +20,7 @@ func (t Token) Is(k Kind) bool {
 
 func (t Token) String() string {
 	switch t.Kind {
-	case KindEnum.Illegal, KindEnum.Ident, KindEnum.Integer:
+	case KindEnum.Illegal, KindEnum.Ident, KindEnum.Integer, KindEnum.Char, KindEnum.String:
 		return fmt.Sprintf("%s\t[%s]%s", t.Position.String(), t.Kind, t.OriginText)
 	default:
 		return fmt.Sprintf("%s\t%s", t.Position.String(), t.Kind.String())
