@@ -109,12 +109,31 @@ func (l *Lexer) scanInteger(c rune) token.Kind {
 	return token.KindEnum.Integer
 }
 
-func (l *Lexer) scanString() token.Kind {
-	for c := l.peek(); c != '"'; c = l.peek() {
+func (l *Lexer) scanChar() token.Kind {
+	c := l.peek()
+	for ; c != '\'' && c != 0 && c != '\n'; c = l.peek() {
 		if c == '\\' {
 			l.next()
 		}
 		l.next()
+	}
+	if c != '\'' {
+		return token.KindEnum.Illegal
+	}
+	l.next()
+	return token.KindEnum.Char
+}
+
+func (l *Lexer) scanString() token.Kind {
+	c := l.peek()
+	for ; c != '"' && c != 0 && c != '\n'; c = l.peek() {
+		if c == '\\' {
+			l.next()
+		}
+		l.next()
+	}
+	if c != '"' {
+		return token.KindEnum.Illegal
 	}
 	l.next()
 	return token.KindEnum.String
@@ -133,6 +152,8 @@ func (l *Lexer) Scan() token.Token {
 		kind = l.scanIdent(c)
 	case c >= '0' && c <= '9':
 		kind = l.scanInteger(c)
+	case c == '\'':
+		kind = l.scanChar()
 	case c == '"':
 		kind = l.scanString()
 	default:

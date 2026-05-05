@@ -174,6 +174,47 @@ func (b *Boolean) TryToType(t types.Type) {
 	b.Type = bt
 }
 
+type String struct {
+	Type  types.StringType
+	Value string
+}
+
+func NewString(t types.StringType, v string) *String {
+	return &String{
+		Type:  t,
+		Value: v,
+	}
+}
+
+func (*String) expr()  {}
+func (*String) local() {}
+
+func (s *String) Print(p *hir.Printer) {
+	p.WriteString("\"")
+	p.WriteString(s.Value)
+	p.WriteString("\"")
+}
+
+func (s *String) GetType() types.Type {
+	return s.Type
+}
+
+func (s *String) Mutable() bool {
+	return false
+}
+
+func (s *String) Temporary() bool {
+	return true
+}
+
+func (s *String) TryToType(t types.Type) {
+	st, ok := t.(types.StringType)
+	if !ok {
+		return
+	}
+	s.Type = st
+}
+
 type Unary interface {
 	Expr
 	GetOpTarget() Expr

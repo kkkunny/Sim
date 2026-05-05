@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"unicode/utf8"
 
 	stlmaps "github.com/kkkunny/stl/container/maps"
 	"github.com/kkkunny/stl/container/optional"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	stlval "github.com/kkkunny/stl/value"
+	"golang.org/x/exp/utf8string"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
@@ -17,6 +19,7 @@ import (
 	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/report"
 	"github.com/kkkunny/Sim/compiler/token"
+	"github.com/kkkunny/Sim/compiler/util"
 )
 
 // 带自动转换
@@ -45,6 +48,10 @@ func (a *Analyzer) analyzeStrictExpr(expr ast.Expr, expect ...types.Type) stmts.
 		return a.analyzeIdentExpr(expr)
 	case *ast.Integer:
 		return a.analyzeInteger(expr, expect...)
+	case *ast.Char:
+		return a.analyzeChar(expr, expect...)
+	case *ast.String:
+		return a.analyzeString(expr)
 	case *ast.Unary:
 		return a.analyzeUnary(expr, expect...)
 	case *ast.Binary:
@@ -132,6 +139,39 @@ func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...types.Type) stmts
 	} else {
 		return stmts.NewFloat(types.F64, big.NewFloat(float64(v)))
 	}
+}
+
+func (a *Analyzer) analyzeChar(expr *ast.Char, expect ...types.Type) stmts.Expr {
+	charText := expr.Value.OriginText[1 : len(expr.Value.OriginText)-1]
+	charText = util.ParseEscapeCharacter(charText, `\'`, `'`)
+	chars := utf8string.NewString(charText)
+	if !utf8.Valid([]byte(charText)) || chars.RuneCount() != 1 {
+		a.reporter.Fatalf(
+			expr.Value.Position,
+			report.Errors.InvalidChar,
+			charText,
+		)
+	}
+	char := chars.At(0)
+
+	if len(expect) == 0 || stlval.Is[types.IntegerType](stlslices.Last(expect)) {
+		return stmts.NewInteger(types.I32, big.NewInt(int64(char)))
+	} else {
+		return stmts.NewFloat(types.F64, big.NewFloat(float64(char)))
+	}
+}
+
+func (a *Analyzer) analyzeString(expr *ast.String) stmts.Expr {
+	strText := expr.Value.OriginText[1 : len(expr.Value.OriginText)-1]
+	strText = util.ParseEscapeCharacter(strText, `\"`, `"`)
+	if !utf8.Valid([]byte(strText)) {
+		a.reporter.Fatalf(
+			expr.Value.Position,
+			report.Errors.InvalidChar,
+			strText,
+		)
+	}
+	return stmts.NewString(types.Str, strText)
 }
 
 func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Unary {
@@ -456,6 +496,8 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 		return stmts.NewFloat(t, big.NewFloat(0)), true
 	case types.BooleanType:
 		return stmts.NewBoolean(t, false), true
+	case types.StringType:
+		return stmts.NewString(t, ""), true
 	case types.FuncType:
 		var returnValue stmts.Expr
 		if !t.GetReturn().Equal(types.Unit) {
