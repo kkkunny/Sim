@@ -7,18 +7,6 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/stmts"
 )
 
-type Context struct {
-	idents    map[stmts.Ident]string
-	typeCache map[string]*cir.AliasType
-}
-
-func NewContext() *Context {
-	return &Context{
-		idents:    make(map[stmts.Ident]string),
-		typeCache: make(map[string]*cir.AliasType),
-	}
-}
-
 type CodeGenerator struct {
 	pkg     *stmts.Package
 	builder *cir.Builder

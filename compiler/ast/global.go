@@ -1,6 +1,10 @@
 package ast
 
-import "github.com/kkkunny/Sim/compiler/token"
+import (
+	"github.com/kkkunny/stl/container/optional"
+
+	"github.com/kkkunny/Sim/compiler/token"
+)
 
 type Global interface {
 	global()
@@ -8,7 +12,8 @@ type Global interface {
 }
 
 type Import struct {
-	Pkgs []token.Token
+	Alias optional.Optional[token.Token]
+	Pkgs  []token.Token
 }
 
 func (*Import) global() {}
@@ -20,6 +25,10 @@ func (i *Import) print(p *printer) {
 		if index < len(i.Pkgs)-1 {
 			p.WriteString("::")
 		}
+	}
+	if alias, ok := i.Alias.Value(); ok {
+		p.WriteString(" as ")
+		p.WriteToken(alias)
 	}
 }
 
