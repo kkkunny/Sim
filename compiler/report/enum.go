@@ -26,7 +26,7 @@ var Errors = enum.New[struct {
 	InvalidType                  Error `enum:"invalid type" format:"expect a valid type"`
 	InvalidTypeCovert            Error `enum:"invalid type covert" format:"the type '%s' can not covert to '%s'"`
 	InvalidMainFunction          Error `enum:"invalid main function" format:"the global 'main' must be a function"`
-	InvalidRecursionType         Error `enum:"invalid recursion type" format:"the type is invalid because of recursion"`
+	CircularReference            Error `enum:"circular reference" format:"circular reference"`
 	UnknownAttribute             Error `enum:"unknown attribute" format:"unknown attribute '%s'"`
 	InvalidAttribute             Error `enum:"invalid attribute" format:"the attribute '%s' cannot be used for the '%s'"`
 	InvalidChar                  Error `enum:"invalid char" format:"char '%s' is invalid"`

@@ -6,12 +6,14 @@ import (
 	"path/filepath"
 
 	"github.com/kkkunny/stl/container/bimap"
+	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/container/tuple"
 	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/hir/globals"
+	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/lex"
@@ -112,6 +114,9 @@ type Analyzer struct {
 
 	typeDef2Ast  bimap.BiMap[*globals.TypeDef, *ast.TypeDef]
 	typeName2Def map[string]*globals.TypeDef
+
+	letDef2Ast  map[*locals.Let]*ast.Let
+	letDefStack set.Set[*locals.Let]
 }
 
 func NewAnalyzer(pkgName string, pkgPath string, reporter *report.Reporter) *Analyzer {
@@ -124,6 +129,9 @@ func NewAnalyzer(pkgName string, pkgPath string, reporter *report.Reporter) *Ana
 
 		typeDef2Ast:  bimap.StdWith[*globals.TypeDef, *ast.TypeDef](),
 		typeName2Def: make(map[string]*globals.TypeDef),
+
+		letDef2Ast:  make(map[*locals.Let]*ast.Let),
+		letDefStack: set.StdHashSetWith[*locals.Let](),
 	}
 }
 
@@ -137,6 +145,9 @@ func NewImportAnalyzer(pkgName string, pkgPath string, parent *Analyzer, reporte
 
 		typeDef2Ast:  bimap.StdWith[*globals.TypeDef, *ast.TypeDef](),
 		typeName2Def: make(map[string]*globals.TypeDef),
+
+		letDef2Ast:  make(map[*locals.Let]*ast.Let),
+		letDefStack: set.StdHashSetWith[*locals.Let](),
 	}
 }
 
@@ -192,7 +203,7 @@ func (a *Analyzer) analyzeGlobalType(program *ast.File) {
 		if types.CheckRecursion(ct) {
 			a.reporter.Fatalf(
 				t.Name.Position,
-				report.Errors.InvalidRecursionType,
+				report.Errors.CircularReference,
 			)
 		}
 	}
