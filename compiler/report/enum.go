@@ -30,6 +30,8 @@ var Errors = enum.New[struct {
 	UnknownAttribute             Error `enum:"unknown attribute" format:"unknown attribute '%s'"`
 	InvalidAttribute             Error `enum:"invalid attribute" format:"the attribute '%s' cannot be used for the '%s'"`
 	InvalidChar                  Error `enum:"invalid char" format:"char '%s' is invalid"`
+	UnexpectedSelfPosition       Error `enum:"unexpected self position" format:"the parameter 'self' must be in the first position of parameters"`
+	UnexpectedSelfType           Error `enum:"unexpected self type" format:"the type of parameter 'self' must be 'Self' or '&Self' or '&mut Self'"`
 }]()
 
 var errorFormats = func() map[Error]string {
