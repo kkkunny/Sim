@@ -688,7 +688,7 @@ func (a *Analyzer) analyzeMember(expr *ast.Member) locals.Expr {
 	if ok {
 		let, ok := a.scope.LookupBind(ct.GetDef(), expr.Name.OriginText)
 		if ok {
-			return locals.NewIdentExpr(let)
+			return locals.NewGetBind(from, let)
 		}
 	}
 
@@ -711,5 +711,5 @@ func (a *Analyzer) analyzeMember(expr *ast.Member) locals.Expr {
 			expr.Name.OriginText,
 		)
 	}
-	return locals.NewMember(from, field.Name)
+	return locals.NewGetField(from, field.Name)
 }

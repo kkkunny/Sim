@@ -53,8 +53,10 @@ func (c *CodeGenerator) genExpr(expr locals.Expr) cir.Expr {
 		return c.genTernary(expr)
 	case *locals.Struct:
 		return c.genStruct(expr)
-	case *locals.Member:
-		return c.genMember(expr)
+	case *locals.GetField:
+		return c.genGetField(expr)
+	case *locals.GetBind:
+		return c.genGetBind(expr)
 	default:
 		panic("unreachable")
 	}
@@ -174,7 +176,7 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *locals.Func, captureVars []hi
 	// 上下文
 	fields := stlslices.Map(captureVars, func(i int, vexpr hir.Ident) *cir.Member {
 		fn := fmt.Sprintf("_f%d", i+1)
-		c.captureVarsMap[tuple.Pack2(expr, vexpr)] = cir.NewGetMember(cir.NewIdentExpr("_ctx"), fn)
+		c.captureVarsMap[tuple.Pack2(expr, vexpr)] = cir.NewGetField(cir.NewIdentExpr("_ctx"), fn)
 		return cir.NewMember(c.genType(vexpr.GetType()), fn)
 	})
 	ctxT := cir.BuildStmt(c.builder, cir.NewTypedef(cir.NewStructType("", optional.Some(fields)), ""))
@@ -390,8 +392,8 @@ func (c *CodeGenerator) genEqual(not bool, t hir.Type, left, right cir.Expr) cir
 		f.Static = true
 		f.Body = optional.Some(c.buildFuncBlock(func() {
 			for _, field := range t.GetFields() {
-				lv := cir.NewGetMember(cir.NewIdentExpr("x"), field.Name)
-				rv := cir.NewGetMember(cir.NewIdentExpr("y"), field.Name)
+				lv := cir.NewGetField(cir.NewIdentExpr("x"), field.Name)
+				rv := cir.NewGetField(cir.NewIdentExpr("y"), field.Name)
 				ifcond := c.genEqual(true, field.Type, lv, rv)
 				ifBlock := c.buildBlock(true, func() {
 					cir.BuildStmt(c.builder, cir.NewReturn(stlval.If(!not, cir.False, cir.True)))
@@ -435,7 +437,11 @@ func (c *CodeGenerator) genStruct(expr *locals.Struct) *cir.Struct {
 	return cir.NewStruct(fields, t)
 }
 
-func (c *CodeGenerator) genMember(expr *locals.Member) *cir.GetMember {
+func (c *CodeGenerator) genGetField(expr *locals.GetField) *cir.GetField {
 	from := c.genExpr(expr.From)
-	return cir.NewGetMember(from, expr.Name)
+	return cir.NewGetField(from, expr.Name)
+}
+
+func (c *CodeGenerator) genGetBind(expr *locals.GetBind) cir.Expr {
+	return c.genIdentExpr(locals.NewIdentExpr(expr.Bind))
 }
