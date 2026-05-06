@@ -30,7 +30,7 @@ func (a *Analyzer) analyzeLocal(local ast.Local) locals.Local {
 	case ast.Expr:
 		return a.analyzeExpr(local)
 	case *ast.Let:
-		return a.analyzeLetDef(local, false)
+		return a.analyzeLocalLet(local)
 	case *ast.If:
 		return a.analyzeIf(local)
 	case *ast.While:
@@ -52,7 +52,7 @@ func (a *Analyzer) analyzeReturn(local *ast.Return) *locals.Return {
 	}
 }
 
-func (a *Analyzer) analyzeLetDef(local *ast.Let, isGlobal bool) *locals.Let {
+func (a *Analyzer) analyzeLocalLet(local *ast.Let) *locals.Let {
 	var t hir.Type
 	if tAst, ok := local.Type.Value(); ok {
 		t = a.analyzeType(tAst)
@@ -68,20 +68,14 @@ func (a *Analyzer) analyzeLetDef(local *ast.Let, isGlobal bool) *locals.Let {
 		value = optional.Some(a.getZeroExpr(local.Name.Position, t))
 	}
 
-	var let *locals.Let
-	if decl, ok := a.scope.LookupValue(local.Name.OriginText); ok && isGlobal && stlval.Is[*locals.Let](decl) && decl.(*locals.Let).IsGlobal {
-		let = decl.(*locals.Let)
-	} else {
-		let = &locals.Let{
-			Pub:      local.Public,
-			IsGlobal: isGlobal,
-			Mut:      local.Mut,
-			Type:     t,
-			Name:     local.Name.OriginText,
-		}
-		a.scope.AddValue(let)
+	let := &locals.Let{
+		Pub:   local.Public,
+		Mut:   local.Mut,
+		Name:  local.Name.OriginText,
+		Type:  t,
+		Value: value,
 	}
-	let.Value = value
+	a.scope.AddValue(let)
 	return let
 }
 

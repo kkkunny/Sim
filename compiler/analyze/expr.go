@@ -137,6 +137,12 @@ func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *locals.IdentExpr {
 			expr.Name.OriginText,
 		)
 	}
+
+	if let, ok := v.(*locals.Let); ok && let.Type == nil {
+		// 全局变量定义，没有显式定义类型
+		// 不可能跨包还没有类型
+		v = a.analyzeGlobalLetDef(a.letDef2Ast[let])
+	}
 	return locals.NewIdentExpr(v)
 }
 
