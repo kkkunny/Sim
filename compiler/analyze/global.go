@@ -281,14 +281,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		let.Type = a.analyzeType(tAst)
 	} else {
 		v, ok := global.Value.MustValue().(*ast.Func)
-		if !ok {
-			if global.Name.OriginText == "main" {
-				a.reporter.Fatalf(
-					global.Name.Position,
-					report.Errors.InvalidMainFunction,
-				)
-			}
-		} else {
+		if ok && !let.Mut {
 			// 函数定义
 			let.Type = a.analyzeFuncDecl(v)
 			if global.Name.OriginText == "main" {
@@ -300,6 +293,13 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 						expectType, let.Type,
 					)
 				}
+			}
+		} else {
+			if global.Name.OriginText == "main" {
+				a.reporter.Fatalf(
+					global.Name.Position,
+					report.Errors.InvalidMainFunction,
+				)
 			}
 		}
 	}
@@ -351,6 +351,36 @@ func (a *Analyzer) analyzeGlobalLetDef(local *ast.Let) *locals.Let {
 		defer func() {
 			a.scope, _ = a.scope.Parent()
 		}()
+	}
+
+	// self
+	if !decl.Mut && local.Value.IsSome() && stlval.Is[*ast.Func](local.Value.MustValue()) {
+		fast := local.Value.MustValue().(*ast.Func)
+		for i, past := range fast.Params {
+			if past.Name.OriginText == "self" {
+				if i != 0 {
+					a.reporter.Fatalf(
+						past.Name.Position,
+						report.Errors.UnexpectedSelfPosition,
+					)
+				} else {
+					var validSelfType bool
+					if ptast, ok := past.Type.(*ast.IdentType); ok && ptast.Pkg.IsNone() && ptast.Name.OriginText == "Self" {
+						validSelfType = true
+					} else if ptast, ok := past.Type.(*ast.RefType); ok {
+						if ptEtAst, ok := ptast.Elem.(*ast.IdentType); ok && ptEtAst.Pkg.IsNone() && ptEtAst.Name.OriginText == "Self" {
+							validSelfType = true
+						}
+					}
+					if !validSelfType {
+						a.reporter.Fatalf(
+							past.Type.Position(),
+							report.Errors.UnexpectedSelfType,
+						)
+					}
+				}
+			}
+		}
 	}
 
 	if v, ok := local.Value.Value(); decl.Type != nil && ok {

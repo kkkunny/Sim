@@ -4,6 +4,7 @@ import (
 	"github.com/kkkunny/stl/container/optional"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/report"
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
@@ -13,6 +14,14 @@ func (p *Parser) parseType() ast.Type {
 
 func (p *Parser) parsePrimaryType() ast.Type {
 	switch p.nextToken.Kind {
+	case token.KindEnum.Ident:
+		name := p.expect(token.KindEnum.Ident)
+		var pkg optional.Optional[token.Token]
+		if p.ifSkip(token.KindEnum.Scope) {
+			pkg = optional.Some(name)
+			name = p.expect(token.KindEnum.Ident)
+		}
+		return &ast.IdentType{Pkg: pkg, Name: name}
 	case token.KindEnum.Lpa:
 		begin := p.expect(token.KindEnum.Lpa).Position
 		p.skip(token.KindEnum.Br)
@@ -41,21 +50,36 @@ func (p *Parser) parsePrimaryType() ast.Type {
 		p.expect(token.KindEnum.Rba)
 		elem := p.parseType()
 		return &ast.ArrayType{BeginPosition: begin, Size: size, Elem: elem}
+	case token.KindEnum.LogicAnd:
+		begin := p.expect(token.KindEnum.LogicAnd).Position
+		mut := p.ifSkip(token.KindEnum.Mut)
+		elem := p.parsePrimaryType()
+		return &ast.RefType{
+			BeginPosition: begin,
+			Elem: &ast.RefType{
+				BeginPosition: begin.Middle(),
+				Mut:           mut,
+				Elem:          elem,
+			},
+		}
 	case token.KindEnum.And:
 		begin := p.expect(token.KindEnum.And).Position
 		mut := p.ifSkip(token.KindEnum.Mut)
-		elem := p.parseType()
-		return &ast.RefType{BeginPosition: begin, Mut: mut, Elem: elem}
+		elem := p.parsePrimaryType()
+		return &ast.RefType{
+			BeginPosition: begin,
+			Mut:           mut,
+			Elem:          elem,
+		}
 	case token.KindEnum.Struct:
 		return p.parseStructType()
 	default:
-		name := p.expect(token.KindEnum.Ident)
-		var pkg optional.Optional[token.Token]
-		if p.ifSkip(token.KindEnum.Scope) {
-			pkg = optional.Some(name)
-			name = p.expect(token.KindEnum.Ident)
-		}
-		return &ast.IdentType{Pkg: pkg, Name: name}
+		p.reporter.Fatalf(
+			p.nextToken.Position,
+			report.Errors.UnexpectedToken,
+			p.nextToken.Kind,
+		)
+		return nil
 	}
 }
 
