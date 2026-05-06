@@ -7,6 +7,7 @@ import (
 	"github.com/kkkunny/stl/container/optional"
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/config"
@@ -124,7 +125,7 @@ func (a *Analyzer) analyzeCustomTypeDecl(stacks set.Set[*globals.TypeDef], globa
 	if !stacks.Add(decl) {
 		a.reporter.Fatalf(
 			global.Name.Position,
-			report.Errors.InvalidRecursionType,
+			report.Errors.CircularReference,
 		)
 	}
 	defer stacks.Remove(decl)
@@ -243,14 +244,12 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 	} else {
 		v, ok := global.Value.MustValue().(*ast.Func)
 		if !ok {
-			// TODO: 非函数定义的全局变量的声明解析
 			if global.Name.OriginText == "main" {
 				a.reporter.Fatalf(
 					global.Name.Position,
 					report.Errors.InvalidMainFunction,
 				)
 			}
-			return
 		} else {
 			// 函数定义
 			t = a.analyzeFuncDecl(v)
@@ -271,7 +270,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		Pub:      global.Public,
 		IsGlobal: true,
 		Mut:      global.Mut,
-		Type:     t,
+		Type:     t, // 可能为空
 		Name:     global.Name.OriginText,
 	}
 
@@ -308,6 +307,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 	}
 
 	a.scope.AddValue(let)
+	a.letDef2Ast[let] = global
 }
 
 func (a *Analyzer) analyzeGlobalValueDef(global ast.Global) globals.Global {
@@ -315,8 +315,35 @@ func (a *Analyzer) analyzeGlobalValueDef(global ast.Global) globals.Global {
 	case *ast.TypeDef, *ast.Import:
 		return nil
 	case *ast.Let:
-		return a.analyzeLetDef(global, true)
+		a.letDefStack.Clear()
+		return a.analyzeGlobalLetDef(global)
 	default:
 		panic("unreachable")
 	}
+}
+
+func (a *Analyzer) analyzeGlobalLetDef(local *ast.Let) *locals.Let {
+	decl := stlval.IgnoreWith(a.scope.LookupValue(local.Name.OriginText)).(*locals.Let)
+	if !a.letDefStack.Add(decl) {
+		a.reporter.Fatalf(
+			local.Name.Position,
+			report.Errors.CircularReference,
+		)
+	}
+	defer a.letDefStack.Remove(decl)
+
+	if decl.Type != nil && (decl.Value.IsSome() || (decl.ExternalName.IsSome() && local.Value.IsNone())) {
+		return decl
+	}
+
+	if v, ok := local.Value.Value(); decl.Type != nil && ok {
+		decl.Value = optional.Some(a.expectTypeExpr(v, decl.Type))
+	} else if decl.Type != nil && decl.ExternalName.IsNone() {
+		decl.Value = optional.Some(a.getZeroExpr(local.Name.Position, decl.Type))
+	} else {
+		decl.Value = optional.Some(a.analyzeExpr(v))
+		decl.Type = decl.Value.MustValue().GetType()
+	}
+
+	return decl
 }
