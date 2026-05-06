@@ -30,7 +30,7 @@ func (t *_FloatType) String() string {
 	return fmt.Sprintf("f%d", t.Bits)
 }
 
-func (t *_FloatType) Equal(p Type) bool {
+func (t *_FloatType) Equal(p hir.Type) bool {
 	dst, ok := p.(FloatType)
 	if !ok {
 		return false
@@ -49,5 +49,5 @@ type _CustomFloatType struct {
 func (t *_CustomFloatType) float() {}
 
 func (t *_CustomFloatType) GetBits() uint8 {
-	return t.Underlying.GetBits()
+	return t.GetUnderlying().(FloatType).GetBits()
 }

@@ -3,7 +3,8 @@ package scopes
 import (
 	"github.com/kkkunny/stl/container/set"
 
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 type PkgScope struct {
@@ -12,9 +13,9 @@ type PkgScope struct {
 	externals map[string]*PkgScope
 	includes  set.Set[*PkgScope]
 
-	values    map[string]stmts.Ident
-	usedValue set.Set[stmts.Ident]
-	types     map[string]*stmts.TypeDef
+	values    map[string]hir.Ident
+	usedValue set.Set[hir.Ident]
+	types     map[string]types.CustomType
 }
 
 func NewPkgScope(name string) *PkgScope {
@@ -24,9 +25,9 @@ func NewPkgScope(name string) *PkgScope {
 		externals: make(map[string]*PkgScope),
 		includes:  set.StdHashSetWith[*PkgScope](),
 
-		values:    make(map[string]stmts.Ident),
-		usedValue: set.StdHashSetWith[stmts.Ident](),
-		types:     make(map[string]*stmts.TypeDef),
+		values:    make(map[string]hir.Ident),
+		usedValue: set.StdHashSetWith[hir.Ident](),
+		types:     make(map[string]types.CustomType),
 	}
 }
 
@@ -51,11 +52,11 @@ func (s *PkgScope) Parent() (Scope, bool) {
 	return nil, false
 }
 
-func (s *PkgScope) AddValue(v stmts.Ident) {
+func (s *PkgScope) AddValue(v hir.Ident) {
 	s.values[v.GetName()] = v
 }
 
-func (s *PkgScope) LookupValue(name string) (v stmts.Ident, ok bool) {
+func (s *PkgScope) LookupValue(name string) (v hir.Ident, ok bool) {
 	defer func() {
 		if ok {
 			s.usedValue.Add(v)
@@ -72,19 +73,19 @@ func (s *PkgScope) LookupValue(name string) (v stmts.Ident, ok bool) {
 	return v, false
 }
 
-func (s *PkgScope) Values() map[string]stmts.Ident {
+func (s *PkgScope) Values() map[string]hir.Ident {
 	return s.values
 }
 
-func (s *PkgScope) UsedValues() []stmts.Ident {
+func (s *PkgScope) UsedValues() []hir.Ident {
 	return s.usedValue.ToSlice()
 }
 
-func (s *PkgScope) AddType(name string, td *stmts.TypeDef) {
-	s.types[name] = td
+func (s *PkgScope) AddType(name string, ct types.CustomType) {
+	s.types[name] = ct
 }
 
-func (s *PkgScope) LookupType(name string) (*stmts.TypeDef, bool) {
+func (s *PkgScope) LookupType(name string) (types.CustomType, bool) {
 	if t, ok := s.types[name]; ok {
 		return t, true
 	}

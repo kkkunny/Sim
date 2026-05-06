@@ -14,8 +14,9 @@ import (
 	"golang.org/x/exp/utf8string"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/report"
@@ -24,7 +25,7 @@ import (
 )
 
 // 带自动转换
-func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
+func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...hir.Type) locals.Expr {
 	v := a.analyzeStrictExpr(expr, expect...)
 	if len(expect) > 0 {
 		vt := v.GetType()
@@ -32,10 +33,10 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
 		if ut, ok := expectType.(types.UnionType); ok {
 			for i, e := range ut.GetElems() {
 				if vt.Equal(e) {
-					return stmts.NewUnion(v, ut, uint8(i))
+					return locals.NewUnion(v, ut, uint8(i))
 				}
 			}
-		} else if literal, ok := v.(stmts.Literal); ok {
+		} else if literal, ok := v.(locals.Literal); ok {
 			literal.TryToType(expectType)
 		}
 	}
@@ -43,7 +44,7 @@ func (a *Analyzer) analyzeExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
 }
 
 // 不带自动转换
-func (a *Analyzer) analyzeStrictExpr(expr ast.Expr, expect ...types.Type) stmts.Expr {
+func (a *Analyzer) analyzeStrictExpr(expr ast.Expr, expect ...hir.Type) locals.Expr {
 	switch expr := expr.(type) {
 	case *ast.IdentExpr:
 		return a.analyzeIdentExpr(expr)
@@ -85,7 +86,7 @@ func (a *Analyzer) analyzeStrictExpr(expr ast.Expr, expect ...types.Type) stmts.
 }
 
 // 期待类型，两个类型必须完全相同
-func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect types.Type) stmts.Expr {
+func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) locals.Expr {
 	v := a.analyzeExpr(expr, expect)
 	if vt := v.GetType(); !vt.Equal(expect) {
 		a.reporter.Fatalf(
@@ -98,7 +99,7 @@ func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect types.Type) stmts.Expr {
 }
 
 // 期待类型，属于指定的类型
-func expectTypeExpr[T types.Type](a *Analyzer, expr ast.Expr, expect ...types.Type) stmts.Expr {
+func expectTypeExpr[T hir.Type](a *Analyzer, expr ast.Expr, expect ...hir.Type) locals.Expr {
 	v := a.analyzeExpr(expr, expect...)
 	if vt := v.GetType(); !stlval.Is[T](vt) {
 		typename := fmt.Sprintf("%T", stlval.Default[T]())
@@ -112,7 +113,7 @@ func expectTypeExpr[T types.Type](a *Analyzer, expr ast.Expr, expect ...types.Ty
 	return v
 }
 
-func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *stmts.IdentExpr {
+func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *locals.IdentExpr {
 	samePkg := true
 	pkg := a.scope
 	if pkgAst, ok := expr.Pkg.Value(); ok {
@@ -136,19 +137,19 @@ func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *stmts.IdentExpr {
 			expr.Name.OriginText,
 		)
 	}
-	return stmts.NewIdentExpr(v)
+	return locals.NewIdentExpr(v)
 }
 
-func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...types.Type) stmts.Expr {
+func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...hir.Type) locals.Expr {
 	v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
 	if len(expect) == 0 || stlval.Is[types.IntegerType](stlslices.Last(expect)) {
-		return stmts.NewInteger(types.I64, big.NewInt(v))
+		return locals.NewInteger(types.I64, big.NewInt(v))
 	} else {
-		return stmts.NewFloat(types.F64, big.NewFloat(float64(v)))
+		return locals.NewFloat(types.F64, big.NewFloat(float64(v)))
 	}
 }
 
-func (a *Analyzer) analyzeChar(expr *ast.Char, expect ...types.Type) stmts.Expr {
+func (a *Analyzer) analyzeChar(expr *ast.Char, expect ...hir.Type) locals.Expr {
 	charText := expr.Value.OriginText[1 : len(expr.Value.OriginText)-1]
 	charText = util.ParseEscapeCharacter(charText, `\'`, `'`)
 	chars := utf8string.NewString(charText)
@@ -162,13 +163,13 @@ func (a *Analyzer) analyzeChar(expr *ast.Char, expect ...types.Type) stmts.Expr 
 	char := chars.At(0)
 
 	if len(expect) == 0 || stlval.Is[types.IntegerType](stlslices.Last(expect)) {
-		return stmts.NewInteger(types.I32, big.NewInt(int64(char)))
+		return locals.NewInteger(types.I32, big.NewInt(int64(char)))
 	} else {
-		return stmts.NewFloat(types.F64, big.NewFloat(float64(char)))
+		return locals.NewFloat(types.F64, big.NewFloat(float64(char)))
 	}
 }
 
-func (a *Analyzer) analyzeString(expr *ast.String) stmts.Expr {
+func (a *Analyzer) analyzeString(expr *ast.String) locals.Expr {
 	strText := expr.Value.OriginText[1 : len(expr.Value.OriginText)-1]
 	strText = util.ParseEscapeCharacter(strText, `\"`, `"`)
 	if !utf8.Valid([]byte(strText)) {
@@ -178,17 +179,17 @@ func (a *Analyzer) analyzeString(expr *ast.String) stmts.Expr {
 			strText,
 		)
 	}
-	return stmts.NewString(types.Str, strText)
+	return locals.NewString(types.Str, strText)
 }
 
-func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Unary {
+func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...hir.Type) locals.Unary {
 	switch expr.Op.Kind {
 	case token.KindEnum.Not:
 		v := a.analyzeExpr(expr.Expr, expect...)
 		if vt := v.GetType(); stlval.Is[types.IntegerType](vt) {
-			return stmts.NewBitReverse(v)
+			return locals.NewBitReverse(v)
 		} else if stlval.Is[types.BooleanType](vt) {
-			return stmts.NewBooleanReverse(v)
+			return locals.NewBooleanReverse(v)
 		} else {
 			a.reporter.Fatalf(
 				expr.Position(),
@@ -199,105 +200,105 @@ func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...types.Type) stmts.Una
 		}
 	case token.KindEnum.Mul:
 		if len(expect) > 0 {
-			expect = []types.Type{types.NewRefType(false, stlslices.Last(expect))}
+			expect = []hir.Type{types.NewRefType(false, stlslices.Last(expect))}
 		}
 		v := expectTypeExpr[types.RefType](a, expr.Expr, expect...)
-		return stmts.NewDeRef(v)
+		return locals.NewDeRef(v)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.Binary {
-	var left stmts.Expr
-	var op stmts.BinaryOp
+func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...hir.Type) *locals.Binary {
+	var left locals.Expr
+	var op locals.BinaryOp
 	switch expr.Op.Kind {
 	case token.KindEnum.Add:
-		op = stmts.BinaryOpEnum.Add
+		op = locals.BinaryOpEnum.Add
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Sub:
-		op = stmts.BinaryOpEnum.Sub
+		op = locals.BinaryOpEnum.Sub
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Mul:
-		op = stmts.BinaryOpEnum.Mul
+		op = locals.BinaryOpEnum.Mul
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Quo:
-		op = stmts.BinaryOpEnum.Quo
+		op = locals.BinaryOpEnum.Quo
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Rem:
-		op = stmts.BinaryOpEnum.Rem
+		op = locals.BinaryOpEnum.Rem
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.And:
-		op = stmts.BinaryOpEnum.And
+		op = locals.BinaryOpEnum.And
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Or:
-		op = stmts.BinaryOpEnum.Or
+		op = locals.BinaryOpEnum.Or
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Xor:
-		op = stmts.BinaryOpEnum.Xor
+		op = locals.BinaryOpEnum.Xor
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Shl:
-		op = stmts.BinaryOpEnum.Shl
+		op = locals.BinaryOpEnum.Shl
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Shr:
-		op = stmts.BinaryOpEnum.Shr
+		op = locals.BinaryOpEnum.Shr
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.Eq:
-		op = stmts.BinaryOpEnum.Eq
+		op = locals.BinaryOpEnum.Eq
 		left = a.analyzeExpr(expr.Left, expect...)
 	case token.KindEnum.Neq:
-		op = stmts.BinaryOpEnum.Neq
+		op = locals.BinaryOpEnum.Neq
 		left = a.analyzeExpr(expr.Left, expect...)
 	case token.KindEnum.Lt:
-		op = stmts.BinaryOpEnum.Lt
+		op = locals.BinaryOpEnum.Lt
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Lte:
-		op = stmts.BinaryOpEnum.Lte
+		op = locals.BinaryOpEnum.Lte
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Gt:
-		op = stmts.BinaryOpEnum.Gt
+		op = locals.BinaryOpEnum.Gt
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.Gte:
-		op = stmts.BinaryOpEnum.Gte
+		op = locals.BinaryOpEnum.Gte
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.LogicAnd:
-		op = stmts.BinaryOpEnum.LogicAnd
+		op = locals.BinaryOpEnum.LogicAnd
 		left = expectTypeExpr[types.BooleanType](a, expr.Left, expect...)
 	case token.KindEnum.LogicOr:
-		op = stmts.BinaryOpEnum.LogicOr
+		op = locals.BinaryOpEnum.LogicOr
 		left = expectTypeExpr[types.BooleanType](a, expr.Left, expect...)
 	case token.KindEnum.Assign:
-		op = stmts.BinaryOpEnum.Assign
+		op = locals.BinaryOpEnum.Assign
 		left = a.analyzeExpr(expr.Left, expect...)
 	case token.KindEnum.AddAssign:
-		op = stmts.BinaryOpEnum.AddAssign
+		op = locals.BinaryOpEnum.AddAssign
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.SubAssign:
-		op = stmts.BinaryOpEnum.SubAssign
+		op = locals.BinaryOpEnum.SubAssign
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.MulAssign:
-		op = stmts.BinaryOpEnum.MulAssign
+		op = locals.BinaryOpEnum.MulAssign
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.QuoAssign:
-		op = stmts.BinaryOpEnum.QuoAssign
+		op = locals.BinaryOpEnum.QuoAssign
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.RemAssign:
-		op = stmts.BinaryOpEnum.RemAssign
+		op = locals.BinaryOpEnum.RemAssign
 		left = expectTypeExpr[types.NumberType](a, expr.Left, expect...)
 	case token.KindEnum.AndAssign:
-		op = stmts.BinaryOpEnum.AndAssign
+		op = locals.BinaryOpEnum.AndAssign
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.OrAssign:
-		op = stmts.BinaryOpEnum.OrAssign
+		op = locals.BinaryOpEnum.OrAssign
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.XorAssign:
-		op = stmts.BinaryOpEnum.XorAssign
+		op = locals.BinaryOpEnum.XorAssign
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.ShlAssign:
-		op = stmts.BinaryOpEnum.ShlAssign
+		op = locals.BinaryOpEnum.ShlAssign
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	case token.KindEnum.ShrAssign:
-		op = stmts.BinaryOpEnum.ShrAssign
+		op = locals.BinaryOpEnum.ShrAssign
 		left = expectTypeExpr[types.IntegerType](a, expr.Left, expect...)
 	default:
 		panic("unreachable")
@@ -334,28 +335,28 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...types.Type) *stmts.
 		}
 	}
 
-	return &stmts.Binary{
+	return &locals.Binary{
 		Op:    op,
 		Left:  left,
 		Right: right,
 	}
 }
 
-func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
+func (a *Analyzer) analyzeFunc(expr *ast.Func) *locals.Func {
 	scope := scopes.NewBlockScope(a.scope)
 	a.scope = scope
 
 	ft := a.analyzeFuncDecl(expr)
 
-	params := stlslices.Map(expr.Params, func(i int, pAst *ast.ParamDecl) *stmts.Param {
-		p := stmts.NewParam(pAst.Mut, ft.GetParams()[i], pAst.Name.OriginText)
+	params := stlslices.Map(expr.Params, func(i int, pAst *ast.ParamDecl) *hir.Param {
+		p := hir.NewParam(pAst.Mut, ft.GetParams()[i], pAst.Name.OriginText)
 		a.scope.AddValue(p)
 		return p
 	})
 
 	scope.SetFuncType(ft)
 
-	var body optional.Optional[*stmts.Block]
+	var body optional.Optional[*locals.Block]
 	if b, ok := expr.Body.Value(); ok {
 		body = optional.Some(a.analyzeBlock(b))
 	}
@@ -364,13 +365,13 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *stmts.Func {
 
 	a.scope, _ = a.scope.Parent()
 
-	f := stmts.NewFunc(ft, params...)
+	f := locals.NewFunc(ft, params...)
 	f.Body = body
 	f.UsedExternalVariables = externalVars
 	return f
 }
 
-func (a *Analyzer) analyzeCall(expr *ast.Call) *stmts.Call {
+func (a *Analyzer) analyzeCall(expr *ast.Call) *locals.Call {
 	f := expectTypeExpr[types.FuncType](a, expr.Func)
 	ft := f.GetType().(types.FuncType)
 	params := ft.GetParams()
@@ -381,22 +382,22 @@ func (a *Analyzer) analyzeCall(expr *ast.Call) *stmts.Call {
 			len(params), len(expr.Args),
 		)
 	}
-	args := stlslices.Map(expr.Args, func(i int, expr ast.Expr) stmts.Expr {
+	args := stlslices.Map(expr.Args, func(i int, expr ast.Expr) locals.Expr {
 		return a.analyzeExpr(expr, params[i])
 	})
-	return &stmts.Call{
+	return &locals.Call{
 		Func: f,
 		Args: args,
 	}
 }
 
-func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...types.Type) stmts.Expr {
+func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) locals.Expr {
 	if len(expr.Elems) == 1 {
 		return a.analyzeExpr(expr.Elems[0], expect...)
 	}
 
 	var hasType bool
-	expectElemTypes := make([]types.Type, len(expr.Elems))
+	expectElemTypes := make([]hir.Type, len(expr.Elems))
 	if len(expect) > 0 {
 		if tt, ok := stlslices.Last(expect).(types.TupleType); ok && (len(expr.Elems) == 0 || len(expr.Elems) == len(tt.GetElems())) {
 			hasType = true
@@ -404,10 +405,10 @@ func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...types.Type) stmts.Exp
 		}
 	}
 
-	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) stmts.Expr {
-		var elemExpect []types.Type
+	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) locals.Expr {
+		var elemExpect []hir.Type
 		if et := expectElemTypes[i]; et != nil {
-			elemExpect = []types.Type{et}
+			elemExpect = []hir.Type{et}
 		}
 		return a.analyzeExpr(e, elemExpect...)
 	})
@@ -418,28 +419,28 @@ func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...types.Type) stmts.Exp
 	} else if len(elems) == 0 {
 		t = types.NewTupleType(expectElemTypes...)
 	} else {
-		t = types.NewTupleType(stlslices.Map(elems, func(_ int, e stmts.Expr) types.Type {
+		t = types.NewTupleType(stlslices.Map(elems, func(_ int, e locals.Expr) hir.Type {
 			return e.GetType()
 		})...)
 	}
 
-	return stmts.NewTuple(t, elems...)
+	return locals.NewTuple(t, elems...)
 }
 
-func (a *Analyzer) analyzeIndex(expr *ast.Index) stmts.Expr {
+func (a *Analyzer) analyzeIndex(expr *ast.Index) locals.Expr {
 	from := a.analyzeExpr(expr.From)
 	ft := from.GetType()
 
 	if stlval.Is[types.TupleType](ft) {
 		index := expectTypeExpr[types.IntegerType](a, expr.Index)
-		indexValue, ok := index.(*stmts.Integer)
+		indexValue, ok := index.(*locals.Integer)
 		if !ok {
 			a.reporter.Fatalf(
 				expr.Index.Position(),
 				report.Errors.ExpectedIntegerConstant,
 			)
 		}
-		return stmts.NewTupleIndex(from, indexValue.Value)
+		return locals.NewTupleIndex(from, indexValue.Value)
 	}
 
 	at, ok := ft.(types.ArrayType)
@@ -451,12 +452,12 @@ func (a *Analyzer) analyzeIndex(expr *ast.Index) stmts.Expr {
 		)
 	}
 	index := expectTypeExpr[types.IntegerType](a, expr.Index)
-	return stmts.NewArrayIndex(from, index)
+	return locals.NewArrayIndex(from, index)
 }
 
-func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...types.Type) *stmts.Array {
+func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *locals.Array {
 	var size *big.Int
-	var expectElemType types.Type
+	var expectElemType hir.Type
 	if len(expect) > 0 {
 		if at, ok := stlslices.Last(expect).(types.ArrayType); ok && (len(expr.Elems) == 0 || strconv.FormatInt(int64(len(expr.Elems)), 10) == at.GetSize().String()) {
 			size = at.GetSize()
@@ -464,11 +465,11 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...types.Type) *stmts.Ar
 		}
 	}
 
-	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) stmts.Expr {
+	elems := stlslices.Map(expr.Elems, func(i int, e ast.Expr) locals.Expr {
 		if i == 0 {
-			var elemExpect []types.Type
+			var elemExpect []hir.Type
 			if expectElemType != nil {
-				elemExpect = []types.Type{expectElemType}
+				elemExpect = []hir.Type{expectElemType}
 			}
 			v := a.analyzeExpr(e, elemExpect...)
 			expectElemType = v.GetType()
@@ -491,22 +492,22 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...types.Type) *stmts.Ar
 	} else {
 		t = types.NewArrayType(big.NewInt(int64(len(elems))), expectElemType)
 	}
-	return stmts.NewArray(t, elems...)
+	return locals.NewArray(t, elems...)
 }
 
 // 尝试获取类型的零值
-func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
+func (a *Analyzer) tryGetZeroExpr(t hir.Type) (locals.Expr, bool) {
 	switch t := t.(type) {
 	case types.IntegerType:
-		return stmts.NewInteger(t, big.NewInt(0)), true
+		return locals.NewInteger(t, big.NewInt(0)), true
 	case types.FloatType:
-		return stmts.NewFloat(t, big.NewFloat(0)), true
+		return locals.NewFloat(t, big.NewFloat(0)), true
 	case types.BooleanType:
-		return stmts.NewBoolean(t, false), true
+		return locals.NewBoolean(t, false), true
 	case types.StringType:
-		return stmts.NewString(t, ""), true
+		return locals.NewString(t, ""), true
 	case types.FuncType:
-		var returnValue stmts.Expr
+		var returnValue locals.Expr
 		if !t.GetReturn().Equal(types.Unit) {
 			var ok bool
 			returnValue, ok = a.tryGetZeroExpr(t.GetReturn())
@@ -514,12 +515,12 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 				return nil, false
 			}
 		}
-		f := stmts.NewFunc(t, stlslices.Map(t.GetParams(), func(i int, pt types.Type) *stmts.Param {
-			return stmts.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
+		f := locals.NewFunc(t, stlslices.Map(t.GetParams(), func(i int, pt hir.Type) *hir.Param {
+			return hir.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
 		})...)
-		block := stmts.NewBlock()
+		block := locals.NewBlock()
 		if returnValue != nil {
-			block.Stmts = append(block.Stmts, stmts.NewReturn(returnValue))
+			block.Stmts = append(block.Stmts, locals.NewReturn(returnValue))
 		}
 		f.Body = optional.Some(block)
 		return f, true
@@ -529,22 +530,22 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 				return nil, false
 			}
 		}
-		return stmts.NewTuple(t), true
+		return locals.NewTuple(t), true
 	case types.ArrayType:
 		if t.GetSize().String() != "0" {
 			if _, ok := a.tryGetZeroExpr(t.GetElem()); !ok {
 				return nil, false
 			}
 		}
-		return stmts.NewArray(t), true
+		return locals.NewArray(t), true
 	case types.UnionType:
 		v, ok := a.tryGetZeroExpr(t.GetElems()[0])
 		if !ok {
 			return nil, false
 		}
-		return stmts.NewUnion(v, t, 0), true
+		return locals.NewUnion(v, t, 0), true
 	case types.StructType:
-		fields := make(map[string]stmts.Expr, len(t.GetFields()))
+		fields := make(map[string]locals.Expr, len(t.GetFields()))
 		for _, f := range t.GetFields() {
 			v, ok := a.tryGetZeroExpr(f.Type)
 			if !ok {
@@ -552,14 +553,14 @@ func (a *Analyzer) tryGetZeroExpr(t types.Type) (stmts.Expr, bool) {
 			}
 			fields[f.Name] = v
 		}
-		return stmts.NewStruct(t, fields), true
+		return locals.NewStruct(t, fields), true
 	default:
 		return nil, false
 	}
 }
 
 // 获取类型的零值
-func (a *Analyzer) getZeroExpr(pos reader.Position, t types.Type) stmts.Expr {
+func (a *Analyzer) getZeroExpr(pos reader.Position, t hir.Type) locals.Expr {
 	v, ok := a.tryGetZeroExpr(t)
 	if !ok {
 		a.reporter.Fatalf(
@@ -571,7 +572,7 @@ func (a *Analyzer) getZeroExpr(pos reader.Position, t types.Type) stmts.Expr {
 	return v
 }
 
-func (a *Analyzer) analyzeAs(expr *ast.As) stmts.Expr {
+func (a *Analyzer) analyzeAs(expr *ast.As) locals.Expr {
 	to := a.analyzeType(expr.Right)
 	v := a.analyzeExpr(expr.Left, to)
 	from := v.GetType()
@@ -582,9 +583,9 @@ func (a *Analyzer) analyzeAs(expr *ast.As) stmts.Expr {
 
 	switch {
 	case stlval.Is[types.NumberType](from) && stlval.Is[types.NumberType](to):
-		return stmts.NewNumberCovert(v, to)
+		return locals.NewNumberCovert(v, to)
 	case types.GetUnderlying(from).Equal(types.GetUnderlying(to)):
-		return stmts.NewTypedefCovert(v, to)
+		return locals.NewTypedefCovert(v, to)
 	}
 
 	a.reporter.Fatalf(
@@ -595,12 +596,12 @@ func (a *Analyzer) analyzeAs(expr *ast.As) stmts.Expr {
 	return nil
 }
 
-func (a *Analyzer) analyzeBoolean(expr *ast.Boolean) *stmts.Boolean {
-	return stmts.NewBoolean(types.Bool, expr.Value.Kind == token.KindEnum.True)
+func (a *Analyzer) analyzeBoolean(expr *ast.Boolean) *locals.Boolean {
+	return locals.NewBoolean(types.Bool, expr.Value.Kind == token.KindEnum.True)
 }
 
-func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...types.Type) *stmts.GetRef {
-	var expectElemType []types.Type
+func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Type) *locals.GetRef {
+	var expectElemType []hir.Type
 	if len(expect) > 0 {
 		if rt, ok := stlslices.Last(expect).(types.RefType); ok {
 			expectElemType = append(expectElemType, rt.PtrTo())
@@ -619,17 +620,17 @@ func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...types.T
 			report.Errors.MustMutable,
 		)
 	}
-	return stmts.NewGetRef(expr.Mut, from)
+	return locals.NewGetRef(expr.Mut, from)
 }
 
-func (a *Analyzer) analyzeTernary(expr *ast.Ternary, expect ...types.Type) *stmts.Ternary {
+func (a *Analyzer) analyzeTernary(expr *ast.Ternary, expect ...hir.Type) *locals.Ternary {
 	cond := a.expectTypeExpr(expr.Condition, types.Bool)
 	trueExpr := a.analyzeExpr(expr.TrueExpr, expect...)
 	falseExpr := a.expectTypeExpr(expr.FalseExpr, trueExpr.GetType())
-	return stmts.NewTernary(cond, trueExpr, falseExpr)
+	return locals.NewTernary(cond, trueExpr, falseExpr)
 }
 
-func (a *Analyzer) analyzeStruct(expr *ast.Struct) *stmts.Struct {
+func (a *Analyzer) analyzeStruct(expr *ast.Struct) *locals.Struct {
 	t := a.analyzeType(expr.Type)
 	st, ok := t.(types.StructType)
 	if !ok {
@@ -640,7 +641,7 @@ func (a *Analyzer) analyzeStruct(expr *ast.Struct) *stmts.Struct {
 		)
 	}
 
-	fields := make(map[string]stmts.Expr, len(expr.Fields))
+	fields := make(map[string]locals.Expr, len(expr.Fields))
 	for _, f := range expr.Fields {
 		field, ok := stlslices.FindFirst(st.GetFields(), func(_ int, sf *types.StructField) bool {
 			return f.Name.OriginText == sf.Name
@@ -661,10 +662,10 @@ func (a *Analyzer) analyzeStruct(expr *ast.Struct) *stmts.Struct {
 		}
 		fields[f.Name.OriginText] = a.expectTypeExpr(f.Value, field.Type)
 	}
-	return stmts.NewStruct(st, fields)
+	return locals.NewStruct(st, fields)
 }
 
-func (a *Analyzer) analyzeMember(expr *ast.Member) *stmts.Member {
+func (a *Analyzer) analyzeMember(expr *ast.Member) *locals.Member {
 	from := expectTypeExpr[types.StructType](a, expr.From)
 	st := from.GetType().(types.StructType)
 	field, ok := stlslices.FindFirst(st.GetFields(), func(_ int, f *types.StructField) bool {
@@ -677,5 +678,5 @@ func (a *Analyzer) analyzeMember(expr *ast.Member) *stmts.Member {
 			expr.Name.OriginText,
 		)
 	}
-	return stmts.NewMember(from, field.Name)
+	return locals.NewMember(from, field.Name)
 }

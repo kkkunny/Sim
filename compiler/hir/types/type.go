@@ -1,19 +1,9 @@
 package types
 
-import (
-	"fmt"
-
-	"github.com/kkkunny/Sim/compiler/hir"
-)
-
-type Type interface {
-	hir.PrintWriter
-	fmt.Stringer
-	Equal(Type) bool
-}
+import "github.com/kkkunny/Sim/compiler/hir"
 
 type NumberType interface {
-	Type
+	hir.Type
 	GetBits() uint8
 }
 

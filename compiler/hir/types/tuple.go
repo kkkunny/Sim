@@ -9,16 +9,16 @@ import (
 )
 
 type TupleType interface {
-	Type
-	GetElems() []Type
+	hir.Type
+	GetElems() []hir.Type
 	tuple()
 }
 
 type _TupleType struct {
-	Elems []Type
+	Elems []hir.Type
 }
 
-func NewTupleType(elems ...Type) TupleType {
+func NewTupleType(elems ...hir.Type) TupleType {
 	return &_TupleType{
 		Elems: elems,
 	}
@@ -43,7 +43,7 @@ func (t *_TupleType) String() string {
 	return buf.String()
 }
 
-func (t *_TupleType) Equal(p Type) bool {
+func (t *_TupleType) Equal(p hir.Type) bool {
 	dst, ok := p.(TupleType)
 	if !ok {
 		return false
@@ -52,12 +52,12 @@ func (t *_TupleType) Equal(p Type) bool {
 	if len(t.Elems) != len(dstElems) {
 		return false
 	}
-	return stlslices.All(t.Elems, func(i int, p Type) bool {
+	return stlslices.All(t.Elems, func(i int, p hir.Type) bool {
 		return p.Equal(dstElems[i])
 	})
 }
 
-func (t *_TupleType) GetElems() []Type {
+func (t *_TupleType) GetElems() []hir.Type {
 	return t.Elems
 }
 
@@ -67,6 +67,6 @@ type _CustomTupleType struct {
 
 func (*_CustomTupleType) tuple() {}
 
-func (t *_CustomTupleType) GetElems() []Type {
-	return t.Underlying.GetElems()
+func (t *_CustomTupleType) GetElems() []hir.Type {
+	return t.GetUnderlying().(TupleType).GetElems()
 }

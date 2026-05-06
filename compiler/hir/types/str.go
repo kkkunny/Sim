@@ -9,7 +9,7 @@ import (
 var Str = &_StringType{}
 
 type StringType interface {
-	Type
+	hir.Type
 	string()
 }
 
@@ -25,7 +25,7 @@ func (t *_StringType) String() string {
 	return "str"
 }
 
-func (t *_StringType) Equal(p Type) bool {
+func (t *_StringType) Equal(p hir.Type) bool {
 	return stlval.Is[StringType](p)
 }
 

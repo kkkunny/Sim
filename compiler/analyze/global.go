@@ -3,13 +3,17 @@ package analyze
 import (
 	"path/filepath"
 
+	stlmaps "github.com/kkkunny/stl/container/maps"
 	"github.com/kkkunny/stl/container/optional"
+	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/config"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
+	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/report"
 	"github.com/kkkunny/Sim/compiler/token"
@@ -80,18 +84,33 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	return nil
 }
 
-func (a *Analyzer) analyzeTypeDecl(global ast.Global) *stmts.TypeDef {
+func (a *Analyzer) analyzeTypePreDecl(global ast.Global) *globals.TypeDef {
 	switch global := global.(type) {
-	case *ast.Let, *ast.Import:
-		return nil
 	case *ast.TypeDef:
-		return a.analyzeCustomTypeDecl(global)
+		decl := globals.NewTypeDef(global.Public, global.Name.OriginText)
+		a.typeDef2Ast.Set(decl, global)
+		if stlmaps.ContainKey(a.typeName2Def, global.Name.OriginText) {
+			a.reporter.Fatalf(
+				global.Name.Position,
+				report.Errors.RepeatedIdentifier,
+				global.Name.OriginText,
+			)
+		}
+		a.typeName2Def[global.Name.OriginText] = decl
+		return decl
 	default:
-		panic("unreachable")
+		return nil
 	}
 }
 
-func (a *Analyzer) analyzeCustomTypeDecl(global *ast.TypeDef) *stmts.TypeDef {
+func (a *Analyzer) analyzeTypeDecl(global ast.Global) {
+	switch global := global.(type) {
+	case *ast.TypeDef:
+		a.analyzeCustomTypeDecl(set.StdHashSetWith[*globals.TypeDef](), global)
+	}
+}
+
+func (a *Analyzer) analyzeCustomTypeDecl(stacks set.Set[*globals.TypeDef], global *ast.TypeDef) types.CustomType {
 	_, ok := a.scope.LookupType(global.Name.OriginText)
 	if ok {
 		a.reporter.Fatalf(
@@ -99,13 +118,75 @@ func (a *Analyzer) analyzeCustomTypeDecl(global *ast.TypeDef) *stmts.TypeDef {
 			report.Errors.RepeatedIdentifier,
 			global.Name.OriginText,
 		)
-		return nil
 	}
 
-	decl := stmts.NewTypeDef(global.Public)
-	a.scope.(*scopes.PkgScope).AddType(global.Name.OriginText, decl)
-	a.typedefAsts[decl] = global
-	return decl
+	decl := a.typeDef2Ast.GetKey(global)
+	if !stacks.Add(decl) {
+		a.reporter.Fatalf(
+			global.Name.Position,
+			report.Errors.InvalidRecursionType,
+		)
+	}
+	defer stacks.Remove(decl)
+
+	var ct types.CustomType
+	switch t := global.Type.(type) {
+	case *ast.IdentType:
+		var underlying hir.Type
+		if ct, ok := a.scope.LookupType(t.Name.OriginText); ok {
+			underlying = ct
+		} else if def, ok := a.typeName2Def[t.Name.OriginText]; ok {
+			if a.ir.Path == config.BuildinPkgPath && t.Pkg.IsNone() && global.Name.OriginText == t.Name.OriginText {
+				// 允许buildin包内自定义类型名和底层类型同名
+				underlying = a.analyzeBuildInIdentType(t)
+			} else {
+				underlying = a.analyzeCustomTypeDecl(stacks, a.typeDef2Ast.GetValue(def))
+			}
+		} else {
+			underlying = a.analyzeBuildInIdentType(t)
+		}
+		switch underlying.(type) {
+		case types.SintType:
+			ct = types.NewCustomType[types.SintType](decl)
+		case types.UintType:
+			ct = types.NewCustomType[types.UintType](decl)
+		case types.FloatType:
+			ct = types.NewCustomType[types.FloatType](decl)
+		case types.BooleanType:
+			ct = types.NewCustomType[types.BooleanType](decl)
+		case types.StringType:
+			ct = types.NewCustomType[types.StringType](decl)
+		case types.FuncType:
+			ct = types.NewCustomType[types.FuncType](decl)
+		case types.RefType:
+			ct = types.NewCustomType[types.RefType](decl)
+		case types.TupleType:
+			ct = types.NewCustomType[types.TupleType](decl)
+		case types.ArrayType:
+			ct = types.NewCustomType[types.ArrayType](decl)
+		case types.UnionType:
+			ct = types.NewCustomType[types.UnionType](decl)
+		case types.StructType:
+			ct = types.NewCustomType[types.StructType](decl)
+		default:
+			panic("unreachable")
+		}
+	case *ast.FuncType:
+		ct = types.NewCustomType[types.FuncType](decl)
+	case *ast.RefType:
+		ct = types.NewCustomType[types.RefType](decl)
+	case *ast.TupleType:
+		ct = types.NewCustomType[types.TupleType](decl)
+	case *ast.ArrayType:
+		ct = types.NewCustomType[types.ArrayType](decl)
+	case *ast.UnionType:
+		ct = types.NewCustomType[types.UnionType](decl)
+	case *ast.StructType:
+		ct = types.NewCustomType[types.StructType](decl)
+	}
+
+	a.scope.(*scopes.PkgScope).AddType(global.Name.OriginText, ct)
+	return ct
 }
 
 func (a *Analyzer) analyzeTypeDef(global ast.Global) {
@@ -119,81 +200,20 @@ func (a *Analyzer) analyzeTypeDef(global ast.Global) {
 	}
 }
 
-func (a *Analyzer) analyzeCustomTypeDef(global *ast.TypeDef) types.Type {
-	name := global.Name.OriginText
-	decl, _ := a.scope.LookupType(name)
-	if decl.Type != nil {
-		return decl.Type
+func (a *Analyzer) analyzeCustomTypeDef(global *ast.TypeDef) *globals.TypeDef {
+	ct, _ := a.scope.LookupType(global.Name.OriginText)
+	def := ct.GetDef()
+	if def.Underlying != nil {
+		return def
 	}
 
-	var ct types.CustomType
-	var setter func(types.Type)
-	var underlying types.Type
-	switch t := global.Type.(type) {
-	case *ast.IdentType:
-		if _, ok := a.scope.LookupType(t.Name.OriginText); ok {
-			if tast, ok := global.Type.(*ast.IdentType); ok && a.ir.Path == config.BuildinPkgPath && tast.Pkg.IsNone() && global.Name.OriginText == tast.Name.OriginText {
-				// 允许buildin包内自定义类型名和底层类型同名
-				underlying = a.analyzeBuildInIdentType(tast)
-			} else {
-				a.reporter.Fatalf(
-					global.Name.Position,
-					report.Errors.InvalidRecursionType,
-				)
-			}
-		}
-		switch a.analyzeBuildInIdentType(t).(type) {
-		case types.SintType:
-			ctt, s := types.DelayNewCustomType[types.SintType](name)
-			ct, setter = ctt, func(t types.Type) { s(t.(types.SintType)) }
-		case types.UintType:
-			ctt, s := types.DelayNewCustomType[types.UintType](name)
-			ct, setter = ctt, func(t types.Type) { s(t.(types.UintType)) }
-		case types.FloatType:
-			ctt, s := types.DelayNewCustomType[types.FloatType](name)
-			ct, setter = ctt, func(t types.Type) { s(t.(types.FloatType)) }
-		case types.BooleanType:
-			ctt, s := types.DelayNewCustomType[types.BooleanType](name)
-			ct, setter = ctt, func(t types.Type) { s(t.(types.BooleanType)) }
-		case types.StringType:
-			ctt, s := types.DelayNewCustomType[types.StringType](name)
-			ct, setter = ctt, func(t types.Type) { s(t.(types.StringType)) }
-		default:
-			panic("unreachable")
-		}
-	case *ast.FuncType:
-		ctt, s := types.DelayNewCustomType[types.FuncType](name)
-		ct, setter = ctt, func(t types.Type) { s(t.(types.FuncType)) }
-	case *ast.TupleType:
-		ctt, s := types.DelayNewCustomType[types.TupleType](name)
-		ct, setter = ctt, func(t types.Type) { s(t.(types.TupleType)) }
-	case *ast.ArrayType:
-		ctt, s := types.DelayNewCustomType[types.ArrayType](name)
-		ct, setter = ctt, func(t types.Type) { s(t.(types.ArrayType)) }
-	case *ast.UnionType:
-		ctt, s := types.DelayNewCustomType[types.UnionType](name)
-		ct, setter = ctt, func(t types.Type) { s(t.(types.UnionType)) }
-	case *ast.RefType:
-		ctt, s := types.DelayNewCustomType[types.RefType](name)
-		ct, setter = ctt, func(t types.Type) { s(t.(types.RefType)) }
-	case *ast.StructType:
-		ctt, s := types.DelayNewCustomType[types.StructType](name)
-		ct, setter = ctt, func(t types.Type) { s(t.(types.StructType)) }
+	if t, ok := global.Type.(*ast.IdentType); ok && a.ir.Path == config.BuildinPkgPath && t.Pkg.IsNone() && global.Name.OriginText == t.Name.OriginText {
+		// 允许buildin包内自定义类型名和底层类型同名
+		def.Underlying = a.analyzeBuildInIdentType(t)
+	} else {
+		def.Underlying = a.analyzeType(global.Type)
 	}
-	decl.Type = ct
-	if underlying == nil {
-		underlying = a.analyzeType(global.Type)
-	}
-	setter(underlying)
-
-	if types.CheckRecursion(ct) {
-		a.reporter.Fatalf(
-			global.Name.Position,
-			report.Errors.InvalidRecursionType,
-		)
-	}
-
-	return ct
+	return def
 }
 
 func (a *Analyzer) analyzeGlobalValueDecl(global ast.Global) {
@@ -217,7 +237,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		)
 	}
 
-	var t types.Type
+	var t hir.Type
 	if tAst, ok := global.Type.Value(); ok {
 		t = a.analyzeType(tAst)
 	} else {
@@ -246,12 +266,12 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		}
 	}
 
-	let := &stmts.Let{
-		Pub:    global.Public,
-		Global: true,
-		Mut:    global.Mut,
-		Type:   t,
-		Name:   global.Name.OriginText,
+	let := &locals.Let{
+		Pub:      global.Public,
+		IsGlobal: true,
+		Mut:      global.Mut,
+		Type:     t,
+		Name:     global.Name.OriginText,
 	}
 
 	for _, attrAst := range global.Attributes {
@@ -266,7 +286,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 	a.scope.AddValue(let)
 }
 
-func (a *Analyzer) analyzeGlobalValueDef(global ast.Global) stmts.Global {
+func (a *Analyzer) analyzeGlobalValueDef(global ast.Global) globals.Global {
 	switch global := global.(type) {
 	case *ast.TypeDef, *ast.Import:
 		return nil
