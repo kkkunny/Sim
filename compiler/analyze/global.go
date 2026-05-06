@@ -238,49 +238,11 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		)
 	}
 
-	var t hir.Type
-	if tAst, ok := global.Type.Value(); ok {
-		t = a.analyzeType(tAst)
-	} else {
-		v, ok := global.Value.MustValue().(*ast.Func)
-		if !ok {
-			if global.Name.OriginText == "main" {
-				a.reporter.Fatalf(
-					global.Name.Position,
-					report.Errors.InvalidMainFunction,
-				)
-			}
-		} else {
-			// 函数定义
-			t = a.analyzeFuncDecl(v)
-			if global.Name.OriginText == "main" {
-				expectType := types.NewFuncType(types.Unit)
-				if !t.Equal(expectType) {
-					a.reporter.Fatalf(
-						global.Name.Position,
-						report.Errors.UnexpectedExpression,
-						expectType, t,
-					)
-				}
-			}
-		}
-	}
-
 	let := &locals.Let{
 		Pub:      global.Public,
 		IsGlobal: true,
 		Mut:      global.Mut,
-		Type:     t, // 可能为空
 		Name:     global.Name.OriginText,
-	}
-
-	for _, attrAst := range global.Attributes {
-		switch attrAst := attrAst.(type) {
-		case *ast.Extern:
-			let.ExternalName = optional.Some(attrAst.Name.OriginText)
-		default:
-			panic("unreachable")
-		}
 	}
 
 	if bind, ok := global.Bind.Value(); ok {
@@ -303,7 +265,52 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 				global.Name.OriginText,
 			)
 		}
+		let.Bind = optional.Some(ct)
 		a.scope.AddBind(typedef, let)
+
+		// Self
+		selfScope := scopes.NewTemporaryScope(a.scope)
+		selfScope.AddType("Self", ct)
+		a.scope = selfScope
+		defer func() {
+			a.scope, _ = a.scope.Parent()
+		}()
+	}
+
+	if tAst, ok := global.Type.Value(); ok {
+		let.Type = a.analyzeType(tAst)
+	} else {
+		v, ok := global.Value.MustValue().(*ast.Func)
+		if !ok {
+			if global.Name.OriginText == "main" {
+				a.reporter.Fatalf(
+					global.Name.Position,
+					report.Errors.InvalidMainFunction,
+				)
+			}
+		} else {
+			// 函数定义
+			let.Type = a.analyzeFuncDecl(v)
+			if global.Name.OriginText == "main" {
+				expectType := types.NewFuncType(types.Unit)
+				if !let.Type.Equal(expectType) {
+					a.reporter.Fatalf(
+						global.Name.Position,
+						report.Errors.UnexpectedExpression,
+						expectType, let.Type,
+					)
+				}
+			}
+		}
+	}
+
+	for _, attrAst := range global.Attributes {
+		switch attrAst := attrAst.(type) {
+		case *ast.Extern:
+			let.ExternalName = optional.Some(attrAst.Name.OriginText)
+		default:
+			panic("unreachable")
+		}
 	}
 
 	a.scope.AddValue(let)
@@ -334,6 +341,16 @@ func (a *Analyzer) analyzeGlobalLetDef(local *ast.Let) *locals.Let {
 
 	if decl.Type != nil && (decl.Value.IsSome() || (decl.ExternalName.IsSome() && local.Value.IsNone())) {
 		return decl
+	}
+
+	// Self
+	if bind, ok := decl.Bind.Value(); ok {
+		selfScope := scopes.NewTemporaryScope(a.scope)
+		selfScope.AddType("Self", bind)
+		a.scope = selfScope
+		defer func() {
+			a.scope, _ = a.scope.Parent()
+		}()
 	}
 
 	if v, ok := local.Value.Value(); decl.Type != nil && ok {

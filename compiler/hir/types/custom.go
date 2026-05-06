@@ -101,6 +101,7 @@ func (t *_CustomBaseType[T]) GetDef() *globals.TypeDef {
 	return t.def
 }
 
+// GetUnderlying 获取底层类型
 func GetUnderlying(t hir.Type) hir.Type {
 	for {
 		switch tt := t.(type) {
@@ -112,6 +113,7 @@ func GetUnderlying(t hir.Type) hir.Type {
 	}
 }
 
+// CheckRecursion 检查循环
 func CheckRecursion(ct CustomType) bool {
 	var checkFn func(stack set.Set[CustomType], t hir.Type) bool
 	checkFn = func(stack set.Set[CustomType], t hir.Type) bool {

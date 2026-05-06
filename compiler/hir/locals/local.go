@@ -6,6 +6,7 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 type Local interface {
@@ -69,6 +70,8 @@ type Let struct {
 	Type     hir.Type
 	Name     string
 	Value    optional.Optional[Expr]
+
+	Bind optional.Optional[types.CustomType]
 
 	ExternalName optional.Optional[string]
 }

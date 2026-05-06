@@ -6,7 +6,7 @@ type S struct {
 
 let name2 | S = "234"
 
-let getname | S = (self: &S) -> str {
+let getname | S = (self: &Self) -> str {
 	return self.name
 }
 
