@@ -45,7 +45,7 @@ func (s *BlockScope) FuncType() types.FuncType {
 	if f, ok := s.funcType.Value(); ok {
 		return f
 	}
-	if ls, ok := s.parent.(LocalScope); ok {
+	if ls, ok := s.parent.(*BlockScope); ok {
 		return ls.FuncType()
 	}
 	panic("unreachable")

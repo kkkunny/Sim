@@ -43,7 +43,7 @@ func (a *Analyzer) analyzeLocal(local ast.Local) locals.Local {
 }
 
 func (a *Analyzer) analyzeReturn(local *ast.Return) *locals.Return {
-	ls := a.scope.(scopes.LocalScope)
+	ls := a.scope.(*scopes.BlockScope)
 	if v, ok := local.Value.Value(); ok {
 		value := a.expectTypeExpr(v, ls.FuncType().GetReturn())
 		return locals.NewReturn(value)

@@ -70,8 +70,10 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 }
 
 func (a *Analyzer) analyzeIdentType(t *ast.IdentType) hir.Type {
-	pkg := a.scope.Root()
+	samePkg := true
+	pkg := a.scope
 	if pkgAst, ok := t.Pkg.Value(); ok {
+		samePkg = false
 		pkg, ok = pkg.LookupPkg(pkgAst.OriginText)
 		if !ok {
 			a.reporter.Fatalf(
@@ -81,7 +83,6 @@ func (a *Analyzer) analyzeIdentType(t *ast.IdentType) hir.Type {
 			)
 		}
 	}
-	samePkg := pkg == a.scope.Root()
 
 	if ct, ok := pkg.LookupType(t.Name.OriginText); ok {
 		if !samePkg && !ct.GetDef().Pub {
