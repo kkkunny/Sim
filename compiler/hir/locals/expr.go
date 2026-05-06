@@ -899,25 +899,25 @@ func (e *Struct) Temporary() bool {
 	return true
 }
 
-type Member struct {
+type GetField struct {
 	From Expr
 	Name string
 }
 
-func NewMember(from Expr, name string) *Member {
-	return &Member{From: from, Name: name}
+func NewGetField(from Expr, name string) *GetField {
+	return &GetField{From: from, Name: name}
 }
 
-func (*Member) expr()  {}
-func (*Member) local() {}
+func (*GetField) expr()  {}
+func (*GetField) local() {}
 
-func (e *Member) Print(p *hir.Printer) {
+func (e *GetField) Print(p *hir.Printer) {
 	p.WriteBy(e.From)
 	p.WriteString(".")
 	p.WriteString(e.Name)
 }
 
-func (e *Member) GetType() hir.Type {
+func (e *GetField) GetType() hir.Type {
 	st := e.From.GetType().(types.StructType)
 	for _, f := range st.GetFields() {
 		if f.Name == e.Name {
@@ -927,7 +927,7 @@ func (e *Member) GetType() hir.Type {
 	panic("unreachable")
 }
 
-func (e *Member) Mutable() bool {
+func (e *GetField) Mutable() bool {
 	st := e.From.GetType().(types.StructType)
 	for _, f := range st.GetFields() {
 		if f.Name == e.Name {
@@ -937,6 +937,36 @@ func (e *Member) Mutable() bool {
 	panic("unreachable")
 }
 
-func (e *Member) Temporary() bool {
+func (e *GetField) Temporary() bool {
 	return e.From.Temporary()
+}
+
+type GetBind struct {
+	From Expr
+	Bind *Let
+}
+
+func NewGetBind(from Expr, bind *Let) *GetBind {
+	return &GetBind{From: from, Bind: bind}
+}
+
+func (*GetBind) expr()  {}
+func (*GetBind) local() {}
+
+func (e *GetBind) Print(p *hir.Printer) {
+	p.WriteBy(e.From)
+	p.WriteString(".")
+	p.WriteString(e.Bind.Name)
+}
+
+func (e *GetBind) GetType() hir.Type {
+	return e.Bind.GetType()
+}
+
+func (e *GetBind) Mutable() bool {
+	return e.Bind.Mutable()
+}
+
+func (e *GetBind) Temporary() bool {
+	return false
 }
