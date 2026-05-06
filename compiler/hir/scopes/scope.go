@@ -1,7 +1,7 @@
 package scopes
 
 import (
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -9,11 +9,11 @@ type Scope interface {
 	Root() *PkgScope
 	LookupPkg(name string) (*PkgScope, bool)
 	Parent() (Scope, bool)
-	AddValue(v stmts.Ident)
-	LookupValue(name string) (stmts.Ident, bool)
-	Values() map[string]stmts.Ident
-	UsedValues() []stmts.Ident
-	LookupType(name string) (*stmts.TypeDef, bool)
+	AddValue(v hir.Ident)
+	LookupValue(name string) (hir.Ident, bool)
+	Values() map[string]hir.Ident
+	UsedValues() []hir.Ident
+	LookupType(name string) (types.CustomType, bool)
 }
 
 type LocalScope interface {

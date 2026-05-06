@@ -8,25 +8,26 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/report"
 )
 
-func (a *Analyzer) analyzeType(t ast.Type) types.Type {
+func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 	switch t := t.(type) {
 	case *ast.IdentType:
 		return a.analyzeIdentType(t)
 	case *ast.FuncType:
-		params := stlslices.Map(t.Params, func(_ int, p ast.Type) types.Type {
+		params := stlslices.Map(t.Params, func(_ int, p ast.Type) hir.Type {
 			return a.analyzeType(p)
 		})
-		var rt types.Type = types.Unit
+		var rt hir.Type = types.Unit
 		if returnType, ok := t.ReturnType.Value(); ok {
 			rt = a.analyzeTypeWithUnit(returnType)
 		}
 		return types.NewFuncType(rt, params...)
 	case *ast.TupleType:
-		elems := stlslices.Map(t.Elems, func(_ int, p ast.Type) types.Type {
+		elems := stlslices.Map(t.Elems, func(_ int, p ast.Type) hir.Type {
 			return a.analyzeType(p)
 		})
 		return types.NewTupleType(elems...)
@@ -36,7 +37,7 @@ func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 		elem := a.analyzeType(t.Elem)
 		return types.NewArrayType(size, elem)
 	case *ast.UnionType:
-		elems := stlslices.Map(t.Elems, func(_ int, e ast.Type) types.Type {
+		elems := stlslices.Map(t.Elems, func(_ int, e ast.Type) hir.Type {
 			return a.analyzeType(e)
 		})
 		return types.NewUnionType(elems...)
@@ -68,7 +69,7 @@ func (a *Analyzer) analyzeType(t ast.Type) types.Type {
 	}
 }
 
-func (a *Analyzer) analyzeIdentType(t *ast.IdentType) types.Type {
+func (a *Analyzer) analyzeIdentType(t *ast.IdentType) hir.Type {
 	pkg := a.scope.Root()
 	if pkgAst, ok := t.Pkg.Value(); ok {
 		pkg, ok = pkg.LookupPkg(pkgAst.OriginText)
@@ -82,17 +83,15 @@ func (a *Analyzer) analyzeIdentType(t *ast.IdentType) types.Type {
 	}
 	samePkg := pkg == a.scope.Root()
 
-	if typeDef, ok := pkg.LookupType(t.Name.OriginText); ok {
-		if !samePkg && !typeDef.Pub {
+	if ct, ok := pkg.LookupType(t.Name.OriginText); ok {
+		if !samePkg && !ct.GetDef().Pub {
 			a.reporter.Fatalf(
 				t.Name.Position,
 				report.Errors.UnknownIdentifier,
 				t.Name.OriginText,
 			)
-		} else if !samePkg || typeDef.Type != nil {
-			return typeDef.Type
 		}
-		return a.analyzeCustomTypeDef(a.typedefAsts[typeDef])
+		return ct
 	} else if !samePkg {
 		a.reporter.Fatalf(
 			t.Name.Position,
@@ -103,7 +102,7 @@ func (a *Analyzer) analyzeIdentType(t *ast.IdentType) types.Type {
 	return a.analyzeBuildInIdentType(t)
 }
 
-func (a *Analyzer) analyzeBuildInIdentType(t *ast.IdentType) types.Type {
+func (a *Analyzer) analyzeBuildInIdentType(t *ast.IdentType) hir.Type {
 	switch t.Name.OriginText {
 	case "unit":
 		a.reporter.Fatalf(
@@ -145,7 +144,7 @@ func (a *Analyzer) analyzeBuildInIdentType(t *ast.IdentType) types.Type {
 	}
 }
 
-func (a *Analyzer) analyzeTypeWithUnit(t ast.Type) types.Type {
+func (a *Analyzer) analyzeTypeWithUnit(t ast.Type) hir.Type {
 	if it, ok := t.(*ast.IdentType); ok && it.Name.OriginText == "unit" {
 		return types.Unit
 	}
@@ -153,11 +152,11 @@ func (a *Analyzer) analyzeTypeWithUnit(t ast.Type) types.Type {
 }
 
 func (a *Analyzer) analyzeFuncDecl(f *ast.Func) types.FuncType {
-	var returnType types.Type = types.Unit
+	var returnType hir.Type = types.Unit
 	if rtAst, ok := f.ReturnType.Value(); ok {
 		returnType = a.analyzeTypeWithUnit(rtAst)
 	}
-	params := stlslices.Map(f.Params, func(_ int, p *ast.ParamDecl) types.Type {
+	params := stlslices.Map(f.Params, func(_ int, p *ast.ParamDecl) hir.Type {
 		return a.analyzeType(p.Type)
 	})
 	return types.NewFuncType(returnType, params...)

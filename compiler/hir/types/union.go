@@ -9,16 +9,16 @@ import (
 )
 
 type UnionType interface {
-	Type
-	GetElems() []Type
+	hir.Type
+	GetElems() []hir.Type
 	union()
 }
 
 type _UnionType struct {
-	Elems []Type
+	Elems []hir.Type
 }
 
-func NewUnionType(elems ...Type) UnionType {
+func NewUnionType(elems ...hir.Type) UnionType {
 	return &_UnionType{Elems: elems}
 }
 
@@ -54,7 +54,7 @@ func (t *_UnionType) String() string {
 	return buf.String()
 }
 
-func (t *_UnionType) Equal(p Type) bool {
+func (t *_UnionType) Equal(p hir.Type) bool {
 	dst, ok := p.(UnionType)
 	if !ok {
 		return false
@@ -63,12 +63,12 @@ func (t *_UnionType) Equal(p Type) bool {
 	if len(t.Elems) != len(dstElems) {
 		return false
 	}
-	return stlslices.All(t.Elems, func(i int, p Type) bool {
+	return stlslices.All(t.Elems, func(i int, p hir.Type) bool {
 		return p.Equal(dstElems[i])
 	})
 }
 
-func (t *_UnionType) GetElems() []Type {
+func (t *_UnionType) GetElems() []hir.Type {
 	return t.Elems
 }
 
@@ -78,6 +78,6 @@ type _CustomUnionType struct {
 
 func (*_CustomUnionType) union() {}
 
-func (t *_CustomUnionType) GetElems() []Type {
-	return t.Underlying.GetElems()
+func (t *_CustomUnionType) GetElems() []hir.Type {
+	return t.GetUnderlying().(UnionType).GetElems()
 }

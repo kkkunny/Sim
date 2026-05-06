@@ -9,17 +9,17 @@ import (
 )
 
 type FuncType interface {
-	Type
-	GetReturn() Type
-	GetParams() []Type
+	hir.Type
+	GetReturn() hir.Type
+	GetParams() []hir.Type
 }
 
 type _FuncType struct {
-	Return Type
-	Params []Type
+	Return hir.Type
+	Params []hir.Type
 }
 
-func NewFuncType(ret Type, params ...Type) FuncType {
+func NewFuncType(ret hir.Type, params ...hir.Type) FuncType {
 	return &_FuncType{
 		Return: ret,
 		Params: params,
@@ -45,7 +45,7 @@ func (t *_FuncType) String() string {
 	return buf.String()
 }
 
-func (t *_FuncType) Equal(p Type) bool {
+func (t *_FuncType) Equal(p hir.Type) bool {
 	dst, ok := p.(FuncType)
 	if !ok {
 		return false
@@ -54,16 +54,16 @@ func (t *_FuncType) Equal(p Type) bool {
 	if !t.Return.Equal(dst.GetReturn()) || len(t.Params) != len(dstParams) {
 		return false
 	}
-	return stlslices.All(t.Params, func(i int, p Type) bool {
+	return stlslices.All(t.Params, func(i int, p hir.Type) bool {
 		return p.Equal(dstParams[i])
 	})
 }
 
-func (t *_FuncType) GetReturn() Type {
+func (t *_FuncType) GetReturn() hir.Type {
 	return t.Return
 }
 
-func (t *_FuncType) GetParams() []Type {
+func (t *_FuncType) GetParams() []hir.Type {
 	return t.Params
 }
 
@@ -71,10 +71,10 @@ type _CustomFuncType struct {
 	_CustomBaseType[FuncType]
 }
 
-func (t *_CustomFuncType) GetReturn() Type {
-	return t.Underlying.GetReturn()
+func (t *_CustomFuncType) GetReturn() hir.Type {
+	return t.GetUnderlying().(FuncType).GetReturn()
 }
 
-func (t *_CustomFuncType) GetParams() []Type {
-	return t.Underlying.GetParams()
+func (t *_CustomFuncType) GetParams() []hir.Type {
+	return t.GetUnderlying().(FuncType).GetParams()
 }

@@ -9,7 +9,7 @@ import (
 var Unit = &_UnitType{}
 
 type UnitType interface {
-	Type
+	hir.Type
 	unit()
 }
 
@@ -25,6 +25,6 @@ func (t *_UnitType) String() string {
 	return "unit"
 }
 
-func (t *_UnitType) Equal(p Type) bool {
+func (t *_UnitType) Equal(p hir.Type) bool {
 	return stlval.Is[UnitType](p)
 }

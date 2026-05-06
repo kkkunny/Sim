@@ -5,20 +5,22 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kkkunny/stl/container/bimap"
 	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/container/tuple"
 	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/parse"
 	"github.com/kkkunny/Sim/compiler/reader"
 	"github.com/kkkunny/Sim/compiler/report"
 )
 
-func analyzeFile(filePath string, reporter *report.Reporter) (*stmts.Package, error) {
+func analyzeFile(filePath string, reporter *report.Reporter) (*globals.Package, error) {
 	data, err := stlerr.ErrorWith(os.ReadFile(filePath))
 	if err != nil {
 		return nil, err
@@ -41,7 +43,7 @@ func analyzeFile(filePath string, reporter *report.Reporter) (*stmts.Package, er
 	return pkgHir, nil
 }
 
-func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) (*stmts.Package, error) {
+func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) (*globals.Package, error) {
 	pkgName := filepath.Base(dirPath)
 
 	entries, err := stlerr.ErrorWith(os.ReadDir(dirPath))
@@ -88,7 +90,7 @@ func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) 
 	return pkgHir, nil
 }
 
-func Analyze(path string) (*stmts.Package, error) {
+func Analyze(path string) (*globals.Package, error) {
 	info, err := stlerr.ErrorWith(os.Stat(path))
 	if err != nil {
 		return nil, err
@@ -103,31 +105,38 @@ func Analyze(path string) (*stmts.Package, error) {
 
 type Analyzer struct {
 	reporter *report.Reporter
-	ir       *stmts.Package
+	ir       *globals.Package
 
 	scope     scopes.Scope
-	pkgScopes map[string]tuple.Tuple2[*stmts.Package, *scopes.PkgScope]
+	pkgScopes map[string]tuple.Tuple2[*globals.Package, *scopes.PkgScope]
 
-	typedefAsts map[*stmts.TypeDef]*ast.TypeDef
+	typeDef2Ast  bimap.BiMap[*globals.TypeDef, *ast.TypeDef]
+	typeName2Def map[string]*globals.TypeDef
 }
 
 func NewAnalyzer(pkgName string, pkgPath string, reporter *report.Reporter) *Analyzer {
 	return &Analyzer{
-		reporter:    reporter,
-		ir:          &stmts.Package{Name: pkgName, Path: pkgPath},
-		scope:       scopes.NewPkgScope(pkgName),
-		pkgScopes:   make(map[string]tuple.Tuple2[*stmts.Package, *scopes.PkgScope]),
-		typedefAsts: make(map[*stmts.TypeDef]*ast.TypeDef),
+		reporter: reporter,
+		ir:       &globals.Package{Name: pkgName, Path: pkgPath},
+
+		scope:     scopes.NewPkgScope(pkgName),
+		pkgScopes: make(map[string]tuple.Tuple2[*globals.Package, *scopes.PkgScope]),
+
+		typeDef2Ast:  bimap.StdWith[*globals.TypeDef, *ast.TypeDef](),
+		typeName2Def: make(map[string]*globals.TypeDef),
 	}
 }
 
 func NewImportAnalyzer(pkgName string, pkgPath string, parent *Analyzer, reporter *report.Reporter) *Analyzer {
 	return &Analyzer{
-		reporter:    reporter,
-		ir:          &stmts.Package{Name: pkgName, Path: pkgPath},
-		scope:       scopes.NewPkgScope(pkgName),
-		pkgScopes:   parent.pkgScopes,
-		typedefAsts: make(map[*stmts.TypeDef]*ast.TypeDef),
+		reporter: reporter,
+		ir:       &globals.Package{Name: pkgName, Path: pkgPath},
+
+		scope:     scopes.NewPkgScope(pkgName),
+		pkgScopes: parent.pkgScopes,
+
+		typeDef2Ast:  bimap.StdWith[*globals.TypeDef, *ast.TypeDef](),
+		typeName2Def: make(map[string]*globals.TypeDef),
 	}
 }
 
@@ -135,7 +144,14 @@ func (a *Analyzer) Scope() scopes.Scope {
 	return a.scope
 }
 
-func (a *Analyzer) Analyze(program *ast.File) *stmts.Package {
+func (a *Analyzer) Analyze(program *ast.File) *globals.Package {
+	a.analyzePackageImport(program)
+	a.analyzeGlobalType(program)
+	a.analyzeGlobalValue(program)
+	return a.ir
+}
+
+func (a *Analyzer) analyzePackageImport(program *ast.File) {
 	err := a.importBuildin()
 	if err != nil {
 		panic(err)
@@ -150,18 +166,39 @@ func (a *Analyzer) Analyze(program *ast.File) *stmts.Package {
 			panic(err)
 		}
 	}
+}
 
-	for _, t := range program.Globals {
-		decl := a.analyzeTypeDecl(t)
+func (a *Analyzer) analyzeGlobalType(program *ast.File) {
+	for _, g := range program.Globals {
+		decl := a.analyzeTypePreDecl(g)
 		if decl == nil {
 			continue
 		}
 		a.ir.Globals = append(a.ir.Globals, decl)
 	}
-	for _, t := range program.Globals {
-		a.analyzeTypeDef(t)
+	for _, g := range program.Globals {
+		a.analyzeTypeDecl(g)
 	}
+	for _, g := range program.Globals {
+		a.analyzeTypeDef(g)
+	}
+	// 检查循环引用
+	for _, g := range program.Globals {
+		t, ok := g.(*ast.TypeDef)
+		if !ok {
+			continue
+		}
+		ct, _ := a.scope.LookupType(t.Name.OriginText)
+		if types.CheckRecursion(ct) {
+			a.reporter.Fatalf(
+				t.Name.Position,
+				report.Errors.InvalidRecursionType,
+			)
+		}
+	}
+}
 
+func (a *Analyzer) analyzeGlobalValue(program *ast.File) {
 	for _, v := range program.Globals {
 		a.analyzeGlobalValueDecl(v)
 	}
@@ -173,5 +210,4 @@ func (a *Analyzer) Analyze(program *ast.File) *stmts.Package {
 		}
 		a.ir.Globals = append(a.ir.Globals, def)
 	}
-	return a.ir
 }

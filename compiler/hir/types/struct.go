@@ -12,11 +12,11 @@ type StructField struct {
 	Pub  bool
 	Mut  bool
 	Name string
-	Type Type
+	Type hir.Type
 }
 
 type StructType interface {
-	Type
+	hir.Type
 	structType()
 	GetFields() []*StructField
 }
@@ -60,7 +60,7 @@ func (t *_StructType) String() string {
 	return buf.String()
 }
 
-func (t *_StructType) Equal(p Type) bool {
+func (t *_StructType) Equal(p hir.Type) bool {
 	st, ok := p.(StructType)
 	if !ok {
 		return false
@@ -85,5 +85,5 @@ type _CustomStructType struct {
 func (t *_CustomStructType) structType() {}
 
 func (t *_CustomStructType) GetFields() []*StructField {
-	return t.Underlying.GetFields()
+	return t.GetUnderlying().(StructType).GetFields()
 }

@@ -9,25 +9,25 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (c *CodeGenerator) genLocal(local stmts.Local) {
+func (c *CodeGenerator) genLocal(local locals.Local) {
 	switch local := local.(type) {
-	case *stmts.Block:
+	case *locals.Block:
 		c.genBlock(false, local, nil)
-	case *stmts.Return:
+	case *locals.Return:
 		c.genReturn(local)
-	case *stmts.Let:
+	case *locals.Let:
 		c.genLocalLet(local)
-	case stmts.Expr:
+	case locals.Expr:
 		cir.BuildStmt(c.builder, cir.NewExpr(c.genExpr(local)))
-	case *stmts.If:
+	case *locals.If:
 		c.genIf(local, true)
-	case *stmts.While:
+	case *locals.While:
 		c.genWhile(local)
-	case *stmts.For:
+	case *locals.For:
 		c.genFor(local)
 	default:
 		panic("unreachable")
@@ -59,7 +59,7 @@ func (c *CodeGenerator) buildBlock(flat bool, f func()) *cir.Block {
 	return block
 }
 
-func (c *CodeGenerator) genFuncBlock(b *stmts.Block, initFn func()) *cir.Block {
+func (c *CodeGenerator) genFuncBlock(b *locals.Block, initFn func()) *cir.Block {
 	return c.buildFuncBlock(func() {
 		if initFn != nil {
 			initFn()
@@ -70,7 +70,7 @@ func (c *CodeGenerator) genFuncBlock(b *stmts.Block, initFn func()) *cir.Block {
 	})
 }
 
-func (c *CodeGenerator) genBlock(flat bool, b *stmts.Block, initFn func()) *cir.Block {
+func (c *CodeGenerator) genBlock(flat bool, b *locals.Block, initFn func()) *cir.Block {
 	return c.buildBlock(flat, func() {
 		if initFn != nil {
 			initFn()
@@ -81,7 +81,7 @@ func (c *CodeGenerator) genBlock(flat bool, b *stmts.Block, initFn func()) *cir.
 	})
 }
 
-func (c *CodeGenerator) genReturn(local *stmts.Return) *cir.Return {
+func (c *CodeGenerator) genReturn(local *locals.Return) *cir.Return {
 	if v, ok := local.Value.Value(); ok {
 		return cir.BuildStmt(c.builder, cir.NewReturn(c.genExpr(v)))
 	} else {
@@ -89,7 +89,7 @@ func (c *CodeGenerator) genReturn(local *stmts.Return) *cir.Return {
 	}
 }
 
-func (c *CodeGenerator) genLocalLet(local *stmts.Let) *cir.Variable {
+func (c *CodeGenerator) genLocalLet(local *locals.Let) *cir.Variable {
 	typ := c.genType(local.GetType())
 	value := c.genExpr(local.Value.MustValue())
 	v := cir.BuildStmt(c.builder, cir.NewVariable(typ, "", value))
@@ -97,7 +97,7 @@ func (c *CodeGenerator) genLocalLet(local *stmts.Let) *cir.Variable {
 	return v
 }
 
-func (c *CodeGenerator) genIf(l *stmts.If, isRoot bool) *cir.If {
+func (c *CodeGenerator) genIf(l *locals.If, isRoot bool) *cir.If {
 	cond := c.genExpr(l.Condition)
 	body := c.genBlock(true, l.Body, nil)
 	var next []either.Either[*cir.If, *cir.Block]
@@ -119,13 +119,13 @@ func (c *CodeGenerator) genIf(l *stmts.If, isRoot bool) *cir.If {
 	return cir.BuildStmt(c.builder, cir.NewIf(cond, body, next...))
 }
 
-func (c *CodeGenerator) genWhile(l *stmts.While) *cir.While {
+func (c *CodeGenerator) genWhile(l *locals.While) *cir.While {
 	cond := c.genExpr(l.Condition)
 	body := c.genBlock(true, l.Body, nil)
 	return cir.BuildStmt(c.builder, cir.NewWhile(cond, body))
 }
 
-func (c *CodeGenerator) genFor(l *stmts.For) *cir.For {
+func (c *CodeGenerator) genFor(l *locals.For) *cir.For {
 	init := cir.BuildStmt(c.builder, cir.NewVariable(cir.I64, "", cir.NewInteger(big.NewInt(0))))
 	rangv := c.genExpr(l.Range)
 	if l.Range.Temporary() {

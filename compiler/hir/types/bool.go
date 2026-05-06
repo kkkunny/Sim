@@ -9,7 +9,7 @@ import (
 var Bool = &_BooleanType{}
 
 type BooleanType interface {
-	Type
+	hir.Type
 	boolean()
 }
 
@@ -25,7 +25,7 @@ func (t *_BooleanType) String() string {
 	return "bool"
 }
 
-func (t *_BooleanType) Equal(p Type) bool {
+func (t *_BooleanType) Equal(p hir.Type) bool {
 	return stlval.Is[BooleanType](p)
 }
 
