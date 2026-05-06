@@ -232,21 +232,21 @@ func (e *Covert) print(p *printer) {
 	p.WriteString(")")
 }
 
-type GetMember struct {
+type GetField struct {
 	From Expr
 	Name string
 }
 
-func NewGetMember(f Expr, name string) *GetMember {
-	return &GetMember{
+func NewGetField(f Expr, name string) *GetField {
+	return &GetField{
 		From: f,
 		Name: name,
 	}
 }
 
-func (*GetMember) expr() {}
+func (*GetField) expr() {}
 
-func (e *GetMember) print(p *printer) {
+func (e *GetField) print(p *printer) {
 	p.WriteString("(")
 	p.WriteBy(e.From)
 	p.WriteString(").")

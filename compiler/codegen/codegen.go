@@ -15,7 +15,7 @@ type CodeGenerator struct {
 
 	ctx *Context
 
-	captureVarsMap map[tuple.Tuple2[*locals.Func, hir.Ident]]*cir.GetMember
+	captureVarsMap map[tuple.Tuple2[*locals.Func, hir.Ident]]*cir.GetField
 	currentFunc    *locals.Func
 }
 
@@ -26,7 +26,7 @@ func New(ctx *Context, pkg *globals.Package) *CodeGenerator {
 
 		ctx: ctx,
 
-		captureVarsMap: make(map[tuple.Tuple2[*locals.Func, hir.Ident]]*cir.GetMember),
+		captureVarsMap: make(map[tuple.Tuple2[*locals.Func, hir.Ident]]*cir.GetField),
 	}
 }
 
