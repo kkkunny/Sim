@@ -5,6 +5,8 @@ import (
 	"github.com/kkkunny/stl/container/set"
 
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
+	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -75,4 +77,12 @@ func (s *BlockScope) UsedValues() []hir.Ident {
 
 func (s *BlockScope) LookupType(name string) (types.CustomType, bool) {
 	return s.parent.LookupType(name)
+}
+
+func (s *BlockScope) AddBind(typeDef *globals.TypeDef, let *locals.Let) {
+	s.parent.AddBind(typeDef, let)
+}
+
+func (s *BlockScope) LookupBind(typeDef *globals.TypeDef, name string) (*locals.Let, bool) {
+	return s.parent.LookupBind(typeDef, name)
 }

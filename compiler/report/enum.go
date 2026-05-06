@@ -15,6 +15,7 @@ var Errors = enum.New[struct {
 	RepeatedIdentifier           Error `enum:"repeated identifier" format:"the identifier '%s' be redefined"`
 	UnexpectedExpression         Error `enum:"unexpected expression" format:"expected expression type '%s' but got '%s'"`
 	UnexpectedExpressionCategory Error `enum:"unexpected expression category" format:"expected a %s but got '%s'"`
+	UnexpectedTypeCategory       Error `enum:"unexpected type category" format:"expected a %s type but got '%s'"`
 	InsufficientArguments        Error `enum:"insufficient arguments" format:"expected %d arguments but got %d"`
 	ExpectedIntegerConstant      Error `enum:"expected integer constant" format:"expected a integer constant"`
 	MustMutable                  Error `enum:"must mutable" format:"the expression must be mutable"`

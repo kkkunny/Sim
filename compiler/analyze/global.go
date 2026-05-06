@@ -251,18 +251,19 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 				)
 			}
 			return
-		}
-		t = a.analyzeFuncDecl(v)
-	}
-
-	if global.Name.OriginText == "main" {
-		expectType := types.NewFuncType(types.Unit)
-		if !t.Equal(expectType) {
-			a.reporter.Fatalf(
-				global.Name.Position,
-				report.Errors.UnexpectedExpression,
-				expectType, t,
-			)
+		} else {
+			// 函数定义
+			t = a.analyzeFuncDecl(v)
+			if global.Name.OriginText == "main" {
+				expectType := types.NewFuncType(types.Unit)
+				if !t.Equal(expectType) {
+					a.reporter.Fatalf(
+						global.Name.Position,
+						report.Errors.UnexpectedExpression,
+						expectType, t,
+					)
+				}
+			}
 		}
 	}
 
@@ -281,6 +282,29 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		default:
 			panic("unreachable")
 		}
+	}
+
+	if bind, ok := global.Bind.Value(); ok {
+		bindType := a.analyzeType(bind)
+		ct, ok := bindType.(types.CustomType)
+		if !ok {
+			a.reporter.Fatalf(
+				bind.Position(),
+				report.Errors.UnexpectedTypeCategory,
+				"custom", bindType,
+			)
+		}
+		// TODO: 只能绑定本包定义的类型
+		typedef := ct.GetDef()
+		_, ok = a.scope.LookupBind(typedef, let.Name)
+		if ok {
+			a.reporter.Fatalf(
+				global.Name.Position,
+				report.Errors.RepeatedIdentifier,
+				global.Name.OriginText,
+			)
+		}
+		a.scope.AddBind(typedef, let)
 	}
 
 	a.scope.AddValue(let)

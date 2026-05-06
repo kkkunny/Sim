@@ -65,6 +65,8 @@ type Let struct {
 	Name       token.Token
 	Type       optional.Optional[Type] // Type和Value必有一个不为空
 	Value      optional.Optional[Expr] // Type和Value必有一个不为空
+
+	Bind optional.Optional[Type] // 方法绑定的类型
 }
 
 func (*Let) local()  {}
@@ -83,6 +85,10 @@ func (l *Let) print(p *printer) {
 		p.WriteString("mut ")
 	}
 	p.WriteToken(l.Name)
+	if forType, ok := l.Bind.Value(); ok {
+		p.WriteString(" | ")
+		p.WriteBy(forType)
+	}
 	if t, ok := l.Type.Value(); ok {
 		p.WriteString(": ")
 		p.WriteBy(t)

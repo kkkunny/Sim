@@ -665,9 +665,26 @@ func (a *Analyzer) analyzeStruct(expr *ast.Struct) *locals.Struct {
 	return locals.NewStruct(st, fields)
 }
 
-func (a *Analyzer) analyzeMember(expr *ast.Member) *locals.Member {
-	from := expectTypeExpr[types.StructType](a, expr.From)
-	st := from.GetType().(types.StructType)
+func (a *Analyzer) analyzeMember(expr *ast.Member) locals.Expr {
+	from := a.analyzeExpr(expr.From)
+	fromType := from.GetType()
+
+	ct, ok := fromType.(types.CustomType)
+	if ok {
+		let, ok := a.scope.LookupBind(ct.GetDef(), expr.Name.OriginText)
+		if ok {
+			return locals.NewIdentExpr(let)
+		}
+	}
+
+	st, ok := fromType.(types.StructType)
+	if !ok {
+		a.reporter.Fatalf(
+			expr.From.Position(),
+			report.Errors.UnexpectedExpressionCategory,
+			"struct", fromType,
+		)
+	}
 	field, ok := stlslices.FindFirst(st.GetFields(), func(_ int, f *types.StructField) bool {
 		return f.Name == expr.Name.OriginText
 	})
