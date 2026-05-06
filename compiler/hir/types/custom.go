@@ -5,123 +5,68 @@ import (
 
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
 )
 
 type CustomType interface {
-	Type
+	hir.Type
 	GetName() string
-	GetUnderlying() Type
+	GetUnderlying() hir.Type
+	GetDef() *globals.TypeDef
 }
 
-type _CustomBaseType[T Type] struct {
-	Name       string
-	Underlying T
+type _CustomBaseType[T hir.Type] struct {
+	def *globals.TypeDef
 }
 
-func DelayNewCustomType[T Type](name string) (CustomType, func(underlying T)) {
+func NewCustomType[T hir.Type](def *globals.TypeDef) CustomType {
 	t := reflect.TypeFor[T]()
 	switch {
 	case t.AssignableTo(reflect.TypeFor[SintType]()):
-		ct := &_CustomSintType{
-			_CustomBaseType[SintType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, SintType](t)
+		return &_CustomSintType{
+			_CustomBaseType[SintType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[UintType]()):
-		ct := &_CustomUintType{
-			_CustomBaseType[UintType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, UintType](t)
+		return &_CustomUintType{
+			_CustomBaseType[UintType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[FloatType]()):
-		ct := &_CustomFloatType{
-			_CustomBaseType[FloatType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, FloatType](t)
+		return &_CustomFloatType{
+			_CustomBaseType[FloatType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[BooleanType]()):
-		ct := &_CustomBooleanType{
-			_CustomBaseType[BooleanType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, BooleanType](t)
+		return &_CustomBooleanType{
+			_CustomBaseType[BooleanType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[StringType]()):
-		ct := &_CustomStringType{
-			_CustomBaseType[StringType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, StringType](t)
+		return &_CustomStringType{
+			_CustomBaseType[StringType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[RefType]()):
-		ct := &_CustomRefType{
-			_CustomBaseType[RefType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, RefType](t)
+		return &_CustomRefType{
+			_CustomBaseType[RefType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[FuncType]()):
-		ct := &_CustomFuncType{
-			_CustomBaseType[FuncType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, FuncType](t)
+		return &_CustomFuncType{
+			_CustomBaseType[FuncType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[ArrayType]()):
-		ct := &_CustomArrayType{
-			_CustomBaseType[ArrayType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, ArrayType](t)
+		return &_CustomArrayType{
+			_CustomBaseType[ArrayType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[TupleType]()):
-		ct := &_CustomTupleType{
-			_CustomBaseType[TupleType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, TupleType](t)
+		return &_CustomTupleType{
+			_CustomBaseType[TupleType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[UnionType]()):
-		ct := &_CustomUnionType{
-			_CustomBaseType[UnionType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, UnionType](t)
+		return &_CustomUnionType{
+			_CustomBaseType[UnionType]{def: def},
 		}
 	case t.AssignableTo(reflect.TypeFor[StructType]()):
-		ct := &_CustomStructType{
-			_CustomBaseType[StructType]{
-				Name: name,
-			},
-		}
-		return ct, func(t T) {
-			ct.Underlying = stlval.As[T, StructType](t)
+		return &_CustomStructType{
+			_CustomBaseType[StructType]{def: def},
 		}
 	default:
 		panic("unreachable")
@@ -133,26 +78,30 @@ func (t *_CustomBaseType[T]) Print(p *hir.Printer) {
 }
 
 func (t *_CustomBaseType[T]) String() string {
-	return t.Name
+	return t.def.Name
 }
 
-func (t *_CustomBaseType[T]) Equal(p Type) bool {
+func (t *_CustomBaseType[T]) Equal(p hir.Type) bool {
 	dst, ok := p.(CustomType)
 	if !ok {
 		return false
 	}
-	return t.Name == dst.GetName()
+	return t.GetName() == dst.GetName()
 }
 
 func (t *_CustomBaseType[T]) GetName() string {
-	return t.Name
+	return t.def.Name
 }
 
-func (t *_CustomBaseType[T]) GetUnderlying() Type {
-	return t.Underlying
+func (t *_CustomBaseType[T]) GetUnderlying() hir.Type {
+	return t.def.Underlying
 }
 
-func GetUnderlying(t Type) Type {
+func (t *_CustomBaseType[T]) GetDef() *globals.TypeDef {
+	return t.def
+}
+
+func GetUnderlying(t hir.Type) hir.Type {
 	for {
 		switch tt := t.(type) {
 		case CustomType:
@@ -164,8 +113,8 @@ func GetUnderlying(t Type) Type {
 }
 
 func CheckRecursion(ct CustomType) bool {
-	var checkFn func(stack set.Set[CustomType], t Type) bool
-	checkFn = func(stack set.Set[CustomType], t Type) bool {
+	var checkFn func(stack set.Set[CustomType], t hir.Type) bool
+	checkFn = func(stack set.Set[CustomType], t hir.Type) bool {
 		switch t := t.(type) {
 		case CustomType:
 			if !stack.Add(t) {
@@ -176,11 +125,11 @@ func CheckRecursion(ct CustomType) bool {
 		case ArrayType:
 			return checkFn(stack, t.GetElem())
 		case TupleType:
-			return stlslices.Any(t.GetElems(), func(_ int, e Type) bool {
+			return stlslices.Any(t.GetElems(), func(_ int, e hir.Type) bool {
 				return checkFn(stack, e)
 			})
 		case UnionType:
-			return stlslices.Any(t.GetElems(), func(_ int, e Type) bool {
+			return stlslices.Any(t.GetElems(), func(_ int, e hir.Type) bool {
 				return checkFn(stack, e)
 			})
 		case StructType:

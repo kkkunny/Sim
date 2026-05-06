@@ -7,16 +7,17 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/cir"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (c *CodeGenerator) genType(t types.Type) cir.Type {
+func (c *CodeGenerator) genType(t hir.Type) cir.Type {
 	switch t := t.(type) {
 	case types.CustomType:
 		if t, ok := c.ctx.typeCache[t.GetName()]; ok {
 			return t
 		}
-		return c.genCustomTypeDef(t)
+		return c.genCustomTypeDef(t.GetDef())
 	case types.UnitType:
 		return cir.Void
 	case types.SintType:
@@ -78,7 +79,7 @@ func (c *CodeGenerator) genType(t types.Type) cir.Type {
 // 原生函数类型
 func (c *CodeGenerator) genNativeFuncType(t types.FuncType) *cir.FuncType {
 	r := c.genType(t.GetReturn())
-	ps := stlslices.Map(t.GetParams(), func(i int, e types.Type) cir.Type {
+	ps := stlslices.Map(t.GetParams(), func(i int, e hir.Type) cir.Type {
 		return c.genType(e)
 	})
 	return cir.NewFuncType(r, ps...)
@@ -151,7 +152,7 @@ func (c *CodeGenerator) genUnionType(t types.UnionType) *cir.AliasType {
 }
 
 func (c *CodeGenerator) genFlatUnionType(t types.UnionType) *cir.StructType {
-	elems := stlslices.Map(t.GetElems(), func(_ int, e types.Type) cir.Type {
+	elems := stlslices.Map(t.GetElems(), func(_ int, e hir.Type) cir.Type {
 		return c.genType(e)
 	})
 	return cir.NewStructType(

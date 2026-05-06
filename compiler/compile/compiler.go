@@ -13,7 +13,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/codegen"
 	"github.com/kkkunny/Sim/compiler/config"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
@@ -27,11 +27,11 @@ func NewCompiler() *Compiler {
 	}
 }
 
-func (c *Compiler) Compile(pkg *stmts.Package) error {
+func (c *Compiler) Compile(pkg *globals.Package) error {
 	dagger := dag.NewDAG()
-	pkg2Vertex := make(map[*stmts.Package]string)
-	var buildDAG func(pkg *stmts.Package) (string, error)
-	buildDAG = func(pkg *stmts.Package) (string, error) {
+	pkg2Vertex := make(map[*globals.Package]string)
+	var buildDAG func(pkg *globals.Package) (string, error)
+	buildDAG = func(pkg *globals.Package) (string, error) {
 		if v, ok := pkg2Vertex[pkg]; ok {
 			return v, nil
 		}
@@ -63,7 +63,7 @@ func (c *Compiler) Compile(pkg *stmts.Package) error {
 
 func (c *Compiler) Visit(v dag.Vertexer) {
 	_, obj := v.Vertex()
-	pkg := obj.(*stmts.Package)
+	pkg := obj.(*globals.Package)
 	if pkg.Name == "main" {
 		err := c.compileMainPkg(pkg)
 		if err != nil {
@@ -78,7 +78,7 @@ func (c *Compiler) Visit(v dag.Vertexer) {
 }
 
 // 编译依赖包
-func (c *Compiler) compileDepPkg(pkg *stmts.Package) error {
+func (c *Compiler) compileDepPkg(pkg *globals.Package) error {
 	cacheDir := filepath.Join(pkg.Path, config.CacheDirName)
 	err := stlerr.ErrorWrap(os.RemoveAll(cacheDir))
 	if err != nil {
@@ -154,7 +154,7 @@ func (c *Compiler) compileDepPkg(pkg *stmts.Package) error {
 }
 
 // 编译主包
-func (c *Compiler) compileMainPkg(pkg *stmts.Package) error {
+func (c *Compiler) compileMainPkg(pkg *globals.Package) error {
 	file, err := stlerr.ErrorWith(stlos.CreateTempFileWithCloser("sim_compile", "c"))
 	if err != nil {
 		return err

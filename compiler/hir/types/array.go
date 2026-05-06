@@ -8,17 +8,17 @@ import (
 )
 
 type ArrayType interface {
-	Type
+	hir.Type
 	GetSize() *big.Int
-	GetElem() Type
+	GetElem() hir.Type
 }
 
 type _ArrayType struct {
 	Size *big.Int
-	Elem Type
+	Elem hir.Type
 }
 
-func NewArrayType(size *big.Int, elem Type) ArrayType {
+func NewArrayType(size *big.Int, elem hir.Type) ArrayType {
 	return &_ArrayType{
 		Size: size,
 		Elem: elem,
@@ -33,7 +33,7 @@ func (t *_ArrayType) String() string {
 	return fmt.Sprintf("[%s]%s", t.Size, t.Elem)
 }
 
-func (t *_ArrayType) Equal(p Type) bool {
+func (t *_ArrayType) Equal(p hir.Type) bool {
 	dst, ok := p.(ArrayType)
 	if !ok {
 		return false
@@ -48,7 +48,7 @@ func (t *_ArrayType) GetSize() *big.Int {
 	return t.Size
 }
 
-func (t *_ArrayType) GetElem() Type {
+func (t *_ArrayType) GetElem() hir.Type {
 	return t.Elem
 }
 
@@ -57,9 +57,9 @@ type _CustomArrayType struct {
 }
 
 func (t *_CustomArrayType) GetSize() *big.Int {
-	return t.Underlying.GetSize()
+	return t.GetUnderlying().(ArrayType).GetSize()
 }
 
-func (t *_CustomArrayType) GetElem() Type {
-	return t.Underlying.GetElem()
+func (t *_CustomArrayType) GetElem() hir.Type {
+	return t.GetUnderlying().(ArrayType).GetElem()
 }

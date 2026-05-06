@@ -8,41 +8,43 @@ import (
 	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/cir"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
+	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
-func (c *CodeGenerator) genTypeDecl(global stmts.Global) {
+func (c *CodeGenerator) genTypeDecl(global globals.Global) {
 	switch global := global.(type) {
-	case *stmts.TypeDef:
+	case *globals.TypeDef:
 		c.genCustomTypeDecl(global)
 	}
 }
 
-func (c *CodeGenerator) genCustomTypeDecl(global *stmts.TypeDef) {
-	switch global.Type.GetUnderlying().(type) {
+func (c *CodeGenerator) genCustomTypeDecl(global *globals.TypeDef) {
+	switch global.Underlying.(type) {
 	case types.TupleType, types.ArrayType, types.UnionType, types.FuncType, types.RefType, types.StructType:
 	default:
 		return
 	}
 
-	name := stableName(c.pkg, global.Type.GetName())
+	name := stableName(c.pkg, global.Name)
 	st := cir.NewStructType(name, optional.None[[]*cir.Member]())
 	def := cir.BuildStmt(c.builder, cir.NewTypedef(st, name))
 	st.Name = def.Name
-	c.ctx.typeCache[global.Type.GetName()] = cir.NewAliasType(def)
+	c.ctx.typeCache[global.Name] = cir.NewAliasType(def)
 }
 
-func (c *CodeGenerator) genTypeDef(global stmts.Global) {
+func (c *CodeGenerator) genTypeDef(global globals.Global) {
 	switch global := global.(type) {
-	case *stmts.TypeDef:
-		c.genCustomTypeDef(global.Type)
+	case *globals.TypeDef:
+		c.genCustomTypeDef(global)
 	}
 }
 
-func (c *CodeGenerator) genCustomTypeDef(ct types.CustomType) cir.Type {
-	t, ok := c.ctx.typeCache[ct.GetName()]
-	switch underlyingHir := ct.GetUnderlying().(type) {
+func (c *CodeGenerator) genCustomTypeDef(global *globals.TypeDef) cir.Type {
+	t, ok := c.ctx.typeCache[global.Name]
+	switch underlyingHir := global.Underlying.(type) {
 	case types.TupleType:
 		st := c.genFlatTupleType(underlyingHir)
 		st.Name = t.Def.Name
@@ -58,7 +60,7 @@ func (c *CodeGenerator) genCustomTypeDef(ct types.CustomType) cir.Type {
 		cir.BuildStmt(c.builder, cir.NewStructTypeDef(ut))
 	case types.FuncType:
 		r := c.genType(underlyingHir.GetReturn())
-		ps := stlslices.Map(underlyingHir.GetParams(), func(i int, e types.Type) cir.Type {
+		ps := stlslices.Map(underlyingHir.GetParams(), func(i int, e hir.Type) cir.Type {
 			return c.genType(e)
 		})
 		ft := cir.NewStructType(t.Def.Name, optional.Some([]*cir.Member{
@@ -82,25 +84,25 @@ func (c *CodeGenerator) genCustomTypeDef(ct types.CustomType) cir.Type {
 		if ok {
 			return t
 		}
-		underlying := c.genType(ct.GetUnderlying())
-		name := stableName(c.pkg, ct.GetName())
+		underlying := c.genType(global.Underlying)
+		name := stableName(c.pkg, global.Name)
 		def := cir.BuildStmt(c.builder, cir.NewTypedef(underlying, name))
-		c.ctx.typeCache[ct.GetName()] = cir.NewAliasType(def)
+		c.ctx.typeCache[global.Name] = cir.NewAliasType(def)
 	}
-	return c.ctx.typeCache[ct.GetName()]
+	return c.ctx.typeCache[global.Name]
 }
 
-func (c *CodeGenerator) genGlobalValue(global stmts.Global) {
+func (c *CodeGenerator) genGlobalValue(global globals.Global) {
 	switch global := global.(type) {
-	case *stmts.Let:
+	case *locals.Let:
 		c.genGlobalLet(global)
 	}
 }
 
-func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
+func (c *CodeGenerator) genGlobalLet(l *locals.Let) {
 	if !l.Mut && stlval.Is[types.FuncType](l.GetType()) {
-		if l.Value.IsSome() && stlval.Is[*stmts.Func](l.Value.MustValue()) {
-			expr := l.Value.MustValue().(*stmts.Func)
+		if l.Value.IsSome() && stlval.Is[*locals.Func](l.Value.MustValue()) {
+			expr := l.Value.MustValue().(*locals.Func)
 			decl := c.genNativeFuncDecl(expr)
 			if l.Name == "main" {
 				decl.Name = "sim_main"
@@ -122,7 +124,7 @@ func (c *CodeGenerator) genGlobalLet(l *stmts.Let) {
 		} else if l.Value.IsNone() {
 			ftHir := l.GetType().(types.FuncType)
 			rt := c.genType(ftHir.GetReturn())
-			params := stlslices.Map(ftHir.GetParams(), func(i int, p types.Type) *cir.Param {
+			params := stlslices.Map(ftHir.GetParams(), func(i int, p hir.Type) *cir.Param {
 				return cir.NewParam(fmt.Sprintf("_p%d", i+1), c.genType(p))
 			})
 			decl := cir.BuildStmt(c.builder, cir.NewFunc(l.ExternalName.MustValue(), rt, params...))

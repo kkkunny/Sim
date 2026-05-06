@@ -4,27 +4,29 @@ import (
 	"github.com/kkkunny/stl/container/tuple"
 
 	"github.com/kkkunny/Sim/compiler/cir"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
+	"github.com/kkkunny/Sim/compiler/hir/locals"
 )
 
 type CodeGenerator struct {
-	pkg     *stmts.Package
+	pkg     *globals.Package
 	builder *cir.Builder
 
 	ctx *Context
 
-	captureVarsMap map[tuple.Tuple2[*stmts.Func, stmts.Ident]]*cir.GetMember
-	currentFunc    *stmts.Func
+	captureVarsMap map[tuple.Tuple2[*locals.Func, hir.Ident]]*cir.GetMember
+	currentFunc    *locals.Func
 }
 
-func New(ctx *Context, pkg *stmts.Package) *CodeGenerator {
+func New(ctx *Context, pkg *globals.Package) *CodeGenerator {
 	return &CodeGenerator{
 		pkg:     pkg,
 		builder: cir.NewBuilder(),
 
 		ctx: ctx,
 
-		captureVarsMap: make(map[tuple.Tuple2[*stmts.Func, stmts.Ident]]*cir.GetMember),
+		captureVarsMap: make(map[tuple.Tuple2[*locals.Func, hir.Ident]]*cir.GetMember),
 	}
 }
 

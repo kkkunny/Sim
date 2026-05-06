@@ -7,17 +7,17 @@ import (
 )
 
 type RefType interface {
-	Type
+	hir.Type
 	Mutable() bool
-	PtrTo() Type
+	PtrTo() hir.Type
 }
 
 type _RefType struct {
 	Mut  bool
-	Elem Type
+	Elem hir.Type
 }
 
-func NewRefType(mut bool, elem Type) RefType {
+func NewRefType(mut bool, elem hir.Type) RefType {
 	return &_RefType{Mut: mut, Elem: elem}
 }
 
@@ -32,7 +32,7 @@ func (t *_RefType) String() string {
 	return fmt.Sprintf("&%s", t.Elem)
 }
 
-func (t *_RefType) Equal(p Type) bool {
+func (t *_RefType) Equal(p hir.Type) bool {
 	dst, ok := p.(RefType)
 	if !ok {
 		return false
@@ -47,7 +47,7 @@ func (t *_RefType) Mutable() bool {
 	return t.Mut
 }
 
-func (t *_RefType) PtrTo() Type {
+func (t *_RefType) PtrTo() hir.Type {
 	return t.Elem
 }
 
@@ -56,9 +56,9 @@ type _CustomRefType struct {
 }
 
 func (t *_CustomRefType) Mutable() bool {
-	return t.Underlying.Mutable()
+	return t.GetUnderlying().(RefType).Mutable()
 }
 
-func (t *_CustomRefType) PtrTo() Type {
-	return t.Underlying.PtrTo()
+func (t *_CustomRefType) PtrTo() hir.Type {
+	return t.GetUnderlying().(RefType).PtrTo()
 }

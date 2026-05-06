@@ -1,4 +1,4 @@
-package stmts
+package locals
 
 import (
 	"github.com/kkkunny/stl/container/either"
@@ -6,7 +6,6 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 
 	"github.com/kkkunny/Sim/compiler/hir"
-	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 type Local interface {
@@ -64,18 +63,18 @@ func (r *Return) Print(p *hir.Printer) {
 }
 
 type Let struct {
-	Global bool
-	Pub    bool
-	Mut    bool
-	Type   types.Type
-	Name   string
-	Value  optional.Optional[Expr]
+	IsGlobal bool
+	Pub      bool
+	Mut      bool
+	Type     hir.Type
+	Name     string
+	Value    optional.Optional[Expr]
 
 	ExternalName optional.Optional[string]
 }
 
 func (*Let) local()  {}
-func (*Let) global() {}
+func (*Let) Global() {}
 
 func (l *Let) Print(p *hir.Printer) {
 	if ext, ok := l.ExternalName.Value(); ok {
@@ -102,7 +101,7 @@ func (l *Let) GetName() string {
 	return l.Name
 }
 
-func (l *Let) GetType() types.Type {
+func (l *Let) GetType() hir.Type {
 	return l.Type
 }
 
@@ -164,12 +163,12 @@ func (l *While) Print(p *hir.Printer) {
 }
 
 type For struct {
-	Var   *Param
+	Var   *hir.Param
 	Range Expr
 	Body  *Block
 }
 
-func NewFor(v *Param, rv Expr, body *Block) *For {
+func NewFor(v *hir.Param, rv Expr, body *Block) *For {
 	return &For{
 		Var:   v,
 		Range: rv,

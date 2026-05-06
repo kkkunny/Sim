@@ -33,7 +33,7 @@ func (t *_SintType) String() string {
 	return fmt.Sprintf("i%d", t.Bits)
 }
 
-func (t *_SintType) Equal(p Type) bool {
+func (t *_SintType) Equal(p hir.Type) bool {
 	dst, ok := p.(SintType)
 	if !ok {
 		return false
@@ -53,5 +53,5 @@ func (*_CustomSintType) sint()    {}
 func (*_CustomSintType) integer() {}
 
 func (t *_CustomSintType) GetBits() uint8 {
-	return t.Underlying.GetBits()
+	return t.GetUnderlying().(SintType).GetBits()
 }

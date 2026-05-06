@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"github.com/kkkunny/Sim/compiler/cir"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir"
 )
 
 type Ident struct {
@@ -12,13 +12,13 @@ type Ident struct {
 }
 
 type Context struct {
-	idents    map[stmts.Ident]*Ident
+	idents    map[hir.Ident]*Ident
 	typeCache map[string]*cir.AliasType
 }
 
 func NewContext() *Context {
 	return &Context{
-		idents:    make(map[stmts.Ident]*Ident),
+		idents:    make(map[hir.Ident]*Ident),
 		typeCache: make(map[string]*cir.AliasType),
 	}
 }

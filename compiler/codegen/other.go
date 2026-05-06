@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"github.com/kkkunny/Sim/compiler/config"
-	"github.com/kkkunny/Sim/compiler/hir/stmts"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
 )
 
 // 获取固定的name
-func stableName(pkg *stmts.Package, name string) string {
+func stableName(pkg *globals.Package, name string) string {
 	h := sha256.New()
 	h.Write([]byte(config.ABIVersion))
 	h.Write([]byte{0})

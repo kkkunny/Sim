@@ -1,4 +1,4 @@
-package stmts
+package locals
 
 import (
 	"math/big"
@@ -14,21 +14,21 @@ import (
 type Expr interface {
 	Local
 	expr()
-	GetType() types.Type
+	GetType() hir.Type
 	Mutable() bool
 	Temporary() bool
 }
 
 type Literal interface {
 	Expr
-	TryToType(t types.Type)
+	TryToType(t hir.Type)
 }
 
 type IdentExpr struct {
-	Define Ident
+	Define hir.Ident
 }
 
-func NewIdentExpr(ident Ident) *IdentExpr {
+func NewIdentExpr(ident hir.Ident) *IdentExpr {
 	return &IdentExpr{
 		Define: ident,
 	}
@@ -41,7 +41,7 @@ func (e *IdentExpr) Print(p *hir.Printer) {
 	p.WriteString(e.Define.GetName())
 }
 
-func (e *IdentExpr) GetType() types.Type {
+func (e *IdentExpr) GetType() hir.Type {
 	return e.Define.GetType()
 }
 
@@ -72,7 +72,7 @@ func (i *Integer) Print(p *hir.Printer) {
 	p.WriteString(i.Value.String())
 }
 
-func (i *Integer) GetType() types.Type {
+func (i *Integer) GetType() hir.Type {
 	return i.Type
 }
 
@@ -84,7 +84,7 @@ func (i *Integer) Temporary() bool {
 	return true
 }
 
-func (i *Integer) TryToType(t types.Type) {
+func (i *Integer) TryToType(t hir.Type) {
 	it, ok := t.(types.IntegerType)
 	if !ok {
 		return
@@ -111,7 +111,7 @@ func (f *Float) Print(p *hir.Printer) {
 	p.WriteString(f.Value.String())
 }
 
-func (f *Float) GetType() types.Type {
+func (f *Float) GetType() hir.Type {
 	return f.Type
 }
 
@@ -123,7 +123,7 @@ func (f *Float) Temporary() bool {
 	return true
 }
 
-func (f *Float) TryToType(t types.Type) {
+func (f *Float) TryToType(t hir.Type) {
 	ft, ok := t.(types.FloatType)
 	if !ok {
 		return
@@ -154,7 +154,7 @@ func (b *Boolean) Print(p *hir.Printer) {
 	}
 }
 
-func (b *Boolean) GetType() types.Type {
+func (b *Boolean) GetType() hir.Type {
 	return b.Type
 }
 
@@ -166,7 +166,7 @@ func (b *Boolean) Temporary() bool {
 	return true
 }
 
-func (b *Boolean) TryToType(t types.Type) {
+func (b *Boolean) TryToType(t hir.Type) {
 	bt, ok := t.(types.BooleanType)
 	if !ok {
 		return
@@ -195,7 +195,7 @@ func (s *String) Print(p *hir.Printer) {
 	p.WriteString("\"")
 }
 
-func (s *String) GetType() types.Type {
+func (s *String) GetType() hir.Type {
 	return s.Type
 }
 
@@ -207,7 +207,7 @@ func (s *String) Temporary() bool {
 	return true
 }
 
-func (s *String) TryToType(t types.Type) {
+func (s *String) TryToType(t hir.Type) {
 	st, ok := t.(types.StringType)
 	if !ok {
 		return
@@ -238,7 +238,7 @@ func (e *BitsReverse) Print(p *hir.Printer) {
 	p.WriteBy(e.Target)
 }
 
-func (e *BitsReverse) GetType() types.Type {
+func (e *BitsReverse) GetType() hir.Type {
 	return e.Target.GetType()
 }
 
@@ -272,7 +272,7 @@ func (e *BooleanReverse) Print(p *hir.Printer) {
 	p.WriteBy(e.Target)
 }
 
-func (e *BooleanReverse) GetType() types.Type {
+func (e *BooleanReverse) GetType() hir.Type {
 	return e.Target.GetType()
 }
 
@@ -311,7 +311,7 @@ func (e *GetRef) Print(p *hir.Printer) {
 	p.WriteBy(e.Target)
 }
 
-func (e *GetRef) GetType() types.Type {
+func (e *GetRef) GetType() hir.Type {
 	return types.NewRefType(e.Mut, e.Target.GetType())
 }
 
@@ -345,7 +345,7 @@ func (e *DeRef) Print(p *hir.Printer) {
 	p.WriteBy(e.Target)
 }
 
-func (e *DeRef) GetType() types.Type {
+func (e *DeRef) GetType() hir.Type {
 	return e.Target.GetType().(types.RefType).PtrTo()
 }
 
@@ -414,7 +414,7 @@ func (e *Binary) Print(p *hir.Printer) {
 	p.WriteBy(e.Right)
 }
 
-func (e *Binary) GetType() types.Type {
+func (e *Binary) GetType() hir.Type {
 	switch e.Op {
 	case BinaryOpEnum.Add, BinaryOpEnum.Sub, BinaryOpEnum.Mul, BinaryOpEnum.Quo, BinaryOpEnum.Rem, BinaryOpEnum.And,
 		BinaryOpEnum.Or, BinaryOpEnum.Xor, BinaryOpEnum.Shl, BinaryOpEnum.Shr:
@@ -441,13 +441,13 @@ func (e *Binary) Temporary() bool {
 
 type Func struct {
 	Type   types.FuncType
-	Params []*Param
+	Params []*hir.Param
 	Body   optional.Optional[*Block]
 
-	UsedExternalVariables []Ident
+	UsedExternalVariables []hir.Ident
 }
 
-func NewFunc(t types.FuncType, params ...*Param) *Func {
+func NewFunc(t types.FuncType, params ...*hir.Param) *Func {
 	return &Func{
 		Type:   t,
 		Params: params,
@@ -474,8 +474,8 @@ func (f *Func) Print(p *hir.Printer) {
 	}
 }
 
-func (f *Func) GetType() types.Type {
-	params := stlslices.Map(f.Params, func(_ int, param *Param) types.Type {
+func (f *Func) GetType() hir.Type {
+	params := stlslices.Map(f.Params, func(_ int, param *hir.Param) hir.Type {
 		return param.Type
 	})
 	return types.NewFuncType(f.Type.GetReturn(), params...)
@@ -489,7 +489,7 @@ func (f *Func) Temporary() bool {
 	return true
 }
 
-func (f *Func) TryToType(t types.Type) {
+func (f *Func) TryToType(t hir.Type) {
 	ft, ok := t.(types.FuncType)
 	if !ok ||
 		len(ft.GetParams()) != len(f.Type.GetParams()) ||
@@ -524,7 +524,7 @@ func (e *Call) Print(p *hir.Printer) {
 	p.WriteString(")")
 }
 
-func (e *Call) GetType() types.Type {
+func (e *Call) GetType() hir.Type {
 	return e.Func.GetType().(types.FuncType).GetReturn()
 }
 
@@ -559,7 +559,7 @@ func (e *Tuple) Print(p *hir.Printer) {
 	p.WriteString(")")
 }
 
-func (e *Tuple) GetType() types.Type {
+func (e *Tuple) GetType() hir.Type {
 	return e.Type
 }
 
@@ -571,7 +571,7 @@ func (e *Tuple) Temporary() bool {
 	return true
 }
 
-func (e *Tuple) TryToType(t types.Type) {
+func (e *Tuple) TryToType(t hir.Type) {
 	tt, ok := t.(types.TupleType)
 	if !ok ||
 		len(tt.GetElems()) != len(e.Type.GetElems()) {
@@ -607,7 +607,7 @@ func (e *TupleIndex) Print(p *hir.Printer) {
 	p.WriteString("]")
 }
 
-func (e *TupleIndex) GetType() types.Type {
+func (e *TupleIndex) GetType() hir.Type {
 	elems := e.From.GetType().(types.TupleType).GetElems()
 	return elems[e.Index.Int64()]
 }
@@ -643,7 +643,7 @@ func (e *Array) Print(p *hir.Printer) {
 	p.WriteString("]")
 }
 
-func (e *Array) GetType() types.Type {
+func (e *Array) GetType() hir.Type {
 	return e.Type
 }
 
@@ -655,7 +655,7 @@ func (e *Array) Temporary() bool {
 	return true
 }
 
-func (e *Array) TryToType(t types.Type) {
+func (e *Array) TryToType(t hir.Type) {
 	at, ok := t.(types.ArrayType)
 	if !ok ||
 		at.GetSize().String() != e.Type.GetSize().String() ||
@@ -687,7 +687,7 @@ func (e *ArrayIndex) Print(p *hir.Printer) {
 	p.WriteString("]")
 }
 
-func (e *ArrayIndex) GetType() types.Type {
+func (e *ArrayIndex) GetType() hir.Type {
 	return e.From.GetType().(types.ArrayType).GetElem()
 }
 
@@ -706,11 +706,11 @@ type Covert interface {
 
 type Union struct {
 	From  Expr
-	To    types.Type
+	To    hir.Type
 	Index uint8
 }
 
-func NewUnion(from Expr, to types.Type, index uint8) *Union {
+func NewUnion(from Expr, to hir.Type, index uint8) *Union {
 	return &Union{
 		From:  from,
 		To:    to,
@@ -727,7 +727,7 @@ func (e *Union) Print(p *hir.Printer) {
 	p.WriteBy(e.To)
 }
 
-func (e *Union) GetType() types.Type {
+func (e *Union) GetType() hir.Type {
 	return e.To
 }
 
@@ -745,10 +745,10 @@ func (e *Union) GetFrom() Expr {
 
 type NumberCovert struct {
 	From Expr
-	To   types.Type
+	To   hir.Type
 }
 
-func NewNumberCovert(from Expr, to types.Type) *NumberCovert {
+func NewNumberCovert(from Expr, to hir.Type) *NumberCovert {
 	return &NumberCovert{
 		From: from,
 		To:   to,
@@ -764,7 +764,7 @@ func (e *NumberCovert) Print(p *hir.Printer) {
 	p.WriteBy(e.To)
 }
 
-func (e *NumberCovert) GetType() types.Type {
+func (e *NumberCovert) GetType() hir.Type {
 	return e.To
 }
 
@@ -782,10 +782,10 @@ func (e *NumberCovert) GetFrom() Expr {
 
 type TypedefCovert struct {
 	From Expr
-	To   types.Type
+	To   hir.Type
 }
 
-func NewTypedefCovert(from Expr, to types.Type) *TypedefCovert {
+func NewTypedefCovert(from Expr, to hir.Type) *TypedefCovert {
 	return &TypedefCovert{
 		From: from,
 		To:   to,
@@ -801,7 +801,7 @@ func (e *TypedefCovert) Print(p *hir.Printer) {
 	p.WriteBy(e.To)
 }
 
-func (e *TypedefCovert) GetType() types.Type {
+func (e *TypedefCovert) GetType() hir.Type {
 	return e.To
 }
 
@@ -842,7 +842,7 @@ func (e *Ternary) Print(p *hir.Printer) {
 	p.WriteBy(e.FalseExpr)
 }
 
-func (e *Ternary) GetType() types.Type {
+func (e *Ternary) GetType() hir.Type {
 	return e.TrueExpr.GetType()
 }
 
@@ -887,7 +887,7 @@ func (e *Struct) Print(p *hir.Printer) {
 	p.WriteString("}")
 }
 
-func (e *Struct) GetType() types.Type {
+func (e *Struct) GetType() hir.Type {
 	return e.Type
 }
 
@@ -917,7 +917,7 @@ func (e *Member) Print(p *hir.Printer) {
 	p.WriteString(e.Name)
 }
 
-func (e *Member) GetType() types.Type {
+func (e *Member) GetType() hir.Type {
 	st := e.From.GetType().(types.StructType)
 	for _, f := range st.GetFields() {
 		if f.Name == e.Name {
