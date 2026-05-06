@@ -6,12 +6,13 @@ type S struct {
 
 let name2 | S = "234"
 
-let getname | S = (self: S) -> str {
+let getname | S = (self: &S) -> str {
 	return self.name
 }
 
 let main = () {
 	let s = S{name: "123"}
-	c::puts(s.getname(s))
-	c::puts(s.name2)
+	let s2 = &s
+	c::puts(s2.getname(&s))
+	c::puts(s2.name2)
 }

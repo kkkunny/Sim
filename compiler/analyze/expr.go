@@ -674,7 +674,16 @@ func (a *Analyzer) analyzeStruct(expr *ast.Struct) *locals.Struct {
 func (a *Analyzer) analyzeMember(expr *ast.Member) locals.Expr {
 	from := a.analyzeExpr(expr.From)
 	fromType := from.GetType()
+	for {
+		refT, ok := fromType.(types.RefType)
+		if !ok {
+			break
+		}
+		fromType = refT.PtrTo()
+		from = locals.NewDeRef(from)
+	}
 
+	// 绑定
 	ct, ok := fromType.(types.CustomType)
 	if ok {
 		let, ok := a.scope.LookupBind(ct.GetDef(), expr.Name.OriginText)
@@ -683,6 +692,7 @@ func (a *Analyzer) analyzeMember(expr *ast.Member) locals.Expr {
 		}
 	}
 
+	// 结构体字段
 	st, ok := fromType.(types.StructType)
 	if !ok {
 		a.reporter.Fatalf(

@@ -250,10 +250,6 @@ typedef struct {
 
 #define LOGIC_OR(x, y) x || y
 
-#define PTR_TYPE(elem) struct {elem *ptr;}
-#define GET_PTR(t, v) ((t){.ptr=&(v)})
-#define DE_PTR(v) (*((v).ptr))
-
 #define FUNC_TYPE(ret, ...) struct { \
     union { \
         ret (*f)(__VA_ARGS__);\
