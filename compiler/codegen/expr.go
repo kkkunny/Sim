@@ -84,11 +84,9 @@ func (c *CodeGenerator) genUnary(expr locals.Unary) cir.Expr {
 	case *locals.BitsReverse, *locals.BooleanReverse:
 		return cir.NewUnary(cir.UnaryOpEnum.Not, c.genExpr(expr.GetOpTarget()))
 	case *locals.GetRef:
-		v := c.genExpr(expr.Target)
-		return cir.NewMacroExpr("GET_PTR", v)
+		return cir.NewUnary(cir.UnaryOpEnum.AND, c.genExpr(expr.GetOpTarget()))
 	case *locals.DeRef:
-		v := c.genExpr(expr.Target)
-		return cir.NewMacroExpr("DE_PTR", v)
+		return cir.NewUnary(cir.UnaryOpEnum.Mul, c.genExpr(expr.GetOpTarget()))
 	default:
 		panic("unreachable")
 	}

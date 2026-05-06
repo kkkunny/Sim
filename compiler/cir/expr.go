@@ -247,8 +247,9 @@ func NewGetMember(f Expr, name string) *GetMember {
 func (*GetMember) expr() {}
 
 func (e *GetMember) print(p *printer) {
+	p.WriteString("(")
 	p.WriteBy(e.From)
-	p.WriteString(".")
+	p.WriteString(").")
 	p.WriteString(e.Name)
 }
 

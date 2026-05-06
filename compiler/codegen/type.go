@@ -172,9 +172,8 @@ func (c *CodeGenerator) genFlatUnionType(t types.UnionType) *cir.StructType {
 	)
 }
 
-func (c *CodeGenerator) genRefType(t types.RefType) *cir.MacroType {
-	elem := c.genType(t.PtrTo())
-	return cir.NewMacroType("PTR_TYPE", elem)
+func (c *CodeGenerator) genRefType(t types.RefType) *cir.PointerType {
+	return cir.NewPointerType(c.genType(t.PtrTo()))
 }
 
 func (c *CodeGenerator) genStructType(t types.StructType) *cir.StructType {
