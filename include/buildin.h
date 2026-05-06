@@ -87,7 +87,7 @@ typedef struct {
     u32: x % y, \
     u64: x % y, \
     f32: fmodf(x, y), \
-    f64: fmod(x, y)
+    f64: fmod(x, y))
 
 #define AND(x, y) _Generic((x), \
     i8: x & y, \
@@ -251,8 +251,8 @@ typedef struct {
 #define LOGIC_OR(x, y) x || y
 
 #define PTR_TYPE(elem) struct {elem *ptr;}
-#define GET_PTR(v) {.ptr=&(v)}
-#define DE_PTR(v) *((v).ptr)
+#define GET_PTR(t, v) ((t){.ptr=&(v)})
+#define DE_PTR(v) (*((v).ptr))
 
 #define FUNC_TYPE(ret, ...) struct { \
     union { \
