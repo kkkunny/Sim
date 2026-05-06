@@ -1,9 +1,12 @@
 package scopes
 
 import (
+	stlmaps "github.com/kkkunny/stl/container/maps"
 	"github.com/kkkunny/stl/container/set"
 
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
+	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
@@ -16,6 +19,7 @@ type PkgScope struct {
 	values    map[string]hir.Ident
 	usedValue set.Set[hir.Ident]
 	types     map[string]types.CustomType
+	binds     map[*globals.TypeDef]map[string]*locals.Let
 }
 
 func NewPkgScope(name string) *PkgScope {
@@ -28,6 +32,7 @@ func NewPkgScope(name string) *PkgScope {
 		values:    make(map[string]hir.Ident),
 		usedValue: set.StdHashSetWith[hir.Ident](),
 		types:     make(map[string]types.CustomType),
+		binds:     make(map[*globals.TypeDef]map[string]*locals.Let),
 	}
 }
 
@@ -95,4 +100,20 @@ func (s *PkgScope) LookupType(name string) (types.CustomType, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (s *PkgScope) AddBind(typeDef *globals.TypeDef, let *locals.Let) {
+	if !stlmaps.ContainKey(s.binds, typeDef) {
+		s.binds[typeDef] = make(map[string]*locals.Let)
+	}
+	s.binds[typeDef][let.Name] = let
+}
+
+func (s *PkgScope) LookupBind(typeDef *globals.TypeDef, name string) (*locals.Let, bool) {
+	typeBinds, ok := s.binds[typeDef]
+	if !ok {
+		return nil, false
+	}
+	let, ok := typeBinds[name]
+	return let, ok
 }

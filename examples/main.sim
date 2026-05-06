@@ -1,5 +1,14 @@
 import std::c
 
+type S struct {
+	name: str
+}
+
+let getname | S = () -> str {
+	return "345"
+}
+
 let main = () {
-	c::puts("123")
+	let s = S{name: "123"}
+	c::puts(s.getname())
 }

@@ -72,6 +72,11 @@ func (p *Parser) parseLet(attrs []ast.Attribute, pub bool) *ast.Let {
 		}
 	}
 
+	var bind optional.Optional[ast.Type]
+	if p.ifSkip(token.KindEnum.Or) {
+		bind = optional.Some(p.parseType())
+	}
+
 	var t optional.Optional[ast.Type]
 	if p.ifSkip(token.KindEnum.Col) {
 		t = optional.Some(p.parseType())
@@ -88,6 +93,8 @@ func (p *Parser) parseLet(attrs []ast.Attribute, pub bool) *ast.Let {
 		Name:       name,
 		Type:       t,
 		Value:      value,
+
+		Bind: bind,
 	}
 }
 
