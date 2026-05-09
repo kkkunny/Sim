@@ -257,9 +257,9 @@ typedef struct {
     } func;\
     void* ctx;\
 }
-#define FUNC_EXPR_F(expr) {.func.f=expr, .ctx=NULL}
-#define FUNC_EXPR_C(expr, ctxv) {.func.c=expr, .ctx=ctxv}
-#define FUNC_CALL(expr, ...) expr.ctx==NULL?expr.func.f(__VA_ARGS__):expr.func.c(expr.ctx, __VA_ARGS__)
+#define FUNC_EXPR_F(type, expr) (type){.func.f=expr, .ctx=NULL}
+#define FUNC_EXPR_C(type, expr, ctxv) (type){.func.c=expr, .ctx=ctxv}
+#define FUNC_CALL(expr, ...) expr.ctx==NULL?expr.func.f(__VA_ARGS__):expr.func.c(expr.ctx, ##__VA_ARGS__)
 #define FUNC_EQ(x, y) x.ctx == y.ctx && (x.ctx == NULL ? x.func.f == y.func.f : x.func.c == y.func.c)
 #define FUNC_NEQ(x, y) x.ctx != y.ctx || (x.ctx == NULL ? x.func.f != y.func.f : x.func.c != y.func.c)
 

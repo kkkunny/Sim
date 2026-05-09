@@ -11,7 +11,6 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/cir"
 	"github.com/kkkunny/Sim/compiler/hir"
-	"github.com/kkkunny/Sim/compiler/hir/globals"
 	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/types"
 )
@@ -73,10 +72,12 @@ func (c *CodeGenerator) genIdentExpr(expr *locals.IdentExpr) cir.Expr {
 		}
 	}
 
-	if let, ok := expr.Define.(*locals.Let); ok && let.Value.IsSome() && stlval.Is[*locals.Func](let.Value.MustValue()) {
-		return cir.NewMacroExpr("FUNC_EXPR_F", value)
+	if let, ok := expr.Define.(*locals.Let); ok && let.Value.IsSome() && stlval.Is[*locals.Func](let.Value.MustValue()) && len(let.Value.MustValue().(*locals.Func).CaptureVariables) == 0 {
+		// 纯函数，非闭包
+		return cir.NewMacroExpr("FUNC_EXPR_F", c.genType(expr.GetType()), value)
 	} else if ident.ExternalFunc {
-		return cir.NewMacroExpr("FUNC_EXPR_F", value)
+		// 外部函数
+		return cir.NewMacroExpr("FUNC_EXPR_F", c.genType(expr.GetType()), value)
 	}
 	return value
 }
@@ -213,10 +214,8 @@ func (c *CodeGenerator) genNativeClosureFunc(expr *locals.Func, captureVars []hi
 }
 
 func (c *CodeGenerator) genFunc(expr *locals.Func) *cir.MacroExpr {
-	captureVars := stlslices.Filter(expr.UsedExternalVariables, func(i int, v hir.Ident) bool {
-		return !stlval.Is[globals.Global](v)
-	})
-	if len(captureVars) == 0 {
+	ft := c.genType(expr.GetType())
+	if len(expr.CaptureVariables) == 0 {
 		decl := c.genNativeFuncDecl(expr)
 		decl.Static = true
 		if b, ok := expr.Body.Value(); ok {
@@ -225,15 +224,15 @@ func (c *CodeGenerator) genFunc(expr *locals.Func) *cir.MacroExpr {
 			decl.Body = optional.Some(c.genFuncBlock(b, nil))
 			c.currentFunc = prevFunc
 		}
-		return cir.NewMacroExpr("FUNC_EXPR_F", &cir.IdentExpr{Name: decl.Name})
+		return cir.NewMacroExpr("FUNC_EXPR_F", ft, &cir.IdentExpr{Name: decl.Name})
 	} else {
-		ctxT, f := c.genNativeClosureFunc(expr, captureVars)
-		fields := make(map[string]cir.Expr, len(captureVars))
-		for i, cv := range captureVars {
+		ctxT, f := c.genNativeClosureFunc(expr, expr.CaptureVariables)
+		fields := make(map[string]cir.Expr, len(expr.CaptureVariables))
+		for i, cv := range expr.CaptureVariables {
 			fields[fmt.Sprintf("_f%d", i+1)] = c.genExpr(locals.NewIdentExpr(cv))
 		}
 		ctx := cir.BuildStmt(c.builder, cir.NewVariable(cir.NewAliasType(ctxT), "", cir.NewStruct(fields)))
-		return cir.NewMacroExpr("FUNC_EXPR_C", &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnary(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
+		return cir.NewMacroExpr("FUNC_EXPR_C", ft, &cir.IdentExpr{Name: f.Decl.Name}, cir.NewUnary(cir.UnaryOpEnum.AND, cir.NewIdentExpr(ctx.GetName())))
 	}
 }
 
@@ -243,9 +242,9 @@ func (c *CodeGenerator) genCall(expr *locals.Call) cir.Expr {
 		return c.genExpr(argExpr)
 	})
 	if macroF, ok := f.(*cir.MacroExpr); ok && macroF.Name == "FUNC_EXPR_F" {
-		return cir.NewCall(macroF.Args[0].(cir.Expr), args...)
+		return cir.NewCall(macroF.Args[1].(cir.Expr), args...)
 	} else if ok && macroF.Name == "FUNC_EXPR_C" {
-		return cir.NewCall(macroF.Args[0].(cir.Expr), append([]cir.Expr{macroF.Args[1].(cir.Expr)}, args...)...)
+		return cir.NewCall(macroF.Args[1].(cir.Expr), append([]cir.Expr{macroF.Args[2].(cir.Expr)}, args...)...)
 	}
 	call := cir.NewMacroExpr("FUNC_CALL", append([]any{f}, stlslices.AsAny(args)...)...)
 	return call
@@ -443,5 +442,48 @@ func (c *CodeGenerator) genGetField(expr *locals.GetField) *cir.GetField {
 }
 
 func (c *CodeGenerator) genGetBind(expr *locals.GetBind) cir.Expr {
-	return c.genIdentExpr(locals.NewIdentExpr(expr.Bind))
+	if expr.IsStatic() {
+		return c.genIdentExpr(locals.NewIdentExpr(expr.Bind))
+	}
+
+	ft := expr.GetType().(types.FuncType)
+	params := stlslices.Map(ft.GetParams(), func(i int, pt hir.Type) *hir.Param {
+		return hir.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
+	})
+	f := locals.NewFunc(ft, params...)
+	body := locals.NewBlock()
+	f.Body = optional.Some(body)
+
+	self := expr.From
+	var selfIdent hir.Ident
+	if identExpr, ok := self.(*locals.IdentExpr); ok {
+		selfIdent = identExpr.Define
+	} else {
+		let := &locals.Let{
+			Type:  self.GetType(),
+			Value: optional.Some(expr.From),
+		}
+		c.genLocalLet(let)
+		selfIdent = let
+	}
+	self = locals.NewIdentExpr(selfIdent)
+	f.CaptureVariables = append(f.CaptureVariables, selfIdent)
+
+	if refT, ok := expr.Bind.GetType().(types.FuncType).GetParams()[0].(types.RefType); ok {
+		self = locals.NewGetRef(refT.Mutable(), self)
+	}
+	args := []locals.Expr{self}
+	for _, p := range params {
+		args = append(args, locals.NewIdentExpr(p))
+	}
+	call := locals.NewCall(locals.NewIdentExpr(expr.Bind), args...)
+
+	var ret []locals.Expr
+	if !ft.GetReturn().Equal(types.Unit) {
+		ret = append(ret, call)
+	} else {
+		body.Stmts = append(body.Stmts, call)
+	}
+	body.Stmts = append(body.Stmts, locals.NewReturn(ret...))
+	return c.genFunc(f)
 }

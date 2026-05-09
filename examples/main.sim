@@ -4,11 +4,12 @@ type S struct {
 	name: str
 }
 
-let getname | S = (self: &&Self) -> str {
+let getname | S = (self: &Self) -> str {
 	return self.name
 }
 
 let main = () {
 	let s = S{name: "123"}
-	c::puts(s.getname(&s))
+	let ss = &s
+	c::puts((*ss).getname())
 }
