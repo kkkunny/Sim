@@ -444,7 +444,7 @@ type Func struct {
 	Params []*hir.Param
 	Body   optional.Optional[*Block]
 
-	UsedExternalVariables []hir.Ident
+	CaptureVariables []hir.Ident
 }
 
 func NewFunc(t types.FuncType, params ...*hir.Param) *Func {
@@ -507,6 +507,13 @@ func (f *Func) TryToType(t hir.Type) {
 type Call struct {
 	Func Expr
 	Args []Expr
+}
+
+func NewCall(f Expr, args ...Expr) *Call {
+	return &Call{
+		Func: f,
+		Args: args,
+	}
 }
 
 func (*Call) expr()  {}
@@ -960,7 +967,11 @@ func (e *GetBind) Print(p *hir.Printer) {
 }
 
 func (e *GetBind) GetType() hir.Type {
-	return e.Bind.GetType()
+	if e.IsStatic() {
+		return e.Bind.GetType()
+	}
+	ft := e.Bind.GetType().(types.FuncType)
+	return types.NewFuncType(ft.GetReturn(), ft.GetParams()[1:]...)
 }
 
 func (e *GetBind) Mutable() bool {
@@ -969,4 +980,17 @@ func (e *GetBind) Mutable() bool {
 
 func (e *GetBind) Temporary() bool {
 	return false
+}
+
+func (e *GetBind) IsStatic() bool {
+	if e.Bind.Value.IsNone() || e.Bind.ExternalName.IsSome() || e.Bind.Mut {
+		return true
+	}
+	f, ok := e.Bind.Value.MustValue().(*Func)
+	if !ok {
+		return true
+	}
+	return stlslices.All(f.Params, func(_ int, p *hir.Param) bool {
+		return p.Name != "self"
+	})
 }
