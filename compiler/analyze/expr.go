@@ -3,6 +3,7 @@ package analyze
 import (
 	"fmt"
 	"math/big"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -102,7 +103,7 @@ func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) locals.Expr {
 func expectTypeExpr[T hir.Type](a *Analyzer, expr ast.Expr, expect ...hir.Type) locals.Expr {
 	v := a.analyzeExpr(expr, expect...)
 	if vt := v.GetType(); !stlval.Is[T](vt) {
-		typename := fmt.Sprintf("%T", stlval.Default[T]())
+		typename := reflect.TypeFor[T]().Name()
 		typename = strings.TrimSuffix(strings.ToLower(typename), "type")
 		a.reporter.Fatalf(
 			expr.Position(),
@@ -368,12 +369,22 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *locals.Func {
 	}
 
 	externalVars := stlslices.DiffTo(a.scope.UsedValues(), stlmaps.Values(a.scope.Values()))
+	captureVars := stlslices.Filter(externalVars, func(i int, v hir.Ident) bool {
+		switch v := v.(type) {
+		case *hir.Param:
+			return true
+		case *locals.Let:
+			return !v.IsGlobal
+		default:
+			panic("unreachable")
+		}
+	})
 
 	a.scope, _ = a.scope.Parent()
 
 	f := locals.NewFunc(ft, params...)
 	f.Body = body
-	f.UsedExternalVariables = externalVars
+	f.CaptureVariables = captureVars
 	return f
 }
 
@@ -391,10 +402,7 @@ func (a *Analyzer) analyzeCall(expr *ast.Call) *locals.Call {
 	args := stlslices.Map(expr.Args, func(i int, expr ast.Expr) locals.Expr {
 		return a.analyzeExpr(expr, params[i])
 	})
-	return &locals.Call{
-		Func: f,
-		Args: args,
-	}
+	return locals.NewCall(f, args...)
 }
 
 func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) locals.Expr {
