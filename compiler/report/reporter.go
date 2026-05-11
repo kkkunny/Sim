@@ -22,7 +22,7 @@ func (r *Reporter) Warn(title, message string, pos reader.Position) {
 	r.reports = append(r.reports, newReport(levelEnum.Warn, title, message, pos))
 }
 
-func (r *Reporter) Warnf(pos reader.Position, err Error, args ...any) {
+func (r *Reporter) Warnf(pos reader.Position, err ErrorType, args ...any) {
 	r.Warn(string(err), fmt.Sprintf(errorFormats[err], args...), pos)
 }
 
@@ -30,7 +30,7 @@ func (r *Reporter) Error(title, message string, pos reader.Position) {
 	r.reports = append(r.reports, newReport(levelEnum.Error, title, message, pos))
 }
 
-func (r *Reporter) Errorf(pos reader.Position, err Error, args ...any) {
+func (r *Reporter) Errorf(pos reader.Position, err ErrorType, args ...any) {
 	r.Error(string(err), fmt.Sprintf(errorFormats[err], args...), pos)
 }
 
@@ -40,7 +40,7 @@ func (r *Reporter) Fatal(title, message string, pos reader.Position) {
 	os.Exit(1)
 }
 
-func (r *Reporter) Fatalf(pos reader.Position, err Error, args ...any) {
+func (r *Reporter) Fatalf(pos reader.Position, err ErrorType, args ...any) {
 	r.Fatal(string(err), fmt.Sprintf(errorFormats[err], args...), pos)
 }
 
