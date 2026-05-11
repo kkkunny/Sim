@@ -18,7 +18,7 @@ type level string
 
 var levelEnum = enum.New[struct {
 	Warn  level `enum:"warn"`
-	Error level `enum:"report"`
+	Error level `enum:"error"`
 }]()
 
 var levelColorMap = map[level]color.Style{
@@ -61,7 +61,7 @@ func (r *report) Format() string {
 
 	// 错误级别和标题
 	buf.WriteString(r.Level.Color().Sprintf("%s[%s]: %s",
-		levelPrefix(r.Level),
+		r.Level,
 		r.Title,
 		r.Message))
 	buf.WriteString("\n")
@@ -121,16 +121,4 @@ func (r *report) Format() string {
 	buf.WriteString("   |")
 
 	return buf.String()
-}
-
-// levelPrefix 返回级别的前缀颜色代码（这里暂时不使用颜色，后续可以扩展）
-func levelPrefix(level level) string {
-	switch level {
-	case levelEnum.Error:
-		return "report"
-	case levelEnum.Warn:
-		return "warning"
-	default:
-		return ""
-	}
 }
