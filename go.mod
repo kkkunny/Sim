@@ -8,7 +8,10 @@ require (
 	github.com/kkkunny/stl v0.0.0-20260425101325-0c7dcae4bfab
 )
 
-require golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
+require (
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
+	golang.org/x/sys v0.30.0
+)
 
 require (
 	github.com/HuKeping/rbtree v1.0.1 // indirect
@@ -25,5 +28,4 @@ require (
 	github.com/segmentio/fasthash v1.0.3 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/zyedidia/generic v1.2.1 // indirect
-	golang.org/x/sys v0.30.0 // indirect
 )

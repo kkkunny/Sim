@@ -12,8 +12,13 @@ var (
 	SimRootPath    = WorkPath
 	StdPkgPath     = filepath.Join(SimRootPath, "std")
 	BuildinPkgPath = filepath.Join(StdPkgPath, "buildin")
+	IncludePath    = filepath.Join(SimRootPath, "include")
 )
 
 const (
-	CacheDirName = ".sim_cache"
+	CacheDir = ".sim_cache"
+)
+
+const (
+	SourceCodeFileExtName = ".sim"
 )

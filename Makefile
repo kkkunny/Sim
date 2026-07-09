@@ -33,7 +33,7 @@ BIN_PATH = $(GOPATH)/bin/$(BIN_FILE)
 
 .PHONY: find_test_files
 find_test_files:
-    @files=`find $(TEST_DIR) -type f -name "*.sim"`; \
+    @files=`find $(TEST_DIR) -type f -name "*.$(EXT_NAME)"`; \
     for file in $$files ; do \
         echo `realpath $$file` ; \
     done
