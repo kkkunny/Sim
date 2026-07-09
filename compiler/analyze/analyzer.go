@@ -12,6 +12,7 @@ import (
 	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/ast"
+	"github.com/kkkunny/Sim/compiler/config"
 	"github.com/kkkunny/Sim/compiler/hir/globals"
 	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
@@ -54,7 +55,7 @@ func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) 
 	}
 	dirAsts := &ast.File{}
 	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sim" {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != config.SourceCodeFileExtName {
 			continue
 		}
 

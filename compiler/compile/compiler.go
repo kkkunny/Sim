@@ -79,39 +79,54 @@ func (c *Compiler) Visit(v dag.Vertexer) {
 
 // 编译依赖包
 func (c *Compiler) compileDepPkg(pkg *globals.Package) error {
-	cacheDir := filepath.Join(pkg.Path, config.CacheDirName)
-	err := stlerr.ErrorWrap(os.RemoveAll(cacheDir))
+	// 创建目录
+	cacheDir := filepath.Join(pkg.Path, config.CacheDir)
+	err := stlerr.ErrorWrap(os.MkdirAll(cacheDir, 0755))
 	if err != nil {
 		return err
 	}
 
-	err = stlerr.ErrorWrap(os.Mkdir(cacheDir, 0755))
+	// 加锁
+	locker, err := newCacheLock(pkg.Path)
 	if err != nil {
 		return err
 	}
+	defer locker.Close()
+	if err = locker.Lock(); err != nil {
+		return err
+	}
 
+	// 即使命中缓存也要生成代码，以填充共享的 codegen.Context（idents/typeCache）
 	cir := codegen.New(c.ctx, pkg).Generate()
+	if valid, err := isCacheValid(pkg); err != nil {
+		return err
+	} else if valid {
+		return nil
+	}
 
 	headerPath := filepath.Join(cacheDir, pkg.Name+".h")
-	err = stlerr.ErrorWrap(os.RemoveAll(headerPath))
-	if err != nil {
-		return err
-	}
 	hfile, err := stlerr.ErrorWith(os.Create(headerPath))
 	if err != nil {
 		return err
 	}
 	defer hfile.Close()
 
-	relpath, _ := filepath.Rel(config.SimRootPath, pkg.Path)
+	relpath, err := stlerr.ErrorWith(filepath.Rel(config.SimRootPath, pkg.Path))
+	if err != nil {
+		return err
+	}
 	headerName := "_SIM_" + strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "_") + "_H"
 	fmt.Fprintf(hfile, "#ifndef %s\n", headerName)
 	fmt.Fprintf(hfile, "#define %s 1 \n\n", headerName)
-	fmt.Fprintf(hfile, "#include \"include/buildin.h\"\n")
+	includeRelpath, err := stlerr.ErrorWith(filepath.Rel(config.IncludePath, config.SimRootPath))
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(hfile, "#include \"%s/buildin.h\"\n", includeRelpath)
 	for _, depPkg := range pkg.Dependencies {
 		relpath, _ = filepath.Rel(config.StdPkgPath, depPkg.Path)
 		relpath = strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "")
-		fmt.Fprintf(hfile, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDirName, depPkg.Name)
+		fmt.Fprintf(hfile, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDir, depPkg.Name)
 	}
 
 	cir.OutputHeader(hfile)
@@ -127,11 +142,11 @@ func (c *Compiler) compileDepPkg(pkg *globals.Package) error {
 	}
 	defer file.Close()
 
-	fmt.Fprintf(file, "#include \"include/buildin.h\"\n")
+	fmt.Fprintf(file, "#include \"%s/buildin.h\"\n", includeRelpath)
 	for _, depPkg := range pkg.Dependencies {
 		relpath, _ = filepath.Rel(config.StdPkgPath, depPkg.Path)
 		relpath = strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "")
-		fmt.Fprintf(file, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDirName, depPkg.Name)
+		fmt.Fprintf(file, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDir, depPkg.Name)
 	}
 
 	cir.Output(file)
@@ -164,7 +179,7 @@ func (c *Compiler) compileMainPkg(pkg *globals.Package) error {
 	for _, depPkg := range pkg.Dependencies {
 		relpath, _ := filepath.Rel(config.StdPkgPath, depPkg.Path)
 		relpath = strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "")
-		fmt.Fprintf(file, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDirName, depPkg.Name)
+		fmt.Fprintf(file, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDir, depPkg.Name)
 	}
 
 	file.Write([]byte("#include \"include/buildin.c\"\n"))
@@ -181,7 +196,7 @@ func (c *Compiler) compileMainPkg(pkg *globals.Package) error {
 	outPath := filepath.Join(config.WorkPath, "main.out")
 	args := []string{"-std=c11", "-I", config.SimRootPath, file.Path()}
 	for _, depPkg := range pkg.Dependencies {
-		args = append(args, filepath.Join(depPkg.Path, config.CacheDirName, depPkg.Name+".o"))
+		args = append(args, filepath.Join(depPkg.Path, config.CacheDir, depPkg.Name+".o"))
 	}
 	args = append(args, "-o", outPath)
 	cmder := exec.Command(execPath, args...)
