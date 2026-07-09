@@ -1,0 +1,10 @@
+import std::c
+
+let main = () {
+	let x = 10
+	let r = &x
+	let y = *r
+	let mut z = 20
+	let mut rz = &mut z
+	*rz = 30
+}

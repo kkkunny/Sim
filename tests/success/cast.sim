@@ -1,0 +1,7 @@
+import std::c
+
+let main = () {
+	let a = 1 as i32
+	let b = 1 as f64
+	let c = b as i64
+}

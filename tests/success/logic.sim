@@ -1,0 +1,8 @@
+import std::c
+
+let main = () {
+	let a = true && false
+	let b = true || false
+	let c = !true
+	let d = !1
+}

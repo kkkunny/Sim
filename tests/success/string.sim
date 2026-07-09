@@ -1,0 +1,6 @@
+import std::c
+
+let main = () {
+	let s: str = "hello"
+	c::puts(s)
+}

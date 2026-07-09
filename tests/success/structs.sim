@@ -1,0 +1,12 @@
+import std::c
+
+type Point struct {
+	x: i64
+	y: i64
+}
+
+let main = () {
+	let p = Point{x: 1, y: 2}
+	let a = p.x
+	let b = p.y
+}

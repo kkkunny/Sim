@@ -1,0 +1,7 @@
+let f = () -> i64 {
+	return f() + 1
+}
+
+let main = () {
+	let r = f()
+}

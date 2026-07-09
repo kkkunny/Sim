@@ -1,0 +1,2 @@
+@extern(puts)
+let main = () {}

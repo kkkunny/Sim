@@ -1,0 +1,12 @@
+import std::c
+
+let main = () {
+	let a: i8 = 1
+	let b: i16 = 1
+	let c: i32 = 1
+	let d: i64 = 1
+	let e: u8 = 1
+	let f: u16 = 1
+	let g: u32 = 1
+	let h: u64 = 1
+}

@@ -1,0 +1,8 @@
+import std::c
+
+let main = () {
+	let mut i = 0
+	for i < 10 {
+		i += 1
+	}
+}

@@ -1,0 +1,7 @@
+import std::c
+
+let main = () {
+	let t = (1, 2, 3)
+	let x = t[0]
+	let y = t[2]
+}

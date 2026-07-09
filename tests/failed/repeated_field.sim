@@ -1,0 +1,4 @@
+type S struct { x: i64, y: i64 }
+let main = () {
+	let s = S{x: 1, x: 2}
+}

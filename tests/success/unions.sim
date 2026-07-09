@@ -1,0 +1,5 @@
+import std::c
+
+let main = () {
+	let u: i64 | str = 1 as i64
+}

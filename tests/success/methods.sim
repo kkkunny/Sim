@@ -1,0 +1,14 @@
+import std::c
+
+type S struct {
+	name: str
+}
+
+let getname | S = (self: &Self) -> str {
+	return self.name
+}
+
+let main = () {
+	let s = S{name: "test"}
+	c::puts(s.getname())
+}

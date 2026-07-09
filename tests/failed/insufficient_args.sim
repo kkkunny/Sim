@@ -1,0 +1,4 @@
+let f = (a: i64, b: i64) -> i64 { return a + b }
+let main = () {
+	let r = f(1)
+}

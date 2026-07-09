@@ -1,0 +1,9 @@
+import std::c
+
+let main = () {
+	let a = 12 & 10
+	let b = 12 | 10
+	let c = 12 ^ 10
+	let d = 1 << 4
+	let e = 256 >> 2
+}

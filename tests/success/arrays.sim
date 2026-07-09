@@ -1,0 +1,7 @@
+import std::c
+
+let main = () {
+	let arr: [3]i64 = [1, 2, 3]
+	let x = arr[0]
+	let y = arr[2]
+}

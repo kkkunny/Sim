@@ -1,0 +1,6 @@
+@extern(puts)
+let puts: (str) -> unit
+
+let main = () {
+	puts("hello")
+}

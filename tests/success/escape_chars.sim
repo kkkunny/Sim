@@ -1,0 +1,6 @@
+import std::c
+
+let main = () {
+	c::puts("a\\b")
+	let c = '\\'
+}

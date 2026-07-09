@@ -1,0 +1,9 @@
+import std::c
+
+let add = (a: i64, b: i64) -> i64 {
+	return a + b
+}
+
+let main = () {
+	let r = add(1, 2)
+}

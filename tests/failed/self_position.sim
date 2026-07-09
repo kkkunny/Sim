@@ -1,0 +1,3 @@
+type S struct { x: i64 }
+let f | S = (a: i64, self: &Self) {}
+let main = () {}

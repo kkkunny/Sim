@@ -1,0 +1,14 @@
+import std::c
+
+type Counter struct {
+	mut count: i64
+}
+
+let inc | Counter = (self: &mut Self) {
+	self.count += 1
+}
+
+let main = () {
+	let mut c = Counter{count: 0}
+	c.inc()
+}

@@ -1,0 +1,7 @@
+import std::c
+
+let main = () {
+	let x: i64
+	let y: bool
+	let z: str
+}

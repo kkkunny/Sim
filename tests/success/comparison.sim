@@ -1,0 +1,10 @@
+import std::c
+
+let main = () {
+	let a = 1 == 1
+	let b = 1 != 2
+	let c = 1 < 2
+	let d = 2 <= 2
+	let e = 3 > 2
+	let f = 3 >= 3
+}

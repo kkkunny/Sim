@@ -37,11 +37,43 @@ outdated — output is C compiled with `clang -std=c11`, not LLVM IR.
 - `include/` — C runtime (`buildin.h` / `buildin.c`) linked into every program.
 - `examples/main.sim` — the canonical smoke-test program.
 
+## Testing (REQUIRED)
+
+Tests live in `tests/` and are run with:
+
+```
+go test ./tests/...
+```
+
+The framework (`tests/compiler_test.go`) builds the `sim` binary once
+(`go build -tags compile`), then compiles and runs every `.sim` file under
+`tests/success/` (expected to compile **and** run, exit code 0) and
+`tests/failed/` (expected to fail to compile **or** crash at runtime, i.e. a
+non-zero exit). It uses the `SIM_OUTPUT` env var to place each produced binary
+in a temp dir. Cases run in parallel; the file-lock in `compiler/compile`
+serializes the shared `std/*/.sim_cache/` artifacts.
+
+### Adding / modifying a language feature
+
+**Every time a feature is added or changed, you MUST add or update the
+corresponding `.sim` test(s) and ensure the whole suite still passes.** This is
+mandatory, not optional:
+
+- For a new capability, add a `tests/success/<feature>.sim` that exercises it
+  and exits cleanly. If the feature can fail in a new way, add a
+  `tests/failed/<feature>.sim` that triggers that error/panic.
+- For a behavior change, update the affected `tests/success/*.sim` /
+  `tests/failed/*.sim` so they reflect the new semantics.
+- Before considering any change done, run `go test ./tests/...` and confirm
+  **all** cases pass (0 failures). Do not commit with failing tests.
+
 ## Conventions / gotchas
 
 - `.sim_cache/` dirs are generated build artifacts created under each package
   dir during `compile`; they are gitignored. Don't commit them.
-- No Go unit tests exist (`*_test.go` absent). Verification is done by
-  compiling/running `.sim` example files, not `go test`.
+- `tests/success/` and `tests/failed/` hold `.sim` integration tests (see
+  "Testing" above). `tests/compiler_test.go` is the runner — do not add
+  in-process Go unit tests for the compiler packages (parser/analyzer call
+  `os.Exit(1)` and cannot be unit-tested in-process).
 - Module is Go 1.25 and depends on `github.com/kkkunny/stl`; the `stlerror.Must*`
   helpers panic on error, so failures surface as panics.

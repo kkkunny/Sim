@@ -1,0 +1,9 @@
+import std::c
+
+let main = () {
+	let a = 10 + 3
+	let b = 10 - 3
+	let c = 10 * 3
+	let d = 10 / 3
+	let e = 10 % 3
+}

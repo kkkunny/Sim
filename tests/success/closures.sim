@@ -1,0 +1,9 @@
+import std::c
+
+let main = () {
+	let x = 10
+	let f = () -> i64 {
+		return x + 1
+	}
+	let r = f()
+}

@@ -1,0 +1,8 @@
+import std::c
+
+type MyInt i64
+
+let main = () {
+	let x: MyInt = 1
+	let y = x as i64
+}

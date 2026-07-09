@@ -258,7 +258,7 @@ func (c *CodeGenerator) genTuple(expr *locals.Tuple) *cir.Struct {
 
 	fields := make(map[string]cir.Expr, len(expr.Elems))
 	for i, e := range expr.Elems {
-		fields[fmt.Sprintf("_f%d", i+1)] = c.genExpr(e)
+		fields[fmt.Sprintf("e%d", i+1)] = c.genExpr(e)
 	}
 	return cir.NewStruct(fields, t)
 }

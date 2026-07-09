@@ -1,0 +1,6 @@
+import std::c
+
+let main = () {
+	let c = 'a'
+	let d: i32 = 'a'
+}
