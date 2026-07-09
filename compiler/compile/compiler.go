@@ -118,7 +118,7 @@ func (c *Compiler) compileDepPkg(pkg *globals.Package) error {
 	headerName := "_SIM_" + strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "_") + "_H"
 	fmt.Fprintf(hfile, "#ifndef %s\n", headerName)
 	fmt.Fprintf(hfile, "#define %s 1 \n\n", headerName)
-	includeRelpath, err := stlerr.ErrorWith(filepath.Rel(config.IncludePath, config.SimRootPath))
+	includeRelpath, err := stlerr.ErrorWith(filepath.Rel(config.CIncludePath, config.SimRootPath))
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,10 @@ func (c *Compiler) compileMainPkg(pkg *globals.Package) error {
 	if err != nil {
 		return err
 	}
-	outPath := filepath.Join(config.WorkPath, "main.out")
+	outPath := os.Getenv("SIM_OUTPUT")
+	if outPath == "" {
+		outPath = filepath.Join(config.WorkPath, "main.out")
+	}
 	args := []string{"-std=c11", "-I", config.SimRootPath, file.Path()}
 	for _, depPkg := range pkg.Dependencies {
 		args = append(args, filepath.Join(depPkg.Path, config.CacheDir, depPkg.Name+".o"))
