@@ -119,7 +119,7 @@
   let main = () { }
   ```
 - **影响**：用户无法从诊断得知哪个表达式不受支持（只有 `%T` 类型名有效）。
-- **修复位置**：错误消息改用 `hir.Print` 渲染表达式；常量覆盖面补齐见 plans P6（全局常量折叠与初始化器覆盖面）。
+- **修复位置**：错误消息改用 `hir.Print` 渲染表达式；常量覆盖面补齐见 plans P5（全局常量折叠与初始化器覆盖面）。
 
 ### B4. `genAddr` 数组索引的非 Array 回退分支静默（低优先）
 
@@ -149,13 +149,6 @@
 ---
 
 ## 三、编译驱动与诊断（compile / lex / report）
-
-### C4. `cacheLock.Close` 先关闭 fd 再解锁 —— 待修复（低优先）
-
-- **现象**：`compiler/compile/cache.go` 的 `Close` 先 `f.Close()` 再 `Unlock()`——对已关闭 fd
-  做 `flock(LOCK_UN)` 返回 EBADF，错误被 `defer locker.Close()` 吞掉；行为靠「close 自动释放
-  flock」侥幸正确。
-- **修复位置**：改为先 `Unlock()` 再 `Close()`，并记录/返回错误。
 
 ### C5. 诊断 `Format` 对共享 reader 有位置副作用 —— 待修复（低优先）
 

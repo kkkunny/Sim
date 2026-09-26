@@ -54,15 +54,7 @@ go-llvm 库问题见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)）。
   同步或删除。
 - `compiler/compile/compiler.go` 清理旧 C 后端头文件的 `os.Remove(*.h)` 可在下次 ABI 升级时移除。
 
-### P5. 编译根路径不依赖 CWD
-
-- **分类**：架构与设计
-- **现状**：`config.SimRootPath = os.Getwd()`——只有从仓库根启动才能找到 `std/buildin`
-  （否则报找不到目录），`stableName` 的包路径哈希也随之受 CWD 影响。
-- **目标**：根路径来源显式化（环境变量 / `-root` flag / 可执行文件位置），与 CWD 解耦。
-- **验收**：从任意目录编译同一个 `.sim` 成功，且符号名/缓存跨目录一致。
-
-### P6. 全局常量折叠与初始化器覆盖面
+### P5. 全局常量折叠与初始化器覆盖面
 
 - **分类**：语言与运行时
 - **现状**：`genConstExpr` 只支持字面量与其常量嵌套；`let g: i32 = 1 + 1`、
@@ -72,7 +64,7 @@ go-llvm 库问题见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)）。
   折叠为字面量。
 - **验收**：上述形态可初始化全局；`examples/main.sim` 与大用例结果不变。
 
-### P7. 编译入口显式化
+### P6. 编译入口显式化
 
 - **分类**：架构与设计
 - **现状**：包名 == `"main"` 才触发入口包装与链接；非 main 目录只产 `.o` 不链接也无提示，
@@ -80,7 +72,7 @@ go-llvm 库问题见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)）。
 - **目标**：显式 entry 规则（固定 `main.sim` / `@entry` 属性 / CLI 指定），错误使用给出诊断。
 - **验收**：`examples/` 目录名与入口无关；无入口时明确报错。
 
-### P8. 增量编译：缓存命中不再全量 codegen
+### P7. 增量编译：缓存命中不再全量 codegen
 
 - **分类**：性能与构建
 - **现状**：`compileDepPkg` 即使缓存有效也调用 `gen.Generate()`（为填充共享
@@ -89,14 +81,14 @@ go-llvm 库问题见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)）。
   缓存命中时不跑 codegen。
 - **验收**：无改动重复编译时依赖包零 codegen；`examples/main.sim` 与大用例结果不变。
 
-### P9. 优化管线与 `-O` 级别
+### P8. 优化管线与 `-O` 级别
 
 - **分类**：性能与构建
 - **现状**：`TargetMachine` 固定 `target.OptNone`，模块无 pass、无 LTO，产物恒为 -O0。
 - **目标**：至少 `OptDefault` + 可选 `-O0/-O2`；启用 mem2reg 等必要 function pass。
 - **验收**：产物有优化痕迹、语义不变；go-llvm 缺 pass API 时记录到 `go-llvm-issues.md`。
 
-### P10. bind（方法）在 HIR lowering 统一 desugar
+### P9. bind（方法）在 HIR lowering 统一 desugar
 
 - **分类**：架构与设计
 - **现状**：bind 语义散落在 `analyzeMember`、`GetBind.IsStatic`、`codegen.genGetBind` 三处，
@@ -104,20 +96,20 @@ go-llvm 库问题见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)）。
 - **目标**：analyze/lowering 阶段统一 desugar 为「函数字面量 + 调用」，codegen 只处理常规闭包。
 - **验收**：bind 相关用例（含 `examples/main.sim`）行为不变。
 
-### P11. 后序遍历统一
+### P10. 后序遍历统一
 
 - **分类**：架构与设计
 - **现状**：根驱动 `codegen.go` 的 `collectPkgs` 与 `compile/compiler.go` 的 `collectDeps`
   是两套等价的后序遍历实现。
 - **目标**：合并为一个共享工具（`compiler/compile` 或 `util`）。
 
-### P12. 字符串常量去重
+### P11. 字符串常量去重
 
 - **分类**：性能与构建
 - **现状**：`genString` 每处字面量新建 private global，同模块相同字面量重复占空间。
 - **目标**：同模块内按字面量缓存复用同一 global。
 
-### P13. 包级并行编译
+### P12. 包级并行编译
 
 - **分类**：性能与构建
 - **现状**：`Dagger.OrderedWalk` 串行访问；DAG 上独立包本可并行，但 `codegen.Context` 的
@@ -125,7 +117,7 @@ go-llvm 库问题见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)）。
 - **目标**：按包隔离 Context（或分片加锁）后并行 EmitToFile。
 - **验收**：多包工程编译时间显著下降，产物与串行一致。
 
-### P14. for-in 快照语义明确化
+### P13. for-in 快照语义明确化
 
 - **分类**：语言与运行时
 - **现状**：`for x in *getp()` 这类以指针解引用为 range 的循环，codegen 只求一次指针、逐轮读活内存；
@@ -134,13 +126,13 @@ go-llvm 库问题见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)）。
 - **目标**：明确「值快照 / 内存视图」语义，并决定是否对齐旧行为。
 - **验收**：语义结论固定并有对应用例（循环体内修改同一内存时的行为可预期）。
 
-### P15. std 的 HIR 序列化缓存（长期）
+### P14. std 的 HIR 序列化缓存（长期）
 
 - **分类**：性能与构建
 - **现状**：每次编译都重新解析/分析 `std`；buildin 很小可接受，规模扩大后浪费明显。
 - **目标**：HIR 序列化缓存 + 失效校验（接口版本/源码 mtime）。
 
-### P16. 逃逸闭包支持（堆分配 ctx）（长期）
+### P15. 逃逸闭包支持（堆分配 ctx）（长期）
 
 - **分类**：语言与运行时
 - **现状**：闭包 ctx 在定义点栈分配（入口块 alloca），捕获局部变量的闭包逃逸出定义帧后再调用
