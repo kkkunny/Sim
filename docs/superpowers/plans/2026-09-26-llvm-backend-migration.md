@@ -225,10 +225,10 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   验证：`std/buildin` 的 `type i8 i8` 等 + `m3_recursive2` 的 `type R &i32`→`BAC0`。
 - [ ] **B8 函数胖类型**：`{ptr fn, ptr ctx}`。验证：函数变量赋值/传递。（M4）
 - [x] **B9 tagged union**：`{i8, payload}` + DataLayout 精确计算（payload 取最大对齐成员 + 补足 size 的
-  `[k x i8]`）。验证：`m3_union`→`AB`、`m3_union_layout`（`([16]i8) | f64` → IR `{ i8, { double, [8 x i8] } }`）
+  `[k x i8]`）。验证：`m3_union`→`ABB`、`m3_union_layout`（`([16]i8) | f64` → IR `{ i8, { double, [8 x i8] } }`）
   →`ABBABA`（含 NaN 成员 `!=` 语义）。
 - [x] **B10 零尺寸类型**：`{}` 语义（`zeroinitializer`）；数组 N=0/零尺寸元素、空 tuple/struct、
-  全零尺寸 union 恒不失配。验证：`m3_zero_size`→`AAAA`（IR 中 `br i1 true` 短路）。
+  全零尺寸 union 判等恒真（短路）。验证：`m3_zero_size`→`AAAA`（IR 中 `br i1 true` 短路）。
 
 ### C. 常量与全局（`global.go`）
 
@@ -249,8 +249,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ### D. 表达式（`expr.go`）
 
-- [x] **D1（部分）lvalue/rvalue 双通道**：`genAddr`/`genExpr` 拆分。验证：局部变量/解引用赋值（`m2_lvalue`）；
-      数组/元组索引、字段左值（待 B4/B5/B6）已留分支并 panic。
+- [x] **D1 lvalue/rvalue 双通道**：`genAddr`/`genExpr` 拆分。验证：局部变量/解引用赋值（`m2_lvalue`）；
+      数组/元组索引、字段左值已在 M3（D11/D12）补全。
 - [x] **D2 标识符**：局部 alloca load、参数 alloca、全局 load、捕获字段 GEP。
       验证：局部读取（`m1_local` 输出 B）；全局读取待 C4、捕获待 F7。
 - [x] **D3 算术/位运算/移位**：按符号性 `SDiv/UDiv/SRem/URem/FAdd.../frem`、`AShr/LShr`、`And/Or/Xor`。
@@ -312,7 +312,7 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [x] **G2 数组逐元素**：i64 索引循环，不等即短路返回 false。验证：`m3_equality`→`AABAABAAAA`。
 - [x] **G3 元组逐字段**。验证：嵌套元组含数组判等（`m3_equality`）。
 - [x] **G4 struct 逐字段**。验证：`P{x,y}` 判等（`m3_equality`）。
-- [x] **G5 union 判别 + `Switch` 分派**：同/异 tag、同 tag 异值、NaN 成员。验证：`m3_union`→`AB`、
+- [x] **G5 union 判别 + `Switch` 分派**：同/异 tag、同 tag 异值、NaN 成员。验证：`m3_union`→`ABB`、
       `m3_union_layout`→`ABBABA`。
 - [ ] **G6 函数值相等**（并入 F5，独立可测）。（M4）
 - [x] **G7 辅助函数去重缓存**：`Context.eqFuncs` 按「模块标识 + LLVM 类型文本 + HIR 类型文本」缓存；
@@ -523,3 +523,21 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 > 3. `compiler/compile/compiler.go:121` 的 `filepath.Rel(config.IncludePath, config.SimRootPath)`
 >    参数顺序反了（应为 `Rel(SimRootPath, IncludePath)`），会生成 `#include "../buildin.h"`
 >    而非预期的 `#include "include/buildin.h"`，属潜在隐患。
+
+## 12. 已知问题与遗留（按里程碑跟进的）
+
+- **[M4 顺带修复] 后置声明的聚合出现在 array/union 成员时以 opaque panic 失败**（M3 审查重要 #1）：
+  `genType` 的 `types.CustomType` 命中缓存直接返回、不触发按需填充，而 `genArrayType`/`unionMemberTypes`
+  在填充期就要求尺寸 → `panic: llgen: 类型 ... 尺寸未定（opaque）`（如 `type U B | i32` 且 `type B` 后置）。
+  修法：`genType` 的 CustomType 分支无条件 `return c.genCustomTypeDef(t.GetDef())`
+  （该函数已含 cache-hit + `IsOpaque→SetBody`）。
+- **[低优先] `for x in *getp()` 的快照语义与旧后端有差异**（M3 审查次要 #4）：旧后端因
+  `Temporary()` 会把数组值拷进临时变量（快照），llgen 只求一次指针、逐轮读活内存；除「体内改同一块
+  内存」外不可观察。
+- **[已知限制] 全局常量初始化覆盖面窄于旧后端**（M3 审查次要 #5）：`genConstExpr` 未含
+  `Covert`/`Binary`/`Union`，`let g: i64 = 65 as i64`、`let g: i32 = 1 + 1` 在全局作用域会 panic
+  「暂不支持非常量全局初始化」；旧后端把这些常量表达式交给 C 编译器可编。后续补常量折叠或转换即可。
+- **[低优先] `genAddr` 数组索引的非 Array 回退分支**（M3 审查次要 #2）：静默返回空临时地址；
+  建议仅对零尺寸数组放行，其余 panic。
+- **[低优先] 元组常量索引越界无前置检查**（M3 审查次要 #3）：`t[9]` 最终由 `Module.Verify` 英文报错；
+  建议加下标范围检查。
