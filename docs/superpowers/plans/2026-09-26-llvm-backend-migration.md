@@ -171,6 +171,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ## 5. 文件结构变更清单
 
+> 表中 `compiler/llgen/` 为开发期包名；J1 已改名搬回 `compiler/codegen/`（`llgen.go` → `codegen.go`）。
+
 | 文件 | 动作 | 职责 |
 |---|---|---|
 | `go.mod` | 修改 | `go 1.27`；加 `github.com/kkkunny/go-llvm`（pseudo-version 固定） |
@@ -333,24 +335,31 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 - [x] **H1 每包一模块 + 外部声明**：按需创建 declaration。
       验证：`m1_puts`（main 模块内生成 `declare void @puts(%str)`）；examples 全量待 M3。
-- [ ] **H2 `EmitToFile`** 产出 `.sim_cache/<pkg>.o`（临时驱动已产出到临时目录；正式接入见 H5）。
+- [x] **H2 `EmitToFile`** 产出 `.sim_cache/<pkg>.o`。验证：`examples/main.sim` 全量编译 + 缓存命中。
 - [x] **H3 clang 链接**：`clang main.o dep.o... -lm -o main.out`。验证：M1 用例运行输出正确（临时驱动）。
-- [ ] **H4 缓存**：有效性只比 `.o`/源 mtime；文件锁保留。验证：连续两次 compile，第二次命中缓存。
-- [ ] **H5 compile 主/依赖包流程改造**：删除 `.h` 输出与 `#include` 拼接。验证：全量编译 + 缓存命中。
+- [x] **H4 缓存**：有效性比 `.o`/源 mtime + `.backend` 标识（`llvm-<ABIVersion>`，避免与旧 C 后端
+      产物混用）；文件锁保留；重建时清理旧 `.h`。验证：连续两次 compile，第二次命中缓存（mtime 不变）。
+- [x] **H5 compile 主/依赖包流程改造**：每包 `llgen.New` → `Generate`（填充共享 Context）→
+      `EmitToFile`；主包 `.o` 入临时文件；链接收集**全部传递依赖**的 `.o` + `-lm` → `main.out`。
+      验证：`examples/main.sim` 全量编译 + 缓存命中 + 20 个用例真实管线回归。
 
 ### I. 驱动集成与调试
 
-- [ ] **I1 codegen stage 打印 IR**：主包 + 依赖包都打印。验证：`-tags codegen` 输出合法 `.ll`。
-- [ ] **I2 Verify 诊断**：错误带包名与 `*llvm.Error` 信息。验证：人为制造的 IR 错误信息可读。
-- [ ] **I3 compile/debug stage 适配**：行为不变。验证：`-tags debug .` 退出码/输出。
+- [x] **I1 codegen stage 打印 IR**：主包 + 依赖包都打印（后序收集）。验证：`-tags codegen` 输出合法 `.ll`。
+- [x] **I2 Verify 诊断**：每包 `Generate()` 内 `mod.Verify()`，panic 带包路径与 `*llvm.Error`。
+      验证：M2 起多次实测（unit return、opaque 等错误信息可读）。
+- [x] **I3 compile/debug stage 适配**：`compile.go` 无需改动（`NewCompiler` API 不变）；
+      `-tags debug .` 输出 `123`。
 - [ ] **I4 正式测试集**：**不做**（用户后续统一添加）。每个 TODO 的"验证"列即临时验证方式。
 
 ### J. 清理与文档
 
-- [ ] **J1 删除 `compiler/cir` 与旧 `compiler/codegen`**，`llgen` 改名搬回 `compiler/codegen`。
-      验证：`go build ./...` + `grep -r cir compiler/` 为空。
-- [ ] **J2 删除 `include/buildin.h/.c`**、清理 `config.IncludePath`。验证：全量编译不受影响。
-- [ ] **J3 文档**：AGENTS.md（架构、依赖、go-llvm 问题约定）、README 依赖说明。
+- [x] **J1 删除 `compiler/cir` 与旧 `compiler/codegen`**，`llgen` 改名搬回 `compiler/codegen`
+      （`llgen.go` → `codegen.go`）；删除临时驱动 `llvmgen.go`/`llvmcompile.go`。
+      验证：`go build ./...` + `grep -r "compiler/cir" compiler/` 为空。
+- [x] **J2 删除 `include/buildin.h/.c`**、清理 `config.IncludePath`；`main` wrapper 已由 codegen 生成。
+      验证：全量编译不受影响。
+- [x] **J3 文档**：AGENTS.md（架构/阶段/依赖/缓存/go-llvm 约定）、README（依赖与 Hello World）。
       验证：文档命令实测一致。
 
 ## 7. 验证策略
@@ -507,6 +516,17 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   `FUNC_CALL(v,1,2)+62` 展开为 `v.ctx==NULL ? v.func.f(1,2) : v.func.c(...)+62`，ctx 为 NULL 时 `+62`
   被三元吞掉（`m4_func_value` 旧输出 `0x03` / 新 `A`）；
   另旧后端返回闭包 ctx 悬垂（`m4_closure_param` 旧 `A\x0c` / 新 `AB`）。报告见 `.superpowers/sdd/task-M4-report.md`。
+- **2026-09-26**：**切流与清理完成（H2/H4/H5 + I1~I3 + J1~J3）**——`compiler/compile` 改走 LLVM 后端：
+  每包 `Generate`（填充共享 Context）→ `EmitToFile` 写 `.sim_cache/<pkg>.o`（缓存含 `.backend` 标识
+  `llvm-<ABIVersion>`，重建时清理旧 `.h`；文件锁保留）；主包 `.o` 入临时文件，链接收集**全部传递依赖**
+  目标文件 + `-lm` → `main.out`；`-tags codegen` 打印各包 LLVM IR；`-tags debug` 跑 examples。
+  删除 `compiler/cir`、旧 `compiler/codegen`、`include/` 与临时驱动 `llvmgen.go`/`llvmcompile.go`；
+  `llgen` 改名搬回 `compiler/codegen`（`llgen.go` → `codegen.go`）；`config.IncludePath` 移除；
+  `stableName` 改用相对 `SimRootPath` 的路径（缓存可随工作区迁移）+ `ABIVersion` 升 `000001`；
+  AGENTS.md/README 更新为 LLVM 管线。
+  验证：`examples/main.sim` 经真实 compile 管线 → `123`；二次编译缓存命中（`.o` mtime 不变）；
+  20 个代表用例真实管线回归全过（tuple/array/struct/union/for/equality/global/闭包/GetBind/函数相等）；
+  `-tags codegen` 输出合法 IR；`-tags debug` → `123`；`go build ./...`/`gofmt` 干净。
 
 ## 11. 迁移期间发现的前端问题（非后端迁移范围，待单独处理）
 
@@ -552,15 +572,12 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
     与第 9 条同源（缺隐式数值转换）；旧 C 后端同样复现（analyze 阶段共享）。
     M4 的 §0 验证用例 `m4_opaque_union` 因此改用显式 `i32` 局部变量注入。
 
-> **给 H5 的备注（旧 `compile` 缓存/命名隐患，重写时一并处理）**：
-> 1. `compiler/codegen/other.go` 的 `stableName` 把绝对 `pkg.Path` 与 `pkg.Name` 一起哈希进符号名，
->    编译产物（`.sim_cache/*.o`）因此绑定绝对路径，换目录/迁移工作区后无法复用，缓存不可迁移；
-> 2. `compiler/compile/cache.go` 的 `isCacheValid` 对 `stlerr.ErrorWith(os.Stat(...))` 包装后的
->    not-exist 错误仍用 `os.IsNotExist` 判断（不会解包），缓存文件缺失时按真实错误上抛、最终
->    在 `Compiler.Visit` panic，而非按缓存未命中重编；应改用 `errors.Is(err, fs.ErrNotExist)`；
-> 3. `compiler/compile/compiler.go:121` 的 `filepath.Rel(config.IncludePath, config.SimRootPath)`
->    参数顺序反了（应为 `Rel(SimRootPath, IncludePath)`），会生成 `#include "../buildin.h"`
->    而非预期的 `#include "include/buildin.h"`，属潜在隐患。
+> **给 H5 的备注（旧 `compile` 缓存/命名隐患）——已在 H5 重写中处理**：
+> 1. `stableName` 原把绝对 `pkg.Path` 哈希进符号名 → 已改为相对 `SimRootPath` 的路径
+>    （`ABIVersion` 升 `000001` 以整体失效旧缓存），缓存可随工作区迁移；
+> 2. `isCacheValid` 原对 `stlerr` 包装后的 not-exist 错误用 `os.IsNotExist` 判断 →
+>    已改用 `errors.Is(err, fs.ErrNotExist)`；
+> 3. `Rel(IncludePath, SimRootPath)` 参数顺序隐患 → 随 `include/` 删除而消失（不再生成 `#include`）。
 
 ## 12. 已知问题与遗留（按里程碑跟进的）
 

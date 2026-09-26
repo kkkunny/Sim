@@ -1,11 +1,11 @@
 # AGENTS.md
 
 Sim is a compiler (written in Go) for the "Sim" language. It compiles `.sim`
-source to C, then to a native binary via `clang` (or `gcc` as fallback).
+source to LLVM IR (via `github.com/kkkunny/go-llvm`), emits an object file per
+package, and links a native binary with `clang` (or `gcc` as fallback).
 
-> **进行中：** C 后端正在迁移为 LLVM 后端（`github.com/kkkunny/go-llvm`，LLVM 22）。
-> 迁移计划与 TODO 见 `docs/superpowers/plans/2026-09-26-llvm-backend-migration.md`。
-> 迁移完成前，下述 C 管线仍是生效管线。
+> C 后端已迁移为 LLVM 后端（LLVM 22）；迁移计划与历史 TODO 见
+> `docs/superpowers/plans/2026-09-26-llvm-backend-migration.md`（§12 列有已知限制与遗留项）。
 
 ## Running / building (do NOT use `make`)
 
@@ -21,38 +21,44 @@ files (`lex.go`, `parse.go`, `analyze.go`, `codegen.go`, `compile.go`,
 go run -tags <stage> . <file.sim>
 ```
 
-- `lex` / `parse` / `analyze` / `codegen` — print tokens / AST / HIR / generated C
-- `llvmgen` — 迁移期临时驱动：analyze → LLVM IR 文本（`compiler/llgen`，尚未接入 compile）
-- `llvmcompile` — 迁移期临时驱动：analyze → llgen → `.o` → clang 链接 `main.out`（不写缓存）
-- `compile` — codegen to C, compile with clang, emit `main.out` in the **current
-  working directory** (not next to the source; `config.WorkPath = os.Getwd()`)
+- `lex` / `parse` / `analyze` / `codegen` — print tokens / AST / HIR / LLVM IR
+- `compile` — codegen to LLVM IR, emit `.sim_cache/<pkg>.o` per dependency
+  package, link with clang, emit `main.out` in the **current working directory**
+  (not next to the source; `config.WorkPath = os.Getwd()`)
 - `debug` — compiles and runs `examples/main.sim`
 
 After `compile`, run the result with `./main.out` (from the repo root).
 
-Requires `clang` (or `gcc`) on `PATH`. The README's "llvm==18" dependency is
-outdated — output is C compiled with `clang -std=c11`, not LLVM IR.
+Requires `clang` (or `gcc`) on `PATH` **and** LLVM 22 with development headers
+(go-llvm binds system libLLVM via cgo; standard Linux/macOS layout works out of
+the box, non-standard prefixes need go-llvm's `make config`).
 
 ## Architecture
 
 - `compiler/` — the pipeline: `reader` → `lex`/`token` → `parse`/`ast` →
-  `analyze`/`hir` → `codegen`/`cir` → `compile` (C emission + clang link).
-  Package dependencies are ordered via a DAG (`compiler/compile/compiler.go`).
+  `analyze`/`hir` → `codegen` (HIR → `ir.Module` per package, `mod.Verify()`) →
+  `compile` (per-package `EmitToFile` + clang link). Package dependencies are
+  ordered via a DAG (`compiler/compile/compiler.go`); cross-package symbols are
+  declared lazily in the referencing module.
 - `std/` — Sim standard library source (`buildin` is auto-imported; `c` exposes
   C bindings). `std/buildin` is auto-imported by every package.
-- `include/` — C runtime (`buildin.h` / `buildin.c`) linked into every program.
 - `examples/main.sim` — the canonical smoke-test program.
 
 ## Conventions / gotchas
 
 - `.sim_cache/` dirs are generated build artifacts created under each package
-  dir during `compile`; they are gitignored. Don't commit them.
+  dir during `compile`; they are gitignored. Don't commit them. Each cache dir
+  contains `<pkg>.o`, a `.backend` marker (invalidates caches from other
+  backends/ABI versions) and a `.lock` file.
 - No Go unit tests exist (`*_test.go` absent). Verification is done by
   compiling/running `.sim` example files, not `go test`. 迁移期每个小功能用
   `/tmp/opencode/sim-cases/` 下的最小 `.sim` 片段做简单验证，正式测试集后续统一补充。
 - Module is Go 1.27 and depends on `github.com/kkkunny/stl` and
   `github.com/kkkunny/go-llvm`; the `stlerror.Must*` helpers panic on error, so
   failures surface as panics.
+- `codegen` 的 `genAddr`/`genExpr` 是 lvalue/rvalue 双通道；局部变量 alloca 在函数入口块
+  （循环内 `let` 不会每次迭代增长栈）。基本块终结状态由 `CodeGenerator.terminated` 自维护
+  （go-llvm 未暴露 `Block.IsTerminating`，见 `docs/go-llvm-issues.md`）。
 
 ## go-llvm 问题记录（重要）
 

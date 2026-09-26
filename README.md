@@ -38,25 +38,26 @@ Sim是一门简洁的、强类型的编译型语言
 
 ## Dependences
 
-+ linux
++ linux（当前仅在 linux/x86-64 验证）
 
-+ llvm(version==18)
++ llvm(version==22) 开发头文件（`github.com/kkkunny/go-llvm` 经 cgo 链接 libLLVM）
 
-+ golang
++ clang（链接驱动）
 
-+ c lib
++ golang(>=1.27)
 
 ## Hello World
 
-compiler/examples/hello_world.sim
+```sim
+import std::c
 
-```go
-func main(){
-    debug("Hello World")
+let main = () {
+	c::puts("Hello World")
 }
 ```
 
 ```shell
-> make run TEST_FILE=$PWD/compiler/examples/hello_world.sim
+> go run -tags compile . hello_world.sim
+> ./main.out
 Hello World
 ```
