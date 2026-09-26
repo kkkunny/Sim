@@ -60,6 +60,11 @@ the box, non-standard prefixes need go-llvm's `make config`).
   （循环内 `let` 不会每次迭代增长栈）。基本块终结状态由 `CodeGenerator.terminated` 自维护
   （go-llvm 未暴露 `Block.IsTerminating`，见 `docs/go-llvm-issues.md`）。
 
+## 已知问题记录
+
+未解决的前端缺陷与后端遗留统一记录在 `docs/known-issues.md`（每条带最小复现与状态/绕过）；
+go-llvm 库自身的问题记录在 `docs/go-llvm-issues.md`。修复后更新状态，不要删除条目。
+
 ## go-llvm 问题记录（重要）
 
 LLVM 后端基于 `github.com/kkkunny/go-llvm`，该库迭代快、目前尚不稳定，可能存在 bug 或

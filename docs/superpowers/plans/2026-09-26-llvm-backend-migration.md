@@ -530,6 +530,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ## 11. 迁移期间发现的前端问题（非后端迁移范围，待单独处理）
 
+> 已整理为活文档：`docs/known-issues.md`（带最小复现/状态/绕过）。本节保留迁移期原始记录。
+
 1. **parser 三元优先级**：`parseSuffixExpr` 在二元运算符循环之前消费 `?`，`1 < 2 ? a : b`
    被解析为 `1 < (2 ? a : b)`；旧 C 后端同样复现。临时对策：条件加括号。
 2. **`DeRef` 可变性检查方向**：`let p = &mut x; *p = v` 被 analyze 以 "must mutable" 拒绝，
@@ -580,6 +582,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 > 3. `Rel(IncludePath, SimRootPath)` 参数顺序隐患 → 随 `include/` 删除而消失（不再生成 `#include`）。
 
 ## 12. 已知问题与遗留（按里程碑跟进的）
+
+> 已整理为活文档：`docs/known-issues.md`。本节保留迁移期原始记录。
 
 - **[已修复（M4）] 后置声明的聚合出现在 array/union 成员时以 opaque panic 失败**（M3 审查重要 #1）：
   `genType` 的 `types.CustomType` 命中缓存直接返回、不触发按需填充，而 `genArrayType`/`unionMemberTypes`
