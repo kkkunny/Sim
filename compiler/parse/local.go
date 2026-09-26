@@ -134,7 +134,7 @@ func (p *Parser) parseLet(attrs []ast.Attribute, pub bool) *ast.Let {
 
 func (p *Parser) parseIf() *ast.If {
 	p.expect(token.KindEnum.If)
-	cond := p.parseExpr()
+	cond := p.parseCondExpr()
 	body := p.parseBlock()
 	var next optional.Optional[either.Either[*ast.If, *ast.Block]]
 	if p.ifSkip(token.KindEnum.Else) {
@@ -152,7 +152,7 @@ func (p *Parser) parseFor() ast.Local {
 	if p.ifSkip(token.KindEnum.Mut) {
 		varname := p.expect(token.KindEnum.Ident)
 		p.expect(token.KindEnum.In)
-		rangeValue := p.parseExpr()
+		rangeValue := p.parseCondExpr()
 		body := p.parseBlock()
 		return &ast.For{
 			Mut:      true,
@@ -163,9 +163,9 @@ func (p *Parser) parseFor() ast.Local {
 	}
 	var cond optional.Optional[ast.Expr]
 	if p.nextToken.Kind != token.KindEnum.Lbr {
-		cond = optional.Some(p.parseExpr())
+		cond = optional.Some(p.parseCondExpr())
 		if ident, ok := cond.MustValue().(*ast.IdentExpr); ok && ident.Pkg.IsNone() && p.ifSkip(token.KindEnum.In) {
-			rangeValue := p.parseExpr()
+			rangeValue := p.parseCondExpr()
 			body := p.parseBlock()
 			return &ast.For{
 				Mut:      false,

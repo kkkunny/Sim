@@ -8,6 +8,9 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
+// ternaryPriority 三元运算符 `? :` 的优先级：低于 LogicOr(2)、高于赋值(1)，右结合。
+const ternaryPriority = 2
+
 func (p *Parser) parseExpr() ast.Expr {
 	return p.parseBinaryExpr(0)
 }
@@ -16,6 +19,19 @@ func (p *Parser) parseBinaryExpr(minPrec int) ast.Expr {
 	left := p.parseUnaryExpr()
 
 	for {
+		// 三元运算符 `? :`（F1）：在二元循环中按优先级处理，条件为已累积的 left，
+		// 避免 `1 < 2 ? a : b` 被解析为 `1 < (2 ? a : b)`；假分支同优先级递归（右结合）。
+		if p.nextToken.Kind == token.KindEnum.Question && minPrec <= ternaryPriority {
+			p.next()
+			p.skip(token.KindEnum.Br)
+			trueExpr := p.parseExpr()
+			p.expect(token.KindEnum.Col)
+			p.skip(token.KindEnum.Br)
+			falseExpr := p.parseBinaryExpr(ternaryPriority)
+			left = &ast.Ternary{Condition: left, TrueExpr: trueExpr, FalseExpr: falseExpr}
+			continue
+		}
+
 		prec := p.nextToken.Kind.Priority()
 		if prec < minPrec {
 			break
@@ -66,10 +82,13 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 			pkg = optional.Some(name)
 			name = p.expect(token.KindEnum.Ident)
 		}
-		if !p.ifSkip(token.KindEnum.Lbr) {
+		if !p.isStructLiteral() {
 			return &ast.IdentExpr{Pkg: pkg, Name: name}
 		}
+		restore := p.enterBracket() // 字面量字段值不属于条件/范围上下文
+		defer restore()
 
+		p.expect(token.KindEnum.Lbr)
 		var fields []*ast.StructFieldInit
 		for {
 			p.skip(token.KindEnum.Br)
@@ -97,6 +116,8 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 		return &ast.String{Value: value}
 	case token.KindEnum.Lpa:
 		begin := p.expect(token.KindEnum.Lpa).Position
+		restore := p.enterBracket() // 括号内为独立表达式上下文
+		defer restore()
 		p.skip(token.KindEnum.Br)
 		if p.ifSkip(token.KindEnum.Rpa) {
 			// 空元组
@@ -179,6 +200,8 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 		return &ast.Tuple{BeginPosition: begin, Elems: elems, EndPosition: end}
 	case token.KindEnum.Lba:
 		begin := p.expect(token.KindEnum.Lba).Position
+		restore := p.enterBracket() // 方括号内为独立表达式上下文
+		defer restore()
 		p.skip(token.KindEnum.Br)
 		var elems []ast.Expr
 		for p.nextToken.Kind != token.KindEnum.Rba {
@@ -208,6 +231,8 @@ func (p *Parser) parseSuffixExpr(prev ast.Expr) (expr ast.Expr) {
 		switch p.nextToken.Kind {
 		case token.KindEnum.Lpa:
 			p.expect(token.KindEnum.Lpa)
+			restore := p.enterBracket() // 实参为独立表达式上下文
+			defer restore()
 			p.skip(token.KindEnum.Br)
 			var args []ast.Expr
 			for p.nextToken.Kind != token.KindEnum.Rpa {
@@ -225,6 +250,8 @@ func (p *Parser) parseSuffixExpr(prev ast.Expr) (expr ast.Expr) {
 			}
 		case token.KindEnum.Lba:
 			p.expect(token.KindEnum.Lba)
+			restore := p.enterBracket() // 下标为独立表达式上下文
+			defer restore()
 			p.skip(token.KindEnum.Br)
 			index := p.parseExpr()
 			end := p.expect(token.KindEnum.Rba).Position
@@ -240,14 +267,6 @@ func (p *Parser) parseSuffixExpr(prev ast.Expr) (expr ast.Expr) {
 				Left:  prev,
 				Right: t,
 			}
-		case token.KindEnum.Question:
-			p.expect(token.KindEnum.Question)
-			p.skip(token.KindEnum.Br)
-			trueExpr := p.parseExpr()
-			p.expect(token.KindEnum.Col)
-			p.skip(token.KindEnum.Br)
-			falseExpr := p.parseExpr()
-			prev = &ast.Ternary{Condition: prev, TrueExpr: trueExpr, FalseExpr: falseExpr}
 		case token.KindEnum.Dot:
 			p.expect(token.KindEnum.Dot)
 			name := p.expect(token.KindEnum.Ident)
