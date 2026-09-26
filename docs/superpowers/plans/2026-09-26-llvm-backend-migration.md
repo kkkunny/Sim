@@ -250,7 +250,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
       验证：有/无符号（`m2_ops`：udiv/ashr/lshr；`m2_ops_int2`：srem/urem/and/or/xor/shl）、
       浮点 `m2_ops_float`（fadd/fsub/fmul/fdiv/frem，无 libm）；typedef 解包待 M3 用例。
 - [x] **D4（部分）比较**：`ICmp`/`FCmp` 谓词映射 → i1（有/无符号、有序浮点、bool、指针 Eq/Neq、
-      `CustomType` 递归解包）。验证：i64/i8/u8 比较与谓词 IR（`m2_cmp_paren`/`m2_edge`）；
+      `CustomType` 递归解包；**浮点 Neq 用 `UNE`，保 C `!=` 的 NaN 语义**）。验证：i64/i8/u8 比较与谓词 IR
+      （`m2_cmp_paren`/`m2_edge`）、NaN 用例（`m2_nan`：`nan != nan` → true）；
       复合类型相等比较待 G1~G5（现为清晰 panic）。
 - [x] **D5 一元运算**：`BitsReverse`→`Not`、`BooleanReverse`→`Xor true`、`GetRef`→genAddr、
       `DeRef`→load。验证：`m2_lvalue`（取址/解引用）、`m2_unary`（`xor i32 %v, -1` / `xor i1 %v, true`）。
@@ -378,6 +379,10 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   (2) `std/buildin` 的 `type bool bool` 使 `bool` 名解析为 `_CustomBooleanType`（`String()` 也是
   "bool"），`let b = mb as bool; cond ? ...` 处 `expectTypeExpr(cond, types.Bool)` 因
   `_CustomBooleanType.Equal(_BooleanType)==false` 报 "expected 'bool' but got 'bool'"。
+- **2026-09-26**：**M2-2 审查修复**——浮点 `Neq` 由 `ONE`（有序且不等，NaN 时返回 false）改为
+  `UNE`（无序或不等），与 C `a != b`（任一操作数为 NaN 时返回 true）语义一致；
+  `m2_nan` 用例修复前输出 `BBB`、修复后 `ABB`，IR 为 `fcmp une`。
+  详见 `.superpowers/sdd/task-M2-2-report.md` 的审查修复附录。
 
 1. **M1 端到端最小闭环**（A + B1/B2 + C1/C2/C5/C6 + E2 + H）：`main` 返回常量、`puts("hello")`
    经新后端跑通，链接/缓存/Verify 全链路就位。

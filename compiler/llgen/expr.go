@@ -276,13 +276,14 @@ func intCmpPred(op locals.BinaryOp, signed bool) llvm.IntPred {
 	}
 }
 
-// floatCmpPred 浮点比较谓词（D4）：有序谓词，与 C 比较语义（NaN 比较恒假/不等为真）一致
+// floatCmpPred 浮点比较谓词（D4）：Eq/Lt/Lte/Gt/Gte 用有序谓词（任一操作数为 NaN 时结果恒假）。
+// Neq 必须用 UNE（无序或不等）：C 的 `!=` 在任一操作数为 NaN 时返回 true，而 ONE 在 NaN 时返回 false。
 func floatCmpPred(op locals.BinaryOp) llvm.FloatPred {
 	switch op {
 	case locals.BinaryOpEnum.Eq:
 		return llvm.FloatOEQ
 	case locals.BinaryOpEnum.Neq:
-		return llvm.FloatONE
+		return llvm.FloatUNE
 	case locals.BinaryOpEnum.Lt:
 		return llvm.FloatOLT
 	case locals.BinaryOpEnum.Lte:
