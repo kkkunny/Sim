@@ -223,7 +223,9 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [x] **B7 自定义类型**：标量/数组/引用/函数别名透传（不预声明 named struct）；struct/tuple/union
   预声明 named struct 两遍填充。`type R &T` 引用别名已修复（透传 `ptr`）。
   验证：`std/buildin` 的 `type i8 i8` 等 + `m3_recursive2` 的 `type R &i32`→`BAC0`。
-- [ ] **B8 函数胖类型**：`{ptr fn, ptr ctx}`。验证：函数变量赋值/传递。（M4）
+- [x] **B8 函数胖类型**：`{ptr fn, ptr ctx}`；值位置（变量/参数/返回/聚合成员/相等）与
+      调用位置（`genNativeFuncType` 不带 ctx、`genCtxFuncType` 首参 ctx）区分。
+      验证：函数值赋值/传递/聚合成员/判等（M4）。
 - [x] **B9 tagged union**：`{i8, payload}` + DataLayout 精确计算（payload 取最大对齐成员 + 补足 size 的
   `[k x i8]`）。验证：`m3_union`→`ABB`、`m3_union_layout`（`([16]i8) | f64` → IR `{ i8, { double, [8 x i8] } }`）
   →`ABBABA`（含 NaN 成员 `!=` 语义）。
@@ -277,8 +279,9 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
       验证：嵌套索引赋值、元组拷贝（`m3_array`/`m3_tuple`/`m3_agg_abi`）。
 - [x] **D12 字段访问** `GetField`：GEP 按 `GetFields()` 定位；引用自动解引用防御分支。
       验证：`m3_struct`、`m3_agg_abi` 的 `q.arr[1]`/`q.t[0]` 链式左右值。
-- [ ] **D13 调用**：直接 `Call`、外部调用已实现并验证（`m1_putchar`/`m1_puts`）；
-      函数值 `CallIndirect`（ctx 判空双分支 + 快速路径）待 F4。
+- [x] **D13 调用**：直接 `Call`、外部/跨包调用；函数值 `CallIndirect`（ctx 判空双分支 + 合流）、
+      函数字面量静态快速路径；实参只求值一次。
+      验证：M1 直接调用；M4 函数值变量/参数/返回闭包/GetBind 间接调用与快速路径（M4）。
 - [x] **D14 自增语义** `SELFADD`：**不适用**（HIR 无自增节点：`Unary` 仅 BitsReverse/BooleanReverse/
       GetRef/DeRef，`SELFADD` 只出现在旧 `cir` 的 for 动作位，随 E5 for 循环再评估）。验证：for 计数循环。
 
@@ -296,14 +299,20 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ### F. 函数与闭包（`closure.go`）
 
-- [ ] **F1 函数体生成**：参数 alloca、入口块、签名（`ctx.Fn`）。验证：多参函数。
-- [ ] **F2 闭包构造**：捕获收集 → ctx named struct → 静态包装函数（首参 ctx）。验证：捕获外部 let。
-- [ ] **F3 闭包值**：`{fn, null}` / `{fn, &ctx}` 构造。验证：函数字面量赋值给变量。
-- [ ] **F4 闭包调用**：ctx 判空双 `CallIndirect` + 合流；已知形态直接调用。
-      验证：同一变量先后装纯函数与闭包再调用。
-- [ ] **F5 函数值相等**：fn+ctx 双比较。验证：函数变量判等。
-- [ ] **F6 方法绑定** `GetBind`：HIR 层包装 + F2/F3。验证：`(*ss).getname()`。
-- [ ] **F7 捕获变量访问**：`captureVarsMap` → ctx GEP。验证：多层嵌套闭包捕获。
+- [x] **F1 函数体生成**：参数 alloca（`paramOffset` 支持包装函数首参 ctx）、入口块、签名（`ctx.Fn`）；
+      包装函数体在定义点嵌套生成并保存/恢复调用点的发射状态。验证：多参函数 + 闭包包装函数（M4）。
+- [x] **F2 闭包构造**：捕获收集 → ctx named struct（`_f1.._fn`）→ internal 包装函数（首参 ctx）。
+      验证：捕获局部/参数（`m4_closure`/`m4_capture_param`）。（M4）
+- [x] **F3 闭包值**：`{fn, null}`（常量）/ `{fn, &ctx}`（定义点 alloca + 逐字段 store）构造；
+      全局函数/外部函数符号作为值、全局变量常量初始化（`m4_func_value`/`m4_global_func_value`）。（M4）
+- [x] **F4 闭包调用**：ctx 判空双 `CallIndirect` + 合流（unit 无合流值）；字面量与函数符号直接调用。
+      验证：同一变量先后装纯函数与闭包再调用（`m4_func_var_swap`→`AA`）。（M4）
+- [x] **F5 函数值相等**：fn+ctx 双比较（`And`，`!=` 取反）。验证：`m4_func_eq`→`ABA`、
+      含 ctx 的闭包相等（`m4_func_eq_ctx`→`AAB`）、聚合成员逐字段/逐元素比较（M4）。
+- [x] **F6 方法绑定** `GetBind`：复刻旧 HIR 层包装（self 物化 + `CaptureVariables=[self]` + `expr.Bind` 调用）
+      + F2/F3。验证：`examples/main.sim` 的 `(*ss).getname()`→`123`、`m4_bind`/`m4_bind_ref`/`m4_bind_static`。（M4）
+- [x] **F7 捕获变量访问**：`c.captureVars`（当前包装函数）→ ctx 字段地址 GEP，优先于 `ctx.idents`；
+      嵌套捕获链式（内层捕获外层 ctx 字段）。验证：`m4_nested`、`m4_capture_chain`（M4）。
 
 ### G. 相等性辅助函数（`equal.go`）
 
@@ -314,7 +323,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [x] **G4 struct 逐字段**。验证：`P{x,y}` 判等（`m3_equality`）。
 - [x] **G5 union 判别 + `Switch` 分派**：同/异 tag、同 tag 异值、NaN 成员。验证：`m3_union`→`ABB`、
       `m3_union_layout`→`ABBABA`。
-- [ ] **G6 函数值相等**（并入 F5，独立可测）。（M4）
+- [x] **G6 函数值相等**（并入 F5，独立可测）：fn/ctx 两指针 `And`。验证：`m4_func_eq`→`ABA`；
+      闭包（ctx 不同→不等，`m4_func_eq_ctx`→`AAB`）；struct 含函数字段、函数数组逐元素比较（M4）。
 - [x] **G7 辅助函数去重缓存**：`Context.eqFuncs` 按「模块标识 + LLVM 类型文本 + HIR 类型文本」缓存；
       同类型同模块只生成一次，internal 链接。验证：`m3_equality` IR 中 `[2 x i32]` 辅助函数
       1 个定义 / 4 处调用（含嵌套元组内复用），共 4 个定义 / 11 个调用点。
@@ -474,6 +484,30 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   相等性辅助函数类型不匹配 bug（自定义类型解包后重新生成字面量类型），llgen 已按正确语义实现。
   报告见 `.superpowers/sdd/task-M3-report.md`。
 
+- **2026-09-26**：**M4 完成**（函数值与闭包，最后一个功能里程碑）——`type.go`：B8 胖函数值
+  `{ptr fn, ptr ctx}` + `genCtxFuncType`（首参 ctx 的调用签名）；§0 修复 `genType` 的 CustomType 分支
+  无条件 `genCustomTypeDef`（后置声明聚合按需填充）。`closure.go`（新建）：函数字面量 → internal
+  内部函数/包装函数 + ctx named struct（`_f1.._fn`，Context 级计数命名避免跨模块同名）、定义点按值捕获、
+  `c.captureVars` 捕获解析（优先于 `ctx.idents`）、胖值构造（`{fn,null}` 常量 / `{fn,&ctx}` InsertValue）、
+  `genCallValue`（ctx 判空双 `CallIndirect` + 合流，实参只求值一次）、`genGetBind`（复刻旧 HIR 层包装：
+  self 物化 + `CaptureVariables=[self]` + 绑定调用）；`expr.go`：`*locals.Func`/`*locals.GetBind` 表达式、
+  函数符号作为值、`genCall` 快速路径（函数符号/无捕获字面量直接调用，有捕获字面量构造 ctx 后直接调用）、
+  `genConstExpr` 支持函数符号全局初始化；`equal.go`：G6 函数值相等（fn+ctx 双比较，可用于聚合成员/数组）。
+  验证：M4 用例 21 个全部实测（`m4_closure`→`A`、`m4_func_value`→`A`、`m4_nested`→`A`、`m4_func_eq`→`ABA`、
+  `m4_bind`→`A`、`m4_mut_capture`→`ABC`、`m4_closure_param`→`AB`、`m4_closure_ret`→`C`、`m4_func_var_swap`→`AA`、
+  `m4_func_eq_ctx`→`AAB`、`m4_struct_func_eq`/`m4_func_array_eq`→`AB`、`m4_capture_chain`→`AAA`、
+  `m4_agg_member`→`AC`、`m4_global_func_value`→`A`、`m4_bind_ref`→`A`、`m4_bind_static`→`B`、
+  `m4_unit_closure`→`A`、`m4_opaque_array`→`B`、`m4_opaque_union`→可编译）；
+  **`examples/main.sim` 在新后端完整跑通 → `123`（核心目标，依赖 `(*ss).getname()` 的 GetBind → 闭包）**；
+  跨包/外部函数值 + 跨模块闭包 ctx 命名（临时 `pkg` 包）→ `AAACD`；跨包全局读写 → `AAABhiC`；
+  全量回归扫描 96 OK / 0 FAIL（M1~M3 既有用例 + `review_m3_order_*` opaque 探针），
+  `go build ./...`/`go vet -tags llvmcompile .`/`gofmt -l compiler/llgen` 干净；旧管线 `123`。
+  两处**不照搬旧后端缺陷**：(a) 旧后端包装函数内 ctx 按值拷贝（`_ctx = *ptr`），可变捕获写回丢失
+  （`m4_mut_capture` 旧 `AAA` / 新 `ABC`，按简报要求同一 ctx 实例语义）；(b) `FUNC_CALL` 宏展开未加括号，
+  `FUNC_CALL(v,1,2)+62` 展开为 `v.ctx==NULL ? v.func.f(1,2) : v.func.c(...)+62`，ctx 为 NULL 时 `+62`
+  被三元吞掉（`m4_func_value` 旧输出 `0x03` / 新 `A`）；
+  另旧后端返回闭包 ctx 悬垂（`m4_closure_param` 旧 `A\x0c` / 新 `AB`）。报告见 `.superpowers/sdd/task-M4-report.md`。
+
 ## 11. 迁移期间发现的前端问题（非后端迁移范围，待单独处理）
 
 1. **parser 三元优先级**：`parseSuffixExpr` 在二元运算符循环之前消费 `?`，`1 < 2 ? a : b`
@@ -513,6 +547,10 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
    形参 `i32`）。旧 C 后端靠 C 隐式转换可编译，llgen 严格按 LLVM 类型发调用会 panic
    `argument 0 type i64 does not match parameter type i32`。M3 用例改为显式标注元组元素类型
    （`let t: (i32, i32, i32) = (65, 66, 67)`）；根治应在前端补类型转换或在缺省时推定期望类型。
+10. **union 注入不接受未标注的数值字面量**：`type U i32 | bool` 下 `let u: U = 65` 报
+    "expected expression type 'U' but got 'f64'"（需先 `let x: i32 = 65; let u: U = x`）。
+    与第 9 条同源（缺隐式数值转换）；旧 C 后端同样复现（analyze 阶段共享）。
+    M4 的 §0 验证用例 `m4_opaque_union` 因此改用显式 `i32` 局部变量注入。
 
 > **给 H5 的备注（旧 `compile` 缓存/命名隐患，重写时一并处理）**：
 > 1. `compiler/codegen/other.go` 的 `stableName` 把绝对 `pkg.Path` 与 `pkg.Name` 一起哈希进符号名，
@@ -526,11 +564,15 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ## 12. 已知问题与遗留（按里程碑跟进的）
 
-- **[M4 顺带修复] 后置声明的聚合出现在 array/union 成员时以 opaque panic 失败**（M3 审查重要 #1）：
+- **[已修复（M4）] 后置声明的聚合出现在 array/union 成员时以 opaque panic 失败**（M3 审查重要 #1）：
   `genType` 的 `types.CustomType` 命中缓存直接返回、不触发按需填充，而 `genArrayType`/`unionMemberTypes`
   在填充期就要求尺寸 → `panic: llgen: 类型 ... 尺寸未定（opaque）`（如 `type U B | i32` 且 `type B` 后置）。
-  修法：`genType` 的 CustomType 分支无条件 `return c.genCustomTypeDef(t.GetDef())`
+  修法（M4 已实施）：`genType` 的 CustomType 分支无条件 `return c.genCustomTypeDef(t.GetDef())`
   （该函数已含 cache-hit + `IsOpaque→SetBody`）。
+  验证：用 M3 审查自身的四个探针（修复前均以 opaque panic 失败，修复后全部编译/运行通过）——
+  `review_m3_order_a`（`struct{items:[2]B}` + `B` 后置）、`review_m3_order_b`（`union U = B | i32` + `B` 后置）、
+  `review_m3_order_c`（`struct{b:B}` + `B` 后置）、`review_m3_order_c2`（同上且有字面量构造）；
+  另 `m4_opaque_array`→`B`、`m4_opaque_union`→可编译。
 - **[低优先] `for x in *getp()` 的快照语义与旧后端有差异**（M3 审查次要 #4）：旧后端因
   `Temporary()` 会把数组值拷进临时变量（快照），llgen 只求一次指针、逐轮读活内存；除「体内改同一块
   内存」外不可观察。
@@ -541,3 +583,11 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   建议仅对零尺寸数组放行，其余 panic。
 - **[低优先] 元组常量索引越界无前置检查**（M3 审查次要 #3）：`t[9]` 最终由 `Module.Verify` 英文报错；
   建议加下标范围检查。
+- **[已知限制/继承旧设计] 逃逸闭包的 ctx 生命周期**（M4）：闭包 ctx 在定义点用 `alloca` 分配（§4.4），
+  因而「捕获了局部变量的闭包」作为返回值逃逸出定义函数后再调用属未定义行为（定义帧已失效；
+  旧 C 后端同样把 `_ctx` 放在定义函数的栈上，实测 `m4_closure_param` 旧输出 `A\x0c` 即悬垂垃圾）。
+  定义点在使用者帧内的用法（GetBind、闭包作实参、返回的无捕获闭包 `{fn,null}`）安全；
+  测试集未覆盖逃逸后调用。若后续需要逃逸闭包，需改为堆分配 ctx（语言层可能还需 GC/所有权设计）。
+- **[低优先] `c.ctx.idents` 的跨函数局部符号残留**（M4）：包装函数体/嵌套闭包体会把其中局部变量
+  以 `hir.Ident` 指针为键写入共享 `idents`（指针唯一，不串用），但会随程序规模增长；
+  后续若要清理，可在函数体生成结束后按 HIR 子树回收。

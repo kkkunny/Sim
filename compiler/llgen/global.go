@@ -190,7 +190,7 @@ func (c *CodeGenerator) genGlobalFunc(l *locals.Let, expr *locals.Func) {
 	if !ok {
 		panic(fmt.Errorf("llgen: 函数 %s 的符号未在模块中登记（%s）", l.Name, ident.Name))
 	}
-	c.genFuncBody(decl, expr, body, nil)
+	c.genFuncBody(decl, expr, body, 0, nil)
 }
 
 // genGlobalFuncDecl 建函数符号并登记（不生成函数体）；已登记则直接复用
@@ -212,7 +212,7 @@ func (c *CodeGenerator) genGlobalFuncDecl(l *locals.Let) {
 	if internal {
 		decl.SetLinkage(llvm.LinkageInternal)
 	}
-	c.ctx.idents[l] = &Ident{Name: name}
+	c.ctx.idents[l] = &Ident{Name: name, FuncSymbol: true}
 }
 
 func (c *CodeGenerator) genExternalFunc(l *locals.Let) {
@@ -225,5 +225,5 @@ func (c *CodeGenerator) genExternalFuncDecl(l *locals.Let) {
 		return
 	}
 	decl := c.module.NewFunction(l.ExternalName.MustValue(), c.genNativeFuncType(l.GetType().(types.FuncType)))
-	c.ctx.idents[l] = &Ident{Name: decl.Name(), ExternalFunc: true}
+	c.ctx.idents[l] = &Ident{Name: decl.Name(), ExternalFunc: true, FuncSymbol: true}
 }

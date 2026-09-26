@@ -6,7 +6,6 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
 	stlslices "github.com/kkkunny/stl/container/slices"
-	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/locals"
@@ -47,6 +46,10 @@ func (c *CodeGenerator) genExpr(expr locals.Expr) llvm.AnyValue {
 	case *locals.TupleIndex, *locals.ArrayIndex, *locals.GetField:
 		// 索引/字段访问：左值通道取地址后装载
 		return c.genLoadFromAddr(expr)
+	case *locals.Func:
+		return c.genClosureValue(expr)
+	case *locals.GetBind:
+		return c.genGetBind(expr)
 	default:
 		panic(fmt.Errorf("llgen: 暂不支持的表达式 %s（%T）", expr, expr))
 	}
@@ -61,6 +64,10 @@ func (c *CodeGenerator) genLoadFromAddr(expr locals.Expr) llvm.AnyValue {
 func (c *CodeGenerator) genAddr(expr locals.Expr) llvm.Value[llvm.PtrT] {
 	switch expr := expr.(type) {
 	case *locals.IdentExpr:
+		// 捕获变量优先（F7）：地址为当前包装函数的 ctx 字段（GEP）
+		if ptr, ok := c.captureVars[expr.Define]; ok {
+			return ptr
+		}
 		ident, ok := c.ctx.idents[expr.Define]
 		if !ok {
 			panic(fmt.Errorf("llgen: 未找到符号 %s", expr.Define.GetName()))
@@ -68,8 +75,8 @@ func (c *CodeGenerator) genAddr(expr locals.Expr) llvm.Value[llvm.PtrT] {
 		if !ident.Local.IsNil() {
 			return ident.Local
 		}
-		if stlval.Is[types.FuncType](expr.GetType()) {
-			panic(fmt.Errorf("llgen: 暂不支持函数值取址 %s（B8/F3，M4）", ident.Name))
+		if ident.FuncSymbol {
+			panic(fmt.Errorf("llgen: 暂不支持函数符号取址 %s（函数值不是左值）", ident.Name))
 		}
 		// 全局变量：符号本身即存储地址（跨包时按需建外部声明）
 		return c.getGlobalVar(ident.Name, c.genType(expr.GetType())).Value
@@ -152,11 +159,14 @@ func (c *CodeGenerator) genAddrOrMaterialize(expr locals.Expr) llvm.Value[llvm.P
 func (c *CodeGenerator) addressable(expr locals.Expr) bool {
 	switch expr := expr.(type) {
 	case *locals.IdentExpr:
+		if _, ok := c.captureVars[expr.Define]; ok {
+			return true
+		}
 		ident, ok := c.ctx.idents[expr.Define]
 		if !ok {
 			return false
 		}
-		return !ident.Local.IsNil() || !stlval.Is[types.FuncType](expr.GetType())
+		return !ident.Local.IsNil() || !ident.FuncSymbol
 	case *locals.DeRef, *locals.ArrayIndex, *locals.TupleIndex, *locals.GetField:
 		return true
 	default:
@@ -644,6 +654,10 @@ func isNumber(t hir.Type) bool {
 }
 
 func (c *CodeGenerator) genIdentExpr(expr *locals.IdentExpr) llvm.AnyValue {
+	// 捕获变量优先（F7）：当前包装函数中从 ctx 字段装载
+	if ptr, ok := c.captureVars[expr.Define]; ok {
+		return c.builder.Load[llvm.DynT](ptr, c.genType(expr.GetType()).DynType(), "")
+	}
 	ident, ok := c.ctx.idents[expr.Define]
 	if !ok {
 		panic(fmt.Errorf("llgen: 未找到符号 %s", expr.Define.GetName()))
@@ -651,13 +665,24 @@ func (c *CodeGenerator) genIdentExpr(expr *locals.IdentExpr) llvm.AnyValue {
 	if !ident.Local.IsNil() {
 		return c.builder.Load[llvm.DynT](ident.Local, c.genType(expr.GetType()).DynType(), "")
 	}
-	if stlval.Is[types.FuncType](expr.GetType()) {
-		panic(fmt.Errorf("llgen: 暂不支持函数值 %s（B8/F3，M4）", ident.Name))
+	if ident.FuncSymbol {
+		// 全局函数/外部函数作为值（F3）：{fnptr, null}
+		ft, ok := asFuncType(expr.GetType())
+		if !ok {
+			panic(fmt.Errorf("llgen: 函数符号 %s 的类型 %s 不是函数类型", ident.Name, expr.GetType()))
+		}
+		return c.genFuncSymbolValue(ident, ft)
 	}
 	// 全局变量：跨包/后向引用时按需在本模块创建 external 声明
 	t := c.genType(expr.GetType())
 	g := c.getGlobalVar(ident.Name, t)
 	return c.builder.Load[llvm.DynT](g.Value, t.DynType(), "")
+}
+
+// asFuncType 取函数类型并递归解包自定义类型别名
+func asFuncType(t hir.Type) (types.FuncType, bool) {
+	ft, ok := types.GetUnderlying(t).(types.FuncType)
+	return ft, ok
 }
 
 // genTuple 元组字面量（C3）：运行时按元素顺序求值并构造
@@ -726,6 +751,19 @@ func (c *CodeGenerator) genConstExpr(expr locals.Expr) (llvm.AnyValue, bool) {
 	case *locals.String:
 		// 字符串常量内部走 genString 的全局常量构造（ConstGEP + ConstNamedStruct）
 		return c.genString(expr), true
+	case *locals.IdentExpr:
+		// 全局函数/外部函数符号作为常量函数值（{fnptr, null}）：
+		// 函数指针是常量，可作为全局变量初始化器（B8/F3）
+		ident, ok := c.ctx.idents[expr.Define]
+		if !ok || !ident.FuncSymbol {
+			return nil, false
+		}
+		ft, ok := asFuncType(expr.GetType())
+		if !ok {
+			return nil, false
+		}
+		fn := c.getFunction(ident.Name, c.genNativeFuncType(ft))
+		return c.packNullFuncValue(fn.AsValue()), true
 	case *locals.Tuple:
 		return c.genConstAggregate(c.genType(expr.GetType()), expr.Elems)
 	case *locals.Array:
@@ -821,24 +859,98 @@ func (c *CodeGenerator) genString(expr *locals.String) llvm.AnyValue {
 	return c.ctx.LLVM().ConstNamedStruct(st, ptr, c.ctx.LLVM().Int(64).Const(uint64(len(expr.Value))))
 }
 
+// genCall 调用（D13/F4）：静态已知形态走直接调用快速路径，其余函数值走运行时
+// ctx 判空双分支间接调用。
 func (c *CodeGenerator) genCall(expr *locals.Call) llvm.AnyValue {
-	// 直接调用：被调方是函数符号
+	ft, ok := asFuncType(expr.Func.GetType())
+	if !ok {
+		panic(fmt.Errorf("llgen: 被调用表达式 %s 的类型 %s 不是函数类型", expr.Func, expr.Func.GetType()))
+	}
+	// 快速路径 1：被调方是函数符号（全局函数/外部函数），直接 Call
 	if identExpr, ok := expr.Func.(*locals.IdentExpr); ok {
-		if ident, ok := c.ctx.idents[identExpr.Define]; ok && ident.Local.IsNil() {
-			ft, ok := expr.Func.GetType().(types.FuncType)
-			if !ok {
-				panic(fmt.Errorf("llgen: 被调用符号 %s 不是函数类型", ident.Name))
-			}
+		if ident, ok := c.ctx.idents[identExpr.Define]; ok && ident.FuncSymbol {
 			fn := c.getFunction(ident.Name, c.genNativeFuncType(ft))
-			args := stlslices.Map(expr.Args, func(_ int, e locals.Expr) llvm.AnyValue {
-				return c.genExpr(e)
-			})
-			return c.builder.Call[llvm.DynT](fn, args, "")
+			return c.builder.Call[llvm.DynT](fn, c.genCallArgs(expr), "")
 		} else if !ok {
-			panic(fmt.Errorf("llgen: 符号 %s 尚未登记（依赖模块需先生成；函数值调用待 D13/F4）", identExpr.Define.GetName()))
+			panic(fmt.Errorf("llgen: 符号 %s 尚未登记（依赖模块需先生成）", identExpr.Define.GetName()))
 		}
 	}
-	panic(fmt.Errorf("llgen: 暂不支持的调用形式（%T，D13/F4）", expr.Func))
+	// 快速路径 2：被调方是函数字面量，fn 静态已知
+	if fnLit, ok := expr.Func.(*locals.Func); ok {
+		info := c.buildClosure(fnLit)
+		args := c.genCallArgs(expr)
+		if len(info.captures) == 0 {
+			return c.builder.Call[llvm.DynT](info.fn, args, "")
+		}
+		// 有捕获：定义点构造 ctx 后直接以 ctx 调用包装函数（旧后端同为直接调用）
+		ctxPtr := c.buildClosureCtx(info)
+		return c.builder.CallIndirect[llvm.DynT](info.fn.AsValue().MustAs[llvm.PtrT](), c.genCtxFuncType(ft),
+			append([]llvm.AnyValue{ctxPtr}, args...), "")
+	}
+	// 一般函数值（变量/参数/字段/返回的闭包/GetBind）：运行时分支
+	return c.genCallValue(expr, ft)
+}
+
+// genCallArgs 求值实参列表（副作用顺序与书写顺序一致，且只求值一次）
+func (c *CodeGenerator) genCallArgs(expr *locals.Call) []llvm.AnyValue {
+	return stlslices.Map(expr.Args, func(_ int, e locals.Expr) llvm.AnyValue {
+		return c.genExpr(e)
+	})
+}
+
+// genCallValue 一般函数值调用（F4/§4.4）：被调方求值一次 → 提取 fn/ctx →
+// `ctx == null ? fn(args...) : fn(ctx, args...)` 两个 CallIndirect + 合流。
+// 实参在分支之前求值一次，保证副作用次数与直接调用一致；unit 返回无合流值。
+func (c *CodeGenerator) genCallValue(expr *locals.Call, ft types.FuncType) llvm.AnyValue {
+	fat := c.genExpr(expr.Func)
+	fn := c.builder.ExtractValue[llvm.PtrT](fat, []uint32{0}, "")
+	ctxPtr := c.builder.ExtractValue[llvm.PtrT](fat, []uint32{1}, "")
+	args := c.genCallArgs(expr)
+	isNull := c.builder.ICmp(llvm.IntEQ, ctxPtr, c.ctx.LLVM().Ptr(0).Null(), "")
+
+	directBlock := c.currentFunc.NewBlock("call.direct")
+	closureBlock := c.currentFunc.NewBlock("call.closure")
+	endBlock := c.currentFunc.NewBlock("call.end")
+	br := c.builder.CondBr(isNull, directBlock, closureBlock)
+	c.terminated = true
+
+	retT := c.genType(ft.GetReturn())
+	retVoid := isVoidType(retT)
+	var slot llvm.Value[llvm.PtrT]
+	if !retVoid {
+		slot = c.allocaEntry(retT, "")
+	}
+
+	// ctx == null：普通函数值，调用无 ctx 签名
+	c.moveTo(directBlock)
+	direct := c.builder.CallIndirect[llvm.DynT](fn, c.genNativeFuncType(ft), args, "")
+	if !retVoid {
+		c.builder.Store(direct, slot)
+	}
+	c.builder.Br(endBlock)
+	c.terminated = true
+
+	// ctx != null：闭包，首参传 ctx 调用包装函数
+	c.moveTo(closureBlock)
+	closure := c.builder.CallIndirect[llvm.DynT](fn, c.genCtxFuncType(ft), append([]llvm.AnyValue{ctxPtr}, args...), "")
+	if !retVoid {
+		c.builder.Store(closure, slot)
+	}
+	c.builder.Br(endBlock)
+	c.terminated = true
+
+	c.moveTo(endBlock)
+	if retVoid {
+		// unit 无合流值；返回伪值仅供语句位置忽略（与 genTernaryVoid 同做法）
+		return br.Dyn()
+	}
+	return c.builder.Load[llvm.DynT](slot, retT.DynType(), "")
+}
+
+// isVoidType 是否 void（unit）
+func isVoidType(t llvm.AnyType) bool {
+	_, ok := t.(llvm.VoidType)
+	return ok
 }
 
 func (c *CodeGenerator) getFunction(name string, sig llvm.FnType) ir.Function {

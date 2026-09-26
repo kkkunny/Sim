@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
 
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/globals"
 	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/types"
@@ -22,6 +23,9 @@ type CodeGenerator struct {
 	terminated  bool        // 当前基本块是否已终结
 	strCount    int         // 字符串字面量计数
 	moduleID    int         // 模块标识（相等性辅助函数缓存按模块隔离）
+
+	captureVars map[hir.Ident]llvm.Value[llvm.PtrT] // 当前包装函数：捕获变量 → ctx 字段地址（F7）
+	closures    map[*locals.Func]*closureInfo       // 闭包字面量 → 内部函数/捕获布局（按字面量去重）
 }
 
 // New 创建某包的代码生成器
@@ -35,6 +39,8 @@ func New(ctx *Context, pkg *globals.Package) *CodeGenerator {
 		module:   module,
 		builder:  ir.NewBuilder(ctx.LLVM()),
 		moduleID: ctx.moduleCount,
+
+		closures: make(map[*locals.Func]*closureInfo),
 	}
 }
 
@@ -91,17 +97,28 @@ func (c *CodeGenerator) ensureBlock() {
 	c.moveTo(c.currentFunc.NewBlock(""))
 }
 
-func (c *CodeGenerator) genFuncBody(decl ir.Function, expr *locals.Func, body *locals.Block, initFn func()) {
-	prevFunc := c.currentFunc
-	c.currentFunc = decl
+// genFuncBody 生成函数体（F1）：登记参数存储 → 可选初始化（闭包 ctx 捕获）→ 逐语句生成，
+// 最后按返回类型补 ret void/unreachable。函数体生成期间保存并恢复调用点的发射状态
+// （闭包包装函数在表达式求值中途嵌套生成）。
+//
+// paramOffset 为 HIR 参数在 LLVM 形参列表中的起始下标：普通函数为 0，
+// 闭包包装函数首参为 ctx ptr，偏移 1。
+func (c *CodeGenerator) genFuncBody(decl ir.Function, expr *locals.Func, body *locals.Block, paramOffset int, initFn func()) {
+	prevFunc, prevTerminated := c.currentFunc, c.terminated
+	prevBlock, hadBlock := c.builder.CurrentBlock()
 	defer func() {
 		c.currentFunc = prevFunc
+		c.terminated = prevTerminated
+		if hadBlock {
+			c.builder.MoveToEnd(prevBlock)
+		}
 	}()
 
+	c.currentFunc = decl
 	c.moveTo(decl.NewBlock("entry"))
 	for i, p := range expr.Params {
 		ptr := c.builder.Alloca(c.genType(p.GetType()), p.GetName())
-		c.builder.Store(decl.Param(uint(i)), ptr)
+		c.builder.Store(decl.Param(uint(i+paramOffset)), ptr)
 		c.ctx.idents[p] = &Ident{Name: p.GetName(), Local: ptr.Value}
 	}
 	if initFn != nil {

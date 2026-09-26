@@ -15,6 +15,7 @@ type Ident struct {
 	Name string
 
 	ExternalFunc bool // 是外部函数
+	FuncSymbol   bool // 是函数符号（全局函数/外部函数）：值表示为 {fnptr, null}，Local 为空
 
 	Local llvm.Value[llvm.PtrT] // 局部变量/参数的存储地址
 }
@@ -34,6 +35,8 @@ type Context struct {
 
 	eqFuncs     map[string]ir.Function // 相等性辅助函数缓存（键含模块标识与类型键，见 equal.go）
 	moduleCount int                    // 已创建模块计数（辅助函数缓存的模块标识）
+
+	closureCount int // 已创建闭包计数（ctx 结构体/包装函数命名，Context 级唯一避免跨模块同名）
 }
 
 // NewContext 创建代码生成上下文（初始化本机 LLVM 目标）

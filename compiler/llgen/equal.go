@@ -47,8 +47,19 @@ func (c *CodeGenerator) genEqualsAs(not bool, t hir.Type, llvmT llvm.AnyType, le
 	case types.StringType:
 		panic(fmt.Errorf("llgen: 暂不支持 str 类型的相等比较（旧 C 后端同样不支持）"))
 	case types.FuncType:
-		// G6/F5 函数值相等属 M4
-		panic(fmt.Errorf("llgen: 暂不支持函数值相等比较（G6/F5，M4）"))
+		// G6/F5 函数值相等：fn 与 ctx 两个指针都比较
+		// （ctx 为 null 时比较 fn；ctx 相同时再比 fn，与旧 FUNC_EQ 语义一致）
+		fnEq := c.builder.ICmp(llvm.IntEQ,
+			c.builder.ExtractValue[llvm.PtrT](left, []uint32{0}, ""),
+			c.builder.ExtractValue[llvm.PtrT](right, []uint32{0}, ""), "")
+		ctxEq := c.builder.ICmp(llvm.IntEQ,
+			c.builder.ExtractValue[llvm.PtrT](left, []uint32{1}, ""),
+			c.builder.ExtractValue[llvm.PtrT](right, []uint32{1}, ""), "")
+		eq := c.builder.And(fnEq, ctxEq, "")
+		if not {
+			return c.builder.Xor(eq, c.ctx.LLVM().ConstBool(true), "")
+		}
+		return eq
 	case types.ArrayType, types.TupleType, types.StructType, types.UnionType:
 		if c.isZeroSizeLLVM(llvmT) {
 			// 零尺寸类型（B10）恒真短路：== 为 true、!= 为 false

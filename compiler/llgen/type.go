@@ -16,9 +16,9 @@ const strTypeName = "str"
 func (c *CodeGenerator) genType(t hir.Type) llvm.AnyType {
 	switch t := t.(type) {
 	case types.CustomType:
-		if tt, ok := c.ctx.typeCache[t.GetDef()]; ok {
-			return tt
-		}
+		// 无条件走 genCustomTypeDef：它自带 cache-hit 分支并在 opaque 时按需填充 body。
+		// 若这里命中缓存直接返回，后置声明的聚合出现在 array/union 成员（填充期需要尺寸）时
+		// 会因 opaque 无法计算布局而 panic（§12，M4 修复）。
 		return c.genCustomTypeDef(t.GetDef())
 	case types.UnitType:
 		return c.ctx.LLVM().Void()
@@ -188,10 +188,22 @@ func (c *CodeGenerator) genNativeFuncType(t types.FuncType) llvm.FnType {
 	return c.ctx.LLVM().Fn(r, ps, false)
 }
 
-// genFuncType 函数胖类型：{ fn*, ctx* }
+// genFuncType 函数胖类型：{ fn*, ctx* }（B8/§4.4）
 func (c *CodeGenerator) genFuncType(_ types.FuncType) llvm.StructType {
+	return c.genFatFuncType()
+}
+
+// genFatFuncType 胖函数值的 LLVM 表示 { ptr fn, ptr ctx }；
+// 所有函数值共用同一字面量结构（LLVM 结构类型按结构相等）
+func (c *CodeGenerator) genFatFuncType() llvm.StructType {
 	return c.ctx.LLVM().Struct([]llvm.AnyType{
 		c.ctx.LLVM().Ptr(0),
 		c.ctx.LLVM().Ptr(0),
 	}, false)
+}
+
+// genCtxFuncType 带闭包 ctx 的调用签名：首参 ptr ctx，其余同原生签名（F1/F4）
+func (c *CodeGenerator) genCtxFuncType(t types.FuncType) llvm.FnType {
+	return c.ctx.LLVM().Fn(c.genType(t.GetReturn()),
+		append([]llvm.AnyType{c.ctx.LLVM().Ptr(0)}, c.genTypes(t.GetParams())...), false)
 }
