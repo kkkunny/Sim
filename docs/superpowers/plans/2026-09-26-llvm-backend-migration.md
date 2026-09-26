@@ -276,10 +276,10 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [x] **E1 `let`**：入口块 alloca + store。验证：`m1_local`（`let x: i32 = 66`）。
 - [x] **E2 `return`**：`RetVoid`/`Ret` + 函数体兜底（void→`ret void`，非 void→`unreachable`）。
       验证：空函数体 `m1_empty` 正常运行。
-- [ ] **E3 `if/else-if/else`**：块结构递归。验证：嵌套 if 链。
-- [ ] **E4 `while`**：cond→body→cond 块环。验证：条件副作用/出口。
+- [x] **E3 `if/else-if/else`**：块结构递归。验证：嵌套 if 链。
+- [x] **E4 `while`**：cond→body→cond 块环。验证：条件副作用/出口。
 - [ ] **E5 `for`（range 数组）**：索引变量 + 数组遍历。验证：遍历求和。
-- [ ] **E6 嵌套 block 作用域**。验证：内层 let 遮蔽外层。
+- [x] **E6 嵌套 block 作用域**。验证：内层 let 遮蔽外层。
 
 ### F. 函数与闭包（`closure.go`）
 
@@ -392,6 +392,28 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   `m2_nan` 用例修复前输出 `BBB`、修复后 `ABB`，IR 为 `fcmp une`。
   详见 `.superpowers/sdd/task-M2-2-report.md` 的审查修复附录；复审通过（谓词修复无回归，
   其余 O 谓词与惰性求值结构未受影响）。
+- **2026-09-26**：**M2-3 完成**（控制流：if/else-if/else、while、嵌套块）——E3 `genIf`：
+  条件求值一次 → `CondBr(then, else)` → 各分支跳转**共享**合流块；else-if 递归（条件在 else
+  块内求值），无 else 时空 else 块直接跳合流。若所有分支均以终结指令（return）结束，合流块
+  无前驱，补 `unreachable` 终结指令保证 IR 合法并保持 `terminated=true`（后续语句经
+  `ensureBlock` 进死块）。E4 `genWhile`：`Br(cond)`→`CondBr(body, end)`→body→`Br(cond)`
+  块环；循环体终结时不回跳；出口块始终有前驱（条件分支），`MoveToEnd(end)` 后继续发射。
+  E6 嵌套块/遮蔽由递归 + `idents` 按 `hir.Ident` 指针索引天然支持。
+  验证：`m2_control_for` 输出 `012!@AC`、多出口函数 `m2_multi_exit` 输出 `A.B`、
+  全分支终结 `m2_all_exit` 输出 `ABAB`（死代码块不可达且合法）、
+  遮蔽/嵌套 `m2_scope` 输出 `BACDACD4`、无条件循环+条件副作用 `m2_loop_edge` 输出 `C...C`；
+  同批用例旧 C 后端输出逐字对齐；M1/M2 全部既有用例双后端对照无回归
+  （仅 `m2_nan` 的 ABB 与 `m2_ops_float` 的可编译属 M2-2 已记录的既有差异）；
+  旧管线 `examples/main.sim` 回归 `123`；build/vet/gofmt 通过。
+  附带修复：`let` 的 alloca 移到函数入口块（§4.3 值模型）——原实现放在当前块，
+  循环体内 `let` 每轮 alloca，1M 次迭代即栈溢出 SIGSEGV（C 后端 50M 正常）；
+  D14 检查：`compiler/hir/locals/expr.go` 无自增表达式节点（`Unary` 仅
+  BitsReverse/BooleanReverse/GetRef/DeRef），旧 `cir.UnaryOpEnum.SelfAdd` 只出现在
+  for 动作位，属 E5 结构，跳过。
+  发现前端问题（旧后端同样复现，非本任务范围）：(a) `while` 不是语言关键字，
+  While 语句须写 `for <cond> {}`（parser `parseFor` → `ast.While`）；
+  (b) 裸 `{}` 块不创建作用域（`analyzeBlock` 对 `*ast.Block` 直接展开，无 `NewBlockScope`），
+  if/while/for/函数体才创建块作用域。
 
 ## 11. 迁移期间发现的前端问题（非后端迁移范围，待单独处理）
 

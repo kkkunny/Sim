@@ -300,7 +300,7 @@ func floatCmpPred(op locals.BinaryOp) llvm.FloatPred {
 // genLogic 短路 && / ||（D7）：右侧惰性求值且最多执行一次，结果 i1
 func (c *CodeGenerator) genLogic(expr *locals.Binary) llvm.AnyValue {
 	boolT := c.ctx.LLVM().Bool()
-	slot := c.allocaTemp(boolT, "")
+	slot := c.allocaEntry(boolT, "")
 	left := c.genExpr(expr.Left)
 	c.builder.Store(left, slot)
 
@@ -334,7 +334,7 @@ func (c *CodeGenerator) genTernary(expr *locals.Ternary) llvm.AnyValue {
 		return c.genTernaryVoid(expr)
 	}
 
-	slot := c.allocaTemp(resultT, "")
+	slot := c.allocaEntry(resultT, "")
 	cond := c.genExpr(expr.Condition)
 
 	thenBlock := c.currentFunc.NewBlock("tern.then")
@@ -391,8 +391,9 @@ func (c *CodeGenerator) genTernaryVoid(expr *locals.Ternary) llvm.AnyValue {
 	return br.Dyn()
 }
 
-// allocaTemp 在函数入口块分配表达式临时存储（短路/三元合流用）
-func (c *CodeGenerator) allocaTemp(t llvm.AnyType, name string) llvm.Value[llvm.PtrT] {
+// allocaEntry 在函数入口块分配存储（局部变量、短路/三元的合流槽）：入口块支配所有可达块，
+// 且不会随循环体每轮重复分配导致栈无限增长。
+func (c *CodeGenerator) allocaEntry(t llvm.AnyType, name string) llvm.Value[llvm.PtrT] {
 	cur, ok := c.builder.CurrentBlock()
 	entry, ok2 := c.currentFunc.EntryBlock()
 	if !ok || !ok2 {

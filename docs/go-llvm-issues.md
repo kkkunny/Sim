@@ -40,5 +40,13 @@ bug、API 缺失或行为异常，由项目作者统一反馈给 go-llvm 作者�
 - **影响**：Sim 迁移任务 E2/E3/E4 及所有控制流代码生成（需要在块结束时做兜底终结）。
 - **临时绕过**：`compiler/llgen` 自行维护 `terminated` 状态标志，每次 MoveToEnd 重置、
   发射终结指令时置位。
+- **补充证据（2026-09-26，M2-3 E3/E4）**：E3 的 `if` 合流块必须知道"各分支是否落入合流"
+  才能避免生成"无前驱且无终结指令"的非法块（否则只能无条件补 `unreachable`，或延迟建块）；
+  E4 `while` 出口块同理。由于没有 `Terminator()/IsTerminating()`，`llgen` 只能在
+  `genIfChain` 逐层返回 fall-through 布尔量、在 `genWhile` 里依赖自维护的 `terminated`。
+  `Block.LastInst()`（返回 `(Value, bool)`）对空块给 `false`，但无法判断"该块将会/已经被终结"；
+  底层 binding 有 `LLVMGetBasicBlockTerminator` / `LLVMIsATerminatorInst`，`ir` 层未暴露；
+  基本块前驱（`LLVMGetFirstPredecessor` 一类）也未暴露。`Opcode()` 同样不公开，
+  故无法用"最后一条指令的 opcode 是否终结类"可靠替代。
 - **状态**：待反馈
 
