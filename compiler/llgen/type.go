@@ -39,6 +39,8 @@ func (c *CodeGenerator) genType(t hir.Type) llvm.AnyType {
 		return c.ctx.LLVM().Bool()
 	case types.StringType:
 		return c.genStrType()
+	case types.RefType:
+		return c.ctx.LLVM().Ptr(0)
 	case types.FuncType:
 		return c.genFuncType(t)
 	default:

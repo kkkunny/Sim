@@ -212,7 +212,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [x] **B1 标量**：i8..i64/u8..u64/f32/f64/bool（unit→void 仅返回位）。
       验证：i32/u8/i64/bool 局部（`m1_types`，IR 截断正确）；浮点字面量语言层（lexer）暂不支持，映射代码已就绪。
 - [x] **B2 `str`**：named struct `{ptr, i64}`。验证：`m1_puts` 输出 hello，IR `%str = type { ptr, i64 }`。
-- [ ] **B3 引用/指针**：`&T`/`&mut T` → `ptr`。验证：取址/解引用/指针比较。
+- [x] **B3 引用/指针**：`&T`/`&mut T` → `ptr`。验证：取址/解引用（`m2_lvalue`）；
+      指针比较待 D4；`type R &T` 一类引用别名待 B7 修正（`genCustomTypeDecl` 目前按聚合预声明）。
 - [ ] **B4 tuple**：named struct `e1..en`。验证：构造 + 索引读写。
 - [ ] **B5 数组**：`[N x T]`；N=0 / 零尺寸元素 → `{}`。验证：字面量、索引、整体赋值、传参。
 - [ ] **B6 struct**：named struct；递归/互递归（`&Self`）走 opaque+`SetBody`。
@@ -241,15 +242,18 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ### D. 表达式（`expr.go`）
 
-- [ ] **D1 lvalue/rvalue 双通道**：`genAddr`/`genExpr` 拆分。验证：赋值目标各类形态。
+- [x] **D1（部分）lvalue/rvalue 双通道**：`genAddr`/`genExpr` 拆分。验证：局部变量/解引用赋值（`m2_lvalue`）；
+      数组/元组索引、字段左值（待 B4/B5/B6）已留分支并 panic。
 - [x] **D2 标识符**：局部 alloca load、参数 alloca、全局 load、捕获字段 GEP。
       验证：局部读取（`m1_local` 输出 B）；全局读取待 C4、捕获待 F7。
-- [ ] **D3 算术/位运算/移位**：按符号性 `SDiv/UDiv/SRem/URem/FAdd.../frem`、`AShr/LShr`、`And/Or/Xor`。
-      验证：有/无符号/浮点矩阵。
+- [x] **D3 算术/位运算/移位**：按符号性 `SDiv/UDiv/SRem/URem/FAdd.../frem`、`AShr/LShr`、`And/Or/Xor`。
+      验证：有/无符号（`m2_ops`：udiv/ashr/lshr；`m2_ops_int2`：srem/urem/and/or/xor/shl）、
+      浮点 `m2_ops_float`（fadd/fsub/fmul/fdiv/frem，无 libm）；typedef 解包待 M3 用例。
 - [ ] **D4 比较**：`ICmp`/`FCmp` 谓词映射 → i1。验证：各类型比较结果。
-- [ ] **D5 一元运算**：`BitsReverse`→`Not`、`BooleanReverse`→`Xor true`、`GetRef`→genAddr、
-      `DeRef`→load。验证：对应表达式用例。
-- [ ] **D6 赋值/复合赋值**：左值单次求值。验证：`a[f()] += x` 类副作用用例。
+- [x] **D5 一元运算**：`BitsReverse`→`Not`、`BooleanReverse`→`Xor true`、`GetRef`→genAddr、
+      `DeRef`→load。验证：`m2_lvalue`（取址/解引用）、`m2_unary`（`xor i32 %v, -1` / `xor i1 %v, true`）。
+- [x] **D6 赋值/复合赋值**：左值单次求值（`genAddr` 只调用一次）。验证：`*p = x + 1`、`x += 1`
+      （`m2_lvalue`）；`a[f()] += x` 类副作用左值待 B5。
 - [ ] **D7 短路 `&&/||`**：分支块 + 合流。验证：右侧带副作用只执行一次。
 - [ ] **D8 三元 `?:`**：分支块 + 合流（禁止 `Select`）。验证：两分支各含 `puts`，只跑一支。
 - [ ] **D9 数值转换** `NumberCovert`：`Trunc/ZExt/SExt/FPToSI/FPToUI/SIToFP/UIToFP`。
@@ -350,6 +354,13 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   对应任务 A3/B1/B2/C1/C2/C5/C6/D2/E1/E2/H1/H3。
   下一步：接入 `compiler/compile`（H2/H4/H5）或按 B 系列补齐复合类型（推荐先 B 系列，
   以便 `examples/main.sim` 尽早回归）。
+- **2026-09-26**：**M2-1 完成**（值模型/引用/算术/一元/赋值）——`genAddr`/`genExpr` 双通道
+  （可寻址：局部变量、解引用；索引/字段待 B4/B5/B6）、`&T`→`ptr`、算术/位运算/移位按符号性分派
+  （浮点 `FRem` 不调 libm）、`!`→`Not`/`Xor true`、赋值与复合赋值（左值地址单次求值）；
+  IR 级验证 udiv/ashr/lshr/srem/urem/fadd…frem；旧管线 `examples/main.sim` 回归 `123`；
+  对应任务 B3/D1(部分)/D3/D5/D6。
+  注意：`*p = x + 1` 需 `let mut p`（分析器 `DeRef.Mutable` 取的是绑定可变性而非引用目标，
+  旧后端同样被拒，属前端语义问题，非 llgen bug）。
 
 1. **M1 端到端最小闭环**（A + B1/B2 + C1/C2/C5/C6 + E2 + H）：`main` 返回常量、`puts("hello")`
    经新后端跑通，链接/缓存/Verify 全链路就位。
