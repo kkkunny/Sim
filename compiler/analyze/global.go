@@ -280,7 +280,8 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		}
 		// TODO: 只能绑定本包定义的类型
 		typedef := ct.GetDef()
-		_, ok = a.scope.LookupBind(typedef, let.Name)
+		// 仅查本包已有 bind，避免跨包同名方法导致误报（F24）
+		_, ok = a.scope.Root().LookupBindLocal(typedef, let.Name)
 		if ok {
 			a.errorf(
 				global.Name.Position,

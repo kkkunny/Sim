@@ -1,6 +1,8 @@
 package scopes
 
 import (
+	"sort"
+
 	stlmaps "github.com/kkkunny/stl/container/maps"
 	"github.com/kkkunny/stl/container/set"
 
@@ -109,7 +111,24 @@ func (s *PkgScope) AddBind(typeDef *globals.TypeDef, let *locals.Let) {
 	s.binds[typeDef][let.Name] = let
 }
 
+// LookupBind 查找类型的方法绑定（F24）：先本包，再递归 include/external 包；
+// 跨包 bind 仅导出（pub）可见。按包名稳定排序遍历，避免同名 bind 的解析随 map 序漂移。
 func (s *PkgScope) LookupBind(typeDef *globals.TypeDef, name string) (*locals.Let, bool) {
+	if let, ok := s.LookupBindLocal(typeDef, name); ok {
+		return let, true
+	}
+	pkgs := append(s.includes.ToSlice(), stlmaps.Values(s.externals)...)
+	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].Name < pkgs[j].Name })
+	for _, pkg := range pkgs {
+		if let, ok := pkg.LookupBind(typeDef, name); ok && let.Pub {
+			return let, true
+		}
+	}
+	return nil, false
+}
+
+// LookupBindLocal 仅查本包 bind（不递归 include/external），供包内重复绑定检查。
+func (s *PkgScope) LookupBindLocal(typeDef *globals.TypeDef, name string) (*locals.Let, bool) {
 	typeBinds, ok := s.binds[typeDef]
 	if !ok {
 		return nil, false
