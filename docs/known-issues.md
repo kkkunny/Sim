@@ -1,14 +1,21 @@
 # Sim 已知问题（未解决）
 
-本文件汇总当前**尚未解决**的问题：前端（parser/analyze）缺陷、LLVM 后端遗留与已知限制。
+本文件汇总当前**已知问题**（未解决项 + 保留的已修复回归项）：前端（parser/analyze）缺陷、
+LLVM 后端遗留与已知限制。
 每条都带最小复现；状态在修复后更新（标记 ✅ 并注明提交/版本），修复后不要删除条目。
 
-- 状态图例：`待修复` / `低优先` / `已知限制`（设计取舍，非缺陷）
+- 状态图例：`待修复` / `低优先` / `已知限制`（设计取舍，非缺陷）/ `✅ 已修复`（保留作回归用例）
 - 库自身问题单独记录在 [`docs/go-llvm-issues.md`](go-llvm-issues.md)
 - 历史迁移记录见 [`docs/superpowers/plans/2026-09-26-llvm-backend-migration.md`](superpowers/plans/2026-09-26-llvm-backend-migration.md)
 
 复现方式：把片段存为 `x.sim`，在仓库根运行 `go run -tags analyze . x.sim`（前端）或
-`go run -tags compile . x.sim`（含后端），观察输出。
+`go run -tags compile . x.sim`（含后端），观察输出。诊断统一输出到 **stderr**
+（管道捕获时用 `2>&1`）。
+
+> 诊断行为说明（2026-09-26 改造，提交 `1fba40f`）：前端一次编译可报告多条错误
+> （parse/analyze 均带错误恢复，以语句/全局为隔离单位）；后端未支持或防御性检查失败
+> 不再抛裸 panic，统一渲染为 `internal compiler error: ...` + Go 栈（ICE）。
+> 下方各条「现状」中的后端消息均为 ICE 形式（取首行引用，栈省略）。
 
 ---
 
@@ -34,8 +41,11 @@
 ### F2. struct 字面量歧义：`if <ident> {` / `for x in <ident> {` —— 待修复
 
 - **现象**：`parsePrimaryExpr` 对 `Ident` 后紧跟 `{` 一律按 struct 字面量解析，因此：
-  - `if b { ... }`（条件是裸标识符）报 `expected 'ident' but got 'let'`（或空 body 时触发 F3）；
-  - `for x in a { ... }`（range 是裸标识符）报 `expected ':' but got '('`。
+  - `if b { <非空 body> }` 报 `expected 'ident' but got 'let'`（`{` 被当作 struct 字面量字段列表，
+    随后恢复还可能再报一条 `unexpected token '}'`）；
+  - `if b { }`（空 body）报 `expected '{' but got 'br'`（`b {}` 整个被当作 struct 字面量消费）；
+  - `for x in a { <非空 body> }` 同样报 `expected 'ident' but got ...`，
+    `for x in a { }` 报 `expected '{' but got 'br'`。
 - **最小复现**：
   ```sim
   let main = () {
@@ -49,15 +59,18 @@
 - **临时绕过**：条件/范围用非裸标识符形式：`if b == true { }`、`for x in a[0] { }`、
   `for x in f() { }`。
 
-### F3. 报告器在部分解析错误路径 panic（slice bounds）—— 待修复
+### F3. 报告器在部分解析错误路径 panic（slice bounds）—— ✅ 已修复（1fba40f）
 
-- **现象**：`panic: runtime error: slice bounds out of range [:-1]`（`compiler/report/report.go` 位置切片），
+- **修复**：`compiler/report/report.go` 重写源码行提取与高亮区间计算（切片下标一律 clamp），
+  `ReadFromTo` 增加负区间保护；非法列号/越界位置不再崩掉诊断渲染。
+- **修复前现象**：`panic: runtime error: slice bounds out of range [:-1]`（`compiler/report/report.go` 位置切片），
   取代本应给出的诊断。
-- **最小复现**（任一）：
+- **最小复现**（现输出正常诊断，保留作为回归用例）：
   ```sim
   let f = () -> i32 { return
   }
   ```
+  现在输出：`error[unexpected token]: unexpected token 'br'`
   ```sim
   let main = () {
       let b: bool = true
@@ -65,8 +78,9 @@
       }
   }
   ```
-- **影响**：错误输入直接崩掉编译器，报错不可读。
-- **临时绕过**：避免上述写法（`return` 后补分号；`if` 用 F2 的绕过形式）。
+  现在输出：`error[expected token]: expected '{' but got 'br'`（F2 的 struct 字面量歧义表现）
+- **影响（修复前）**：错误输入直接崩掉编译器，报错不可读。
+- **临时绕过**：无需（已修复）。
 
 ### F4. `analyzeFor` 未把循环变量加入作用域 —— 待修复
 
@@ -123,7 +137,9 @@
   let f = () -> i32 { return; }
   let main = () { }
   ```
-- **现状**：llgen 报 `panic: llgen: 非 unit 函数 ... 不能使用空 return（前端漏校验）`（可读防御）。
+- **现状**：llgen/codegen 报
+  `internal compiler error: codegen (package ...): non-unit function ... cannot use a bare return (frontend missed validation)`
+  （可读防御；含 Go 栈）。
 - **影响**：合法输入集被前端放宽，错误延后到后端。
 - **修复位置**：`analyzeReturn` 的 else 分支应校验函数返回类型。
 
@@ -140,13 +156,14 @@
       let x = g()
   }
   ```
-- **现状**：llgen 报 `panic: llgen: 不能为 unit 类型的变量 x 分配存储（类型 unit）`。
+- **现状**：llgen/codegen 报
+  `internal compiler error: codegen (package ...): cannot allocate storage for unit-typed variable x (type unit)`。
 - **修复位置**：前端应拒绝 unit 型 `let`（或规定其忽略语义）。
 
 ### F9. 无隐式数值转换 —— 待修复
 
-- **现象**：旧 C 后端靠 C 隐式转换兜底，llgen 严格按 LLVM 类型调用，类型不匹配直接 panic：
-  `ir.Builder.Call: argument 0 type i64 does not match parameter type i32`。
+- **现象**：旧 C 后端靠 C 隐式转换兜底，llgen 严格按 LLVM 类型调用，类型不匹配即 ICE：
+  `internal compiler error: ir.Builder.Call: argument 0 type i64 does not match parameter type i32`（含 Go 栈）。
 - **最小复现**：
   ```sim
   @extern(putchar)
@@ -192,7 +209,9 @@
 ### B2. 全局常量初始化覆盖面窄于旧后端（已知限制）
 
 - `genConstExpr` 只支持字面量与其常量嵌套；`let g: i32 = 1 + 1`、`let g: i64 = 65 as i64`、
-  union 注入等会在全局作用域报 `panic: llgen: 暂不支持非常量全局初始化 ...`。
+  union 注入等会在全局作用域报
+  `internal compiler error: codegen (package ...): non-constant global initializer is not supported: g = ... (*locals.Binary)`
+  （消息中的表达式以 `%s` 打印 HIR 节点，可读性有限）。
 - 旧 C 后端把这些交给 C 编译器可编。后续补常量折叠/转换即可。
 
 ### B3. `for x in *getp()` 快照语义差异（低优先）
@@ -207,7 +226,9 @@
 
 ### B5. 元组常量索引越界无前置检查（低优先）
 
-- `t[9]` 最终由 `Module.Verify` 英文报错；建议加下标范围检查给中文信息。
+- `t[9]`（长度为 3 的元组常量）在 codegen 取元素时触发 Go 运行时 panic
+  `index out of range [9] with length 3`，统一渲染为 `internal compiler error: runtime error: ...`；
+  建议在 analyze/codegen 加下标范围检查，给出带位置的诊断。
 
 ### B6. `genCall` 快速路径 2 的求值时序号（低优先）
 
@@ -222,8 +243,8 @@
 ### B8. 函数值全局不能被更早的函数体前向引用（已知差异）
 
 - `let gadd = add` 这类函数值全局的符号登记晚于 `genFuncDecls`；更早函数体引用会报
-  `未找到符号`。旧后端受文件作用域声明顺序限制同样如此，非回归。补齐可让
-  `genGlobalVarDecls` 覆盖该形态。
+  `internal compiler error: codegen (package ...): symbol gadd is not registered yet (dependency module must be generated first)`。
+  旧后端受文件作用域声明顺序限制同样如此，非回归。补齐可让 `genGlobalVarDecls` 覆盖该形态。
 
 ---
 
