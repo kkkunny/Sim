@@ -249,16 +249,21 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [x] **D3 算术/位运算/移位**：按符号性 `SDiv/UDiv/SRem/URem/FAdd.../frem`、`AShr/LShr`、`And/Or/Xor`。
       验证：有/无符号（`m2_ops`：udiv/ashr/lshr；`m2_ops_int2`：srem/urem/and/or/xor/shl）、
       浮点 `m2_ops_float`（fadd/fsub/fmul/fdiv/frem，无 libm）；typedef 解包待 M3 用例。
-- [ ] **D4 比较**：`ICmp`/`FCmp` 谓词映射 → i1。验证：各类型比较结果。
+- [x] **D4（部分）比较**：`ICmp`/`FCmp` 谓词映射 → i1（有/无符号、有序浮点、bool、指针 Eq/Neq、
+      `CustomType` 递归解包）。验证：i64/i8/u8 比较与谓词 IR（`m2_cmp_paren`/`m2_edge`）；
+      复合类型相等比较待 G1~G5（现为清晰 panic）。
 - [x] **D5 一元运算**：`BitsReverse`→`Not`、`BooleanReverse`→`Xor true`、`GetRef`→genAddr、
       `DeRef`→load。验证：`m2_lvalue`（取址/解引用）、`m2_unary`（`xor i32 %v, -1` / `xor i1 %v, true`）。
 - [x] **D6 赋值/复合赋值**：左值单次求值（`genAddr` 只调用一次）。验证：`*p = x + 1`、`x += 1`
       （`m2_lvalue`）；`a[f()] += x` 类副作用左值待 B5。
-- [ ] **D7 短路 `&&/||`**：分支块 + 合流。验证：右侧带副作用只执行一次。
-- [ ] **D8 三元 `?:`**：分支块 + 合流（禁止 `Select`）。验证：两分支各含 `puts`，只跑一支。
-- [ ] **D9 数值转换** `NumberCovert`：`Trunc/ZExt/SExt/FPToSI/FPToUI/SIToFP/UIToFP`。
-      验证：全组合转换表用例。
-- [ ] **D10 TypedefCovert**：标量透传/转换（与 C 后端一致只支持标量层）。验证：`type MyInt i32` 转换。
+- [x] **D7 短路 `&&/||`**：分支块 + 合流（右侧惰性求值、最多一次）。验证：右侧带副作用的 `m2_shortcircuit`
+      输出 `FTFT`，IR 中右侧调用只在 `logic.rhs*` 分支块内。
+- [x] **D8 三元 `?:`**：分支块 + 合流（禁止 `Select`；未命中分支不执行）。验证：分支带副作用的
+      `m2_sideeffect` 输出 `AABBABB`、unit 结果 `m2_ternary_void` 输出 `AB`。
+- [x] **D9 数值转换** `NumberCovert`：`Trunc/ZExt/SExt/FPToSI/FPToUI/SIToFP/UIToFP/FPTrunc/FPExt`。
+      验证：全组合转换表用例（`m2_convert`/`m2_convert2`/`m2_edge` IR）。
+- [ ] **D10 TypedefCovert**：标量透传/转换（与 C 后端一致只支持标量层）——标量路径已随 D9 实现
+      （聚合层待 B 系列，现为清晰 panic）。验证：`type MyInt i32` / `type MyBool bool` 转换与比较。
 - [ ] **D11 索引**：数组 `GEP`、元组 `ExtractValue`/GEP；右值/左值两路径。验证：嵌套索引赋值。
 - [ ] **D12 字段访问** `GetField`：struct/带 Self 指针自动解引用。验证：`examples/main.sim` 的 `self.name`。
 - [ ] **D13 调用**：直接 `Call`、外部调用已实现并验证（`m1_putchar`/`m1_puts`）；
@@ -361,6 +366,18 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   对应任务 B3/D1(部分)/D3/D5/D6。
   注意：`*p = x + 1` 需 `let mut p`（分析器 `DeRef.Mutable` 取的是绑定可变性而非引用目标，
   旧后端同样被拒，属前端语义问题，非 llgen bug）。
+- **2026-09-26**：**M2-2 完成**（比较/短路/三元/数值转换）——D4 `ICmp`/`FCmp` 谓词映射
+  （有/无符号、有序浮点、bool i1、指针 Eq/Neq、`CustomType` 递归解包；聚合相等待 G1~G5 并清晰 panic）、
+  D7 `&&`/`||` 与 D8 `?:` 分支块 + 入口块临时 alloca 合流（右侧/未命中分支惰性求值：
+  `m2_shortcircuit`→`FTFT`、`m2_sideeffect`→`AABBABB`、`m2_ternary_void`→`AB`，
+  IR 中右侧调用只出现在分支块内）、D9 全组合转换（trunc/zext/sext/sitofp/uitofp/fptosi/fptoui/
+  fptrunc/fpext）与 D10 标量 typedef 透传；旧管线 `examples/main.sim` 回归 `123`。
+  发现前端问题（非本任务范围，旧 C 后端同样复现）：
+  (1) parser 缺陷：`parseSuffixExpr` 在二元运算符循环之前消费 `?`，故 `1 < 2 ? a : b` 被解析为
+  `1 < (2 ? a : b)`，验收用例需给条件加括号，建议后续单独修 parser；
+  (2) `std/buildin` 的 `type bool bool` 使 `bool` 名解析为 `_CustomBooleanType`（`String()` 也是
+  "bool"），`let b = mb as bool; cond ? ...` 处 `expectTypeExpr(cond, types.Bool)` 因
+  `_CustomBooleanType.Equal(_BooleanType)==false` 报 "expected 'bool' but got 'bool'"。
 
 1. **M1 端到端最小闭环**（A + B1/B2 + C1/C2/C5/C6 + E2 + H）：`main` 返回常量、`puts("hello")`
    经新后端跑通，链接/缓存/Verify 全链路就位。

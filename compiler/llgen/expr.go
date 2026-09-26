@@ -33,6 +33,10 @@ func (c *CodeGenerator) genExpr(expr locals.Expr) llvm.AnyValue {
 		return c.genUnary(expr)
 	case *locals.Binary:
 		return c.genBinary(expr)
+	case locals.Covert:
+		return c.genCovert(expr)
+	case *locals.Ternary:
+		return c.genTernary(expr)
 	default:
 		panic(fmt.Errorf("llgen: 暂不支持的表达式 %s（%T）", expr, expr))
 	}
@@ -122,9 +126,14 @@ func (c *CodeGenerator) genBinary(expr *locals.Binary) llvm.AnyValue {
 		locals.BinaryOpEnum.Rem, locals.BinaryOpEnum.And, locals.BinaryOpEnum.Or, locals.BinaryOpEnum.Xor,
 		locals.BinaryOpEnum.Shl, locals.BinaryOpEnum.Shr:
 		return c.genBinaryOp(expr.Op, expr.Left.GetType(), c.genExpr(expr.Left), c.genExpr(expr.Right))
+	case locals.BinaryOpEnum.Eq, locals.BinaryOpEnum.Neq, locals.BinaryOpEnum.Lt, locals.BinaryOpEnum.Lte,
+		locals.BinaryOpEnum.Gt, locals.BinaryOpEnum.Gte:
+		return c.genCompare(expr.Op, expr.Left.GetType(), c.genExpr(expr.Left), c.genExpr(expr.Right))
+	case locals.BinaryOpEnum.LogicAnd, locals.BinaryOpEnum.LogicOr:
+		return c.genLogic(expr)
 	default:
-		// D4 比较、D7 短路、D14 自增不在本任务
-		panic(fmt.Errorf("llgen: 暂不支持的二元运算 %s（%T，D4/D7）", expr.Op, expr.Op))
+		// D14 自增不在本任务
+		panic(fmt.Errorf("llgen: 暂不支持的二元运算 %s（%T，D14）", expr.Op, expr.Op))
 	}
 }
 
@@ -208,6 +217,299 @@ func (c *CodeGenerator) genIntBinaryOp(op locals.BinaryOp, signed bool, left, ri
 		return c.builder.LShr(l, r, "")
 	default:
 		panic(fmt.Errorf("llgen: 暂不支持的整数二元运算 %s（D4/D7）", op))
+	}
+}
+
+// genCompare 比较运算（D4）：结果为 i1；t 取左操作数类型
+func (c *CodeGenerator) genCompare(op locals.BinaryOp, t hir.Type, left, right llvm.AnyValue) llvm.AnyValue {
+	switch types.GetUnderlying(t).(type) {
+	case types.FloatType:
+		return c.builder.FCmp(floatCmpPred(op), asFloat(left), asFloat(right), "")
+	case types.SintType:
+		return c.builder.ICmp(intCmpPred(op, true), asInt(left), asInt(right), "")
+	case types.UintType:
+		return c.builder.ICmp(intCmpPred(op, false), asInt(left), asInt(right), "")
+	case types.BooleanType:
+		if op == locals.BinaryOpEnum.Eq || op == locals.BinaryOpEnum.Neq {
+			return c.builder.ICmp(intCmpPred(op, true), asInt(left), asInt(right), "")
+		}
+		panic(fmt.Errorf("llgen: bool 不支持大小比较 %s", op))
+	case types.RefType:
+		if op == locals.BinaryOpEnum.Eq || op == locals.BinaryOpEnum.Neq {
+			return c.builder.ICmp(intCmpPred(op, true), left, right, "")
+		}
+		panic(fmt.Errorf("llgen: 引用不支持大小比较 %s", op))
+	default:
+		panic(fmt.Errorf("llgen: 暂不支持 %s 类型的比较 %s（复合类型相等比较待 G1~G5）", t, op))
+	}
+}
+
+// intCmpPred 整数比较谓词（D4）
+func intCmpPred(op locals.BinaryOp, signed bool) llvm.IntPred {
+	switch op {
+	case locals.BinaryOpEnum.Eq:
+		return llvm.IntEQ
+	case locals.BinaryOpEnum.Neq:
+		return llvm.IntNE
+	case locals.BinaryOpEnum.Lt:
+		if signed {
+			return llvm.IntSLT
+		}
+		return llvm.IntULT
+	case locals.BinaryOpEnum.Lte:
+		if signed {
+			return llvm.IntSLE
+		}
+		return llvm.IntULE
+	case locals.BinaryOpEnum.Gt:
+		if signed {
+			return llvm.IntSGT
+		}
+		return llvm.IntUGT
+	case locals.BinaryOpEnum.Gte:
+		if signed {
+			return llvm.IntSGE
+		}
+		return llvm.IntUGE
+	default:
+		panic(fmt.Errorf("llgen: 非比较运算 %s", op))
+	}
+}
+
+// floatCmpPred 浮点比较谓词（D4）：有序谓词，与 C 比较语义（NaN 比较恒假/不等为真）一致
+func floatCmpPred(op locals.BinaryOp) llvm.FloatPred {
+	switch op {
+	case locals.BinaryOpEnum.Eq:
+		return llvm.FloatOEQ
+	case locals.BinaryOpEnum.Neq:
+		return llvm.FloatONE
+	case locals.BinaryOpEnum.Lt:
+		return llvm.FloatOLT
+	case locals.BinaryOpEnum.Lte:
+		return llvm.FloatOLE
+	case locals.BinaryOpEnum.Gt:
+		return llvm.FloatOGT
+	case locals.BinaryOpEnum.Gte:
+		return llvm.FloatOGE
+	default:
+		panic(fmt.Errorf("llgen: 非比较运算 %s", op))
+	}
+}
+
+// genLogic 短路 && / ||（D7）：右侧惰性求值且最多执行一次，结果 i1
+func (c *CodeGenerator) genLogic(expr *locals.Binary) llvm.AnyValue {
+	boolT := c.ctx.LLVM().Bool()
+	slot := c.allocaTemp(boolT, "")
+	left := c.genExpr(expr.Left)
+	c.builder.Store(left, slot)
+
+	rhsBlock := c.currentFunc.NewBlock("logic.rhs")
+	endBlock := c.currentFunc.NewBlock("logic.end")
+	if expr.Op == locals.BinaryOpEnum.LogicAnd {
+		// 左假短路
+		c.builder.CondBr(asInt(left), rhsBlock, endBlock)
+	} else {
+		// 左真短路
+		c.builder.CondBr(asInt(left), endBlock, rhsBlock)
+	}
+	c.terminated = true
+
+	c.moveTo(rhsBlock)
+	right := c.genExpr(expr.Right)
+	if !c.terminated {
+		c.builder.Store(right, slot)
+		c.builder.Br(endBlock)
+		c.terminated = true
+	}
+
+	c.moveTo(endBlock)
+	return c.builder.Load[llvm.DynT](slot, boolT.DynType(), "")
+}
+
+// genTernary 三元 ?:（D8）：只执行命中的分支（分支可有副作用），禁止 Select 双求值
+func (c *CodeGenerator) genTernary(expr *locals.Ternary) llvm.AnyValue {
+	resultT := c.genType(expr.GetType())
+	if _, ok := resultT.(llvm.VoidType); ok {
+		return c.genTernaryVoid(expr)
+	}
+
+	slot := c.allocaTemp(resultT, "")
+	cond := c.genExpr(expr.Condition)
+
+	thenBlock := c.currentFunc.NewBlock("tern.then")
+	elseBlock := c.currentFunc.NewBlock("tern.else")
+	endBlock := c.currentFunc.NewBlock("tern.end")
+	c.builder.CondBr(asInt(cond), thenBlock, elseBlock)
+	c.terminated = true
+
+	c.moveTo(thenBlock)
+	trueV := c.genExpr(expr.TrueExpr)
+	if !c.terminated {
+		c.builder.Store(trueV, slot)
+		c.builder.Br(endBlock)
+		c.terminated = true
+	}
+
+	c.moveTo(elseBlock)
+	falseV := c.genExpr(expr.FalseExpr)
+	if !c.terminated {
+		c.builder.Store(falseV, slot)
+		c.builder.Br(endBlock)
+		c.terminated = true
+	}
+
+	c.moveTo(endBlock)
+	return c.builder.Load[llvm.DynT](slot, resultT.DynType(), "")
+}
+
+// genTernaryVoid unit 结果的三元：无合流值，只保留分支结构
+func (c *CodeGenerator) genTernaryVoid(expr *locals.Ternary) llvm.AnyValue {
+	cond := asInt(c.genExpr(expr.Condition))
+
+	thenBlock := c.currentFunc.NewBlock("tern.then")
+	elseBlock := c.currentFunc.NewBlock("tern.else")
+	endBlock := c.currentFunc.NewBlock("tern.end")
+	br := c.builder.CondBr(cond, thenBlock, elseBlock)
+	c.terminated = true
+
+	c.moveTo(thenBlock)
+	c.genExpr(expr.TrueExpr)
+	if !c.terminated {
+		c.builder.Br(endBlock)
+		c.terminated = true
+	}
+
+	c.moveTo(elseBlock)
+	c.genExpr(expr.FalseExpr)
+	if !c.terminated {
+		c.builder.Br(endBlock)
+		c.terminated = true
+	}
+
+	c.moveTo(endBlock)
+	return br.Dyn()
+}
+
+// allocaTemp 在函数入口块分配表达式临时存储（短路/三元合流用）
+func (c *CodeGenerator) allocaTemp(t llvm.AnyType, name string) llvm.Value[llvm.PtrT] {
+	cur, ok := c.builder.CurrentBlock()
+	entry, ok2 := c.currentFunc.EntryBlock()
+	if !ok || !ok2 {
+		return c.builder.Alloca(t, name).Value
+	}
+	// 入口块已插入指令则插入到首指令前（保证支配所有可达分支），否则直接追加
+	if first, ok := entry.FirstInst(); ok {
+		c.builder.MoveBefore(first)
+	} else {
+		c.builder.MoveToEnd(entry)
+	}
+	ptr := c.builder.Alloca(t, name).Value
+	// 仅恢复插入位置，不改变 terminated 状态
+	c.builder.MoveToEnd(cur)
+	return ptr
+}
+
+// genCovert 转换表达式（D9 数值转换 / D10 标量 typedef 透传）
+func (c *CodeGenerator) genCovert(expr locals.Covert) llvm.AnyValue {
+	switch expr := expr.(type) {
+	case *locals.NumberCovert:
+		return c.genNumberConvert(
+			types.GetUnderlying(expr.GetFrom().GetType()),
+			types.GetUnderlying(expr.GetType()),
+			c.genExpr(expr.GetFrom()),
+		)
+	case *locals.TypedefCovert:
+		from, to := expr.GetFrom().GetType(), expr.GetType()
+		v := c.genExpr(expr.GetFrom())
+		if c.genType(from).Equal(c.genType(to)) {
+			// 标量别名/str 等底层 LLVM 类型一致：直接透传
+			return v
+		}
+		fromU, toU := types.GetUnderlying(from), types.GetUnderlying(to)
+		if isNumber(fromU) && isNumber(toU) {
+			return c.genNumberConvert(fromU, toU, v)
+		}
+		panic(fmt.Errorf("llgen: 暂不支持 %s 到 %s 的 TypedefCovert（聚合层待 B 系列）", from, to))
+	case *locals.Union:
+		panic(fmt.Errorf("llgen: 暂不支持 union 注入（B9）"))
+	default:
+		panic(fmt.Errorf("llgen: 暂不支持的转换表达式 %s（%T）", expr, expr))
+	}
+}
+
+// genNumberConvert 标量数值转换（D9）：from/to 均为已解包的基础类型
+func (c *CodeGenerator) genNumberConvert(from, to hir.Type, v llvm.AnyValue) llvm.AnyValue {
+	switch from := from.(type) {
+	case types.SintType:
+		return c.genIntConvert(v, from.GetBits(), true, to)
+	case types.UintType:
+		return c.genIntConvert(v, from.GetBits(), false, to)
+	case types.FloatType:
+		return c.genFloatConvert(v, from.GetBits(), to)
+	default:
+		panic(fmt.Errorf("llgen: 不支持的数值转换 %s -> %s", from, to))
+	}
+}
+
+// genIntConvert 整数 → 整数/浮点（D9）
+func (c *CodeGenerator) genIntConvert(v llvm.AnyValue, fromBits uint8, signed bool, to hir.Type) llvm.AnyValue {
+	iv := asInt(v)
+	if ft, ok := to.(types.FloatType); ok {
+		dst := c.genType(ft).(llvm.FloatType)
+		if signed {
+			return c.builder.SIToFP(iv, dst, "")
+		}
+		return c.builder.UIToFP(iv, dst, "")
+	}
+	toNum, ok := to.(types.NumberType)
+	if !ok {
+		panic(fmt.Errorf("llgen: 不支持的整数目标类型 %s", to))
+	}
+	dst := c.genType(to).(llvm.IntType)
+	switch toBits := toNum.GetBits(); {
+	case toBits < fromBits:
+		return c.builder.Trunc(iv, dst, "")
+	case toBits > fromBits:
+		if signed {
+			return c.builder.SExt(iv, dst, "")
+		}
+		return c.builder.ZExt(iv, dst, "")
+	default:
+		// 同宽：仅符号性变化，位模式不变
+		return iv
+	}
+}
+
+// genFloatConvert 浮点 → 浮点/整数（D9）
+func (c *CodeGenerator) genFloatConvert(v llvm.AnyValue, fromBits uint8, to hir.Type) llvm.AnyValue {
+	fv := asFloat(v)
+	switch to := to.(type) {
+	case types.FloatType:
+		dst := c.genType(to).(llvm.FloatType)
+		switch toBits := to.GetBits(); {
+		case toBits < fromBits:
+			return c.builder.FPTrunc(fv, dst, "")
+		case toBits > fromBits:
+			return c.builder.FPExt(fv, dst, "")
+		default:
+			return fv
+		}
+	case types.SintType:
+		return c.builder.FPToSI(fv, c.genType(to).(llvm.IntType), "")
+	case types.UintType:
+		return c.builder.FPToUI(fv, c.genType(to).(llvm.IntType), "")
+	default:
+		panic(fmt.Errorf("llgen: 不支持的浮点目标类型 %s", to))
+	}
+}
+
+// isNumber 是否标量数值类型
+func isNumber(t hir.Type) bool {
+	switch t.(type) {
+	case types.SintType, types.UintType, types.FloatType:
+		return true
+	default:
+		return false
 	}
 }
 
