@@ -23,125 +23,6 @@
 
 ## 一、前端（parser / analyze）
 
-### F1. 三元运算符优先级错误 —— 待修复
-
-- **现象**：`1 < 2 ? a : b` 被解析为 `1 < (2 ? a : b)`。`?` 在 `parseSuffixExpr` 的
-  suffix 循环里被消费，早于二元运算符循环（`compiler/parse/expr.go`）。
-- **最小复现**：
-  ```sim
-  @extern(putchar)
-  pub let putchar: (i32) -> i32
-
-  let main = () {
-      putchar(1 < 2 ? 65 : 66)
-  }
-  ```
-  实际：`error[unexpected expression]: expected expression type 'bool' but got 'f64'`
-- **影响**：条件含比较/算术的三元必须加括号，易误导师也给不出正确指向的报错。
-- **临时绕过**：给条件加括号 `(1 < 2) ? 65 : 66`。
-
-### F2. struct 字面量歧义：`if <ident> {` / `for x in <ident> {` —— 待修复
-
-- **现象**：`parsePrimaryExpr` 对 `Ident` 后紧跟 `{` 一律按 struct 字面量解析，因此：
-  - `if b { <非空 body> }` 报 `expected 'ident' but got 'let'`（`{` 被当作 struct 字面量字段列表，
-    随后恢复还可能再报一条 `unexpected token '}'`）；
-  - `if b { }`（空 body）报 `expected '{' but got 'br'`（`b {}` 整个被当作 struct 字面量消费）；
-  - `for x in a { <非空 body> }` 同样报 `expected 'ident' but got ...`，
-    `for x in a { }` 报 `expected '{' but got 'br'`。
-  - **更一般**：条件/范围**表达式以标识符结尾**时同样触发——`if t1 == t2 { ... }`、`if b == c { ... }`、
-    `while x > y { ... }` 都会被 `t2`/`c`/`y` 后的 `{` 误判为 struct 字面量；
-    条件以 `true`/`false`/数字/`)`/`]` 结尾时可正常解析（这也是既有绕过写法偶发可用的原因）。
-- **最小复现**：
-  ```sim
-  let main = () {
-      let b: bool = true
-      if b {
-          let y: i32 = 1
-      }
-  }
-  ```
-- **影响**：`if`/`for-in` 的最自然写法不可用；`examples` 恰好未触发。
-- **临时绕过**：条件/范围用非裸标识符形式：`if b == true { }`（右操作数为关键字）、
-  `if (a == b) { }`（整个条件加括号）、`for x in a[0] { }`、`for x in f() { }`。
-
-### F4. `analyzeFor` 未把循环变量加入作用域 —— 待修复
-
-- **现象**：`for x in ... { ... }` 体内引用 `x` 报 `unknown identifier 'x'`；
-  `compiler/analyze/local.go` 创建了 `hir.Param` 但没有 `scope.AddValue(param)`。
-- **最小复现**（用 F2 绕过写法让 range 可解析）：
-  ```sim
-  @extern(putchar)
-  pub let putchar: (i32) -> i32
-
-  let geta = () -> [2]i32 { return [65, 66] }
-
-  let main = () {
-      for x in geta() {
-          putchar(x)
-      }
-  }
-  ```
-- **影响**：for-in 无法端到端使用（llgen 已生成正确的元素绑定，等前端修复后即可工作）。
-- **临时绕过**：无（只能用索引循环手动取值）。
-
-### F5. `DeRef` 可变性检查方向错误 —— 待修复
-
-- **现象**：`let p = &mut x; *p = v` 被拒 `must mutable`——检查的是绑定 `p` 的可变性，
-  而非引用目标的可变性。
-- **最小复现**：
-  ```sim
-  let main = () {
-      let mut x: i32 = 65
-      let p = &mut x
-      *p = 66
-  }
-  ```
-- **影响**：不可变绑定持有可变引用时无法写回，与直觉/语义不符。
-- **临时绕过**：`let mut p = &mut x`。
-
-### F6. `analyzeBinary` 可变性检查漏 `MulAssign` —— 待修复
-
-- **现象**：`x *= v` 不做可变性/临时值检查，而 `x += v` 会拒绝。
-- **最小复现**（应被拒绝，实际通过）：
-  ```sim
-  let main = () {
-      let x: i32 = 2
-      x *= 3
-  }
-  ```
-- **影响**：对不可变变量/临时值的 `*=` 静默通过（生成后端仍会写非法存储，属隐患）。
-- **临时绕过**：无（自律）。
-
-### F7. 无值 `return` 在非 unit 函数中不被拒绝 —— 待修复（后端已有防御）
-
-- **最小复现**：
-  ```sim
-  let f = () -> i32 { return; }
-  let main = () { }
-  ```
-- **现状**：codegen 报
-  `internal compiler error: codegen (package ...): non-unit function ... cannot use a bare return (frontend missed validation)`
-  （可读防御；含 Go 栈）。
-- **影响**：合法输入集被前端放宽，错误延后到后端。
-- **修复位置**：`analyzeReturn` 的 else 分支应校验函数返回类型。
-
-### F8. unit 局部变量被 analyze 放行 —— 待修复（后端已有防御）
-
-- **最小复现**：
-  ```sim
-  @extern(putchar)
-  pub let putchar: (i32) -> i32
-
-  let g = () { putchar(71) }
-
-  let main = () {
-      let x = g()
-  }
-  ```
-- **现状**：codegen 报
-  `internal compiler error: codegen (package ...): cannot allocate storage for unit-typed variable x (type unit)`。
-- **修复位置**：前端应拒绝 unit 型 `let`（或规定其忽略语义）。
-
 ### F9. 无隐式数值转换 —— 待修复
 
 - **现象**：旧 C 后端靠 C 隐式转换兜底，codegen 严格按 LLVM 类型调用，类型不匹配即 ICE：
@@ -158,39 +39,8 @@
   ```
 - **影响**：`analyzeCall` 只对字面量/union 注入做转换，非字面量表达式的隐式转换缺口暴露。
 - **临时绕过**：显式标注类型或 `as` 转换（`let t: (i32, i32, i32) = ...`）。
-
-### F12. 取函数符号地址无前端检查（后端 ICE）—— 待修复
-
-- **现象**：`&g`（`g` 为全局函数）analyze 放行，codegen `genAddr` 的 `FuncSymbol` 分支 panic：
-  `taking the address of function symbol ... is not supported (function values are not lvalues)`；
-  写在全局初始化器中则报 `non-constant global initializer is not supported: f = &{%!s(...)...}`
-  （ICE 消息还是 Go 结构体垃圾，见 B2）。
-- **最小复现**：
-  ```sim
-  let g = () {
-  }
-  let main = () {
-      let x = &g
-  }
-  ```
-- **影响**：合法语法形态得到 ICE 而非带位置的诊断。
-- **临时绕过**：无（避免对函数符号取地址）。
-- **修复位置**：`analyzeGetReference` 检查操作数是否为函数符号（`*locals.Let` + `FuncType`）。
-
-### F15. 负数字面量不支持 —— 待修复
-
-- **现象**：`-1` 报 `unexpected token '-'`——`parseUnaryExpr` 只处理 `!` 与 `*`，未处理 `-`
-  （`compiler/parse/expr.go`）；词法器也不产生带符号整数。
-- **最小复现**：
-  ```sim
-  let main = () {
-      let x = -1
-  }
-  ```
-- **影响**：负数只能写成 `0 - 1` 或（有变量时）`x - 1`，常见控制流/算术写法不可用。
-- **临时绕过**：`0 - 1`。
-- **修复位置**：`parseUnaryExpr` 支持 `KindEnum.Sub`；或词法器在 `-` 后紧邻数字时合并为负数
-  （注意与二元减号消歧，前者更稳妥）。
+- **修复位置**：`analyzeCall` 实参改走期望类型校验（字面量适配 + 非字面量报诊断），
+  并审计其余期望类型消费点。
 
 ### F17. 赋值左结合，链式赋值不可用 —— 待修复（低优先）
 
@@ -202,6 +52,7 @@
 
 - **现象**：`PkgScope.LookupValue/LookupType` 遍历 `includes`（map 序）找符号，
   多个 include 包导出同名符号时解析结果随 map 迭代序漂移，且无「歧义」诊断。
+  （`LookupBind` 已按包名稳定排序遍历，不受此条影响。）
 - **影响**：同名导出符号的行为不可复现。修法：按确定序遍历 + 歧义报错，或显式禁止歧义。
 
 ### F19. 循环类型诊断后不短路，`GetUnderlying` 潜在无限递归 —— 待修复（低优先）
@@ -216,13 +67,6 @@
   }
   ```
 - **修复位置**：类型阶段有错时短路后续阶段（或在 `GetUnderlying` 加环检测防御）。
-
-### F20. 语言无注释语法 —— 待修复（语言缺口）
-
-- **现象**：`skipWhite` 只跳空格/制表/回车；`//`、`/* */` 都会被当作 token 导致解析错误，
-  `.sim` 源码无法写注释。
-- **影响**：示例与 std 源码目前零注释；对使用者是明显缺口。
-- **修复位置**：词法器 `skipWhite` 中增加行注释/块注释跳过；若为有意取舍应在 README 注明。
 
 ### F21. `lex.peek` 失败走裸 panic —— 待修复（低优先）
 
@@ -239,7 +83,7 @@
 
 ### F23. union 注入不接受未标注的数值字面量 —— 待修复
 
-- **现象**：union 期望类型下整数字面量被默认为 `f64`（`analyzeInteger` 的 else 分支），
+- **现象**：union 期望类型下整数字面量被默认为 f64（`analyzeInteger` 的 else 分支），
   而 union 注入分支只接受与成员完全 `Equal` 的值，因此 `let u: U = 65` 报
   `expected expression type 'U' but got 'f64'`。
 - **最小复现**：
@@ -252,33 +96,6 @@
 - **影响**：union 最自然的字面量注入写法不可用（与 F9 同源：缺隐式数值转换/期望类型传播）。
 - **临时绕过**：`let x: i32 = 65; let u: U = x`。
 - **修复位置**：`analyzeInteger` 在期望 union 时按成员匹配，或 union 注入前对字面量重试成员类型。
-
-### F24. 方法绑定（bind）不能跨包查找 —— 待修复
-
-- **现象**：包内 `pub let m | T = ...` 定义的方法，导入该包后对 `pkg::T` 值调用 `v.m()`
-  报 `unknown identifier 'm'`——`analyzeMember` 用当前 analyzer 的 `scope.LookupBind` 查找，
-  而被导入包的 binds 只登记在其自身 `PkgScope`，未随 `AddInclude/AddExternal` 合并
-  （`compiler/analyze/global.go` 内有 `// TODO: 只能绑定本包定义的类型`）。
-- **最小复现**：
-  ```sim
-  --- p1/p1.sim
-  pub type S struct {
-      name: str
-  }
-  pub let getname | S = (self: &Self) -> str {
-      return self.name
-  }
-  --- app.sim
-  import p1
-  let main = () {
-      let s = p1::S{name: "x"}
-      let n = s.getname()
-  }
-  ```
-  报：`error[unknown identifier]: unknown identifier 'getname'`
-- **影响**：类型可导出但方法不可跨包调用，限制了面向对象能力的实际使用。
-- **临时绕过**：在调用方包内为同一类型补一个 bind，或改为自由函数。
-- **修复位置**：`PkgScope.LookupBind` 递归 includes/externals；或把 bind 表挂到 `TypeDef` 上。
 
 ---
 

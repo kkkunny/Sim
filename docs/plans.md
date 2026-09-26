@@ -69,7 +69,7 @@
 - **现状**：bind 语义散落在 `analyzeMember`、`GetBind.IsStatic`、`codegen.genGetBind` 三处，
   且 `genGetBind` 在 codegen 期动态构造 HIR（`locals.NewFunc/NewCall`）绕过 analyze 校验。
 - **目标**：analyze/lowering 阶段统一 desugar 为「函数字面量 + 调用」，codegen 只处理常规闭包。
-- **验收**：known-issues 的 F24 修复过程可顺带完成；bind 相关用例（含 `examples/main.sim`）行为不变。
+- **验收**：bind 相关用例（含 `examples/main.sim`）行为不变。
 
 ### P9. 后序遍历统一
 
@@ -112,3 +112,17 @@
 - **目标**：ctx 堆分配 + 生命周期管理；语言层需要所有权/GC 设计（自动内存管理是 README
   宣称的目标之一）。
 - **验收**：闭包作为返回值逃逸后调用结果正确，无悬垂。
+
+### P14. 注释语法
+
+- **现状**：词法器 `skipWhite` 只跳空格/制表/回车；`//`、`/* */` 都会被当作 token 导致解析错误，
+  `.sim` 源码无法写注释（原 known-issues F20）。
+- **目标**：支持行注释 `//` 与块注释 `/* */`（是否嵌套待定）；std/examples 补注释。
+- **验收**：注释可出现在任意空白位置，诊断位置/行列不受影响。
+
+### P15. 浮点字面量语法
+
+- **现状**：词法器 `scanInteger` 只扫描十进制数字，token/AST 均无浮点字面量；
+  `1.5` 被切成 `1` `.` `5` 产生解析错误（清理 F15 时发现）。f32/f64 目前只能由整数字面量转换生成。
+- **目标**：支持 `1.5`、`1e10` 等浮点字面量，与整数字面量同走期望类型适配（含负数折叠路径）。
+- **验收**：`let x: f64 = 1.5` 等用例通过，std 与大用例结果不变。
