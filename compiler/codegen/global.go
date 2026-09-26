@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -73,7 +71,7 @@ func (c *CodeGenerator) customAggregateElems(underlying hir.Type) []llvm.AnyType
 		payload, _ := c.genUnionPayload(elems)
 		return []llvm.AnyType{c.ctx.LLVM().Int(8), payload}
 	default:
-		panic(fmt.Errorf("llgen: 预声明的自定义类型 %T 不是聚合类型", underlying))
+		panic(c.ice("predeclared custom type %T is not an aggregate type", underlying))
 	}
 }
 
@@ -162,7 +160,7 @@ func (c *CodeGenerator) genGlobalVar(l *locals.Let) {
 		// LLVM 全局初始化器必须是常量；C 后端同样只能处理常量表达式
 		cv, ok := c.genConstExpr(v)
 		if !ok {
-			panic(fmt.Errorf("llgen: 暂不支持非常量全局初始化 %s = %s（%T）", l.Name, v, v))
+			panic(c.ice("non-constant global initializer is not supported: %s = %s (%T)", l.Name, v, v))
 		}
 		g.SetInitializer(cv)
 	} else if l.ExternalName.IsNone() {
@@ -188,7 +186,7 @@ func (c *CodeGenerator) genGlobalFunc(l *locals.Let, expr *locals.Func) {
 	ident := c.ctx.idents[l]
 	decl, ok := c.module.GetFunction(ident.Name)
 	if !ok {
-		panic(fmt.Errorf("llgen: 函数 %s 的符号未在模块中登记（%s）", l.Name, ident.Name))
+		panic(c.ice("symbol of function %s is not registered in the module (%s)", l.Name, ident.Name))
 	}
 	c.genFuncBody(decl, expr, body, 0, nil)
 }

@@ -3,20 +3,24 @@ package report
 import (
 	"io"
 
-	stlerr "github.com/kkkunny/stl/error"
-
 	"github.com/kkkunny/Sim/compiler/reader"
 )
 
 func ReadFromTo(r reader.Reader, from, to int64) (string, error) {
+	if from < 0 {
+		from = 0
+	}
+	if to < from {
+		return "", nil
+	}
 	_, err := r.Seek(from, io.SeekStart)
 	if err != nil {
 		return "", err
 	}
 	data := make([]byte, to-from)
-	_, err = stlerr.ErrorWith(r.Read(data))
+	n, err := r.Read(data)
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	return string(data[:n]), nil
 }

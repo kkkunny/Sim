@@ -89,8 +89,8 @@ func (a *Analyzer) analyzeStrictExpr(expr ast.Expr, expect ...hir.Type) locals.E
 // 期待类型，两个类型必须完全相同
 func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) locals.Expr {
 	v := a.analyzeExpr(expr, expect)
-	if vt := v.GetType(); !vt.Equal(expect) {
-		a.reporter.Fatalf(
+	if vt := v.GetType(); !isInvalidType(vt) && !isInvalidType(expect) && !vt.Equal(expect) {
+		a.errorf(
 			expr.Position(),
 			report.Errors.UnexpectedExpression,
 			expect, vt,
@@ -102,10 +102,14 @@ func (a *Analyzer) expectTypeExpr(expr ast.Expr, expect hir.Type) locals.Expr {
 // 期待类型，属于指定的类型
 func expectTypeExpr[T hir.Type](a *Analyzer, expr ast.Expr, expect ...hir.Type) locals.Expr {
 	v := a.analyzeExpr(expr, expect...)
-	if vt := v.GetType(); !stlval.Is[T](vt) {
+	vt := v.GetType()
+	if isInvalidType(vt) || stlslices.Any(expect, func(_ int, t hir.Type) bool { return isInvalidType(t) }) {
+		return v
+	}
+	if !stlval.Is[T](vt) {
 		typename := reflect.TypeFor[T]().Name()
 		typename = strings.TrimSuffix(strings.ToLower(typename), "type")
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.Position(),
 			report.Errors.UnexpectedExpressionCategory,
 			typename, vt,
@@ -114,35 +118,45 @@ func expectTypeExpr[T hir.Type](a *Analyzer, expr ast.Expr, expect ...hir.Type) 
 	return v
 }
 
-func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) *locals.IdentExpr {
+func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) locals.Expr {
 	samePkg := true
 	pkg := a.scope
 	if pkgAst, ok := expr.Pkg.Value(); ok {
 		samePkg = false
 		pkg, ok = pkg.LookupPkg(pkgAst.OriginText)
 		if !ok {
-			a.reporter.Fatalf(
+			a.errorf(
 				pkgAst.Position,
 				report.Errors.UnknownIdentifier,
 				pkgAst.OriginText,
 			)
+			return locals.NewInvalid()
 		}
 	}
 
 	v, ok := pkg.LookupValue(expr.Name.OriginText)
 	if !ok ||
 		(!samePkg && !v.Public()) {
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.Name.Position,
 			report.Errors.UnknownIdentifier,
 			expr.Name.OriginText,
 		)
+		return locals.NewInvalid()
 	}
 
 	if let, ok := v.(*locals.Let); ok && let.Type == nil {
 		// 全局变量定义，没有显式定义类型
 		// 不可能跨包还没有类型
-		v = a.analyzeGlobalLetDef(a.letDef2Ast[let])
+		astLet, ok := a.letDef2Ast[let]
+		if !ok {
+			return locals.NewInvalid()
+		}
+		def := a.analyzeGlobalLetDef(astLet)
+		if def == nil {
+			return locals.NewInvalid()
+		}
+		v = def
 	}
 	return locals.NewIdentExpr(v)
 }
@@ -160,14 +174,16 @@ func (a *Analyzer) analyzeChar(expr *ast.Char, expect ...hir.Type) locals.Expr {
 	charText := expr.Value.OriginText[1 : len(expr.Value.OriginText)-1]
 	charText = util.ParseEscapeCharacter(charText, `\'`, `'`)
 	chars := utf8string.NewString(charText)
+	var char rune
 	if !utf8.Valid([]byte(charText)) || chars.RuneCount() != 1 {
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.Value.Position,
 			report.Errors.InvalidChar,
 			charText,
 		)
+	} else {
+		char = chars.At(0)
 	}
-	char := chars.At(0)
 
 	if len(expect) == 0 || stlval.Is[types.IntegerType](stlslices.Last(expect)) {
 		return locals.NewInteger(types.I32, big.NewInt(int64(char)))
@@ -180,7 +196,7 @@ func (a *Analyzer) analyzeString(expr *ast.String) locals.Expr {
 	strText := expr.Value.OriginText[1 : len(expr.Value.OriginText)-1]
 	strText = util.ParseEscapeCharacter(strText, `\"`, `"`)
 	if !utf8.Valid([]byte(strText)) {
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.Value.Position,
 			report.Errors.InvalidChar,
 			strText,
@@ -189,27 +205,37 @@ func (a *Analyzer) analyzeString(expr *ast.String) locals.Expr {
 	return locals.NewString(types.Str, strText)
 }
 
-func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...hir.Type) locals.Unary {
+func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...hir.Type) locals.Expr {
 	switch expr.Op.Kind {
 	case token.KindEnum.Not:
 		v := a.analyzeExpr(expr.Expr, expect...)
-		if vt := v.GetType(); stlval.Is[types.IntegerType](vt) {
+		vt := v.GetType()
+		if isInvalidType(vt) {
+			return v
+		}
+		if stlval.Is[types.IntegerType](vt) {
 			return locals.NewBitReverse(v)
 		} else if stlval.Is[types.BooleanType](vt) {
 			return locals.NewBooleanReverse(v)
 		} else {
-			a.reporter.Fatalf(
+			a.errorf(
 				expr.Position(),
 				report.Errors.UnexpectedExpressionCategory,
 				"integer or boolean", vt,
 			)
-			return nil
+			return locals.NewInvalid()
 		}
 	case token.KindEnum.Mul:
 		if len(expect) > 0 {
 			expect = []hir.Type{types.NewRefType(false, stlslices.Last(expect))}
 		}
 		v := expectTypeExpr[types.RefType](a, expr.Expr, expect...)
+		if isInvalidType(v.GetType()) {
+			return v
+		}
+		if _, ok := v.GetType().(types.RefType); !ok {
+			return locals.NewInvalid()
+		}
 		return locals.NewDeRef(v)
 	default:
 		panic("unreachable")
@@ -327,15 +353,14 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...hir.Type) *locals.B
 			token.KindEnum.ShrAssign,
 		},
 		expr.Op.Kind,
-	) {
+	) && !isInvalidType(left.GetType()) {
 		if left.Temporary() {
-			a.reporter.Fatalf(
+			a.errorf(
 				expr.Left.Position(),
 				report.Errors.MustNotTemporary,
 			)
-		}
-		if !left.Mutable() {
-			a.reporter.Fatalf(
+		} else if !left.Mutable() {
+			a.errorf(
 				expr.Left.Position(),
 				report.Errors.MustMutable,
 			)
@@ -352,6 +377,9 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...hir.Type) *locals.B
 func (a *Analyzer) analyzeFunc(expr *ast.Func) *locals.Func {
 	scope := scopes.NewBlockScope(a.scope)
 	a.scope = scope
+	defer func() {
+		a.scope, _ = a.scope.Parent()
+	}()
 
 	ft := a.analyzeFuncDecl(expr)
 
@@ -380,27 +408,39 @@ func (a *Analyzer) analyzeFunc(expr *ast.Func) *locals.Func {
 		}
 	})
 
-	a.scope, _ = a.scope.Parent()
-
 	f := locals.NewFunc(ft, params...)
 	f.Body = body
 	f.CaptureVariables = captureVars
 	return f
 }
 
-func (a *Analyzer) analyzeCall(expr *ast.Call) *locals.Call {
-	f := expectTypeExpr[types.FuncType](a, expr.Func)
-	ft := f.GetType().(types.FuncType)
+func (a *Analyzer) analyzeCall(expr *ast.Call) locals.Expr {
+	f := a.analyzeExpr(expr.Func)
+	ft, ok := f.GetType().(types.FuncType)
+	if !ok {
+		if !isInvalidType(f.GetType()) {
+			a.errorf(
+				expr.Func.Position(),
+				report.Errors.UnexpectedExpressionCategory,
+				"function", f.GetType(),
+			)
+		}
+		return locals.NewInvalid()
+	}
 	params := ft.GetParams()
 	if len(params) != len(expr.Args) {
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.Position(),
 			report.Errors.InsufficientArguments,
 			len(params), len(expr.Args),
 		)
 	}
-	args := stlslices.Map(expr.Args, func(i int, expr ast.Expr) locals.Expr {
-		return a.analyzeExpr(expr, params[i])
+	args := stlslices.Map(expr.Args, func(i int, arg ast.Expr) locals.Expr {
+		var expect []hir.Type
+		if i < len(params) {
+			expect = append(expect, params[i])
+		}
+		return a.analyzeExpr(arg, expect...)
 	})
 	return locals.NewCall(f, args...)
 }
@@ -444,32 +484,39 @@ func (a *Analyzer) analyzeTuple(expr *ast.Tuple, expect ...hir.Type) locals.Expr
 func (a *Analyzer) analyzeIndex(expr *ast.Index) locals.Expr {
 	from := a.analyzeExpr(expr.From)
 	ft := from.GetType()
+	if isInvalidType(ft) {
+		return locals.NewInvalid()
+	}
 
 	if stlval.Is[types.TupleType](ft) {
 		index := expectTypeExpr[types.IntegerType](a, expr.Index)
 		indexValue, ok := index.(*locals.Integer)
 		if !ok {
-			a.reporter.Fatalf(
-				expr.Index.Position(),
-				report.Errors.ExpectedIntegerConstant,
-			)
+			// 类型本身就不是整数时，上面的类型检查已经报过错，不再重复
+			if !isInvalidType(index.GetType()) && stlval.Is[types.IntegerType](index.GetType()) {
+				a.errorf(
+					expr.Index.Position(),
+					report.Errors.ExpectedIntegerConstant,
+				)
+			}
+			return locals.NewInvalid()
 		}
 		return locals.NewTupleIndex(from, indexValue.Value)
 	}
 
-	at, ok := ft.(types.ArrayType)
-	if !ok {
-		a.reporter.Fatalf(
+	if _, ok := ft.(types.ArrayType); !ok {
+		a.errorf(
 			expr.From.Position(),
 			report.Errors.UnexpectedExpressionCategory,
-			"array", at,
+			"array", ft,
 		)
+		return locals.NewInvalid()
 	}
 	index := expectTypeExpr[types.IntegerType](a, expr.Index)
 	return locals.NewArrayIndex(from, index)
 }
 
-func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *locals.Array {
+func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) locals.Expr {
 	var size *big.Int
 	var expectElemType hir.Type
 	if len(expect) > 0 {
@@ -493,11 +540,12 @@ func (a *Analyzer) analyzeArray(expr *ast.Array, expect ...hir.Type) *locals.Arr
 		}
 	})
 
-	if size == nil || expectElemType == nil {
-		a.reporter.Fatalf(
+	if size == nil || expectElemType == nil || isInvalidType(expectElemType) {
+		a.errorf(
 			expr.Position(),
 			report.Errors.MissingType,
 		)
+		return locals.NewInvalid()
 	}
 
 	var t types.ArrayType
@@ -575,13 +623,17 @@ func (a *Analyzer) tryGetZeroExpr(t hir.Type) (locals.Expr, bool) {
 
 // 获取类型的零值
 func (a *Analyzer) getZeroExpr(pos reader.Position, t hir.Type) locals.Expr {
+	if isInvalidType(t) {
+		return locals.NewInvalid()
+	}
 	v, ok := a.tryGetZeroExpr(t)
 	if !ok {
-		a.reporter.Fatalf(
+		a.errorf(
 			pos,
 			report.Errors.TypeMissingDefaultValue,
 			t,
 		)
+		return locals.NewInvalid()
 	}
 	return v
 }
@@ -591,6 +643,9 @@ func (a *Analyzer) analyzeAs(expr *ast.As) locals.Expr {
 	v := a.analyzeExpr(expr.Left, to)
 	from := v.GetType()
 
+	if isInvalidType(to) || isInvalidType(from) {
+		return locals.NewInvalid()
+	}
 	if from.Equal(to) {
 		return v
 	}
@@ -602,19 +657,19 @@ func (a *Analyzer) analyzeAs(expr *ast.As) locals.Expr {
 		return locals.NewTypedefCovert(v, to)
 	}
 
-	a.reporter.Fatalf(
+	a.errorf(
 		expr.Left.Position(),
 		report.Errors.InvalidTypeCovert,
 		from, to,
 	)
-	return nil
+	return locals.NewInvalid()
 }
 
 func (a *Analyzer) analyzeBoolean(expr *ast.Boolean) *locals.Boolean {
 	return locals.NewBoolean(types.Bool, expr.Value.Kind == token.KindEnum.True)
 }
 
-func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Type) *locals.GetRef {
+func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Type) locals.Expr {
 	var expectElemType []hir.Type
 	if len(expect) > 0 {
 		if rt, ok := stlslices.Last(expect).(types.RefType); ok {
@@ -623,13 +678,16 @@ func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Typ
 	}
 	from := a.analyzeExpr(expr.Value, expectElemType...)
 
+	if isInvalidType(from.GetType()) {
+		return locals.NewInvalid()
+	}
 	if from.Temporary() {
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.Value.Position(),
 			report.Errors.MustNotTemporary,
 		)
 	} else if expr.Mut && !from.Mutable() {
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.Value.Position(),
 			report.Errors.MustMutable,
 		)
@@ -644,15 +702,18 @@ func (a *Analyzer) analyzeTernary(expr *ast.Ternary, expect ...hir.Type) *locals
 	return locals.NewTernary(cond, trueExpr, falseExpr)
 }
 
-func (a *Analyzer) analyzeStruct(expr *ast.Struct) *locals.Struct {
+func (a *Analyzer) analyzeStruct(expr *ast.Struct) locals.Expr {
 	t := a.analyzeType(expr.Type)
 	st, ok := t.(types.StructType)
 	if !ok {
-		a.reporter.Fatalf(
-			expr.Position(),
-			report.Errors.UnexpectedExpressionCategory,
-			"struct", t,
-		)
+		if !isInvalidType(t) {
+			a.errorf(
+				expr.Position(),
+				report.Errors.UnexpectedExpressionCategory,
+				"struct", t,
+			)
+		}
+		return locals.NewInvalid()
 	}
 
 	fields := make(map[string]locals.Expr, len(expr.Fields))
@@ -661,14 +722,15 @@ func (a *Analyzer) analyzeStruct(expr *ast.Struct) *locals.Struct {
 			return f.Name.OriginText == sf.Name
 		})
 		if !ok {
-			a.reporter.Fatalf(
+			a.errorf(
 				f.Name.Position,
 				report.Errors.UnknownIdentifier,
 				f.Name.OriginText,
 			)
+			continue
 		}
 		if _, ok = fields[f.Name.OriginText]; ok {
-			a.reporter.Fatalf(
+			a.errorf(
 				f.Name.Position,
 				report.Errors.RepeatedIdentifier,
 				f.Name.OriginText,
@@ -682,6 +744,9 @@ func (a *Analyzer) analyzeStruct(expr *ast.Struct) *locals.Struct {
 func (a *Analyzer) analyzeMember(expr *ast.Member) locals.Expr {
 	from := a.analyzeExpr(expr.From)
 	fromType := from.GetType()
+	if isInvalidType(fromType) {
+		return locals.NewInvalid()
+	}
 	for {
 		refT, ok := fromType.(types.RefType)
 		if !ok {
@@ -689,6 +754,9 @@ func (a *Analyzer) analyzeMember(expr *ast.Member) locals.Expr {
 		}
 		fromType = refT.PtrTo()
 		from = locals.NewDeRef(from)
+	}
+	if isInvalidType(fromType) {
+		return locals.NewInvalid()
 	}
 
 	// 绑定
@@ -703,21 +771,23 @@ func (a *Analyzer) analyzeMember(expr *ast.Member) locals.Expr {
 	// 结构体字段
 	st, ok := fromType.(types.StructType)
 	if !ok {
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.From.Position(),
 			report.Errors.UnexpectedExpressionCategory,
 			"struct", fromType,
 		)
+		return locals.NewInvalid()
 	}
 	field, ok := stlslices.FindFirst(st.GetFields(), func(_ int, f *types.StructField) bool {
 		return f.Name == expr.Name.OriginText
 	})
 	if !ok {
-		a.reporter.Fatalf(
+		a.errorf(
 			expr.Name.Position,
 			report.Errors.UnknownIdentifier,
 			expr.Name.OriginText,
 		)
+		return locals.NewInvalid()
 	}
 	return locals.NewGetField(from, field.Name)
 }

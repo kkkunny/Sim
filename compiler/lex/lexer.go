@@ -34,7 +34,7 @@ func New(r reader.Reader) *Lexer {
 func (l *Lexer) next() rune {
 	c, _, err := stlerror.ErrorWith2(l.reader.ReadRune())
 	if err != nil && !errors.Is(err, io.EOF) {
-		panic(err)
+		panic(&Error{Pos: l.Position(), Err: err})
 	}
 	if err == nil {
 		l.cache.WriteRune(c)
@@ -60,7 +60,7 @@ func (l *Lexer) peek(skip ...uint) rune {
 	for i := 0; i < offset; i++ {
 		cc, size, err := stlerror.ErrorWith2(l.reader.ReadRune())
 		if err != nil && !errors.Is(err, io.EOF) {
-			panic(err)
+			panic(&Error{Pos: l.Position(), Err: err})
 		}
 		c = cc
 		s += size

@@ -36,7 +36,7 @@ func (c *CodeGenerator) buildClosure(expr *locals.Func) *closureInfo {
 	name := fmt.Sprintf("_closure.%d", c.ctx.closureCount)
 	funcT, ok := asFuncType(expr.GetType())
 	if !ok {
-		panic(fmt.Errorf("llgen: 函数字面量的类型 %s 不是函数类型", expr.GetType()))
+		panic(c.ice("type %s of function literal is not a func type", expr.GetType()))
 	}
 	if len(info.captures) == 0 {
 		info.fn = c.module.NewFunction(name, c.genNativeFuncType(funcT))
@@ -133,7 +133,7 @@ func (c *CodeGenerator) genGetBind(expr *locals.GetBind) llvm.AnyValue {
 
 	funcT, ok := asFuncType(expr.GetType())
 	if !ok {
-		panic(fmt.Errorf("llgen: 绑定的类型 %s 不是函数类型", expr.GetType()))
+		panic(c.ice("bind type %s is not a func type", expr.GetType()))
 	}
 	params := stlslices.Map(funcT.GetParams(), func(i int, pt hir.Type) *hir.Param {
 		return hir.NewParam(false, pt, fmt.Sprintf("p%d", i+1))
@@ -180,7 +180,7 @@ func (c *CodeGenerator) genGetBind(expr *locals.GetBind) llvm.AnyValue {
 func bindFirstParam(bind *locals.Let) hir.Type {
 	funcT, ok := asFuncType(bind.GetType())
 	if !ok || len(funcT.GetParams()) == 0 {
-		panic(fmt.Errorf("llgen: 绑定 %s 的类型 %s 不是带 self 参数的函数类型", bind.Name, bind.GetType()))
+		panic(fmt.Errorf("codegen: bind %s has type %s, not a func type with self param", bind.Name, bind.GetType()))
 	}
 	return funcT.GetParams()[0]
 }

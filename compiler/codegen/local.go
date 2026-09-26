@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
 
@@ -35,7 +33,7 @@ func (c *CodeGenerator) genLocal(local locals.Local) {
 		c.ensureBlock()
 		c.genExpr(local)
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持的语句 %T", local))
+		panic(c.ice("unsupported statement %T", local))
 	}
 }
 
@@ -127,7 +125,7 @@ func (c *CodeGenerator) genWhile(l *locals.While) {
 func (c *CodeGenerator) genFor(l *locals.For) {
 	at, ok := types.GetUnderlying(l.Range.GetType()).(types.ArrayType)
 	if !ok {
-		panic(fmt.Errorf("llgen: for-in 的遍历对象必须是数组（实际 %s）", l.Range.GetType()))
+		panic(c.ice("for-in range must be an array (got %s)", l.Range.GetType()))
 	}
 	arrayT := c.genType(l.Range.GetType())
 	// 先取 Range 地址（只求值一次，必要时物化），循环体按索引读取
@@ -191,7 +189,7 @@ func (c *CodeGenerator) genReturn(l *locals.Return) {
 		// does not match operand type of return inst!"）。正常前端应拒绝，此处防御性报错，
 		// 用后端错误替换难懂的验证器英文信息。
 		if !c.currentFunc.Signature().Return().Equal(c.ctx.LLVM().Void()) {
-			panic(fmt.Errorf("llgen: 非 unit 函数 %s 不能使用空 return（前端漏校验）", c.currentFunc.Name()))
+			panic(c.ice("non-unit function %s cannot use a bare return (frontend missed validation)", c.currentFunc.Name()))
 		}
 		c.builder.RetVoid()
 	}
@@ -201,7 +199,7 @@ func (c *CodeGenerator) genReturn(l *locals.Return) {
 func (c *CodeGenerator) genLocalLet(l *locals.Let) {
 	// unit 类型不能 alloca（LLVM 不允许 void 存储）；正常前端会拒绝，此处防御性报错
 	if _, ok := types.GetUnderlying(l.GetType()).(types.UnitType); ok {
-		panic(fmt.Errorf("llgen: 不能为 unit 类型的变量 %s 分配存储（类型 %s）", l.Name, l.GetType()))
+		panic(c.ice("cannot allocate storage for unit-typed variable %s (type %s)", l.Name, l.GetType()))
 	}
 	// 与参数一致在入口块分配（§4.3）：循环体内的 let 不会每轮消耗新栈空间
 	ptr := c.allocaEntry(c.genType(l.GetType()), l.Name)

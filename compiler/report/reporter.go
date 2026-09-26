@@ -2,13 +2,13 @@ package report
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/kkkunny/Sim/compiler/reader"
 )
 
-// Reporter 错误报告器
+// Reporter 诊断报告器：累积错误与警告，由调用方决定何时输出、何时终止。
 type Reporter struct {
 	reports []*report
 }
@@ -23,7 +23,7 @@ func (r *Reporter) Warn(title, message string, pos reader.Position) {
 }
 
 func (r *Reporter) Warnf(pos reader.Position, err ErrorType, args ...any) {
-	r.Warn(string(err), fmt.Sprintf(errorFormats[err], args...), pos)
+	r.Warn(string(err), formatError(err, args...), pos)
 }
 
 func (r *Reporter) Error(title, message string, pos reader.Position) {
@@ -31,17 +31,7 @@ func (r *Reporter) Error(title, message string, pos reader.Position) {
 }
 
 func (r *Reporter) Errorf(pos reader.Position, err ErrorType, args ...any) {
-	r.Error(string(err), fmt.Sprintf(errorFormats[err], args...), pos)
-}
-
-func (r *Reporter) Fatal(title, message string, pos reader.Position) {
-	r.Error(title, message, pos)
-	r.Print()
-	os.Exit(1)
-}
-
-func (r *Reporter) Fatalf(pos reader.Position, err ErrorType, args ...any) {
-	r.Fatal(string(err), fmt.Sprintf(errorFormats[err], args...), pos)
+	r.Error(string(err), formatError(err, args...), pos)
 }
 
 // HasErrors 检查是否有错误
@@ -64,7 +54,7 @@ func (r *Reporter) HasWarns() bool {
 	return false
 }
 
-// Emit 输出所有报告
+// Emit 输出所有报告为字符串
 func (r *Reporter) Emit() string {
 	var sb strings.Builder
 
@@ -87,7 +77,7 @@ func (r *Reporter) Emit() string {
 	if errorCount > 0 || warningCount > 0 {
 		sb.WriteString("Summary: ")
 		if errorCount > 0 {
-			sb.WriteString(fmt.Sprintf("%d report(s)", errorCount))
+			sb.WriteString(fmt.Sprintf("%d error(s)", errorCount))
 		}
 		if warningCount > 0 {
 			if errorCount > 0 {
@@ -97,11 +87,22 @@ func (r *Reporter) Emit() string {
 		}
 		sb.WriteString("\n")
 	}
+	if errorCount > 0 {
+		sb.WriteString(fmt.Sprintf("error: aborting due to %d previous error(s)\n", errorCount))
+	}
 
 	return sb.String()
 }
 
-// Print 打印所有报告到标准输出
-func (r *Reporter) Print() {
-	fmt.Print(r.Emit())
+// Print 打印所有报告
+func (r *Reporter) Print(w io.Writer) {
+	fmt.Fprint(w, r.Emit())
+}
+
+func formatError(err ErrorType, args ...any) string {
+	format, ok := errorFormats[err]
+	if !ok {
+		return string(err)
+	}
+	return fmt.Sprintf(format, args...)
 }

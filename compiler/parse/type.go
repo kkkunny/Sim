@@ -74,7 +74,7 @@ func (p *Parser) parsePrimaryType() ast.Type {
 	case token.KindEnum.Struct:
 		return p.parseStructType()
 	default:
-		p.reporter.Fatalf(
+		p.errorAt(
 			p.nextToken.Position,
 			report.Errors.UnexpectedToken,
 			p.nextToken.Kind,

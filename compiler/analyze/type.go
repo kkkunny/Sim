@@ -50,7 +50,7 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 		for i, f := range t.Fields {
 			name := f.Name.OriginText
 			if !names.Add(name) {
-				a.reporter.Fatalf(
+				a.errorf(
 					f.Name.Position,
 					report.Errors.RepeatedIdentifier,
 					name,
@@ -76,29 +76,32 @@ func (a *Analyzer) analyzeIdentType(t *ast.IdentType) hir.Type {
 		samePkg = false
 		pkg, ok = pkg.LookupPkg(pkgAst.OriginText)
 		if !ok {
-			a.reporter.Fatalf(
+			a.errorf(
 				pkgAst.Position,
 				report.Errors.UnknownIdentifier,
 				pkgAst.OriginText,
 			)
+			return types.Invalid
 		}
 	}
 
 	if ct, ok := pkg.LookupType(t.Name.OriginText); ok {
 		if !samePkg && !ct.GetDef().Pub {
-			a.reporter.Fatalf(
+			a.errorf(
 				t.Name.Position,
 				report.Errors.UnknownIdentifier,
 				t.Name.OriginText,
 			)
+			return types.Invalid
 		}
 		return ct
 	} else if !samePkg {
-		a.reporter.Fatalf(
+		a.errorf(
 			t.Name.Position,
 			report.Errors.UnknownIdentifier,
 			t.Name.OriginText,
 		)
+		return types.Invalid
 	}
 	return a.analyzeBuildInIdentType(t)
 }
@@ -106,11 +109,11 @@ func (a *Analyzer) analyzeIdentType(t *ast.IdentType) hir.Type {
 func (a *Analyzer) analyzeBuildInIdentType(t *ast.IdentType) hir.Type {
 	switch t.Name.OriginText {
 	case "unit":
-		a.reporter.Fatalf(
+		a.errorf(
 			t.Name.Position,
 			report.Errors.InvalidType,
 		)
-		return nil
+		return types.Invalid
 	case "i8":
 		return types.I8
 	case "i16":
@@ -136,12 +139,12 @@ func (a *Analyzer) analyzeBuildInIdentType(t *ast.IdentType) hir.Type {
 	case "str":
 		return types.Str
 	default:
-		a.reporter.Fatalf(
+		a.errorf(
 			t.Name.Position,
 			report.Errors.UnknownIdentifier,
 			t.Name.OriginText,
 		)
-		return nil
+		return types.Invalid
 	}
 }
 

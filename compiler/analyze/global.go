@@ -55,7 +55,7 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	if name != "" {
 		_, ok := a.scope.LookupPkg(name)
 		if ok {
-			a.reporter.Fatalf(
+			a.errorf(
 				lastPkgToken.Position,
 				report.Errors.RepeatedIdentifier,
 				name,
@@ -91,7 +91,7 @@ func (a *Analyzer) analyzeTypePreDecl(global ast.Global) *globals.TypeDef {
 		decl := globals.NewTypeDef(global.Public, global.Name.OriginText)
 		a.typeDef2Ast.Set(decl, global)
 		if stlmaps.ContainKey(a.typeName2Def, global.Name.OriginText) {
-			a.reporter.Fatalf(
+			a.errorf(
 				global.Name.Position,
 				report.Errors.RepeatedIdentifier,
 				global.Name.OriginText,
@@ -114,7 +114,7 @@ func (a *Analyzer) analyzeTypeDecl(global ast.Global) {
 func (a *Analyzer) analyzeCustomTypeDecl(stacks set.Set[*globals.TypeDef], global *ast.TypeDef) types.CustomType {
 	_, ok := a.scope.LookupType(global.Name.OriginText)
 	if ok {
-		a.reporter.Fatalf(
+		a.errorf(
 			global.Name.Position,
 			report.Errors.RepeatedIdentifier,
 			global.Name.OriginText,
@@ -122,11 +122,15 @@ func (a *Analyzer) analyzeCustomTypeDecl(stacks set.Set[*globals.TypeDef], globa
 	}
 
 	decl := a.typeDef2Ast.GetKey(global)
+	if decl == nil {
+		a.abort()
+	}
 	if !stacks.Add(decl) {
-		a.reporter.Fatalf(
+		a.errorf(
 			global.Name.Position,
 			report.Errors.CircularReference,
 		)
+		a.abort()
 	}
 	defer stacks.Remove(decl)
 
@@ -145,6 +149,9 @@ func (a *Analyzer) analyzeCustomTypeDecl(stacks set.Set[*globals.TypeDef], globa
 			}
 		} else {
 			underlying = a.analyzeBuildInIdentType(t)
+		}
+		if _, invalid := underlying.(types.InvalidType); invalid || underlying == nil {
+			a.abort()
 		}
 		switch underlying.(type) {
 		case types.SintType:
@@ -202,7 +209,10 @@ func (a *Analyzer) analyzeTypeDef(global ast.Global) {
 }
 
 func (a *Analyzer) analyzeCustomTypeDef(global *ast.TypeDef) *globals.TypeDef {
-	ct, _ := a.scope.LookupType(global.Name.OriginText)
+	ct, ok := a.scope.LookupType(global.Name.OriginText)
+	if !ok {
+		return nil
+	}
 	def := ct.GetDef()
 	if def.Underlying != nil {
 		return def
@@ -231,7 +241,7 @@ func (a *Analyzer) analyzeGlobalValueDecl(global ast.Global) {
 func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 	_, ok := a.scope.LookupValue(global.Name.OriginText)
 	if ok {
-		a.reporter.Fatalf(
+		a.errorf(
 			global.Name.Position,
 			report.Errors.RepeatedIdentifier,
 			global.Name.OriginText,
@@ -249,17 +259,18 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 		bindType := a.analyzeType(bind)
 		ct, ok := bindType.(types.CustomType)
 		if !ok {
-			a.reporter.Fatalf(
+			a.errorf(
 				bind.Position(),
 				report.Errors.UnexpectedTypeCategory,
 				"custom", bindType,
 			)
+			a.abort()
 		}
 		// TODO: 只能绑定本包定义的类型
 		typedef := ct.GetDef()
 		_, ok = a.scope.LookupBind(typedef, let.Name)
 		if ok {
-			a.reporter.Fatalf(
+			a.errorf(
 				global.Name.Position,
 				report.Errors.RepeatedIdentifier,
 				global.Name.OriginText,
@@ -287,7 +298,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 			if global.Name.OriginText == "main" {
 				expectType := types.NewFuncType(types.Unit)
 				if !let.Type.Equal(expectType) {
-					a.reporter.Fatalf(
+					a.errorf(
 						global.Name.Position,
 						report.Errors.UnexpectedExpression,
 						expectType, let.Type,
@@ -296,7 +307,7 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 			}
 		} else {
 			if global.Name.OriginText == "main" {
-				a.reporter.Fatalf(
+				a.errorf(
 					global.Name.Position,
 					report.Errors.InvalidMainFunction,
 				)
@@ -330,12 +341,21 @@ func (a *Analyzer) analyzeGlobalValueDef(global ast.Global) globals.Global {
 }
 
 func (a *Analyzer) analyzeGlobalLetDef(local *ast.Let) *locals.Let {
-	decl := stlval.IgnoreWith(a.scope.LookupValue(local.Name.OriginText)).(*locals.Let)
+	v, ok := a.scope.LookupValue(local.Name.OriginText)
+	if !ok {
+		// 声明阶段已失败，跳过该全局
+		return nil
+	}
+	decl, ok := v.(*locals.Let)
+	if !ok {
+		return nil
+	}
 	if !a.letDefStack.Add(decl) {
-		a.reporter.Fatalf(
+		a.errorf(
 			local.Name.Position,
 			report.Errors.CircularReference,
 		)
+		a.abort()
 	}
 	defer a.letDefStack.Remove(decl)
 
@@ -359,7 +379,7 @@ func (a *Analyzer) analyzeGlobalLetDef(local *ast.Let) *locals.Let {
 		for i, past := range fast.Params {
 			if past.Name.OriginText == "self" {
 				if i != 0 {
-					a.reporter.Fatalf(
+					a.errorf(
 						past.Name.Position,
 						report.Errors.UnexpectedSelfPosition,
 					)
@@ -373,7 +393,7 @@ func (a *Analyzer) analyzeGlobalLetDef(local *ast.Let) *locals.Let {
 						}
 					}
 					if !validSelfType {
-						a.reporter.Fatalf(
+						a.errorf(
 							past.Type.Position(),
 							report.Errors.UnexpectedSelfType,
 						)
@@ -388,6 +408,10 @@ func (a *Analyzer) analyzeGlobalLetDef(local *ast.Let) *locals.Let {
 	} else if decl.Type != nil && decl.ExternalName.IsNone() {
 		decl.Value = optional.Some(a.getZeroExpr(local.Name.Position, decl.Type))
 	} else {
+		v, ok := local.Value.Value()
+		if !ok {
+			return nil
+		}
 		decl.Value = optional.Some(a.analyzeExpr(v))
 		decl.Type = decl.Value.MustValue().GetType()
 	}

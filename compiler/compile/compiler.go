@@ -18,6 +18,8 @@ import (
 
 type Compiler struct {
 	ctx *codegen.Context
+
+	err error // 遍历中首次出现的错误
 }
 
 func NewCompiler() *Compiler {
@@ -59,22 +61,19 @@ func (c *Compiler) Compile(pkg *globals.Package) error {
 	}
 
 	dagger.OrderedWalk(c)
-	return nil
+	return c.err
 }
 
 func (c *Compiler) Visit(v dag.Vertexer) {
+	if c.err != nil {
+		return
+	}
 	_, obj := v.Vertex()
 	pkg := obj.(*globals.Package)
 	if pkg.Name == "main" {
-		err := c.compileMainPkg(pkg)
-		if err != nil {
-			panic(err)
-		}
+		c.err = c.compileMainPkg(pkg)
 	} else {
-		err := c.compileDepPkg(pkg)
-		if err != nil {
-			panic(err)
-		}
+		c.err = c.compileDepPkg(pkg)
 	}
 }
 

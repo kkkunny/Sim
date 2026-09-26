@@ -16,7 +16,7 @@ func (p *Parser) parseAttribute() (attrs []ast.Attribute) {
 		case "extern":
 			attrs = append(attrs, p.parseExtern(begin))
 		default:
-			p.reporter.Fatalf(
+			p.errorAt(
 				reader.MixPosition(begin, p.curToken.Position),
 				report.Errors.UnknownAttribute,
 				name,

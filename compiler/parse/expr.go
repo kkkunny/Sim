@@ -194,7 +194,7 @@ func (p *Parser) parsePrimaryExpr() ast.Expr {
 		p.next()
 		return &ast.Boolean{Value: p.curToken}
 	default:
-		p.reporter.Fatalf(
+		p.errorAt(
 			p.nextToken.Position,
 			report.Errors.UnexpectedToken,
 			p.nextToken.Kind,

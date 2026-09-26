@@ -6,21 +6,40 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	stlerror "github.com/kkkunny/stl/error"
+	"strings"
 
 	"github.com/kkkunny/Sim/compiler/lex"
 	"github.com/kkkunny/Sim/compiler/reader"
+	"github.com/kkkunny/Sim/compiler/report"
 
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
 func main() {
-	file := stlerror.MustWith(os.Open(os.Args[1]))
+	defer report.RecoverICE()
+	report.SetupConsole()
+
+	file, err := os.Open(os.Args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 	defer file.Close()
 	lexer := lex.New(reader.NewFile(os.Args[1], file))
-	wd := stlerror.MustWith(os.Getwd())
-	relpath := stlerror.MustWith(filepath.Rel(wd, os.Args[1]))
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	absPath, err := filepath.Abs(os.Args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	relpath, err := filepath.Rel(wd, absPath)
+	if err != nil || strings.HasPrefix(relpath, "..") {
+		relpath = absPath
+	}
 	for tok := lexer.Scan(); !tok.Is(token.KindEnum.Eof); tok = lexer.Scan() {
 		fmt.Printf("%s:", relpath)
 		fmt.Println(tok)

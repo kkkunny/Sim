@@ -11,12 +11,16 @@ import (
 	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
 	"github.com/kkkunny/Sim/compiler/hir/types"
+	"github.com/kkkunny/Sim/compiler/report"
 )
 
 func (a *Analyzer) analyzeBlock(block *ast.Block) *locals.Block {
 	hirBlock := locals.NewBlock()
 	for _, stmt := range block.Stmts {
-		hirBlock.Stmts = append(hirBlock.Stmts, a.analyzeLocal(stmt))
+		func() {
+			defer a.recoverFromAbort()
+			hirBlock.Stmts = append(hirBlock.Stmts, a.analyzeLocal(stmt))
+		}()
 	}
 	return hirBlock
 }
@@ -82,18 +86,23 @@ func (a *Analyzer) analyzeLocalLet(local *ast.Let) *locals.Let {
 func (a *Analyzer) analyzeIf(local *ast.If) *locals.If {
 	cond := a.expectTypeExpr(local.Condition, types.Bool)
 
-	a.scope = scopes.NewBlockScope(a.scope)
+	prevScope := a.scope
+	a.scope = scopes.NewBlockScope(prevScope)
+	defer func() {
+		a.scope = prevScope
+	}()
+
 	body := a.analyzeBlock(local.Body)
-	a.scope, _ = a.scope.Parent()
+	a.scope = prevScope
 
 	var next []either.Either[*locals.If, *locals.Block]
 	if nextLocal, ok := local.Else.Value(); ok {
 		if elseif, ok := nextLocal.TryLeft(); ok {
 			next = append(next, either.Left[*locals.If, *locals.Block](a.analyzeIf(elseif)))
 		} else {
-			a.scope = scopes.NewBlockScope(a.scope)
+			a.scope = scopes.NewBlockScope(prevScope)
 			next = append(next, either.Right[*locals.If, *locals.Block](a.analyzeBlock(nextLocal.Right())))
-			a.scope, _ = a.scope.Parent()
+			a.scope = prevScope
 		}
 	}
 
@@ -108,21 +117,38 @@ func (a *Analyzer) analyzeWhile(local *ast.While) *locals.While {
 		cond = locals.NewBoolean(types.Bool, true)
 	}
 
-	a.scope = scopes.NewBlockScope(a.scope)
+	prevScope := a.scope
+	a.scope = scopes.NewBlockScope(prevScope)
+	defer func() {
+		a.scope = prevScope
+	}()
 	body := a.analyzeBlock(local.Body)
-	a.scope, _ = a.scope.Parent()
+	a.scope = prevScope
 
 	return locals.NewWhile(cond, body)
 }
 
 func (a *Analyzer) analyzeFor(local *ast.For) *locals.For {
-	rangv := expectTypeExpr[types.ArrayType](a, local.Range)
-	et := rangv.GetType().(types.ArrayType).GetElem()
+	rangv := a.analyzeExpr(local.Range)
+	et := hir.Type(types.Invalid)
+	if at, ok := rangv.GetType().(types.ArrayType); ok {
+		et = at.GetElem()
+	} else if !isInvalidType(rangv.GetType()) {
+		a.errorf(
+			local.Range.Position(),
+			report.Errors.UnexpectedExpressionCategory,
+			"array", rangv.GetType(),
+		)
+	}
 	param := hir.NewParam(local.Mut, et, local.Variable.OriginText)
 
-	a.scope = scopes.NewBlockScope(a.scope)
+	prevScope := a.scope
+	a.scope = scopes.NewBlockScope(prevScope)
+	defer func() {
+		a.scope = prevScope
+	}()
 	body := a.analyzeBlock(local.Body)
-	a.scope, _ = a.scope.Parent()
+	a.scope = prevScope
 
 	return locals.NewFor(param, rangv, body)
 }

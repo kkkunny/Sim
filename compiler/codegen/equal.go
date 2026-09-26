@@ -45,7 +45,7 @@ func (c *CodeGenerator) genEqualsAs(not bool, t hir.Type, llvmT llvm.AnyType, le
 	case types.RefType:
 		return c.builder.ICmp(intCmpPred(eqOp, true), left, right, "")
 	case types.StringType:
-		panic(fmt.Errorf("llgen: 暂不支持 str 类型的相等比较（旧 C 后端同样不支持）"))
+		panic(c.ice("equality comparison is not supported for str (also unsupported by the old C backend)"))
 	case types.FuncType:
 		// G6/F5 函数值相等：fn 与 ctx 两个指针都比较
 		// （ctx 为 null 时比较 fn；ctx 相同时再比 fn，与旧 FUNC_EQ 语义一致）
@@ -72,7 +72,7 @@ func (c *CodeGenerator) genEqualsAs(not bool, t hir.Type, llvmT llvm.AnyType, le
 		}
 		return res
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持 %s 类型的相等比较", t))
+		panic(c.ice("equality comparison is not supported for type %s", t))
 	}
 }
 
@@ -129,7 +129,7 @@ func (c *CodeGenerator) genEqFuncBody(t hir.Type, llvmT llvm.AnyType, fn ir.Func
 	case types.UnionType:
 		c.genEqUnionBody(t, llvmT, x, y)
 	default:
-		panic(fmt.Errorf("llgen: 相等性辅助函数不支持类型 %T", t))
+		panic(c.ice("equality helper does not support type %T", t))
 	}
 }
 

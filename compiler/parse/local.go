@@ -30,15 +30,49 @@ func (p *Parser) parseBlock() *ast.Block {
 	begin := p.expect(token.KindEnum.Lbr).Position
 	p.skip(token.KindEnum.Sem, token.KindEnum.Br)
 	var stmts []ast.Local
-	for p.nextToken.Kind != token.KindEnum.Rbr {
-		stmts = append(stmts, p.parseLocal())
-		if !p.ifSkip(token.KindEnum.Sem) && !p.ifSkip(token.KindEnum.Br) {
-			break
+	for p.nextToken.Kind != token.KindEnum.Rbr && p.nextToken.Kind != token.KindEnum.Eof {
+		before := p.nextToken.Position.BeginOffset
+		stmt, ok := p.parseLocalSafe()
+		if ok {
+			stmts = append(stmts, stmt)
 		}
-		p.skip(token.KindEnum.Sem, token.KindEnum.Br)
+		// 语句分隔符：分号或换行
+		if p.nextToken.Kind == token.KindEnum.Sem || p.nextToken.Kind == token.KindEnum.Br {
+			p.skip(token.KindEnum.Sem, token.KindEnum.Br)
+		} else if ok && p.nextToken.Kind != token.KindEnum.Rbr && p.nextToken.Kind != token.KindEnum.Eof {
+			p.reporter.Errorf(
+				p.nextToken.Position,
+				report.Errors.ExpectedToken,
+				token.KindEnum.Sem, p.nextToken.Kind,
+			)
+		}
+		// 保证解析推进
+		if p.nextToken.Kind != token.KindEnum.Eof && p.nextToken.Position.BeginOffset == before {
+			p.next()
+		}
 	}
 	end := p.expect(token.KindEnum.Rbr).Position
 	return &ast.Block{BeginPosition: begin, Stmts: stmts, EndPosition: end}
+}
+
+// parseLocalSafe 解析单条语句，失败时丢弃该语句并返回 false。
+func (p *Parser) parseLocalSafe() (local ast.Local, ok bool) {
+	ok = true
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if _, aborted := r.(parseAbort); !aborted {
+					panic(r)
+				}
+				ok = false
+			}
+		}()
+		local = p.parseLocal()
+	}()
+	if !ok {
+		p.syncLocal()
+	}
+	return local, ok
 }
 
 func (p *Parser) parseReturn() *ast.Return {
@@ -59,12 +93,12 @@ func (p *Parser) parseLet(attrs []ast.Attribute, pub bool) *ast.Let {
 
 	if name.OriginText == "main" {
 		if mut {
-			p.reporter.Fatalf(
+			p.errorAt(
 				name.Position,
 				report.Errors.MustImmutable,
 			)
 		} else if len(attrs) > 0 {
-			p.reporter.Fatalf(
+			p.errorAt(
 				attrs[0].Position(),
 				report.Errors.InvalidAttribute,
 				attrs[0].AttrName(), "main",

@@ -30,6 +30,7 @@ var Errors = enum.New[struct {
 	UnknownAttribute             ErrorType `enum:"unknown attribute" format:"unknown attribute '%s'"`
 	InvalidAttribute             ErrorType `enum:"invalid attribute" format:"the attribute '%s' cannot be used for the '%s'"`
 	InvalidChar                  ErrorType `enum:"invalid char" format:"char '%s' is invalid"`
+	InvalidSource                ErrorType `enum:"invalid source" format:"invalid source file: %s"`
 	UnexpectedSelfPosition       ErrorType `enum:"unexpected self position" format:"the parameter 'self' must be in the first position of parameters"`
 	UnexpectedSelfType           ErrorType `enum:"unexpected self type" format:"the type of parameter 'self' must be 'Self' or '&Self' or '&mut Self'"`
 }]()

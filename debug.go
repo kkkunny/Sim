@@ -4,6 +4,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,18 +14,26 @@ import (
 	"github.com/kkkunny/Sim/compiler/analyze"
 	"github.com/kkkunny/Sim/compiler/compile"
 	"github.com/kkkunny/Sim/compiler/config"
+	"github.com/kkkunny/Sim/compiler/report"
 )
 
 func main() {
+	defer report.RecoverICE()
+	report.SetupConsole()
+
 	testFilePath := "examples/main.sim"
 
 	pkg, err := analyze.Analyze(testFilePath)
 	if err != nil {
-		panic(err)
+		if !errors.Is(err, report.ErrReported) {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		}
+		os.Exit(1)
 	}
 	err = compile.NewCompiler().Compile(pkg)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
 
 	outPath := filepath.Join(config.WorkPath, "main.out")
@@ -34,7 +43,8 @@ func main() {
 	if err = stlerr.ErrorWrap(cmder.Run()); err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
 		} else {
 			os.Exit(exitErr.ExitCode())
 		}

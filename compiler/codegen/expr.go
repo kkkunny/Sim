@@ -51,7 +51,7 @@ func (c *CodeGenerator) genExpr(expr locals.Expr) llvm.AnyValue {
 	case *locals.GetBind:
 		return c.genGetBind(expr)
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持的表达式 %s（%T）", expr, expr))
+		panic(c.ice("unsupported expression %s (%T)", expr, expr))
 	}
 }
 
@@ -70,13 +70,13 @@ func (c *CodeGenerator) genAddr(expr locals.Expr) llvm.Value[llvm.PtrT] {
 		}
 		ident, ok := c.ctx.idents[expr.Define]
 		if !ok {
-			panic(fmt.Errorf("llgen: 未找到符号 %s", expr.Define.GetName()))
+			panic(c.ice("symbol %s not found", expr.Define.GetName()))
 		}
 		if !ident.Local.IsNil() {
 			return ident.Local
 		}
 		if ident.FuncSymbol {
-			panic(fmt.Errorf("llgen: 暂不支持函数符号取址 %s（函数值不是左值）", ident.Name))
+			panic(c.ice("taking the address of function symbol %s is not supported (function values are not lvalues)", ident.Name))
 		}
 		// 全局变量：符号本身即存储地址（跨包时按需建外部声明）
 		return c.getGlobalVar(ident.Name, c.genType(expr.GetType())).Value
@@ -96,13 +96,13 @@ func (c *CodeGenerator) genAddr(expr locals.Expr) llvm.Value[llvm.PtrT] {
 		base := c.genAddrOrMaterialize(expr.From)
 		st, ok := c.genType(expr.From.GetType()).(llvm.StructType)
 		if !ok {
-			panic(fmt.Errorf("llgen: 元组索引 %s 的基类型 %s 不是结构体", expr, expr.From.GetType()))
+			panic(c.ice("base type %s of tuple index %s is not a struct", expr.From.GetType(), expr))
 		}
 		return c.builder.GEP(st, base, c.gepPath(c.ctx.LLVM().Int(32).Const(uint64(expr.Index.Int64()))), "")
 	case *locals.GetField:
 		return c.genFieldAddr(expr)
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持的左值表达式 %s（%T）", expr, expr))
+		panic(c.ice("unsupported lvalue expression %s (%T)", expr, expr))
 	}
 }
 
@@ -120,7 +120,7 @@ func (c *CodeGenerator) genFieldAddr(expr *locals.GetField) llvm.Value[llvm.PtrT
 	}
 	structT, ok := types.GetUnderlying(fromT).(types.StructType)
 	if !ok {
-		panic(fmt.Errorf("llgen: 字段访问 %s 的基类型 %s 不是结构体", expr, fromT))
+		panic(c.ice("base type %s of field access %s is not a struct", fromT, expr))
 	}
 	fieldIdx := -1
 	for i, f := range structT.GetFields() {
@@ -130,11 +130,11 @@ func (c *CodeGenerator) genFieldAddr(expr *locals.GetField) llvm.Value[llvm.PtrT
 		}
 	}
 	if fieldIdx < 0 {
-		panic(fmt.Errorf("llgen: 结构体 %s 中不存在字段 %s", fromT, expr.Name))
+		panic(c.ice("field %s does not exist in struct %s", expr.Name, fromT))
 	}
 	st, ok := c.genType(fromT).(llvm.StructType)
 	if !ok {
-		panic(fmt.Errorf("llgen: 结构体 %s 的 LLVM 表示不是结构体", fromT))
+		panic(c.ice("LLVM representation of struct %s is not a struct", fromT))
 	}
 	return c.builder.GEP(st, base, c.gepPath(c.ctx.LLVM().Int(32).Const(uint64(fieldIdx))), "")
 }
@@ -185,7 +185,7 @@ func (c *CodeGenerator) genUnary(expr locals.Unary) llvm.AnyValue {
 	case *locals.GetRef:
 		return c.genAddr(expr.GetOpTarget())
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持的一元表达式 %s（%T）", expr, expr))
+		panic(c.ice("unsupported unary expression %s (%T)", expr, expr))
 	}
 }
 
@@ -234,7 +234,7 @@ func (c *CodeGenerator) genBinary(expr *locals.Binary) llvm.AnyValue {
 		return c.genLogic(expr)
 	default:
 		// D14 自增不在本任务
-		panic(fmt.Errorf("llgen: 暂不支持的二元运算 %s（%T，D14）", expr.Op, expr.Op))
+		panic(c.ice("unsupported binary op %s (%T, D14)", expr.Op, expr.Op))
 	}
 }
 
@@ -280,7 +280,7 @@ func (c *CodeGenerator) genBinaryOp(op locals.BinaryOp, t hir.Type, left, right 
 	case types.UintType:
 		return c.genIntBinaryOp(op, false, left, right)
 	}
-	panic(fmt.Errorf("llgen: 暂不支持的二元运算 %s（类型 %s，D4/D7）", op, t))
+	panic(c.ice("unsupported binary op %s (type %s, D4/D7)", op, t))
 }
 
 // genIntBinaryOp 整数算术/位运算/移位（D3）；signed 决定除法/取余/右移的符号性
@@ -317,7 +317,7 @@ func (c *CodeGenerator) genIntBinaryOp(op locals.BinaryOp, signed bool, left, ri
 		}
 		return c.builder.LShr(l, r, "")
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持的整数二元运算 %s（D4/D7）", op))
+		panic(c.ice("unsupported integer binary op %s (D4/D7)", op))
 	}
 }
 
@@ -335,11 +335,11 @@ func (c *CodeGenerator) genCompare(op locals.BinaryOp, t hir.Type, left, right l
 	case types.UintType:
 		return c.builder.ICmp(intCmpPred(op, false), asInt(left), asInt(right), "")
 	case types.BooleanType:
-		panic(fmt.Errorf("llgen: bool 不支持大小比较 %s", op))
+		panic(c.ice("ordering comparison %s is not supported for bool", op))
 	case types.RefType:
-		panic(fmt.Errorf("llgen: 引用不支持大小比较 %s", op))
+		panic(c.ice("ordering comparison %s is not supported for refs", op))
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持 %s 类型的大小比较 %s", t, op))
+		panic(c.ice("ordering comparison %s is not supported for type %s", op, t))
 	}
 }
 
@@ -371,7 +371,7 @@ func intCmpPred(op locals.BinaryOp, signed bool) llvm.IntPred {
 		}
 		return llvm.IntUGE
 	default:
-		panic(fmt.Errorf("llgen: 非比较运算 %s", op))
+		panic(fmt.Errorf("codegen: %s is not a comparison", op))
 	}
 }
 
@@ -392,7 +392,7 @@ func floatCmpPred(op locals.BinaryOp) llvm.FloatPred {
 	case locals.BinaryOpEnum.Gte:
 		return llvm.FloatOGE
 	default:
-		panic(fmt.Errorf("llgen: 非比较运算 %s", op))
+		panic(fmt.Errorf("codegen: %s is not a comparison", op))
 	}
 }
 
@@ -538,7 +538,7 @@ func (c *CodeGenerator) genCovert(expr locals.Covert) llvm.AnyValue {
 	case *locals.Union:
 		return c.genUnionInject(expr)
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持的转换表达式 %s（%T）", expr, expr))
+		panic(c.ice("unsupported cast expression %s (%T)", expr, expr))
 	}
 }
 
@@ -549,7 +549,7 @@ func (c *CodeGenerator) genUnionInject(expr *locals.Union) llvm.AnyValue {
 	uT := c.genType(expr.GetType())
 	st, ok := uT.(llvm.StructType)
 	if !ok {
-		panic(fmt.Errorf("llgen: union 类型 %s 的 LLVM 表示不是结构体", expr.GetType()))
+		panic(c.ice("LLVM representation of union type %s is not a struct", expr.GetType()))
 	}
 	if c.isZeroSizeLLVM(st) {
 		// 全零尺寸 union → {}（B10）：无 tag 与载荷
@@ -557,11 +557,11 @@ func (c *CodeGenerator) genUnionInject(expr *locals.Union) llvm.AnyValue {
 	}
 	unionT, ok := types.GetUnderlying(expr.GetType()).(types.UnionType)
 	if !ok {
-		panic(fmt.Errorf("llgen: union 注入的目标类型 %s 不是 union", expr.GetType()))
+		panic(c.ice("union injection target type %s is not a union", expr.GetType()))
 	}
 	elems := c.unionMemberTypes(unionT)
 	if int(expr.Index) >= len(elems) {
-		panic(fmt.Errorf("llgen: union %s 的成员下标 %d 越界", expr.GetType(), expr.Index))
+		panic(c.ice("union %s member index %d out of range", expr.GetType(), expr.Index))
 	}
 	payloadT, _ := c.genUnionPayload(elems)
 	slot := c.allocaEntry(payloadT, "")
@@ -587,7 +587,7 @@ func (c *CodeGenerator) genNumberConvert(from, to hir.Type, v llvm.AnyValue) llv
 	case types.FloatType:
 		return c.genFloatConvert(v, from.GetBits(), to)
 	default:
-		panic(fmt.Errorf("llgen: 不支持的数值转换 %s -> %s", from, to))
+		panic(c.ice("unsupported numeric cast %s -> %s", from, to))
 	}
 }
 
@@ -603,7 +603,7 @@ func (c *CodeGenerator) genIntConvert(v llvm.AnyValue, fromBits uint8, signed bo
 	}
 	toNum, ok := to.(types.NumberType)
 	if !ok {
-		panic(fmt.Errorf("llgen: 不支持的整数目标类型 %s", to))
+		panic(c.ice("unsupported integer target type %s", to))
 	}
 	dst := c.genType(to).(llvm.IntType)
 	switch toBits := toNum.GetBits(); {
@@ -639,7 +639,7 @@ func (c *CodeGenerator) genFloatConvert(v llvm.AnyValue, fromBits uint8, to hir.
 	case types.UintType:
 		return c.builder.FPToUI(fv, c.genType(to).(llvm.IntType), "")
 	default:
-		panic(fmt.Errorf("llgen: 不支持的浮点目标类型 %s", to))
+		panic(c.ice("unsupported float target type %s", to))
 	}
 }
 
@@ -660,7 +660,7 @@ func (c *CodeGenerator) genIdentExpr(expr *locals.IdentExpr) llvm.AnyValue {
 	}
 	ident, ok := c.ctx.idents[expr.Define]
 	if !ok {
-		panic(fmt.Errorf("llgen: 未找到符号 %s", expr.Define.GetName()))
+		panic(c.ice("symbol %s not found", expr.Define.GetName()))
 	}
 	if !ident.Local.IsNil() {
 		return c.builder.Load[llvm.DynT](ident.Local, c.genType(expr.GetType()).DynType(), "")
@@ -669,7 +669,7 @@ func (c *CodeGenerator) genIdentExpr(expr *locals.IdentExpr) llvm.AnyValue {
 		// 全局函数/外部函数作为值（F3）：{fnptr, null}
 		ft, ok := asFuncType(expr.GetType())
 		if !ok {
-			panic(fmt.Errorf("llgen: 函数符号 %s 的类型 %s 不是函数类型", ident.Name, expr.GetType()))
+			panic(c.ice("type %s of function symbol %s is not a func type", expr.GetType(), ident.Name))
 		}
 		return c.genFuncSymbolValue(ident, ft)
 	}
@@ -827,7 +827,7 @@ func (c *CodeGenerator) genConstValues(t llvm.AnyType, elems []llvm.AnyValue) (l
 func (c *CodeGenerator) genInteger(expr *locals.Integer) llvm.AnyValue {
 	it, ok := c.genType(expr.GetType()).(llvm.IntType)
 	if !ok {
-		panic(fmt.Errorf("llgen: 整数字面量的类型 %s 不是整数类型", expr.GetType()))
+		panic(c.ice("integer literal type %s is not an integer type", expr.GetType()))
 	}
 	return c.ctx.LLVM().ConstIntOfString(it, expr.Value.String(), 10)
 }
@@ -835,7 +835,7 @@ func (c *CodeGenerator) genInteger(expr *locals.Integer) llvm.AnyValue {
 func (c *CodeGenerator) genFloat(expr *locals.Float) llvm.AnyValue {
 	ft, ok := c.genType(expr.GetType()).(llvm.FloatType)
 	if !ok {
-		panic(fmt.Errorf("llgen: 浮点字面量的类型 %s 不是浮点类型", expr.GetType()))
+		panic(c.ice("float literal type %s is not a float type", expr.GetType()))
 	}
 	v, _ := expr.Value.Float64()
 	return c.ctx.LLVM().ConstFloat(ft, v)
@@ -854,7 +854,7 @@ func (c *CodeGenerator) genString(expr *locals.String) llvm.AnyValue {
 	)
 	st, ok := c.genType(expr.GetType()).(llvm.StructType)
 	if !ok {
-		panic(fmt.Errorf("llgen: 字符串字面量的类型 %s 不是结构体", expr.GetType()))
+		panic(c.ice("string literal type %s is not a struct", expr.GetType()))
 	}
 	return c.ctx.LLVM().ConstNamedStruct(st, ptr, c.ctx.LLVM().Int(64).Const(uint64(len(expr.Value))))
 }
@@ -864,7 +864,7 @@ func (c *CodeGenerator) genString(expr *locals.String) llvm.AnyValue {
 func (c *CodeGenerator) genCall(expr *locals.Call) llvm.AnyValue {
 	ft, ok := asFuncType(expr.Func.GetType())
 	if !ok {
-		panic(fmt.Errorf("llgen: 被调用表达式 %s 的类型 %s 不是函数类型", expr.Func, expr.Func.GetType()))
+		panic(c.ice("type %s of callee %s is not a func type", expr.Func.GetType(), expr.Func))
 	}
 	// 快速路径 1：被调方是函数符号（全局函数/外部函数），直接 Call
 	if identExpr, ok := expr.Func.(*locals.IdentExpr); ok {
@@ -872,7 +872,7 @@ func (c *CodeGenerator) genCall(expr *locals.Call) llvm.AnyValue {
 			fn := c.getFunction(ident.Name, c.genNativeFuncType(ft))
 			return c.builder.Call[llvm.DynT](fn, c.genCallArgs(expr), "")
 		} else if !ok {
-			panic(fmt.Errorf("llgen: 符号 %s 尚未登记（依赖模块需先生成）", identExpr.Define.GetName()))
+			panic(c.ice("symbol %s is not registered yet (dependency module must be generated first)", identExpr.Define.GetName()))
 		}
 	}
 	// 快速路径 2：被调方是函数字面量，fn 静态已知

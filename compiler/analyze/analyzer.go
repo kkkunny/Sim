@@ -13,6 +13,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/config"
+	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/globals"
 	"github.com/kkkunny/Sim/compiler/hir/locals"
 	"github.com/kkkunny/Sim/compiler/hir/scopes"
@@ -33,17 +34,11 @@ func analyzeFile(filePath string, reporter *report.Reporter) (*globals.Package, 
 	parser := parse.New(lexer, reporter)
 	fileAst := parser.Parse()
 	if reporter.HasErrors() {
-		reporter.Print()
-		os.Exit(1)
+		return nil, report.ErrReported
 	}
 
 	analyzer := NewAnalyzer("main", filepath.Dir(filePath), reporter)
-	pkgHir := analyzer.Analyze(fileAst)
-	if reporter.HasErrors() {
-		reporter.Print()
-		os.Exit(1)
-	}
-	return pkgHir, nil
+	return analyzer.Analyze(fileAst)
 }
 
 func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) (*globals.Package, error) {
@@ -68,12 +63,11 @@ func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) 
 		lexer := lex.New(reader.NewFile(filePath, bytes.NewReader(data)))
 		parser := parse.New(lexer, reporter)
 		fileAst := parser.Parse()
-		if reporter.HasErrors() {
-			reporter.Print()
-			os.Exit(1)
-		}
 
 		dirAsts.Globals = append(dirAsts.Globals, fileAst.Globals...)
+	}
+	if reporter.HasErrors() {
+		return nil, report.ErrReported
 	}
 
 	var analyzer *Analyzer
@@ -85,25 +79,32 @@ func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) 
 	analyzer.ir.Path = dirPath
 	analyzer.pkgScopes[dirPath] = tuple.Pack2(analyzer.ir, analyzer.scope.Root())
 
-	pkgHir := analyzer.Analyze(dirAsts)
-	if reporter.HasErrors() {
-		reporter.Print()
-		os.Exit(1)
-	}
-	return pkgHir, nil
+	return analyzer.Analyze(dirAsts)
 }
 
+// Analyze 解析并分析单个文件或目录；诊断输出到 stderr，有错误时返回 ErrReported。
 func Analyze(path string) (*globals.Package, error) {
 	info, err := stlerr.ErrorWith(os.Stat(path))
 	if err != nil {
 		return nil, err
 	}
 	reporter := report.NewReporter()
+	var pkg *globals.Package
 	if info.IsDir() {
-		return analyzeDir(path, reporter)
+		pkg, err = analyzeDir(path, reporter)
 	} else {
-		return analyzeFile(path, reporter)
+		pkg, err = analyzeFile(path, reporter)
 	}
+	if reporter.HasErrors() {
+		reporter.Print(os.Stderr)
+		return nil, report.ErrReported
+	} else if err != nil {
+		return nil, err
+	}
+	if reporter.HasWarns() {
+		reporter.Print(os.Stderr)
+	}
+	return pkg, nil
 }
 
 type Analyzer struct {
@@ -156,17 +157,23 @@ func (a *Analyzer) Scope() scopes.Scope {
 	return a.scope
 }
 
-func (a *Analyzer) Analyze(program *ast.File) *globals.Package {
-	a.analyzePackageImport(program)
+// Analyze 分析程序；有诊断错误时返回 ErrReported。
+func (a *Analyzer) Analyze(program *ast.File) (*globals.Package, error) {
+	if err := a.analyzePackageImport(program); err != nil {
+		return nil, err
+	}
 	a.analyzeGlobalType(program)
 	a.analyzeGlobalValue(program)
-	return a.ir
+	if a.reporter.HasErrors() {
+		return nil, report.ErrReported
+	}
+	return a.ir, nil
 }
 
-func (a *Analyzer) analyzePackageImport(program *ast.File) {
+func (a *Analyzer) analyzePackageImport(program *ast.File) error {
 	err := a.importBuildin()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	for _, g := range program.Globals {
 		importAst, ok := g.(*ast.Import)
@@ -175,24 +182,34 @@ func (a *Analyzer) analyzePackageImport(program *ast.File) {
 		}
 		err = a.analyzeImport(importAst)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (a *Analyzer) analyzeGlobalType(program *ast.File) {
 	for _, g := range program.Globals {
-		decl := a.analyzeTypePreDecl(g)
-		if decl == nil {
-			continue
-		}
-		a.ir.Globals = append(a.ir.Globals, decl)
+		func() {
+			defer a.recoverFromAbort()
+			decl := a.analyzeTypePreDecl(g)
+			if decl == nil {
+				return
+			}
+			a.ir.Globals = append(a.ir.Globals, decl)
+		}()
 	}
 	for _, g := range program.Globals {
-		a.analyzeTypeDecl(g)
+		func() {
+			defer a.recoverFromAbort()
+			a.analyzeTypeDecl(g)
+		}()
 	}
 	for _, g := range program.Globals {
-		a.analyzeTypeDef(g)
+		func() {
+			defer a.recoverFromAbort()
+			a.analyzeTypeDef(g)
+		}()
 	}
 	// 检查循环引用
 	for _, g := range program.Globals {
@@ -200,26 +217,65 @@ func (a *Analyzer) analyzeGlobalType(program *ast.File) {
 		if !ok {
 			continue
 		}
-		ct, _ := a.scope.LookupType(t.Name.OriginText)
-		if types.CheckRecursion(ct) {
-			a.reporter.Fatalf(
-				t.Name.Position,
-				report.Errors.CircularReference,
-			)
-		}
+		func() {
+			defer a.recoverFromAbort()
+			ct, ok := a.scope.LookupType(t.Name.OriginText)
+			if !ok {
+				return
+			}
+			if types.CheckRecursion(ct) {
+				a.reporter.Errorf(
+					t.Name.Position,
+					report.Errors.CircularReference,
+				)
+			}
+		}()
 	}
 }
 
 func (a *Analyzer) analyzeGlobalValue(program *ast.File) {
 	for _, v := range program.Globals {
-		a.analyzeGlobalValueDecl(v)
+		func() {
+			defer a.recoverFromAbort()
+			a.analyzeGlobalValueDecl(v)
+		}()
 	}
 
 	for _, v := range program.Globals {
-		def := a.analyzeGlobalValueDef(v)
-		if def == nil {
-			continue
-		}
-		a.ir.Globals = append(a.ir.Globals, def)
+		func() {
+			defer a.recoverFromAbort()
+			def := a.analyzeGlobalValueDef(v)
+			if def == nil {
+				return
+			}
+			a.ir.Globals = append(a.ir.Globals, def)
+		}()
 	}
+}
+
+// analyzeAbort 当前声明/函数分析失败（诊断已记录），由恢复点隔离后继续分析其他声明。
+type analyzeAbort struct{}
+
+func (a *Analyzer) abort() {
+	panic(analyzeAbort{})
+}
+
+// recoverFromAbort 隔离当前声明/函数分析中的中止；其他 panic 继续上抛为 ICE。
+func (a *Analyzer) recoverFromAbort() {
+	if r := recover(); r != nil {
+		if _, aborted := r.(analyzeAbort); !aborted {
+			panic(r)
+		}
+	}
+}
+
+// errorf 记录诊断，不中断分析；需要中断当前声明/函数时调用 abort。
+func (a *Analyzer) errorf(pos reader.Position, err report.ErrorType, args ...any) {
+	a.reporter.Errorf(pos, err, args...)
+}
+
+// isInvalidType 是否为错误恢复用的占位类型。
+func isInvalidType(t hir.Type) bool {
+	_, ok := t.(types.InvalidType)
+	return ok
 }

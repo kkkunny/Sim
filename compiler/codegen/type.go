@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"fmt"
-
 	"github.com/kkkunny/go-llvm"
 	stlslices "github.com/kkkunny/stl/container/slices"
 
@@ -33,7 +31,7 @@ func (c *CodeGenerator) genType(t hir.Type) llvm.AnyType {
 		case 64:
 			return c.ctx.LLVM().Float(llvm.FloatDouble)
 		default:
-			panic(fmt.Errorf("llgen: 暂不支持 %d 位浮点", t.GetBits()))
+			panic(c.ice("%d-bit float is not supported", t.GetBits()))
 		}
 	case types.BooleanType:
 		return c.ctx.LLVM().Bool()
@@ -52,7 +50,7 @@ func (c *CodeGenerator) genType(t hir.Type) llvm.AnyType {
 	case types.UnionType:
 		return c.genUnionType(t)
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持的类型 %s（%T）", t, t))
+		panic(c.ice("unsupported type %s (%T)", t, t))
 	}
 }
 
@@ -110,7 +108,7 @@ func (c *CodeGenerator) llvmSizeOf(t llvm.AnyType) uint64 {
 		return 0
 	}
 	if !t.IsSized() {
-		panic(fmt.Errorf("llgen: 类型 %s 尺寸未定（opaque），无法计算布局", t))
+		panic(c.ice("type %s has no size (opaque), cannot compute layout", t))
 	}
 	return c.ctx.DataLayout().ABISizeOfType(t)
 }

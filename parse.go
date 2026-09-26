@@ -3,9 +3,8 @@
 package main
 
 import (
+	"fmt"
 	"os"
-
-	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/lex"
@@ -15,12 +14,19 @@ import (
 )
 
 func main() {
-	file := stlerr.MustWith(os.Open(os.Args[1]))
+	defer report.RecoverICE()
+	report.SetupConsole()
+
+	file, err := os.Open(os.Args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 	defer file.Close()
 	reporter := report.NewReporter()
 	fileAst := parse.New(lex.New(reader.NewFile(os.Args[1], file)), reporter).Parse()
 	if reporter.HasErrors() {
-		reporter.Print()
+		reporter.Print(os.Stderr)
 		os.Exit(1)
 	}
 	ast.Print(os.Stdout, fileAst)

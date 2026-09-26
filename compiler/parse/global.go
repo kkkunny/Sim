@@ -18,7 +18,7 @@ func (p *Parser) parseGlobal(attrs []ast.Attribute) ast.Global {
 	case token.KindEnum.Type:
 		return p.parseTypeDef(pub)
 	default:
-		p.reporter.Fatalf(
+		p.errorAt(
 			p.nextToken.Position,
 			report.Errors.UnexpectedToken,
 			p.nextToken.Kind,

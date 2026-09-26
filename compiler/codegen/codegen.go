@@ -59,6 +59,11 @@ func (c *CodeGenerator) Close() error {
 	return err2
 }
 
+// ice 构造带包上下文的内部错误；panic 后由入口统一转换为 ICE 诊断。
+func (c *CodeGenerator) ice(format string, args ...any) error {
+	return fmt.Errorf("codegen (package %s): %s", c.pkg.Path, fmt.Sprintf(format, args...))
+}
+
 // Generate 生成包对应的 LLVM 模块
 func (c *CodeGenerator) Generate() *ir.Module {
 	for _, g := range c.pkg.Globals {
@@ -79,7 +84,7 @@ func (c *CodeGenerator) Generate() *ir.Module {
 	}
 
 	if err := c.module.Verify(); err != nil {
-		panic(fmt.Errorf("包 %s 生成 LLVM IR 校验失败: %w", c.pkg.Path, err))
+		panic(c.ice("LLVM IR verification failed: %v", err))
 	}
 	return c.module
 }
