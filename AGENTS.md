@@ -54,10 +54,10 @@ the box, non-standard prefixes need go-llvm's `make config`).
   dir during `compile`; they are gitignored. Don't commit them. Each cache dir
   contains `<pkg>.o`, a `.backend` marker (invalidates caches from other
   backends/ABI versions) and a `.lock` file.
-- No Go unit tests exist (`*_test.go` absent). Verification is done by
-  compiling/running `.sim` example files, not `go test`. 迁移期每个小功能用
-  `/tmp/opencode/sim-cases/` 下的最小 `.sim` 片段做简单验证；正式测试集的建设计划见
-  `docs/plans.md` P1（测试体系）。
+- `test/` 是用例驱动的编译测试（`go test ./test/...` 并行运行，lex/parse/analyze 层不需要
+  LLVM）：`test/cases/*.sim` 单文件即用例——首行 `// <action> [key=value]`，其下注释块为期望
+  输出，注释块之下是代码；`-update` 重写期望。格式、标志（`known-bug`/`skip`）与归一化规则见
+  `test/README.md`；compile/run 用例层与 CI 分层见 `docs/plans.md` P1（测试体系）。
 - Module is Go 1.27 and depends on `github.com/kkkunny/stl` and
   `github.com/kkkunny/go-llvm`; the `stlerror.Must*` helpers panic on error, so
   failures surface as panics.

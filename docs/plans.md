@@ -23,9 +23,12 @@ go-llvm 库问题见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)）。
 ### P1. 测试体系
 
 - **分类**：工程与质量
-- **现状**：仓库无 `*_test.go`；验证依赖手工编译 `.sim` 片段，known-issues 的复现用例易失守。
-- **目标**：先为 lex/parse/report 建 golden 测试；把 known-issues 各条最小复现收进回归脚本
-  （可在 CI 用一个脚本批量编译/运行并断言输出）。
+- **现状**：`test/` 已有单文件用例驱动（首行动作 + 注释块期望输出，`go test ./test/... [-update]`），
+  覆盖 lex/parse/analyze 与部分 known-issues 前端复现（F6/F7/F8/F15/F17/F19/F23）；
+  compile/run 用例层、多包用例与 CI 未建。
+- **目标**：补齐 compile/run 用例层（B* 的 ICE 快照与运行输出断言、超时保护）、
+  known-issues 全覆盖（F9/F18/F21/F22、B2/B4/B5/B6/B8、C5 以单测或 skip 标注）、
+  CI 分层（前端 job 无 LLVM + 全量 job）。
 
 ### P2. 浮点字面量语法
 
