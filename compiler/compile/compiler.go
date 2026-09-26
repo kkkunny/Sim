@@ -19,13 +19,32 @@ import (
 type Compiler struct {
 	ctx *codegen.Context
 
+	outPath string // 主包可执行文件输出路径
+
 	err error // 遍历中首次出现的错误
 }
 
-func NewCompiler() *Compiler {
-	return &Compiler{
-		ctx: codegen.NewContext(),
+// Option 编译器选项
+type Option func(*Compiler)
+
+// WithOutputPath 设置主包可执行文件的输出路径（默认为 <工作目录>/main.out）。
+func WithOutputPath(path string) Option {
+	return func(c *Compiler) {
+		if path != "" {
+			c.outPath = path
+		}
 	}
+}
+
+func NewCompiler(opts ...Option) *Compiler {
+	c := &Compiler{
+		ctx:     codegen.NewContext(),
+		outPath: filepath.Join(config.WorkPath, "main.out"),
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func (c *Compiler) Compile(pkg *globals.Package) error {
@@ -165,7 +184,7 @@ func (c *Compiler) compileMainPkg(pkg *globals.Package) error {
 	if err != nil {
 		return err
 	}
-	outPath := filepath.Join(config.WorkPath, "main.out")
+	outPath := c.outPath
 	args := append([]string{objPath}, depObjs...)
 	args = append(args, "-lm", "-o", outPath)
 	cmder := exec.Command(execPath, args...)

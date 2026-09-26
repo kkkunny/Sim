@@ -24,8 +24,12 @@ go run -tags <stage> . <file.sim>
 - `lex` / `parse` / `analyze` / `codegen` — print tokens / AST / HIR / LLVM IR
 - `compile` — codegen to LLVM IR, emit `.sim_cache/<pkg>.o` per dependency
   package, link with clang, emit `main.out` in the **current working directory**
-  (not next to the source; `config.WorkPath = os.Getwd()`)
+  by default (not next to the source; `-o <path>` overrides, `config.WorkPath = os.Getwd()`)
 - `debug` — compiles and runs `examples/main.sim`
+
+根目录（`std/`）解析顺序：`-root <dir>` flag → `$SIM_ROOT` → 可执行文件旁的 `std/` →
+当前工作目录；`analyze`/`codegen`/`compile` 支持 `-root`，因此可从任意目录用显式根路径
+编译（`analyze.Analyze` 会把入口路径绝对值化，符号名与缓存跨目录一致）。
 
 After `compile`, run the result with `./main.out` (from the repo root).
 

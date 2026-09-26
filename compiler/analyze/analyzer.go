@@ -85,6 +85,8 @@ func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) 
 
 // Analyze 解析并分析单个文件或目录；诊断输出到 stderr，有错误时返回 ErrReported。
 func Analyze(path string) (*globals.Package, error) {
+	// 绝对化入口路径：包路径参与符号名哈希与缓存判定，不能随启动目录/给参形式漂移
+	path = stlerr.MustWith(filepath.Abs(path))
 	info, err := stlerr.ErrorWith(os.Stat(path))
 	if err != nil {
 		return nil, err
