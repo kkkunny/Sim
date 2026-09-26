@@ -85,19 +85,8 @@ func analyzeDir(dirPath string, reporter *report.Reporter, parent ...*Analyzer) 
 
 // Analyze 解析并分析单个文件或目录；诊断输出到 stderr，有错误时返回 ErrReported。
 func Analyze(path string) (*globals.Package, error) {
-	// 绝对化入口路径：包路径参与符号名哈希与缓存判定，不能随启动目录/给参形式漂移
-	path = stlerr.MustWith(filepath.Abs(path))
-	info, err := stlerr.ErrorWith(os.Stat(path))
-	if err != nil {
-		return nil, err
-	}
 	reporter := report.NewReporter()
-	var pkg *globals.Package
-	if info.IsDir() {
-		pkg, err = analyzeDir(path, reporter)
-	} else {
-		pkg, err = analyzeFile(path, reporter)
-	}
+	pkg, err := AnalyzeWith(path, reporter)
 	if reporter.HasErrors() {
 		reporter.Print(os.Stderr)
 		return nil, report.ErrReported
@@ -108,6 +97,21 @@ func Analyze(path string) (*globals.Package, error) {
 		reporter.Print(os.Stderr)
 	}
 	return pkg, nil
+}
+
+// AnalyzeWith 同 Analyze，但不打印诊断：诊断累积在调用方提供的 reporter 中，
+// 由调用方决定输出时机与目标（测试与工具用）。
+func AnalyzeWith(path string, reporter *report.Reporter) (*globals.Package, error) {
+	// 绝对化入口路径：包路径参与符号名哈希与缓存判定，不能随启动目录/给参形式漂移
+	path = stlerr.MustWith(filepath.Abs(path))
+	info, err := stlerr.ErrorWith(os.Stat(path))
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return analyzeDir(path, reporter)
+	}
+	return analyzeFile(path, reporter)
 }
 
 type Analyzer struct {
