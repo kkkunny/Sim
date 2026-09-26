@@ -48,12 +48,20 @@ func (a *Analyzer) analyzeLocal(local ast.Local) locals.Local {
 
 func (a *Analyzer) analyzeReturn(local *ast.Return) *locals.Return {
 	ls := a.scope.(*scopes.BlockScope)
+	ret := ls.FuncType().GetReturn()
 	if v, ok := local.Value.Value(); ok {
-		value := a.expectTypeExpr(v, ls.FuncType().GetReturn())
+		value := a.expectTypeExpr(v, ret)
 		return locals.NewReturn(value)
-	} else {
-		return locals.NewReturn()
 	}
+	// 无值 return 仅允许出现在 unit 函数中；非 unit 函数在此拒绝（F7）
+	if !isInvalidType(ret) && !isUnitType(ret) {
+		a.errorf(
+			local.BeginPosition,
+			report.Errors.MissingReturnValue,
+			ret,
+		)
+	}
+	return locals.NewReturn()
 }
 
 func (a *Analyzer) analyzeLocalLet(local *ast.Let) *locals.Let {
@@ -70,6 +78,16 @@ func (a *Analyzer) analyzeLocalLet(local *ast.Let) *locals.Let {
 		t = value.MustValue().GetType()
 	} else if extern := stlslices.Any(local.Attributes, func(_ int, a ast.Attribute) bool { return stlval.Is[*ast.Extern](a) }); !extern {
 		value = optional.Some(a.getZeroExpr(local.Name.Position, t))
+	}
+
+	// unit 类型不能作为变量存储（F8）
+	if !isInvalidType(t) && isUnitType(t) {
+		a.errorf(
+			local.Name.Position,
+			report.Errors.UnitTypedVariable,
+			local.Name.OriginText,
+		)
+		t = types.Invalid
 	}
 
 	let := &locals.Let{
@@ -147,6 +165,7 @@ func (a *Analyzer) analyzeFor(local *ast.For) *locals.For {
 	defer func() {
 		a.scope = prevScope
 	}()
+	a.scope.AddValue(param)
 	body := a.analyzeBlock(local.Body)
 	a.scope = prevScope
 

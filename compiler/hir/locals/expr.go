@@ -350,7 +350,12 @@ func (e *DeRef) GetType() hir.Type {
 }
 
 func (e *DeRef) Mutable() bool {
-	return e.Target.Mutable()
+	// 解引用的可变性取决于引用类型（&mut）而非持有引用的绑定是否 mut（F5）
+	rt, ok := e.Target.GetType().(types.RefType)
+	if !ok {
+		return false
+	}
+	return rt.Mutable()
 }
 
 func (e *DeRef) Temporary() bool {

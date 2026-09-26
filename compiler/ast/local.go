@@ -44,7 +44,8 @@ func (b *Block) Position() reader.Position {
 }
 
 type Return struct {
-	Value optional.Optional[Expr]
+	BeginPosition reader.Position
+	Value         optional.Optional[Expr]
 }
 
 func (*Return) local() {}

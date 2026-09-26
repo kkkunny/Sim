@@ -10,6 +10,7 @@ import (
 	stlslices "github.com/kkkunny/stl/container/slices"
 	"github.com/kkkunny/stl/container/tuple"
 	stlerr "github.com/kkkunny/stl/error"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/ast"
 	"github.com/kkkunny/Sim/compiler/config"
@@ -278,4 +279,9 @@ func (a *Analyzer) errorf(pos reader.Position, err report.ErrorType, args ...any
 func isInvalidType(t hir.Type) bool {
 	_, ok := t.(types.InvalidType)
 	return ok
+}
+
+// isUnitType 是否为 unit 类型。
+func isUnitType(t hir.Type) bool {
+	return stlval.Is[types.UnitType](t)
 }

@@ -382,6 +382,7 @@ func (a *Analyzer) analyzeBinary(expr *ast.Binary, expect ...hir.Type) *locals.B
 			token.KindEnum.Assign,
 			token.KindEnum.AddAssign,
 			token.KindEnum.SubAssign,
+			token.KindEnum.MulAssign,
 			token.KindEnum.QuoAssign,
 			token.KindEnum.RemAssign,
 			token.KindEnum.AndAssign,
@@ -719,6 +720,14 @@ func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Typ
 	if isInvalidType(from.GetType()) {
 		return locals.NewInvalid()
 	}
+	if name, ok := a.funcSymbolName(from); ok {
+		a.errorf(
+			expr.Value.Position(),
+			report.Errors.FunctionNotAddressable,
+			name,
+		)
+		return locals.NewInvalid()
+	}
 	if from.Temporary() {
 		a.errorf(
 			expr.Value.Position(),
@@ -731,6 +740,35 @@ func (a *Analyzer) analyzeGetReference(expr *ast.GetReference, expect ...hir.Typ
 		)
 	}
 	return locals.NewGetRef(expr.Mut, from)
+}
+
+// funcSymbolName 判断表达式是否为函数符号（全局函数/外部函数），是则返回其名字（F12）。
+// 判定与 codegen 的 FuncSymbol 登记保持一致：全局、非 mut、函数类型，
+// 且 AST 值就是函数字面量（或外部函数无值）；`let gadd = add` 这类函数值全局变量可寻址。
+func (a *Analyzer) funcSymbolName(expr locals.Expr) (string, bool) {
+	ident, ok := expr.(*locals.IdentExpr)
+	if !ok {
+		return "", false
+	}
+	let, ok := ident.Define.(*locals.Let)
+	if !ok || !let.IsGlobal || let.Mut {
+		return "", false
+	}
+	if !stlval.Is[types.FuncType](let.GetType()) {
+		return "", false
+	}
+	astLet, ok := a.letDef2Ast[let]
+	if !ok {
+		return "", false
+	}
+	if v, ok := astLet.Value.Value(); ok {
+		if _, ok := v.(*ast.Func); !ok {
+			return "", false
+		}
+	} else if let.ExternalName.IsNone() {
+		return "", false
+	}
+	return let.Name, true
 }
 
 func (a *Analyzer) analyzeTernary(expr *ast.Ternary, expect ...hir.Type) *locals.Ternary {

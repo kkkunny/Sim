@@ -33,6 +33,9 @@ var Errors = enum.New[struct {
 	InvalidAttribute             ErrorType `enum:"invalid attribute" format:"the attribute '%s' cannot be used for the '%s'"`
 	InvalidChar                  ErrorType `enum:"invalid char" format:"char '%s' is invalid"`
 	InvalidSource                ErrorType `enum:"invalid source" format:"invalid source file: %s"`
+	MissingReturnValue           ErrorType `enum:"missing return value" format:"the function must return a value of type '%s'"`
+	UnitTypedVariable            ErrorType `enum:"unit typed variable" format:"the variable '%s' cannot have type 'unit'"`
+	FunctionNotAddressable       ErrorType `enum:"function not addressable" format:"cannot take the address of the function '%s' (function values are not lvalues)"`
 	UnexpectedSelfPosition       ErrorType `enum:"unexpected self position" format:"the parameter 'self' must be in the first position of parameters"`
 	UnexpectedSelfType           ErrorType `enum:"unexpected self type" format:"the type of parameter 'self' must be 'Self' or '&Self' or '&mut Self'"`
 }]()

@@ -76,14 +76,14 @@ func (p *Parser) parseLocalSafe() (local ast.Local, ok bool) {
 }
 
 func (p *Parser) parseReturn() *ast.Return {
-	p.expect(token.KindEnum.Return)
+	begin := p.expect(token.KindEnum.Return).Position
 
 	var value optional.Optional[ast.Expr]
-	if p.nextToken.Kind != token.KindEnum.Sem && p.nextToken.Kind != token.KindEnum.Rbr {
+	if p.nextToken.Kind != token.KindEnum.Sem && p.nextToken.Kind != token.KindEnum.Br && p.nextToken.Kind != token.KindEnum.Rbr {
 		value = optional.Some(p.parseExpr())
 	}
 
-	return &ast.Return{Value: value}
+	return &ast.Return{BeginPosition: begin, Value: value}
 }
 
 func (p *Parser) parseLet(attrs []ast.Attribute, pub bool) *ast.Let {

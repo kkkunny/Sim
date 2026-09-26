@@ -446,5 +446,15 @@ func (a *Analyzer) analyzeGlobalLetDef(local *ast.Let) *locals.Let {
 		decl.Type = decl.Value.MustValue().GetType()
 	}
 
+	// unit 类型不能作为全局变量存储（F8）
+	if !isInvalidType(decl.Type) && isUnitType(decl.Type) {
+		a.errorf(
+			local.Name.Position,
+			report.Errors.UnitTypedVariable,
+			local.Name.OriginText,
+		)
+		decl.Type = types.Invalid
+	}
+
 	return decl
 }
