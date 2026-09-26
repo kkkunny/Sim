@@ -1,0 +1,12 @@
+// parse
+// error[expected token]: expected ';' but got 'let'
+//   --> cases/parse_error_utf8_col.sim:11:17
+//    |
+// 11 |	let s = "中文中文" let t = 1
+//    |
+// Summary: 1 error(s)
+// error: aborting due to 1 previous error(s)
+
+let main = () {
+	let s = "中文中文" let t = 1
+}

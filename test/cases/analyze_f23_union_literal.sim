@@ -1,0 +1,14 @@
+// analyze known-bug=F23
+// error[unexpected expression]: expected expression type 'U' but got 'f64'
+//   --> cases/analyze_f23_union_literal.sim:13:13
+//    |
+// 13 |	let u: U = 65
+//    |
+// Summary: 1 error(s)
+// error: aborting due to 1 previous error(s)
+
+type U i32 | bool
+
+let main = () {
+	let u: U = 65
+}

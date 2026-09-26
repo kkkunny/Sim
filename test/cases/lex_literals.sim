@@ -1,0 +1,26 @@
+// lex
+// 1:1	let
+// 1:5	[ident]a
+// 1:7	=
+// 1:9	[integer]12345
+// 2:0	br
+// 2:1	let
+// 2:5	[ident]b
+// 2:7	=
+// 2:9	[string]"hello\t\"world\""
+// 3:0	br
+// 3:1	let
+// 3:5	[ident]c
+// 3:7	=
+// 3:9	[char]'x'
+// 4:0	br
+// 4:1	let
+// 4:5	[ident]d
+// 4:7	=
+// 4:9	true
+// 5:0	br
+
+let a = 12345
+let b = "hello\t\"world\""
+let c = 'x'
+let d = true

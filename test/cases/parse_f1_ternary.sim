@@ -1,0 +1,12 @@
+// parse
+// let main = () {
+//     let a = 1 < 2 ? 65 : 66
+//     let b = 2 == 2 ? 67 : 68
+//     let c = false ? 65 : true ? 66 : 67
+// }
+
+let main = () {
+	let a = 1 < 2 ? 65 : 66
+	let b = 2 == 2 ? 67 : 68
+	let c = false ? 65 : true ? 66 : 67
+}

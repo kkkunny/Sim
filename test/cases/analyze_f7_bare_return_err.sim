@@ -1,0 +1,15 @@
+// analyze
+// error[missing return value]: the function must return a value of type 'i32'
+//   --> cases/analyze_f7_bare_return_err.sim:11:2
+//    |
+// 11 |	return;
+//    |
+// Summary: 1 error(s)
+// error: aborting due to 1 previous error(s)
+
+let f = () -> i32 {
+	return;
+}
+
+let main = () {
+}

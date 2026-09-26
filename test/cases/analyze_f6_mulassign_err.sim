@@ -1,0 +1,13 @@
+// analyze
+// error[must mutable]: the expression must be mutable
+//   --> cases/analyze_f6_mulassign_err.sim:12:2
+//    |
+// 12 |	x *= 3
+//    |
+// Summary: 1 error(s)
+// error: aborting due to 1 previous error(s)
+
+let main = () {
+	let x: i32 = 2
+	x *= 3
+}

@@ -1,0 +1,14 @@
+// analyze
+// let main: () -> unit = () -> unit {
+//     let a: i32 = -1
+//     let b: i8 = -1
+//     let c: i64 = -65
+//     let d: f64 = -2
+// }
+
+let main = () {
+	let a: i32 = -1
+	let b: i8 = -1
+	let c: i64 = -65
+	let d: f64 = -2
+}

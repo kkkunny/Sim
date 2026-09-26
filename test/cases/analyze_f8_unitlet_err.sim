@@ -1,0 +1,19 @@
+// analyze
+// error[unit typed variable]: the variable 'x' cannot have type 'unit'
+//   --> cases/analyze_f8_unitlet_err.sim:18:6
+//    |
+// 18 |	let x = g()
+//    |
+// Summary: 1 error(s)
+// error: aborting due to 1 previous error(s)
+
+@extern(putchar)
+pub let putchar: (i32) -> i32
+
+let g = () {
+	putchar(71)
+}
+
+let main = () {
+	let x = g()
+}

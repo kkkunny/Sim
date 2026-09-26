@@ -1,0 +1,8 @@
+// analyze
+// let main: () -> unit = () -> unit {
+//     let x: i64 = 1
+// }
+
+let main = () {
+	let x = 1
+}

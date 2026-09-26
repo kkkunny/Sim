@@ -1,0 +1,19 @@
+// analyze known-bug=F19
+// error[circular reference]: circular reference
+//   --> cases/analyze_f19_type_cycle.sim:15:6
+//    |
+// 15 |type A A
+//    |
+// error[unknown identifier]: unknown identifier 'A'
+//   --> cases/analyze_f19_type_cycle.sim:18:15
+//    |
+// 18 |	let x = 1 as A
+//    |
+// Summary: 2 error(s)
+// error: aborting due to 2 previous error(s)
+
+type A A
+
+let main = () {
+	let x = 1 as A
+}

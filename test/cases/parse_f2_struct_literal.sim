@@ -1,0 +1,24 @@
+// parse
+// type S struct {
+//     a: i32
+// }
+//
+// let main = () {
+//     let s = S{
+//         a: 1,
+//     }
+//     if s.a == 1 {
+//         let t = S{}
+//     }
+// }
+
+type S struct {
+	a: i32
+}
+
+let main = () {
+	let s = S{a: 1}
+	if s.a == 1 {
+		let t = S{}
+	}
+}

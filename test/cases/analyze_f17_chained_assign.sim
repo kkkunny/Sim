@@ -1,0 +1,20 @@
+// analyze known-bug=F17
+// error[unexpected expression]: expected expression type 'unit' but got 'i64'
+//   --> cases/analyze_f17_chained_assign.sim:19:10
+//    |
+// 19 |	a = b = c
+//    |
+// error[must not temporary]: the expression must be not temporary
+//   --> cases/analyze_f17_chained_assign.sim:19:2
+//    |
+// 19 |	a = b = c
+//    |
+// Summary: 2 error(s)
+// error: aborting due to 2 previous error(s)
+
+let main = () {
+	let mut a = 1
+	let mut b = 2
+	let mut c = 3
+	a = b = c
+}
