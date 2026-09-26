@@ -53,7 +53,7 @@ the box, non-standard prefixes need go-llvm's `make config`).
 - No Go unit tests exist (`*_test.go` absent). Verification is done by
   compiling/running `.sim` example files, not `go test`. 迁移期每个小功能用
   `/tmp/opencode/sim-cases/` 下的最小 `.sim` 片段做简单验证；正式测试集的建设计划见
-  `docs/plans.md` P11。
+  `docs/plans.md` P1（测试体系）。
 - Module is Go 1.27 and depends on `github.com/kkkunny/stl` and
   `github.com/kkkunny/go-llvm`; the `stlerror.Must*` helpers panic on error, so
   failures surface as panics.
