@@ -55,6 +55,24 @@ func (c *CodeGenerator) genGlobalValue(global globals.Global) {
 	}
 }
 
+// genFuncDecls 函数符号声明子遍（D13）：在生成任何函数体之前登记全部函数符号，
+// 使同包前向引用（helper 定义在调用点之后）与互递归可用。非函数全局跳过。
+func (c *CodeGenerator) genFuncDecls() {
+	for _, g := range c.pkg.Globals {
+		l, ok := g.(*locals.Let)
+		if !ok || l.Mut || !stlval.Is[types.FuncType](l.GetType()) {
+			continue
+		}
+		if v, ok := l.Value.Value(); ok {
+			if stlval.Is[*locals.Func](v) {
+				c.genGlobalFuncDecl(l)
+			}
+		} else {
+			c.genExternalFuncDecl(l)
+		}
+	}
+}
+
 func (c *CodeGenerator) genGlobalLet(l *locals.Let) {
 	if !l.Mut && stlval.Is[types.FuncType](l.GetType()) {
 		if l.Value.IsSome() && stlval.Is[*locals.Func](l.Value.MustValue()) {
@@ -69,6 +87,24 @@ func (c *CodeGenerator) genGlobalLet(l *locals.Let) {
 }
 
 func (c *CodeGenerator) genGlobalFunc(l *locals.Let, expr *locals.Func) {
+	c.genGlobalFuncDecl(l)
+	body, ok := expr.Body.Value()
+	if !ok {
+		return
+	}
+	ident := c.ctx.idents[l]
+	decl, ok := c.module.GetFunction(ident.Name)
+	if !ok {
+		panic(fmt.Errorf("llgen: 函数 %s 的符号未在模块中登记（%s）", l.Name, ident.Name))
+	}
+	c.genFuncBody(decl, expr, body, nil)
+}
+
+// genGlobalFuncDecl 建函数符号并登记（不生成函数体）；已登记则直接复用
+func (c *CodeGenerator) genGlobalFuncDecl(l *locals.Let) {
+	if _, ok := c.ctx.idents[l]; ok {
+		return
+	}
 	name := stableName(c.pkg, l.Name)
 	internal := !l.Pub
 	switch {
@@ -84,12 +120,17 @@ func (c *CodeGenerator) genGlobalFunc(l *locals.Let, expr *locals.Func) {
 		decl.SetLinkage(llvm.LinkageInternal)
 	}
 	c.ctx.idents[l] = &Ident{Name: name}
-	if body, ok := expr.Body.Value(); ok {
-		c.genFuncBody(decl, expr, body, nil)
-	}
 }
 
 func (c *CodeGenerator) genExternalFunc(l *locals.Let) {
+	c.genExternalFuncDecl(l)
+}
+
+// genExternalFuncDecl 建外部函数声明并登记；已登记则直接复用
+func (c *CodeGenerator) genExternalFuncDecl(l *locals.Let) {
+	if _, ok := c.ctx.idents[l]; ok {
+		return
+	}
 	decl := c.module.NewFunction(l.ExternalName.MustValue(), c.genNativeFuncType(l.GetType().(types.FuncType)))
 	c.ctx.idents[l] = &Ident{Name: decl.Name(), ExternalFunc: true}
 }

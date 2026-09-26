@@ -547,6 +547,9 @@ func (c *CodeGenerator) genString(expr *locals.String) llvm.AnyValue {
 	c.strCount++
 	data := c.ctx.LLVM().ConstString(expr.Value, true)
 	g := c.module.NewGlobalConst(fmt.Sprintf("_str.%d", c.strCount), data)
+	// 字符串常量仅本模块引用；每个模块都从 1 开始计数，若用默认 external 链接，
+	// 跨模块链接会报 multiple definition，故设为 private（不进符号表）
+	g.SetLinkage(llvm.LinkagePrivate)
 	ptr := c.ctx.LLVM().ConstGEP(
 		c.ctx.LLVM().Int(8), g, true,
 		c.ctx.LLVM().Int(32).Const(0), c.ctx.LLVM().Int(32).Const(0),
@@ -571,6 +574,8 @@ func (c *CodeGenerator) genCall(expr *locals.Call) llvm.AnyValue {
 				return c.genExpr(e)
 			})
 			return c.builder.Call[llvm.DynT](fn, args, "")
+		} else if !ok {
+			panic(fmt.Errorf("llgen: 符号 %s 尚未登记（依赖模块需先生成；函数值调用待 D13/F4）", identExpr.Define.GetName()))
 		}
 	}
 	panic(fmt.Errorf("llgen: 暂不支持的调用形式（%T，D13/F4）", expr.Func))

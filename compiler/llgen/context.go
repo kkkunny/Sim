@@ -32,12 +32,16 @@ type Context struct {
 }
 
 // NewContext 创建代码生成上下文（初始化本机 LLVM 目标）
+//
+// 重定位模型用 PIC：clang 默认按 PIE 链接，内部/私有全局（如字符串常量）在静态
+// 重定位模型下会被后端用 R_X86_64_32 绝对地址引用，链接时报
+// "relocation ... can not be used when making a PIE object"，PIC 则生成 RIP 相对寻址。
 func NewContext() *Context {
 	stlerr.Must(target.InitNative())
 	native := stlerr.MustWith(target.NativeTarget())
 	tm := stlerr.MustWith(target.NewTargetMachine(
 		native, target.DefaultTriple(), target.HostCPUName(), target.HostCPUFeatures(),
-		target.OptNone, target.RelocDefault, target.CodeModelDefault,
+		target.OptNone, target.RelocPIC, target.CodeModelDefault,
 	))
 	return &Context{
 		llvm:   llvm.NewContext(),

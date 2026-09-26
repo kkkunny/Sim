@@ -219,6 +219,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [ ] **B6 struct**：named struct；递归/互递归（`&Self`）走 opaque+`SetBody`。
       验证：`examples/main.sim`（`S{name}` + `&s` + 方法）。
 - [ ] **B7 自定义类型**：标量别名透传；聚合 named struct（两遍 + `stableName`）。
+      备注：`type R &T` 引用别名属于**后端 B7 问题**——`genCustomTypeDecl` 目前把 `RefType` 也
+      预声明为 opaque named struct，应改为透传 `ptr`（详见 §11 修订记录/审查报告）。
       验证：`std/buildin` 的 `type i8 i8` 等 + `type S struct`。
 - [ ] **B8 函数胖类型**：`{ptr fn, ptr ctx}`。验证：函数变量赋值/传递。
 - [ ] **B9 tagged union**：`{i8, payload}` + DataLayout 精确计算。
@@ -269,7 +271,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [ ] **D12 字段访问** `GetField`：struct/带 Self 指针自动解引用。验证：`examples/main.sim` 的 `self.name`。
 - [ ] **D13 调用**：直接 `Call`、外部调用已实现并验证（`m1_putchar`/`m1_puts`）；
       函数值 `CallIndirect`（ctx 判空双分支 + 快速路径）待 F4。
-- [ ] **D14 自增语义** `SELFADD`：load/add/store。验证：for 计数循环。
+- [x] **D14 自增语义** `SELFADD`：**不适用**（HIR 无自增节点：`Unary` 仅 BitsReverse/BooleanReverse/
+      GetRef/DeRef，`SELFADD` 只出现在旧 `cir` 的 for 动作位，随 E5 for 循环再评估）。验证：for 计数循环。
 
 ### E. 语句（`local.go`）
 
@@ -392,6 +395,8 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   `m2_nan` 用例修复前输出 `BBB`、修复后 `ABB`，IR 为 `fcmp une`。
   详见 `.superpowers/sdd/task-M2-2-report.md` 的审查修复附录；复审通过（谓词修复无回归，
   其余 O 谓词与惰性求值结构未受影响）。
+  M2-2 遗留的「unit 三元值被消费会生成 `ret <br>` 伪值」问题已在最终审查修复中一并解决
+  （`genReturn` 按表达式类型是否为 unit 选择 `RetVoid`，见文末最终审查修复条目）。
 - **2026-09-26**：**M2-3 完成**（控制流：if/else-if/else、while、嵌套块）——E3 `genIf`：
   条件求值一次 → `CondBr(then, else)` → 各分支跳转**共享**合流块；else-if 递归（条件在 else
   块内求值），无 else 时空 else 块直接跳合流。若所有分支均以终结指令（return）结束，合流块
@@ -414,6 +419,22 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   While 语句须写 `for <cond> {}`（parser `parseFor` → `ast.While`）；
   (b) 裸 `{}` 块不创建作用域（`analyzeBlock` 对 `*ast.Block` 直接展开，无 `NewBlockScope`），
   if/while/for/函数体才创建块作用域。
+- **2026-09-26**：**最终宽范围审查修复**（range `81becee..8c0ba62`）——三条关键问题：
+  (1) `return <unit 表达式>` 生成非法 IR：`genReturn` 改为先求值（保副作用）再按
+  `types.GetUnderlying(v.GetType())` 是否为 `UnitType` 选择 `RetVoid`/`Ret`，覆盖 unit call
+  伪值与 `genTernaryVoid` 的 `br` 伪值（`fix_unitret`/`fix_unittern` 输出 `G`）；
+  `genLocalLet` 对 unit 类型前置检查并给出含变量名/类型的清晰 panic。
+  (2) 字符串常量跨包重定义：`@_str.N` 全局设 `LinkagePrivate`（每模块 `@_str.1` 互不冲突），
+  并因内部/私有全局在静态重定位模型下被后端用 `R_X86_64_32` 绝对寻址、无法链入 clang 默认
+  PIE，`NewContext` 的 TargetMachine 重定位模型由 `RelocDefault` 改为 `RelocPIC`；
+  两模块字符串用例链接成功（输出 `main`/`pkg`），IR 为 `@_str.1 = private constant ...`。
+  (3) 同包前向引用：`Generate()` 在生成函数体前新增 `genFuncDecls` 函数符号声明子遍
+  （统一命名/链接性规则，含 `@extern` 声明），调用点不再依赖声明顺序
+  （`fix_forward`：helper 定义在 main 之后 + 互递归，输出 `A1`）；
+  `genCall` 未登记符号的 panic 文案改为明确提示。
+  回归：M1/M2 全部既有用例双后端对照无新增差异（旧 C 后端在 `rev_forward`/`fix_forward`
+  上前向引用直接 SIGSEGV，llgen 现已支持）；旧管线 `examples/main.sim` 输出 `123`；
+  build/vet/gofmt 通过。审查报告见 `.superpowers/sdd/final-fix-report.md`。
 
 ## 11. 迁移期间发现的前端问题（非后端迁移范围，待单独处理）
 
@@ -423,5 +444,9 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
    检查的是绑定 `p` 的可变性而非引用目标；`let mut p` 可绕过。旧 C 后端同样拒绝。
 3. **`type bool bool` 与内建 `types.Bool` 不 Equal**：`let b = mb as bool; cond ? ...` 报
    "expected 'bool' but got 'bool'"（`_CustomBooleanType.Equal(_BooleanType)==false`）。
-4. **`type R &T` 引用别名**：`genCustomTypeDecl` 会把它预声明为 opaque named struct，
-   引用别名暂不能正确映射（待 B7 处理）。
+4. **`analyzeBinary` 可变性检查漏 `MulAssign`**：`compiler/analyze/expr.go:316-327` 的赋值运算符
+   可变性检查列表含 `Assign`/`AddAssign`/`SubAssign`/`QuoAssign`/`RemAssign`/`AndAssign`/`OrAssign`/
+   `XorAssign`/`ShlAssign`/`ShrAssign`，唯独漏了 `MulAssign`（`*=`）。因此不可变变量/临时值的
+   `x *= v` 不被拒绝（实测：`let x: i32 = 2; x *= 3` 通过 analyze，而 `x += 3` 报 must mutable）；
+   旧 C 后端同样复现。
+   （原第 4 条 `type R &T` 引用别名经复核属后端 B7 问题，已移入 §6 B7 备注。）

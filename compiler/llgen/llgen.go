@@ -58,6 +58,8 @@ func (c *CodeGenerator) Generate() *ir.Module {
 	for _, g := range c.pkg.Globals {
 		c.genTypeDef(g)
 	}
+	// 函数符号声明子遍：先登记全部函数符号，再生成函数体，支持同包前向引用/互递归
+	c.genFuncDecls()
 	for _, g := range c.pkg.Globals {
 		c.genGlobalValue(g)
 	}

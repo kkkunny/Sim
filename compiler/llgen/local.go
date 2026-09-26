@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/go-llvm/ir"
 
 	"github.com/kkkunny/Sim/compiler/hir/locals"
+	"github.com/kkkunny/Sim/compiler/hir/types"
 )
 
 func (c *CodeGenerator) genLocal(local locals.Local) {
@@ -116,9 +117,17 @@ func (c *CodeGenerator) genWhile(l *locals.While) {
 	c.moveTo(endBlock)
 }
 
+// genReturn return 语句（E2）：先求值表达式（保留副作用），再按返回类型是否为 unit
+// 选择 RetVoid/Ret。unit 函数里 `return g()`（g 为 unit 函数）或 `return (c ? g() : h())`
+// 的值是 void call / br 伪值，必须走 RetVoid，否则生成非法 IR（`ret void <badref>`）。
 func (c *CodeGenerator) genReturn(l *locals.Return) {
 	if v, ok := l.Value.Value(); ok {
-		c.builder.Ret(c.genExpr(v))
+		val := c.genExpr(v)
+		if _, ok := types.GetUnderlying(v.GetType()).(types.UnitType); ok {
+			c.builder.RetVoid()
+		} else {
+			c.builder.Ret(val)
+		}
 	} else {
 		c.builder.RetVoid()
 	}
@@ -126,6 +135,10 @@ func (c *CodeGenerator) genReturn(l *locals.Return) {
 }
 
 func (c *CodeGenerator) genLocalLet(l *locals.Let) {
+	// unit 类型不能 alloca（LLVM 不允许 void 存储）；正常前端会拒绝，此处防御性报错
+	if _, ok := types.GetUnderlying(l.GetType()).(types.UnitType); ok {
+		panic(fmt.Errorf("llgen: 不能为 unit 类型的变量 %s 分配存储（类型 %s）", l.Name, l.GetType()))
+	}
 	// 与参数一致在入口块分配（§4.3）：循环体内的 let 不会每轮消耗新栈空间
 	ptr := c.allocaEntry(c.genType(l.GetType()), l.Name)
 	c.ctx.idents[l] = &Ident{Name: l.Name, Local: ptr}
