@@ -351,6 +351,14 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 依赖顺序 **A → B → C → D/E → F → G → H → I → J**。
 
+1. **M1 端到端最小闭环**（A + B1/B2 + C1/C2/C5/C6 + E2 + H）：`main` 返回常量、`puts("hello")`
+   经新后端跑通，链接/缓存/Verify 全链路就位。
+2. **M2 标量语言**（B1 + D1~D9/D14 + E1~E6）：算术/控制流/转换。
+3. **M3 复合类型**（B3~B7/B10 + C3/C4 + D10~D12 + G1~G4）：`examples/main.sim` 通过。
+4. **M4 函数值与闭包**（B8 + D13 + F1~F7 + G6）。
+5. **M5 union 与完整相等性**（B9 + G5/G7）。
+6. **M6 收尾**（I + J）：`examples/main.sim` 回归 + 旧代码删除 + 文档更新。
+
 ## 10. 进度记录
 
 - **2026-09-26**：A1/A2 完成（go-llvm 引入、llgen 骨架、`llvmgen` 驱动）。
@@ -382,12 +390,16 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - **2026-09-26**：**M2-2 审查修复**——浮点 `Neq` 由 `ONE`（有序且不等，NaN 时返回 false）改为
   `UNE`（无序或不等），与 C `a != b`（任一操作数为 NaN 时返回 true）语义一致；
   `m2_nan` 用例修复前输出 `BBB`、修复后 `ABB`，IR 为 `fcmp une`。
-  详见 `.superpowers/sdd/task-M2-2-report.md` 的审查修复附录。
+  详见 `.superpowers/sdd/task-M2-2-report.md` 的审查修复附录；复审通过（谓词修复无回归，
+  其余 O 谓词与惰性求值结构未受影响）。
 
-1. **M1 端到端最小闭环**（A + B1/B2 + C1/C2/C5/C6 + E2 + H）：`main` 返回常量、`puts("hello")`
-   经新后端跑通，链接/缓存/Verify 全链路就位。
-2. **M2 标量语言**（B1 + D1~D9/D14 + E1~E6）：算术/控制流/转换。
-3. **M3 复合类型**（B3~B7/B10 + C3/C4 + D10~D12 + G1~G4）：`examples/main.sim` 通过。
-4. **M4 函数值与闭包**（B8 + D13 + F1~F7 + G6）。
-5. **M5 union 与完整相等性**（B9 + G5/G7）。
-6. **M6 收尾**（I + J）：`examples/main.sim` 回归 + 旧代码删除 + 文档更新。
+## 11. 迁移期间发现的前端问题（非后端迁移范围，待单独处理）
+
+1. **parser 三元优先级**：`parseSuffixExpr` 在二元运算符循环之前消费 `?`，`1 < 2 ? a : b`
+   被解析为 `1 < (2 ? a : b)`；旧 C 后端同样复现。临时对策：条件加括号。
+2. **`DeRef` 可变性检查方向**：`let p = &mut x; *p = v` 被 analyze 以 "must mutable" 拒绝，
+   检查的是绑定 `p` 的可变性而非引用目标；`let mut p` 可绕过。旧 C 后端同样拒绝。
+3. **`type bool bool` 与内建 `types.Bool` 不 Equal**：`let b = mb as bool; cond ? ...` 报
+   "expected 'bool' but got 'bool'"（`_CustomBooleanType.Equal(_BooleanType)==false`）。
+4. **`type R &T` 引用别名**：`genCustomTypeDecl` 会把它预声明为 opaque named struct，
+   引用别名暂不能正确映射（待 B7 处理）。
