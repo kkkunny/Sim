@@ -23,6 +23,7 @@ go run -tags <stage> . <file.sim>
 
 - `lex` / `parse` / `analyze` / `codegen` — print tokens / AST / HIR / generated C
 - `llvmgen` — 迁移期临时驱动：analyze → LLVM IR 文本（`compiler/llgen`，尚未接入 compile）
+- `llvmcompile` — 迁移期临时驱动：analyze → llgen → `.o` → clang 链接 `main.out`（不写缓存）
 - `compile` — codegen to C, compile with clang, emit `main.out` in the **current
   working directory** (not next to the source; `config.WorkPath = os.Getwd()`)
 - `debug` — compiles and runs `examples/main.sim`

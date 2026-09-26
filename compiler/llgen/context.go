@@ -6,6 +6,7 @@ import (
 	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/hir"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
 )
 
 // Ident 符号信息
@@ -13,6 +14,8 @@ type Ident struct {
 	Name string
 
 	ExternalFunc bool // 是外部函数
+
+	Local llvm.Value[llvm.PtrT] // 局部变量/参数的存储地址
 }
 
 // Context 跨包共享的代码生成上下文
@@ -23,7 +26,9 @@ type Context struct {
 	triple string
 
 	idents    map[hir.Ident]*Ident
-	typeCache map[string]llvm.AnyType
+	typeCache map[*globals.TypeDef]llvm.AnyType
+
+	namedTypes map[string]llvm.StructType // named struct 按名去重（LLVM Context 级共享）
 }
 
 // NewContext 创建代码生成上下文（初始化本机 LLVM 目标）
@@ -41,7 +46,9 @@ func NewContext() *Context {
 		triple: target.DefaultTriple(),
 
 		idents:    make(map[hir.Ident]*Ident),
-		typeCache: make(map[string]llvm.AnyType),
+		typeCache: make(map[*globals.TypeDef]llvm.AnyType),
+
+		namedTypes: make(map[string]llvm.StructType),
 	}
 }
 
@@ -53,6 +60,25 @@ func (c *Context) LLVM() *llvm.Context {
 // TargetMachine 返回本机目标机器
 func (c *Context) TargetMachine() *target.TargetMachine {
 	return c.target
+}
+
+// NamedStruct 获取（或创建）名为 name 的 named struct；首次创建时 body 为空
+func (c *Context) NamedStruct(name string) llvm.StructType {
+	if t, ok := c.namedTypes[name]; ok {
+		return t
+	}
+	t := c.llvm.NamedStruct(name)
+	c.namedTypes[name] = t
+	return t
+}
+
+// NamedStructWithBody 获取（或创建并填充）名为 name 的 named struct
+func (c *Context) NamedStructWithBody(name string, elems ...llvm.AnyType) llvm.StructType {
+	t := c.NamedStruct(name)
+	if t.IsOpaque() {
+		t.SetBody(elems, false)
+	}
+	return t
 }
 
 // Close 释放上下文资源

@@ -203,15 +203,15 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
       `CodeGenerator`（模块/Builder）、三遍 `Generate()`、`mod.Verify()`；
       临时 `-tags llvmgen` 驱动打印 IR。
       验证：`go run -tags llvmgen . examples/main.sim` 输出合法（空）`.ll`，Verify 通过。
-- [ ] **A3 符号表与缓存**：`idents` 存符号描述符（mangled name、是否外部、签名）；
-      `typeCache` 存 LLVM 类型；辅助函数 `map[typeKey]Function`。
-      验证：编译通过 + 跨包同名符号不串（IR 文本检查）。
+- [x] **A3 符号表与缓存**：`idents` 存符号描述符（名称/是否外部/局部存储地址）；
+      `typeCache` 按 `*globals.TypeDef` 指针缓存（避免跨包重名冲突）+ named struct 按名去重；
+      辅助函数缓存留待 G7。验证：`m1_puts`（std::c 的 puts 在 main 模块生成外部声明）。
 
 ### B. 类型系统映射（`type.go`）
 
-- [ ] **B1 标量**：i8..i64/u8..u64/f32/f64/bool（unit→void 仅返回位）。
-      验证：`/tmp/opencode/sim-cases/type_scalar.sim` 各类型 let/传参/返回。
-- [ ] **B2 `str`**：named struct `{ptr, i64}`。验证：str 变量读写 + 传 `@extern puts`。
+- [x] **B1 标量**：i8..i64/u8..u64/f32/f64/bool（unit→void 仅返回位）。
+      验证：i32/u8/i64/bool 局部（`m1_types`，IR 截断正确）；浮点字面量语言层（lexer）暂不支持，映射代码已就绪。
+- [x] **B2 `str`**：named struct `{ptr, i64}`。验证：`m1_puts` 输出 hello，IR `%str = type { ptr, i64 }`。
 - [ ] **B3 引用/指针**：`&T`/`&mut T` → `ptr`。验证：取址/解引用/指针比较。
 - [ ] **B4 tuple**：named struct `e1..en`。验证：构造 + 索引读写。
 - [ ] **B5 数组**：`[N x T]`；N=0 / 零尺寸元素 → `{}`。验证：字面量、索引、整体赋值、传参。
@@ -226,24 +226,24 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ### C. 常量与全局（`global.go`）
 
-- [ ] **C1 数值字面量**：`ConstIntOfString`（`big.Int` 截断语义与 C 一致）、`ConstFloat`、bool。
-      验证：各宽度字面量 + 边界值。
-- [ ] **C2 字符串字面量**：`ConstString` + `ConstGEP` + `ConstNamedStruct` 全局常量。
-      验证：`puts("...")` 输出。
+- [x] **C1 数值字面量**：`ConstIntOfString`、`ConstFloat`、`ConstBool`。
+      验证：i32 字面量作 extern 实参、u8/i64 局部初始化（`m1_types`）；边界值待统一测试集。
+- [x] **C2 字符串字面量**：`ConstString` + `ConstGEP` + `ConstNamedStruct` 全局常量。
+      验证：`m1_puts` 输出 hello，IR `@_str.1 = constant [6 x i8] c"hello\00"`。
 - [ ] **C3 聚合字面量**：tuple/array/struct 常量路径（全局初始化）+ 运行时 `InsertValue` 路径。
       验证：全局/局部聚合初始化。
 - [ ] **C4 全局变量**：定义（无值 → `SetInitializer(zeroinitializer)`）、`pub/static` 链接性、
       `@extern` 外部全局声明。验证：跨包读写 pub 全局 + extern 全局。
-- [ ] **C5 函数定义/声明**：`pub/static` 链接性、`@extern` 纯声明、`stableName` 命名。
-      验证：`std/c::puts` 声明与调用。
-- [ ] **C6 入口**：`main` → `sim_main` + `main` wrapper（`call sim_main; ret 0`）。
-      验证：`./main.out` 运行成功。
+- [x] **C5 函数定义/声明**：`pub/static` 链接性、`@extern` 纯声明、`stableName` 命名。
+      验证：`m1_putchar`（外部函数调用）、`m1_puts`（跨包声明与调用）。
+- [x] **C6 入口**：`main` → `sim_main` + `main` wrapper（`call sim_main; ret 0`）。
+      验证：三个 M1 用例均经 wrapper 正常运行。
 
 ### D. 表达式（`expr.go`）
 
 - [ ] **D1 lvalue/rvalue 双通道**：`genAddr`/`genExpr` 拆分。验证：赋值目标各类形态。
-- [ ] **D2 标识符**：局部 alloca load、参数、全局 load、捕获字段 GEP。
-      验证：同名遮蔽/嵌套作用域。
+- [x] **D2 标识符**：局部 alloca load、参数 alloca、全局 load、捕获字段 GEP。
+      验证：局部读取（`m1_local` 输出 B）；全局读取待 C4、捕获待 F7。
 - [ ] **D3 算术/位运算/移位**：按符号性 `SDiv/UDiv/SRem/URem/FAdd.../frem`、`AShr/LShr`、`And/Or/Xor`。
       验证：有/无符号/浮点矩阵。
 - [ ] **D4 比较**：`ICmp`/`FCmp` 谓词映射 → i1。验证：各类型比较结果。
@@ -257,14 +257,15 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [ ] **D10 TypedefCovert**：标量透传/转换（与 C 后端一致只支持标量层）。验证：`type MyInt i32` 转换。
 - [ ] **D11 索引**：数组 `GEP`、元组 `ExtractValue`/GEP；右值/左值两路径。验证：嵌套索引赋值。
 - [ ] **D12 字段访问** `GetField`：struct/带 Self 指针自动解引用。验证：`examples/main.sim` 的 `self.name`。
-- [ ] **D13 调用**：直接 `Call`、外部调用、函数值 `CallIndirect`（ctx 判空双分支 + 快速路径）。
-      验证：直调/函数变量调用/闭包调用/extern 调用。
+- [ ] **D13 调用**：直接 `Call`、外部调用已实现并验证（`m1_putchar`/`m1_puts`）；
+      函数值 `CallIndirect`（ctx 判空双分支 + 快速路径）待 F4。
 - [ ] **D14 自增语义** `SELFADD`：load/add/store。验证：for 计数循环。
 
 ### E. 语句（`local.go`）
 
-- [ ] **E1 `let`**：入口块 alloca + store。验证：遮蔽/重赋值。
-- [ ] **E2 `return`**：`RetVoid`/`Ret`。验证：多出口函数（含 unit 返回）。
+- [x] **E1 `let`**：入口块 alloca + store。验证：`m1_local`（`let x: i32 = 66`）。
+- [x] **E2 `return`**：`RetVoid`/`Ret` + 函数体兜底（void→`ret void`，非 void→`unreachable`）。
+      验证：空函数体 `m1_empty` 正常运行。
 - [ ] **E3 `if/else-if/else`**：块结构递归。验证：嵌套 if 链。
 - [ ] **E4 `while`**：cond→body→cond 块环。验证：条件副作用/出口。
 - [ ] **E5 `for`（range 数组）**：索引变量 + 数组遍历。验证：遍历求和。
@@ -293,9 +294,10 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ### H. 跨包、产物与链接（`compiler/compile`）
 
-- [ ] **H1 每包一模块 + 外部声明**：按需创建 declaration。验证：`examples/main.sim`（依赖 std::c）。
-- [ ] **H2 `EmitToFile`** 产出 `.sim_cache/<pkg>.o`。验证：产物存在且 `file` 识别 ELF relocatable。
-- [ ] **H3 clang 链接**：`clang main.o dep.o... -lm -o main.out`。验证：`./main.out` 输出正确。
+- [x] **H1 每包一模块 + 外部声明**：按需创建 declaration。
+      验证：`m1_puts`（main 模块内生成 `declare void @puts(%str)`）；examples 全量待 M3。
+- [ ] **H2 `EmitToFile`** 产出 `.sim_cache/<pkg>.o`（临时驱动已产出到临时目录；正式接入见 H5）。
+- [x] **H3 clang 链接**：`clang main.o dep.o... -lm -o main.out`。验证：M1 用例运行输出正确（临时驱动）。
 - [ ] **H4 缓存**：有效性只比 `.o`/源 mtime；文件锁保留。验证：连续两次 compile，第二次命中缓存。
 - [ ] **H5 compile 主/依赖包流程改造**：删除 `.h` 输出与 `#include` 拼接。验证：全量编译 + 缓存命中。
 
@@ -338,6 +340,16 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 ## 9. 实施顺序与里程碑
 
 依赖顺序 **A → B → C → D/E → F → G → H → I → J**。
+
+## 10. 进度记录
+
+- **2026-09-26**：A1/A2 完成（go-llvm 引入、llgen 骨架、`llvmgen` 驱动）。
+- **2026-09-26**：**M1 核心闭环打通**（临时驱动 `llvmcompile`）——
+  空 `main`、`putchar(65)`→"A"、`import std::c` + `puts("hello")`、局部变量读取（→"B"）、
+  u8/i64/bool 类型映射（i8 截断 -56 正确），全部经 LLVM IR → `.o` → clang 链接运行验证；
+  对应任务 A3/B1/B2/C1/C2/C5/C6/D2/E1/E2/H1/H3。
+  下一步：接入 `compiler/compile`（H2/H4/H5）或按 B 系列补齐复合类型（推荐先 B 系列，
+  以便 `examples/main.sim` 尽早回归）。
 
 1. **M1 端到端最小闭环**（A + B1/B2 + C1/C2/C5/C6 + E2 + H）：`main` 返回常量、`puts("hello")`
    经新后端跑通，链接/缓存/Verify 全链路就位。
