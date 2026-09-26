@@ -1,16 +1,21 @@
+// 有符号整数类型
 type i8 i8
 type i16 i16
 type i32 i32
 type i64 i64
 
+// 无符号整数类型
 type u8 u8
 type u16 u16
 type u32 u32
 type u64 u64
 
+// 浮点类型
 type f32 f32
 type f64 f64
 
+// 布尔类型
 type bool bool
 
+// 字符串类型
 type str str

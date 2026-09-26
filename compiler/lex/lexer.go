@@ -84,10 +84,54 @@ func (l *Lexer) Position() reader.Position {
 	}
 }
 
-// 跳过空白
-func (l *Lexer) skipWhite() {
-	for c := l.peek(); c == ' ' || c == '\r' || c == '\t'; c = l.peek() {
+// 跳过空白与注释；返回块注释内是否出现过换行（出现时应在当前位置产出一个 Br）。
+// 行注释不消费行尾换行，换行仍由 Scan 产出 Br；跨行块注释等效一个换行。
+func (l *Lexer) skipWhiteAndComments() bool {
+	for {
+		c := l.peek()
+		switch {
+		case c == ' ' || c == '\r' || c == '\t':
+			l.next()
+		case c == '/' && l.peek(1) == '/':
+			l.skipLineComment()
+		case c == '/' && l.peek(1) == '*':
+			if l.skipBlockComment() {
+				return true
+			}
+		default:
+			return false
+		}
+	}
+}
+
+// 跳过行注释：消费到行尾（不含换行）或文件结束
+func (l *Lexer) skipLineComment() {
+	l.next()
+	l.next()
+	for c := l.peek(); c != '\n' && c != 0; c = l.peek() {
 		l.next()
+	}
+}
+
+// 跳过块注释（不嵌套，到第一个 */ 结束）；返回注释内是否出现过换行。
+// 未终止时报词法错误，由 Parser 转为诊断并中止解析。
+func (l *Lexer) skipBlockComment() (sawNewline bool) {
+	l.next()
+	begin := l.Position()
+	l.next()
+	for {
+		c := l.next()
+		switch {
+		case c == 0:
+			panic(&Error{Pos: begin, Err: errors.New("unterminated block comment")})
+		case c == '*':
+			if l.peek() == '/' {
+				l.next()
+				return sawNewline
+			}
+		case c == '\n':
+			sawNewline = true
+		}
 	}
 }
 
@@ -141,7 +185,10 @@ func (l *Lexer) scanString() token.Kind {
 }
 
 func (l *Lexer) Scan() token.Token {
-	l.skipWhite()
+	if l.skipWhiteAndComments() {
+		// 跨行块注释等效一个换行
+		return token.Token{Position: l.Position(), Kind: token.KindEnum.Br}
+	}
 	l.cache.Reset()
 
 	c := l.next()

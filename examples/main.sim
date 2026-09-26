@@ -1,14 +1,17 @@
 import std::c
 
+// 结构体类型，绑定方法 getname
 type S struct {
 	name: str
 }
 
+// bind：为 S 定义方法 getname，self 为 Self 的引用
 let getname | S = (self: &Self) -> str {
 	return self.name
 }
 
 let main = () {
+	// 结构体字面量取引用，再通过方法取字段
 	let s = S{name: "123"}
 	let ss = &s
 	c::puts((*ss).getname())

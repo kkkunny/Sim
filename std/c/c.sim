@@ -1,2 +1,4 @@
+// C 标准库绑定
+
 @extern(puts)
 pub let puts: (str) -> unit
