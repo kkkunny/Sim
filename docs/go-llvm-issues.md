@@ -5,7 +5,8 @@ bug、API 缺失或行为异常，由项目作者统一反馈给 go-llvm 作者�
 
 **维护规则**
 
-- 只记录**疑似库问题**（与 Sim 代码无关）；Sim 自身缺陷见 [`docs/known-issues.md`](known-issues.md)。
+- 只记录**疑似库问题**（与 Sim 代码无关）；Sim 自身缺陷（bug）见
+  [`docs/known-issues.md`](known-issues.md)，未来规划见 [`docs/plans.md`](plans.md)。
 - **单个问题在 go-llvm 修复后立即从本文件删除**；Sim 侧的临时绕过同步回退。
 - 发现即记录：其他任务过程中遇到的疑似库问题/缺失 API，也补录到本文件。
 - 每条必须包含可复现的最小信息；无法确认时标注"待确认"。
