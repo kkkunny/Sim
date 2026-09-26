@@ -1,21 +1,23 @@
-# Sim 已知问题（未解决）
+# Sim 已知问题（未修复）
 
-本文件汇总当前**已知问题**（未解决项 + 保留的已修复回归项）：前端（parser/analyze）缺陷、
-LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/工程 backlog。
-每条都带最小复现；状态在修复后更新（标记 ✅ 并注明提交/版本），修复后不要删除条目。
+本文件是**未修复问题**的唯一清单，覆盖前端（parser/analyze）、LLVM 后端（compiler/codegen）
+与编译驱动/诊断（compile/lex/report）。
 
-- 状态图例：`待修复` / `低优先` / `已知限制`（设计取舍，非缺陷）/ `✅ 已修复`（保留作回归用例）
-- 库自身问题单独记录在 [`docs/go-llvm-issues.md`](go-llvm-issues.md)
-- 历史迁移记录见 [`docs/superpowers/plans/2026-09-26-llvm-backend-migration.md`](superpowers/plans/2026-09-26-llvm-backend-migration.md)
+**维护规则**
+
+- **单个问题修复后立即从本文件删除**（不保留已修复条目；历史见 git log）。
+- 其他任务过程中发现、但无法当场修复的问题，必须补录到本文件（格式同下）。
+- 每条包含：现象 / 最小复现 / 影响 / 临时绕过（如有）/ 修复位置（如明确）。
+- 编号一经分配不复用、不重排（修复删除后编号留空），新问题顺延。
+- 未来规划与待办见 [`docs/plans.md`](plans.md)；go-llvm 库自身问题见
+  [`docs/go-llvm-issues.md`](go-llvm-issues.md)。
 
 复现方式：把片段存为 `x.sim`，在仓库根运行 `go run -tags analyze . x.sim`（前端）或
-`go run -tags compile . x.sim`（含后端），观察输出。诊断统一输出到 **stderr**
-（管道捕获时用 `2>&1`）。
+`go run -tags compile . x.sim`（含后端）；诊断统一输出到 **stderr**（管道捕获时用 `2>&1`）。
 
-> 诊断行为说明（2026-09-26 改造，提交 `1fba40f`）：前端一次编译可报告多条错误
-> （parse/analyze 均带错误恢复，以语句/全局为隔离单位）；后端未支持或防御性检查失败
-> 不再抛裸 panic，统一渲染为 `internal compiler error: ...` + Go 栈（ICE）。
-> 下方各条「现状」中的后端消息均为 ICE 形式（取首行引用，栈省略）。
+> 诊断行为（2026-09-26 改造，提交 `1fba40f`）：前端一次编译可报告多条错误（parse/analyze 均带
+> 错误恢复，以语句/全局为隔离单位）；后端未支持或防御性检查失败不再抛裸 panic，统一渲染为
+> `internal compiler error: ...` + Go 栈（ICE）。
 
 ---
 
@@ -59,31 +61,8 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
   }
   ```
 - **影响**：`if`/`for-in` 的最自然写法不可用；`examples` 恰好未触发。
-- **临时绕过**：条件/范围用非裸标识符形式：`if b == true { }`、`for x in a[0] { }`、
-  `for x in f() { }`。
-
-### F3. 报告器在部分解析错误路径 panic（slice bounds）—— ✅ 已修复（1fba40f）
-
-- **修复**：`compiler/report/report.go` 重写源码行提取与高亮区间计算（切片下标一律 clamp），
-  `ReadFromTo` 增加负区间保护；非法列号/越界位置不再崩掉诊断渲染。
-- **修复前现象**：`panic: runtime error: slice bounds out of range [:-1]`（`compiler/report/report.go` 位置切片），
-  取代本应给出的诊断。
-- **最小复现**（现输出正常诊断，保留作为回归用例）：
-  ```sim
-  let f = () -> i32 { return
-  }
-  ```
-  现在输出：`error[unexpected token]: unexpected token 'br'`
-  ```sim
-  let main = () {
-      let b: bool = true
-      if b {
-      }
-  }
-  ```
-  现在输出：`error[expected token]: expected '{' but got 'br'`（F2 的 struct 字面量歧义表现）
-- **影响（修复前）**：错误输入直接崩掉编译器，报错不可读。
-- **临时绕过**：无需（已修复）。
+- **临时绕过**：条件/范围用非裸标识符形式：`if b == true { }`（右操作数为关键字）、
+  `if (a == b) { }`（整个条件加括号）、`for x in a[0] { }`、`for x in f() { }`。
 
 ### F4. `analyzeFor` 未把循环变量加入作用域 —— 待修复
 
@@ -140,7 +119,7 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
   let f = () -> i32 { return; }
   let main = () { }
   ```
-- **现状**：llgen/codegen 报
+- **现状**：codegen 报
   `internal compiler error: codegen (package ...): non-unit function ... cannot use a bare return (frontend missed validation)`
   （可读防御；含 Go 栈）。
 - **影响**：合法输入集被前端放宽，错误延后到后端。
@@ -159,13 +138,13 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
       let x = g()
   }
   ```
-- **现状**：llgen/codegen 报
+- **现状**：codegen 报
   `internal compiler error: codegen (package ...): cannot allocate storage for unit-typed variable x (type unit)`。
 - **修复位置**：前端应拒绝 unit 型 `let`（或规定其忽略语义）。
 
 ### F9. 无隐式数值转换 —— 待修复
 
-- **现象**：旧 C 后端靠 C 隐式转换兜底，llgen 严格按 LLVM 类型调用，类型不匹配即 ICE：
+- **现象**：旧 C 后端靠 C 隐式转换兜底，codegen 严格按 LLVM 类型调用，类型不匹配即 ICE：
   `internal compiler error: ir.Builder.Call: argument 0 type i64 does not match parameter type i32`（含 Go 栈）。
 - **最小复现**：
   ```sim
@@ -179,40 +158,6 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
   ```
 - **影响**：`analyzeCall` 只对字面量/union 注入做转换，非字面量表达式的隐式转换缺口暴露。
 - **临时绕过**：显式标注类型或 `as` 转换（`let t: (i32, i32, i32) = ...`）。
-
-### F10. `type bool bool` 别名与内建 bool 不 `Equal` —— ✅ 已修复（114afdd，根因见 F13）
-
-- **现象**：`mb as bool`（`mb: bool`）得到的类型在需要内建 `types.Bool` 的位置被拒：
-  `expected expression type 'bool' but got 'bool'`。
-- **最小复现**：
-  ```sim
-  let main = () {
-      let mb: bool = true
-      let b = mb as bool
-      let c: i32 = b ? 1 : 2
-  }
-  ```
-  （函数实参、`b == true` 条件路径不复现，仅部分 expect 位置触发。）
-- **影响**：`std/buildin` 的 `type bool bool` 使 `bool` 名解析为 `_CustomBooleanType`，
-  与 `_BooleanType` 不等价。
-- **修复**：`CustomType.Equal` 重写（见 F13），与内建类型比较时递归到底层，两个方向均等价；
-  `mb as bool` 后参与条件判断不再报 `but got 'bool'`。
-- **临时绕过**：无需（已修复）。
-
-### F11. 显式类型标注的 `main` 绕过签名检查 —— ✅ 已修复（114afdd）
-
-- **现象**：`analyzeGlobalLetDecl` 的 `main` 签名校验只在**无类型标注**分支执行。
-  `let main: (i32) -> i32 = ...` 直达 codegen，`genEntryWrapper` 按 `() -> unit` 调用 `sim_main`
-  生成非法调用 → ICE `ir.Builder.Call: expect at least 1 arguments, got 0`；
-  `let main: i32 = 5` 更糟——`sim_main` 静默消失，编译成功但程序无入口（返回 0 什么都不做）。
-- **最小复现**：
-  ```sim
-  let main: (i32) -> i32 = (v: i32) -> i32 {
-      return v
-  }
-  ```
-- **修复**：签名校验抽为 `checkMainType`，类型标注分支同样执行；
-  非函数类型报 `invalid main function`，签名不符报 `unexpected expression`。
 
 ### F12. 取函数符号地址无前端检查（后端 ICE）—— 待修复
 
@@ -232,54 +177,6 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
 - **临时绕过**：无（避免对函数符号取地址）。
 - **修复位置**：`analyzeGetReference` 检查操作数是否为函数符号（`*locals.Let` + `FuncType`）。
 
-### F13. `CustomType.Equal` 不对称 + 跨包同名类型互相混淆 —— ✅ 已修复（114afdd，F10 根因）
-
-- **现象（修复前）**：`_CustomBaseType.Equal` 只比 `GetName()`
-  （`compiler/hir/types/custom.go`）：
-  - **不对称**：内建类型用结构化接口匹配自定义包装，`types.Bool.Equal(customBool)=true`，
-    而 `customBool.Equal(types.Bool)=false`（名字比对）——同一对类型两个方向结果相反，
-    这是 F10「仅部分 expect 位置触发」的根因；
-  - **跨包混淆**：两个包各自的 `type Config ...` 因名字相同被判为同一类型，
-    analyze 层接受互相赋值/传参，而 codegen 用按包哈希的 named struct（`stableName`）——
-    轻则 LLVM 类型不匹配 ICE，重则布局错乱。
-- **最小复现（跨包）**：
-  ```sim
-  --- p1/p1.sim
-  pub type Mine i32
-  --- p2/p2.sim
-  pub type Mine i32
-  --- main
-  import p1
-  import p2
-  let main = () {
-      let a: p1::Mine = 1
-      let b: p2::Mine = a
-  }
-  ```
-  修复前通过 analyze；修复后报 `expected expression type 'Mine' but got 'Mine'`。
-- **修复**：自定义类型按 `GetDef()` 指针身份判等（跨包/别名不混淆）；与内建/字面量类型比较时
-  递归到底层，保证两个方向对称。名义区分（同底层不同类型）不受影响。
-- **遗留**：报错信息中两个同名类型打印相同（`'Mine' but got 'Mine'`），类型打印缺包限定，
-  见 F22。
-
-### F14. 整数字面量与数组长度溢出静默钳制、无范围检查 —— ✅ 已修复（114afdd）
-
-- **现象（修复前）**：`analyzeInteger`/`analyzeType` 用 `strconv.ParseInt` 且忽略错误：
-  - `99999999999999999999` 静默变成 `9223372036854775807`（i64 上限）；
-  - `let y: i8 = 300` 直接放行（越界值进入 codegen，或静默截断）；
-  - `[99999999999999999999]i32` 数组长度同样被钳制。
-- **最小复现**：
-  ```sim
-  let main = () {
-      let x = 99999999999999999999
-      let y: i8 = 300
-  }
-  ```
-- **修复**：字面量全程 `big.Int` 保精度，按目标整数类型（含自定义类型底层位宽/符号）
-  做范围校验，越界报 `integer literal out of range`；数组长度校验 `IsInt64`，
-  越界报 `array size out of range`。合法边界值（`u64` 最大值、`i64` 最大值、`i8=127`、`u8=255`）
-  验证通过，F9 无隐式数值转换行为不变。
-
 ### F15. 负数字面量不支持 —— 待修复
 
 - **现象**：`-1` 报 `unexpected token '-'`——`parseUnaryExpr` 只处理 `!` 与 `*`，未处理 `-`
@@ -292,23 +189,8 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
   ```
 - **影响**：负数只能写成 `0 - 1` 或（有变量时）`x - 1`，常见控制流/算术写法不可用。
 - **临时绕过**：`0 - 1`。
-- **修复位置**：parseUnaryExpr 支持 `KindEnum.Sub`；或词法器在 `-` 后紧邻数字时合并为负数
+- **修复位置**：`parseUnaryExpr` 支持 `KindEnum.Sub`；或词法器在 `-` 后紧邻数字时合并为负数
   （注意与二元减号消歧，前者更稳妥）。
-
-### F16. 前向类型别名误报 repeated identifier —— ✅ 已修复（114afdd）
-
-- **现象**：`type A B` + `type B i32`（B 在后）时，分析 A 的过程中递归注册了 B，
-  外层循环再次处理 B 时 `analyzeCustomTypeDecl` 误报 `the identifier 'B' be redefined`。
-- **最小复现**：
-  ```sim
-  type A B
-  type B i32
-  let main = () {
-      let x: A = 1
-  }
-  ```
-- **修复**：仅当同名的已注册类型来自**另一处声明**（`GetDef()` 指针不同）时才算重定义；
-  真重定义（同名声明两次）仍报错。
 
 ### F17. 赋值左结合，链式赋值不可用 —— 待修复（低优先）
 
@@ -325,7 +207,7 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
 ### F19. 循环类型诊断后不短路，`GetUnderlying` 潜在无限递归 —— 待修复（低优先）
 
 - **现象**：`analyzeGlobalType` 报告 `CircularReference` 后仍继续 `analyzeGlobalValue`；
-  `type A = A` 这类环在后续表达式（如 `as` 走 `GetUnderlying`）中可能无限递归到栈溢出。
+  `type A A` 这类环在后续表达式（如 `as` 走 `GetUnderlying`）中可能无限递归到栈溢出。
 - **最小复现**：
   ```sim
   type A A
@@ -350,11 +232,53 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
 
 ### F22. 同名自定义类型的诊断无法区分包 —— 待修复（低优先）
 
-- **现象**：F13 修复后跨包同名类型赋值会正确报错，但消息为
+- **现象**：跨包同名类型赋值（`114afdd` 起）会正确报错，但消息为
   `expected expression type 'Mine' but got 'Mine'`——类型打印（`CustomType.String()`）只有定义名。
 - **影响**：用户无法看出是哪个包的类型不匹配。
 - **修复位置**：`globals.TypeDef` 记录所属包（或稳定限定名），打印时带包前缀。
 
+### F23. union 注入不接受未标注的数值字面量 —— 待修复
+
+- **现象**：union 期望类型下整数字面量被默认为 `f64`（`analyzeInteger` 的 else 分支），
+  而 union 注入分支只接受与成员完全 `Equal` 的值，因此 `let u: U = 65` 报
+  `expected expression type 'U' but got 'f64'`。
+- **最小复现**：
+  ```sim
+  type U i32 | bool
+  let main = () {
+      let u: U = 65
+  }
+  ```
+- **影响**：union 最自然的字面量注入写法不可用（与 F9 同源：缺隐式数值转换/期望类型传播）。
+- **临时绕过**：`let x: i32 = 65; let u: U = x`。
+- **修复位置**：`analyzeInteger` 在期望 union 时按成员匹配，或 union 注入前对字面量重试成员类型。
+
+### F24. 方法绑定（bind）不能跨包查找 —— 待修复
+
+- **现象**：包内 `pub let m | T = ...` 定义的方法，导入该包后对 `pkg::T` 值调用 `v.m()`
+  报 `unknown identifier 'm'`——`analyzeMember` 用当前 analyzer 的 `scope.LookupBind` 查找，
+  而被导入包的 binds 只登记在其自身 `PkgScope`，未随 `AddInclude/AddExternal` 合并
+  （`compiler/analyze/global.go` 内有 `// TODO: 只能绑定本包定义的类型`）。
+- **最小复现**：
+  ```sim
+  --- p1/p1.sim
+  pub type S struct {
+      name: str
+  }
+  pub let getname | S = (self: &Self) -> str {
+      return self.name
+  }
+  --- app.sim
+  import p1
+  let main = () {
+      let s = p1::S{name: "x"}
+      let n = s.getname()
+  }
+  ```
+  报：`error[unknown identifier]: unknown identifier 'getname'`
+- **影响**：类型可导出但方法不可跨包调用，限制了面向对象能力的实际使用。
+- **临时绕过**：在调用方包内为同一类型补一个 bind，或改为自由函数。
+- **修复位置**：`PkgScope.LookupBind` 递归 includes/externals；或把 bind 表挂到 `TypeDef` 上。
 
 ---
 
@@ -366,7 +290,7 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
   属未定义行为（旧 C 后端同样，实测返回悬垂垃圾）。
 - 安全范围：定义帧内使用（GetBind、闭包作实参、返回无捕获闭包 `{fn,null}`）。
 - 另：同一闭包字面量在循环内多次求值会复用同一 ctx 槽位，跨迭代保留多个实例会互相串写。
-- 根治需堆分配 ctx（语言层还需所有权/GC 设计）。
+- 根治需堆分配 ctx（语言层还需所有权/GC 设计）；长期规划见 `docs/plans.md` P13。
 
 ### B2. 全局常量初始化覆盖面窄于旧后端（已知限制）
 
@@ -375,12 +299,12 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
   `internal compiler error: codegen (package ...): non-constant global initializer is not supported: g = ... (*locals.Binary)`
   （消息中的表达式以 `%s` 打印 HIR 节点，但 HIR 节点未实现 `String()`，实际输出 Go 结构体垃圾，
   如 `f = &{%!s(bool=false) %!s(*locals.IdentExpr=&{0x...})}`——只有 `%T` 类型名有效；
-  建议消息改用 `hir.Print` 渲染。2026-09-26 review 确认，见 F12 复现）。
+  建议消息改用 `hir.Print` 渲染）。
 - 旧 C 后端把这些交给 C 编译器可编。后续补常量折叠/转换即可。
 
 ### B3. `for x in *getp()` 快照语义差异（低优先）
 
-- 旧后端因 `Temporary()` 会把数组值拷进临时变量（快照），llgen 只求一次指针、逐轮读活内存；
+- 旧后端因 `Temporary()` 会把数组值拷进临时变量（快照），codegen 只求一次指针、逐轮读活内存；
   除「循环体内修改同一块内存」外不可观察。
 
 ### B4. `genAddr` 数组索引的非 Array 回退分支静默（低优先）
@@ -414,42 +338,6 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
 
 ## 三、编译驱动与诊断（compile / lex / report）
 
-### C1. 增量编译缓存不感知依赖变化 —— ✅ 已修复（114afdd）
-
-- **现象（修复前）**：`isCacheValid` 只比对包自身 `.sim` 源文件的 mtime 与 `.o`；
-  依赖包源码变更后，依赖方 `.o` 不会重编。跨包 struct 布局/常量在各自模块 codegen 时物化，
-  旧依赖方 `.o` 仍按旧布局生成 GEP → 与新 `.o` 混链 → 静默错误行为（读错字段）。
-- **最小复现**（三包级联 `app → mid → leaf`，leaf 的 struct 插入字段使后续字段偏移变化）：
-  修复前 app 读到错位字段输出 `0`，修复后输出正确值 `2`。
-- **修复**：缓存有效性加入「依赖产物 mtime 必须不新于本包产物」检查；
-  依赖重编使 `.o` 变新（Topo 序遍历先于依赖方），从而级联失效依赖方缓存。
-- **备注**：缓存命中仍会全量 codegen（见 D1），本次修复的是正确性。
-
-### C2. 非 ASCII 源码诊断错位 —— ✅ 已修复（114afdd）
-
-- **现象（修复前）**：词法器 `l.offset++` 按 rune 计数，而 `report.ReadFromTo` 用它做字节级
-  `Seek`；`sourceLines` 的「列号→偏移」减法与 `highlightRange` 的 `line[:begin]` 字节切片
-  也混用 rune/byte —— 多字节字符（如中文）之后，报错行显示为乱码残片、高亮区间错位。
-- **最小复现**：
-  ```sim
-  let main = () {
-      let s = "中文测试"
-      let x: i32 = true
-  }
-  ```
-  修复前显示 `M-fM-5M-^KM-hM-/M-^U"` 之类乱码行；修复后正确显示 `let x: i32 = true`。
-- **修复**：lexer 偏移改按字节累计；诊断行首改为从 `BeginOffset` 向前做字节回扫；
-  高亮列做 rune→byte 换算后再切片。
-- **顺带**：`ReadFromTo` 的单次 `Read` 改 `io.ReadFull`（短读可能截断超长行诊断）。
-
-### C3. 重复 import 导致 DAG 重复边，编译失败报裸 UUID —— ✅ 已修复（114afdd）
-
-- **现象（修复前）**：`analyzeImport` 每条 import 语句都向 `Dependencies` append（不去重），
-  `buildDAG` 对同一对包重复 `AddEdge`，heimdalr/dag 返回 `EdgeDuplicateError`：
-  `error: edge between 'a141ac34-...' and 'fde04dfa-...' is already known`。
-  同一包用两个别名 import、或显式 `import std::buildin`（本就自动注入）即触发。
-- **修复**：`Dependencies` 按包指针去重（`addDependency`）；`buildDAG` 亦按顶点去重防御。
-
 ### C4. `cacheLock.Close` 先关闭 fd 再解锁 —— 待修复（低优先）
 
 - **现象**：`compiler/compile/cache.go` 的 `Close` 先 `f.Close()` 再 `Unlock()`——对已关闭 fd
@@ -462,56 +350,3 @@ LLVM 后端遗留、编译驱动/诊断（compile/lex/report）缺陷与架构/�
 - **现象**：`report.report.Format`/`sourceLines` 会 Seek + ReadRune 移动 `Position.Reader`。
   当前「解析完成后才渲染」的时序下无害，但格式化带隐藏副作用，多线程/流式诊断时是隐患。
 - **修复位置**：渲染前保存/恢复 reader 位置，或复制为独立读取器。
-
----
-
-## 四、架构与工程 backlog（非缺陷：优化 / 技术债）
-
-### D1. 缓存命中仍全量执行 codegen
-- `compileDepPkg` 即使缓存有效也调用 `gen.Generate()`（为填充共享 `codegen.Context`），
-  只省下 `EmitToFile`。需把「Context 填充」与「IR 发射」解耦/持久化接口信息（配合 C1 才有意义）。
-
-### D2. 无任何优化管线
-- `TargetMachine` 固定 `target.OptNone`（`compiler/codegen/context.go`），模块无 pass、无 LTO，
-  产物恒为 -O0。建议至少 `OptDefault` + 可选 `-O` 开关。
-
-### D3. 包编译串行
-- `Dagger.OrderedWalk` 串行访问；DAG 上独立包可并行，但 `codegen.Context` 的
-  `idents/typeCache/eqFuncs` 是共享 map，需先按包隔离或加锁。
-
-### D4. 字符串常量不去重
-- `genString` 每处字面量新建 private global；同模块相同字面量可复用。
-
-### D5. 后序遍历重复实现
-- `codegen.go` 驱动的 `collectPkgs` 与 `compile/compiler.go` 的 `collectDeps` 是两套等价遍历。
-
-### D6. HIR 打印顺序不确定
-- `locals.Struct.Fields` 是 map，HIR 打印字段顺序随 map 迭代；codegen 已按字段序处理
-  （无正确性问题），但测试/快照输出需要稳定顺序。
-
-### D7. bind（方法）语义散落三处
-- `analyzeMember`、`GetBind.IsStatic`、`codegen.genGetBind` 各实现一部分，且 `genGetBind`
-  在 codegen 期动态构造 HIR（`locals.NewFunc/NewCall`）绕过 analyze 校验。
-  建议在 HIR lowering 统一 desugar。
-
-### D8. 无测试体系
-- 仓库无 `*_test.go`；known-issues 的最小复现全靠手工跑。建议先为 lex/parse/report 建
-  golden 测试，并把本文各条最小复现收进回归脚本。
-
-### D9. 代码卫生
-- `compiler/parse/expr.go` 遗留死类型 `type A struct { a int }`；
-- `codegen.Ident.ExternalFunc` 死字段（B7）；
-- `hir/types/*.go` 多处 `WriteFormat(t.String())`（非恒定格式串，`go vet` 告警；
-  当前类型名不含 `%`，无实际风险，但应改 `WriteString`）；
-- README 的 `make run` 与 Makefile 过时（与 AGENTS.md 说明重复，建议同步或删除）。
-
-### D10. std 的 HIR 无序列化缓存（长期）
-- 每次编译都重新解析/分析 std；buildin 很小可接受，规模扩大后可做序列化缓存。
-
----
-
-## 五、go-llvm 库问题
-
-见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)（当前 0 条未解决：`ir.Block` 缺少公开的
-"基本块是否已终结"查询 API 已在 go-llvm v0.0.0-20260926104146-5b02948e8001 提供
-`Terminator()`/`IsTerminating()`；Sim 侧 `terminated` 临时状态已回退为直接查询块）。
