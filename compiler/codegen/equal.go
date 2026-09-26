@@ -103,12 +103,11 @@ func shortHash(key string) string {
 // genEqFuncBody 生成相等性辅助函数体（始终计算 ==）：
 // 元组/结构体逐字段、数组逐元素短路比较；union 先比 tag 再按 tag switch 分派到载荷成员。
 func (c *CodeGenerator) genEqFuncBody(t hir.Type, llvmT llvm.AnyType, fn ir.Function) {
-	// 保存当前发射状态，函数体生成完毕后恢复到调用点
-	prevFunc, prevTerminated := c.currentFunc, c.terminated
+	// 保存当前发射位置，函数体生成完毕后恢复到调用点（当前块终结状态由块自身查询）
+	prevFunc := c.currentFunc
 	prevBlock, hadBlock := c.builder.CurrentBlock()
 	defer func() {
 		c.currentFunc = prevFunc
-		c.terminated = prevTerminated
 		if hadBlock {
 			c.builder.MoveToEnd(prevBlock)
 		}
@@ -147,21 +146,17 @@ func (c *CodeGenerator) genEqFieldsBody(x, y llvm.AnyValue, fieldTypes []hir.Typ
 		} else {
 			nextBlock := c.currentFunc.NewBlock("eq.next")
 			c.builder.CondBr(asInt(eq), nextBlock, failBlock)
-			c.terminated = true
 			c.moveTo(nextBlock)
 		}
 	}
 	if len(fieldTypes) == 0 {
 		c.builder.Br(trueBlock)
 	}
-	c.terminated = true
 
 	c.moveTo(failBlock)
 	c.builder.Ret(c.ctx.LLVM().ConstBool(false))
-	c.terminated = true
 	c.moveTo(trueBlock)
 	c.builder.Ret(c.ctx.LLVM().ConstBool(true))
-	c.terminated = true
 }
 
 // genEqArrayBody 数组逐元素比较（G2）：i64 索引循环，发现不等立即返回 false。
@@ -179,13 +174,11 @@ func (c *CodeGenerator) genEqArrayBody(t types.ArrayType, llvmT llvm.AnyType, x,
 	trueBlock := c.currentFunc.NewBlock("eq.true")
 	failBlock := c.currentFunc.NewBlock("eq.fail")
 	c.builder.Br(condBlock)
-	c.terminated = true
 
 	c.moveTo(condBlock)
 	idx := c.builder.Load[llvm.IntT](idxPtr, i64, "")
 	size := c.ctx.LLVM().ConstIntOfString(i64, t.GetSize().String(), 10)
 	c.builder.CondBr(c.builder.ICmp(llvm.IntSLT, idx, size, ""), bodyBlock, trueBlock)
-	c.terminated = true
 
 	c.moveTo(bodyBlock)
 	arrT := llvm.AsArrayType(llvmT)
@@ -197,19 +190,15 @@ func (c *CodeGenerator) genEqArrayBody(t types.ArrayType, llvmT llvm.AnyType, x,
 	eq := c.genEquals(false, t.GetElem(), lv, rv)
 	nextBlock := c.currentFunc.NewBlock("eq.next")
 	c.builder.CondBr(asInt(eq), nextBlock, failBlock)
-	c.terminated = true
 
 	c.moveTo(nextBlock)
 	c.builder.Store(c.builder.Add(idx, i64.Const(1), ""), idxPtr)
 	c.builder.Br(condBlock)
-	c.terminated = true
 
 	c.moveTo(failBlock)
 	c.builder.Ret(c.ctx.LLVM().ConstBool(false))
-	c.terminated = true
 	c.moveTo(trueBlock)
 	c.builder.Ret(c.ctx.LLVM().ConstBool(true))
-	c.terminated = true
 }
 
 // genEqUnionBody union 比较（G5）：先比 tag（不同即不等），再按 tag switch 分派到载荷对应
@@ -227,7 +216,6 @@ func (c *CodeGenerator) genEqUnionBody(t types.UnionType, llvmT llvm.AnyType, x,
 	trueBlock := c.currentFunc.NewBlock("eq.true")
 	failBlock := c.currentFunc.NewBlock("eq.fail")
 	c.builder.CondBr(c.builder.ICmp(llvm.IntEQ, xt, yt, ""), dispatchBlock, failBlock)
-	c.terminated = true
 
 	c.moveTo(dispatchBlock)
 	sw := c.builder.Switch(xt, failBlock)
@@ -240,22 +228,18 @@ func (c *CodeGenerator) genEqUnionBody(t types.UnionType, llvmT llvm.AnyType, x,
 		if et == nil {
 			// 零尺寸成员（B10）：无载荷可比较，tag 相同即相等
 			c.builder.Br(trueBlock)
-			c.terminated = true
 			continue
 		}
 		lv := c.builder.Load[llvm.DynT](c.unionPayloadMemberAddr(llvmT, payloadT, xs), et.DynType(), "")
 		rv := c.builder.Load[llvm.DynT](c.unionPayloadMemberAddr(llvmT, payloadT, ys), et.DynType(), "")
 		eq := c.genEquals(false, t.GetElems()[i], lv, rv)
 		c.builder.CondBr(asInt(eq), trueBlock, failBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(failBlock)
 	c.builder.Ret(c.ctx.LLVM().ConstBool(false))
-	c.terminated = true
 	c.moveTo(trueBlock)
 	c.builder.Ret(c.ctx.LLVM().ConstBool(true))
-	c.terminated = true
 }
 
 // unionPayloadMemberAddr union 值指针 → payload 首字段（选定载荷成员）的地址

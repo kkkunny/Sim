@@ -40,8 +40,8 @@ func (c *CodeGenerator) genLocal(local locals.Local) {
 // genIf if/else-if/else 语句（E3）：条件只求值一次，各分支跳转共享合流块。
 //
 // 若所有分支都以终结指令（return 等）结束，合流块将没有前驱；此时仍在合流块内补一条
-// unreachable 作为终结指令（LLVM 要求每个基本块都必须有终结指令），并保持
-// terminated=true，让后续语句经 ensureBlock 进入独立的死块。选择该方案而非"延迟创建
+// unreachable 作为终结指令（LLVM 要求每个基本块都必须有终结指令），后续语句经
+// ensureBlock 检测到当前块已终结后进入独立的死块。选择该方案而非"延迟创建
 // 合流块"是因为：else-if 递归链上每层都要共享同一个合流块，延迟创建需要额外传递
 // "是否已创建"状态；而空 unreachable 块无副作用，后续优化可直接删除。
 func (c *CodeGenerator) genIf(l *locals.If) {
@@ -50,7 +50,6 @@ func (c *CodeGenerator) genIf(l *locals.If) {
 	c.moveTo(endBlock)
 	if !fellThrough {
 		c.builder.Unreachable()
-		c.terminated = true
 	}
 }
 
@@ -61,14 +60,12 @@ func (c *CodeGenerator) genIfChain(l *locals.If, endBlock ir.Block) bool {
 	thenBlock := c.currentFunc.NewBlock("if.then")
 	elseBlock := c.currentFunc.NewBlock("if.else")
 	c.builder.CondBr(cond, thenBlock, elseBlock)
-	c.terminated = true
 
 	c.moveTo(thenBlock)
 	c.genLocal(l.Body)
-	thenFell := !c.terminated
+	thenFell := !c.isTerminated()
 	if thenFell {
 		c.builder.Br(endBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(elseBlock)
@@ -79,16 +76,14 @@ func (c *CodeGenerator) genIfChain(l *locals.If, endBlock ir.Block) bool {
 			elseFell = c.genIfChain(elseif, endBlock)
 		} else {
 			c.genLocal(next.Right())
-			elseFell = !c.terminated
+			elseFell = !c.isTerminated()
 			if elseFell {
 				c.builder.Br(endBlock)
-				c.terminated = true
 			}
 		}
 	} else {
 		// 无 else：空 else 块直接跳合流块
 		c.builder.Br(endBlock)
-		c.terminated = true
 		elseFell = true
 	}
 	return thenFell || elseFell
@@ -102,18 +97,15 @@ func (c *CodeGenerator) genWhile(l *locals.While) {
 	endBlock := c.currentFunc.NewBlock("while.end")
 
 	c.builder.Br(condBlock)
-	c.terminated = true
 
 	c.moveTo(condBlock)
 	cond := asInt(c.genExpr(l.Condition))
 	c.builder.CondBr(cond, bodyBlock, endBlock)
-	c.terminated = true
 
 	c.moveTo(bodyBlock)
 	c.genLocal(l.Body)
-	if !c.terminated {
+	if !c.isTerminated() {
 		c.builder.Br(condBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(endBlock)
@@ -146,13 +138,11 @@ func (c *CodeGenerator) genFor(l *locals.For) {
 	endBlock := c.currentFunc.NewBlock("for.end")
 
 	c.builder.Br(condBlock)
-	c.terminated = true
 
 	c.moveTo(condBlock)
 	idx := c.builder.Load[llvm.IntT](idxPtr, i64, "")
 	size := c.ctx.LLVM().ConstIntOfString(i64, at.GetSize().String(), 10)
 	c.builder.CondBr(c.builder.ICmp(llvm.IntSLT, idx, size, ""), bodyBlock, endBlock)
-	c.terminated = true
 
 	c.moveTo(bodyBlock)
 	elemT := c.genType(l.Var.GetType())
@@ -164,10 +154,9 @@ func (c *CodeGenerator) genFor(l *locals.For) {
 		c.builder.Store(c.builder.Load[llvm.DynT](elemPtr, elemT.DynType(), ""), varPtr)
 	}
 	c.genLocal(l.Body)
-	if !c.terminated {
+	if !c.isTerminated() {
 		c.builder.Store(c.builder.Add(idx, i64.Const(1), ""), idxPtr)
 		c.builder.Br(condBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(endBlock)
@@ -193,7 +182,6 @@ func (c *CodeGenerator) genReturn(l *locals.Return) {
 		}
 		c.builder.RetVoid()
 	}
-	c.terminated = true
 }
 
 func (c *CodeGenerator) genLocalLet(l *locals.Let) {

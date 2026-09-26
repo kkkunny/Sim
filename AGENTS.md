@@ -57,8 +57,9 @@ the box, non-standard prefixes need go-llvm's `make config`).
   `github.com/kkkunny/go-llvm`; the `stlerror.Must*` helpers panic on error, so
   failures surface as panics.
 - `codegen` 的 `genAddr`/`genExpr` 是 lvalue/rvalue 双通道；局部变量 alloca 在函数入口块
-  （循环内 `let` 不会每次迭代增长栈）。基本块终结状态由 `CodeGenerator.terminated` 自维护
-  （go-llvm 未暴露 `Block.IsTerminating`，见 `docs/go-llvm-issues.md`）。
+  （循环内 `let` 不会每次迭代增长栈）。基本块终结状态直接查询 `Block.IsTerminating()`
+  （go-llvm v0.0.0-20260926104146 起提供；早期自维护的 `terminated` 标志已回退，
+  见 `docs/go-llvm-issues.md`）。
 
 ## 已知问题记录
 

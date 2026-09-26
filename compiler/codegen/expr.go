@@ -412,14 +412,12 @@ func (c *CodeGenerator) genLogic(expr *locals.Binary) llvm.AnyValue {
 		// 左真短路
 		c.builder.CondBr(asInt(left), endBlock, rhsBlock)
 	}
-	c.terminated = true
 
 	c.moveTo(rhsBlock)
 	right := c.genExpr(expr.Right)
-	if !c.terminated {
+	if !c.isTerminated() {
 		c.builder.Store(right, slot)
 		c.builder.Br(endBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(endBlock)
@@ -440,22 +438,19 @@ func (c *CodeGenerator) genTernary(expr *locals.Ternary) llvm.AnyValue {
 	elseBlock := c.currentFunc.NewBlock("tern.else")
 	endBlock := c.currentFunc.NewBlock("tern.end")
 	c.builder.CondBr(asInt(cond), thenBlock, elseBlock)
-	c.terminated = true
 
 	c.moveTo(thenBlock)
 	trueV := c.genExpr(expr.TrueExpr)
-	if !c.terminated {
+	if !c.isTerminated() {
 		c.builder.Store(trueV, slot)
 		c.builder.Br(endBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(elseBlock)
 	falseV := c.genExpr(expr.FalseExpr)
-	if !c.terminated {
+	if !c.isTerminated() {
 		c.builder.Store(falseV, slot)
 		c.builder.Br(endBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(endBlock)
@@ -470,20 +465,17 @@ func (c *CodeGenerator) genTernaryVoid(expr *locals.Ternary) llvm.AnyValue {
 	elseBlock := c.currentFunc.NewBlock("tern.else")
 	endBlock := c.currentFunc.NewBlock("tern.end")
 	br := c.builder.CondBr(cond, thenBlock, elseBlock)
-	c.terminated = true
 
 	c.moveTo(thenBlock)
 	c.genExpr(expr.TrueExpr)
-	if !c.terminated {
+	if !c.isTerminated() {
 		c.builder.Br(endBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(elseBlock)
 	c.genExpr(expr.FalseExpr)
-	if !c.terminated {
+	if !c.isTerminated() {
 		c.builder.Br(endBlock)
-		c.terminated = true
 	}
 
 	c.moveTo(endBlock)
@@ -505,7 +497,7 @@ func (c *CodeGenerator) allocaEntry(t llvm.AnyType, name string) llvm.Value[llvm
 		c.builder.MoveToEnd(entry)
 	}
 	ptr := c.builder.Alloca(t, name).Value
-	// 仅恢复插入位置，不改变 terminated 状态
+	// 仅恢复插入位置；当前块是否终结由块自身查询，不受影响
 	c.builder.MoveToEnd(cur)
 	return ptr
 }
@@ -912,7 +904,6 @@ func (c *CodeGenerator) genCallValue(expr *locals.Call, ft types.FuncType) llvm.
 	closureBlock := c.currentFunc.NewBlock("call.closure")
 	endBlock := c.currentFunc.NewBlock("call.end")
 	br := c.builder.CondBr(isNull, directBlock, closureBlock)
-	c.terminated = true
 
 	retT := c.genType(ft.GetReturn())
 	retVoid := isVoidType(retT)
@@ -928,7 +919,6 @@ func (c *CodeGenerator) genCallValue(expr *locals.Call, ft types.FuncType) llvm.
 		c.builder.Store(direct, slot)
 	}
 	c.builder.Br(endBlock)
-	c.terminated = true
 
 	// ctx != null：闭包，首参传 ctx 调用包装函数
 	c.moveTo(closureBlock)
@@ -937,7 +927,6 @@ func (c *CodeGenerator) genCallValue(expr *locals.Call, ft types.FuncType) llvm.
 		c.builder.Store(closure, slot)
 	}
 	c.builder.Br(endBlock)
-	c.terminated = true
 
 	c.moveTo(endBlock)
 	if retVoid {

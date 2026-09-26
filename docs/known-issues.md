@@ -250,5 +250,6 @@ LLVM 后端遗留与已知限制。
 
 ## 三、go-llvm 库问题
 
-见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)（当前 1 条：`ir.Block` 缺少公开的
-"基本块是否已终结"查询 API，Sim 侧以 `terminated` 状态绕过）。
+见 [`docs/go-llvm-issues.md`](go-llvm-issues.md)（当前 0 条未解决：`ir.Block` 缺少公开的
+"基本块是否已终结"查询 API 已在 go-llvm v0.0.0-20260926104146-5b02948e8001 提供
+`Terminator()`/`IsTerminating()`；Sim 侧 `terminated` 临时状态已回退为直接查询块）。

@@ -20,7 +20,6 @@ type CodeGenerator struct {
 	builder *ir.Builder
 
 	currentFunc ir.Function // 当前正在生成的函数
-	terminated  bool        // 当前基本块是否已终结
 	strCount    int         // 字符串字面量计数
 	moduleID    int         // 模块标识（相等性辅助函数缓存按模块隔离）
 
@@ -91,29 +90,38 @@ func (c *CodeGenerator) Generate() *ir.Module {
 
 func (c *CodeGenerator) moveTo(block ir.Block) {
 	c.builder.MoveToEnd(block)
-	c.terminated = false
+}
+
+// isTerminated 当前基本块是否已有终结指令（ret/br/switch/unreachable 等）。
+// 直接查询块本身（[ir.Block.IsTerminating]），不依赖自维护状态：void 调用等非终结指令
+// 不会误判，入口块 alloca 等临时移动插入点也不受影响。
+func (c *CodeGenerator) isTerminated() bool {
+	block, ok := c.builder.CurrentBlock()
+	if !ok {
+		return false
+	}
+	return block.IsTerminating()
 }
 
 // ensureBlock 当前块已终结时，新建一个不可达的块继续发射（死代码）
 func (c *CodeGenerator) ensureBlock() {
-	if !c.terminated {
+	if !c.isTerminated() {
 		return
 	}
 	c.moveTo(c.currentFunc.NewBlock(""))
 }
 
 // genFuncBody 生成函数体（F1）：登记参数存储 → 可选初始化（闭包 ctx 捕获）→ 逐语句生成，
-// 最后按返回类型补 ret void/unreachable。函数体生成期间保存并恢复调用点的发射状态
-// （闭包包装函数在表达式求值中途嵌套生成）。
+// 最后按返回类型补 ret void/unreachable。函数体生成期间保存并恢复调用点的发射位置
+// （闭包包装函数在表达式求值中途嵌套生成；当前块是否已终结可直接查询，无需保存）。
 //
 // paramOffset 为 HIR 参数在 LLVM 形参列表中的起始下标：普通函数为 0，
 // 闭包包装函数首参为 ctx ptr，偏移 1。
 func (c *CodeGenerator) genFuncBody(decl ir.Function, expr *locals.Func, body *locals.Block, paramOffset int, initFn func()) {
-	prevFunc, prevTerminated := c.currentFunc, c.terminated
+	prevFunc := c.currentFunc
 	prevBlock, hadBlock := c.builder.CurrentBlock()
 	defer func() {
 		c.currentFunc = prevFunc
-		c.terminated = prevTerminated
 		if hadBlock {
 			c.builder.MoveToEnd(prevBlock)
 		}
@@ -132,13 +140,12 @@ func (c *CodeGenerator) genFuncBody(decl ir.Function, expr *locals.Func, body *l
 	for _, s := range body.Stmts {
 		c.genLocal(s)
 	}
-	if !c.terminated {
+	if !c.isTerminated() {
 		if _, ok := expr.Type.GetReturn().(types.UnitType); ok {
 			c.builder.RetVoid()
 		} else {
 			c.builder.Unreachable()
 		}
-		c.terminated = true
 	}
 }
 
@@ -152,5 +159,4 @@ func (c *CodeGenerator) genEntryWrapper() {
 		c.builder.Call[llvm.DynT](simMain, nil, "")
 	}
 	c.builder.Ret(i32.Const(0))
-	c.terminated = true
 }
