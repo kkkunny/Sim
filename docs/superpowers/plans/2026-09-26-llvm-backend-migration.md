@@ -450,3 +450,22 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
    `x *= v` 不被拒绝（实测：`let x: i32 = 2; x *= 3` 通过 analyze，而 `x += 3` 报 must mutable）；
    旧 C 后端同样复现。
    （原第 4 条 `type R &T` 引用别名经复核属后端 B7 问题，已移入 §6 B7 备注。）
+5. **无值 `return` 在非 unit 函数中不被 analyze 拒绝**：`let f = () -> i32 { return; }` 通过 analyze，
+   生成 llgen IR 时由 `Module.Verify` 报
+   `Function return type does not match operand type of return inst! ret void / i32`（难懂）。
+   llgen 已在 `genReturn` 无值分支加防御：当前函数 LLVM 返回类型非 `void` 时 panic
+   `llgen: 非 unit 函数 %s 不能使用空 return（前端漏校验）`。旧 C 后端同样坏（生成非法 C）。
+   根治应在前端 analyze 的 `analyzeReturn` else 分支校验函数返回类型。
+6. **unit 局部变量被 analyze 放行**：`let x = g()`（`g` 返回 unit）通过 analyze，旧 C 后端与
+   llgen 都无法为 unit 分配存储。llgen 已在 `genLocalLet` 前置检查并 panic
+   `llgen: 不能为 unit 类型的变量 %s 分配存储（类型 %s）`。根治应在前端拒绝 unit 型 `let`。
+
+> **给 H5 的备注（旧 `compile` 缓存/命名隐患，重写时一并处理）**：
+> 1. `compiler/codegen/other.go` 的 `stableName` 把绝对 `pkg.Path` 与 `pkg.Name` 一起哈希进符号名，
+>    编译产物（`.sim_cache/*.o`）因此绑定绝对路径，换目录/迁移工作区后无法复用，缓存不可迁移；
+> 2. `compiler/compile/cache.go` 的 `isCacheValid` 对 `stlerr.ErrorWith(os.Stat(...))` 包装后的
+>    not-exist 错误仍用 `os.IsNotExist` 判断（不会解包），缓存文件缺失时按真实错误上抛、最终
+>    在 `Compiler.Visit` panic，而非按缓存未命中重编；应改用 `errors.Is(err, fs.ErrNotExist)`；
+> 3. `compiler/compile/compiler.go:121` 的 `filepath.Rel(config.IncludePath, config.SimRootPath)`
+>    参数顺序反了（应为 `Rel(SimRootPath, IncludePath)`），会生成 `#include "../buildin.h"`
+>    而非预期的 `#include "include/buildin.h"`，属潜在隐患。

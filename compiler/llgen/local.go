@@ -129,6 +129,12 @@ func (c *CodeGenerator) genReturn(l *locals.Return) {
 			c.builder.Ret(val)
 		}
 	} else {
+		// 非 unit 函数里的空 return 会生成非法 IR（Module.Verify 报 "Function return type
+		// does not match operand type of return inst!"）。正常前端应拒绝，此处防御性报错，
+		// 用后端错误替换难懂的验证器英文信息。
+		if !c.currentFunc.Signature().Return().Equal(c.ctx.LLVM().Void()) {
+			panic(fmt.Errorf("llgen: 非 unit 函数 %s 不能使用空 return（前端漏校验）", c.currentFunc.Name()))
+		}
 		c.builder.RetVoid()
 	}
 	c.terminated = true
