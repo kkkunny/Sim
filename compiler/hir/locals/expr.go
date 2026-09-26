@@ -254,6 +254,41 @@ func (e *BitsReverse) GetOpTarget() Expr {
 	return e.Target
 }
 
+// Negate 一元取负（F15）：整型/浮点，目标类型即结果类型。
+type Negate struct {
+	Target Expr
+}
+
+func NewNegate(t Expr) *Negate {
+	return &Negate{
+		Target: t,
+	}
+}
+
+func (*Negate) expr()  {}
+func (*Negate) local() {}
+
+func (e *Negate) Print(p *hir.Printer) {
+	p.WriteString("-")
+	p.WriteBy(e.Target)
+}
+
+func (e *Negate) GetType() hir.Type {
+	return e.Target.GetType()
+}
+
+func (e *Negate) Mutable() bool {
+	return false
+}
+
+func (e *Negate) Temporary() bool {
+	return true
+}
+
+func (e *Negate) GetOpTarget() Expr {
+	return e.Target
+}
+
 type BooleanReverse struct {
 	Target Expr
 }

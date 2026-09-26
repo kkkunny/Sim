@@ -169,10 +169,14 @@ func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...hir.Type) locals.
 		a.errorf(expr.Value.Position, report.Errors.ExpectedIntegerConstant)
 		return locals.NewInvalid()
 	}
+	return a.analyzeIntegerValue(expr.Value.Position, v, expect...)
+}
 
+// analyzeIntegerValue 按期望类型定型整数字面量值；pos 用于诊断定位（负数折叠时仍指向字面量）。
+func (a *Analyzer) analyzeIntegerValue(pos reader.Position, v *big.Int, expect ...hir.Type) locals.Expr {
 	if len(expect) == 0 {
 		if !integerFits(v, types.I64) {
-			a.errorf(expr.Value.Position, report.Errors.IntegerLiteralOutOfRange, v.String(), types.I64)
+			a.errorf(pos, report.Errors.IntegerLiteralOutOfRange, v.String(), types.I64)
 			return locals.NewInvalid()
 		}
 		return locals.NewInteger(types.I64, v)
@@ -180,7 +184,7 @@ func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...hir.Type) locals.
 	expectType := stlslices.Last(expect)
 	if it, ok := expectType.(types.IntegerType); ok {
 		if !integerFits(v, it) {
-			a.errorf(expr.Value.Position, report.Errors.IntegerLiteralOutOfRange, v.String(), expectType)
+			a.errorf(pos, report.Errors.IntegerLiteralOutOfRange, v.String(), expectType)
 			return locals.NewInvalid()
 		}
 		return locals.NewInteger(it, v)
@@ -275,6 +279,30 @@ func (a *Analyzer) analyzeUnary(expr *ast.Unary, expect ...hir.Type) locals.Expr
 			return locals.NewInvalid()
 		}
 		return locals.NewDeRef(v)
+	case token.KindEnum.Sub:
+		// 负整数字面量：折叠为负常量并按期望类型定型（F15）
+		if intExpr, ok := expr.Expr.(*ast.Integer); ok {
+			v, ok := new(big.Int).SetString(intExpr.Value.OriginText, 10)
+			if !ok {
+				a.errorf(intExpr.Value.Position, report.Errors.ExpectedIntegerConstant)
+				return locals.NewInvalid()
+			}
+			return a.analyzeIntegerValue(intExpr.Value.Position, new(big.Int).Neg(v), expect...)
+		}
+		v := a.analyzeExpr(expr.Expr, expect...)
+		vt := v.GetType()
+		if isInvalidType(vt) {
+			return v
+		}
+		if !stlval.Is[types.IntegerType](vt) && !stlval.Is[types.FloatType](vt) {
+			a.errorf(
+				expr.Position(),
+				report.Errors.UnexpectedExpressionCategory,
+				"integer or float", vt,
+			)
+			return locals.NewInvalid()
+		}
+		return locals.NewNegate(v)
 	default:
 		panic("unreachable")
 	}

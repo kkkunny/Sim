@@ -182,6 +182,16 @@ func (c *CodeGenerator) genUnary(expr locals.Unary) llvm.AnyValue {
 		return c.builder.Not(asInt(c.genExpr(expr.GetOpTarget())), "")
 	case *locals.BooleanReverse:
 		return c.builder.Xor(asInt(c.genExpr(expr.GetOpTarget())), c.ctx.LLVM().ConstBool(true), "")
+	case *locals.Negate:
+		// 一元取负（F15）：按底层类型选择整数/浮点指令
+		v := c.genExpr(expr.GetOpTarget())
+		switch types.GetUnderlying(expr.GetType()).(type) {
+		case types.FloatType:
+			return c.builder.FNeg(asFloat(v), "")
+		case types.SintType, types.UintType:
+			return c.builder.Neg(asInt(v), "")
+		}
+		panic(c.ice("unsupported negate operand type %s", expr.GetType()))
 	case *locals.GetRef:
 		return c.genAddr(expr.GetOpTarget())
 	default:

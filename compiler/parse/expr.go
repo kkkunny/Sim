@@ -48,7 +48,7 @@ func (p *Parser) parseBinaryExpr(minPrec int) ast.Expr {
 
 func (p *Parser) parseUnaryExpr() ast.Expr {
 	switch p.nextToken.Kind {
-	case token.KindEnum.Not, token.KindEnum.Mul:
+	case token.KindEnum.Not, token.KindEnum.Mul, token.KindEnum.Sub:
 		p.next()
 		op := p.curToken
 		p.skip(token.KindEnum.Br)
