@@ -162,11 +162,49 @@ func (a *Analyzer) analyzeIdentExpr(expr *ast.IdentExpr) locals.Expr {
 }
 
 func (a *Analyzer) analyzeInteger(expr *ast.Integer, expect ...hir.Type) locals.Expr {
-	v, _ := strconv.ParseInt(expr.Value.OriginText, 10, 64)
-	if len(expect) == 0 || stlval.Is[types.IntegerType](stlslices.Last(expect)) {
-		return locals.NewInteger(types.I64, big.NewInt(v))
-	} else {
-		return locals.NewFloat(types.F64, big.NewFloat(float64(v)))
+	// big.Int 全程保精度：此前 strconv.ParseInt 忽略错误，超长字面量会被静默钳制到 i64 上限
+	v, ok := new(big.Int).SetString(expr.Value.OriginText, 10)
+	if !ok {
+		// 词法器只产生十进制数字，理论上不可达
+		a.errorf(expr.Value.Position, report.Errors.ExpectedIntegerConstant)
+		return locals.NewInvalid()
+	}
+
+	if len(expect) == 0 {
+		if !integerFits(v, types.I64) {
+			a.errorf(expr.Value.Position, report.Errors.IntegerLiteralOutOfRange, v.String(), types.I64)
+			return locals.NewInvalid()
+		}
+		return locals.NewInteger(types.I64, v)
+	}
+	expectType := stlslices.Last(expect)
+	if it, ok := expectType.(types.IntegerType); ok {
+		if !integerFits(v, it) {
+			a.errorf(expr.Value.Position, report.Errors.IntegerLiteralOutOfRange, v.String(), expectType)
+			return locals.NewInvalid()
+		}
+		return locals.NewInteger(it, v)
+	}
+	f, _ := v.Float64()
+	return locals.NewFloat(types.F64, big.NewFloat(f))
+}
+
+// integerFits 整数字面量是否在目标整数类型的取值范围内（自定义类型按其底层位宽/符号）
+func integerFits(v *big.Int, t types.IntegerType) bool {
+	bits := uint(t.GetBits())
+	if bits == 0 {
+		return false
+	}
+	switch t.(type) {
+	case types.SintType:
+		min := new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), bits-1))
+		max := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), bits-1), big.NewInt(1))
+		return v.Cmp(min) >= 0 && v.Cmp(max) <= 0
+	case types.UintType:
+		max := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), bits), big.NewInt(1))
+		return v.Sign() >= 0 && v.Cmp(max) <= 0
+	default:
+		return false
 	}
 }
 

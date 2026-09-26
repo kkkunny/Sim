@@ -52,7 +52,9 @@ func writeBackendMarker(cacheDir string) error {
 	return stlerr.ErrorWrap(os.WriteFile(filepath.Join(cacheDir, backendMarkerFile), []byte(backendMarker), 0644))
 }
 
-// isCacheValid 判断包的编译缓存是否有效（基于 mtime + 后端标识）
+// isCacheValid 判断包的编译缓存是否有效（基于 mtime + 后端标识）。
+// 依赖包的产物也必须不新于本包产物：依赖重编（Topo 序遍历中先于本包发生）会使其 .o
+// mtime 变新，从而级联判定本包缓存失效；否则依赖的接口/布局变化会被旧 .o 静默沿用。
 func isCacheValid(pkg *globals.Package) (bool, error) {
 	cacheDir := filepath.Join(pkg.Path, config.CacheDir)
 	if _, err := os.Stat(cacheDir); errors.Is(err, fs.ErrNotExist) {
@@ -93,6 +95,20 @@ func isCacheValid(pkg *globals.Package) (bool, error) {
 			return false, err
 		}
 		if info.ModTime().After(objMtime) {
+			return false, nil
+		}
+	}
+
+	// 依赖产物必须不新于本包产物（依赖重编会级联失效本包缓存）
+	for _, dep := range pkg.Dependencies {
+		depObjPath := filepath.Join(dep.Path, config.CacheDir, dep.Name+".o")
+		depInfo, err := os.Stat(depObjPath)
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		} else if err != nil {
+			return false, err
+		}
+		if depInfo.ModTime().After(objMtime) {
 			return false, nil
 		}
 	}

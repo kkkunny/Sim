@@ -2,9 +2,11 @@ package report
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gookit/color"
 	"github.com/kkkunny/stl/enum"
@@ -78,7 +80,7 @@ func (r *report) Format() string {
 	buf.WriteString("   |\n")
 	for i, line := range lines {
 		buf.WriteString(fmt.Sprintf("%2d |", r.Position.BeginRow+int64(i)))
-		begin, end := r.highlightRange(i, len(lines), len(line))
+		begin, end := r.highlightRange(i, len(lines), line)
 		buf.WriteString(line[:begin])
 		buf.WriteString(r.Level.CodeColor().Sprintf("%s", line[begin:end]))
 		buf.WriteString(line[end:])
@@ -93,14 +95,7 @@ func (r *report) Format() string {
 func (r *report) sourceLines() []string {
 	pos := r.Position
 
-	// 起始行首：BeginCol 从 1 开始计数；0 或非法列按当前位置处理
-	beginOffset := pos.BeginOffset - (pos.BeginCol - 1)
-	if pos.BeginCol <= 0 || beginOffset < 0 {
-		beginOffset = pos.BeginOffset
-	}
-	if beginOffset < 0 {
-		beginOffset = 0
-	}
+	beginOffset := r.lineBeginOffset()
 	endOffset := pos.EndOffset
 	if endOffset < beginOffset {
 		endOffset = beginOffset
@@ -124,22 +119,63 @@ func (r *report) sourceLines() []string {
 	return strings.Split(code, "\n")
 }
 
+// lineBeginOffset 从 BeginOffset 向前扫描到行首，返回字节偏移。
+// 不能用列号做减法（BeginOffset 按字节、BeginCol 按 rune 计数），
+// 否则非 ASCII 行的诊断会整体错位。
+func (r *report) lineBeginOffset() int64 {
+	pos := r.Position
+	begin := pos.BeginOffset
+	if begin <= 0 {
+		return 0
+	}
+	buf := make([]byte, 1)
+	for begin > 0 {
+		if _, err := pos.Reader.Seek(begin-1, io.SeekStart); err != nil {
+			return pos.BeginOffset
+		}
+		if _, err := pos.Reader.Read(buf); err != nil {
+			return pos.BeginOffset
+		}
+		if buf[0] == '\n' {
+			break
+		}
+		begin--
+	}
+	return begin
+}
+
 // highlightRange 计算第 i 行需要高亮的字节区间 [begin, end)，越界一律收缩到合法范围。
-func (r *report) highlightRange(i, total, lineLen int) (int, int) {
-	begin, end := 0, lineLen
+// 位置列号按 rune 计数，需换算成字节下标后再用于切片。
+func (r *report) highlightRange(i, total int, line string) (int, int) {
+	runeCount := utf8.RuneCountInString(line)
+	begin, end := 0, len(line)
 	switch {
 	case total <= 1:
-		begin = clampIndex(int(r.Position.BeginCol)-1, 0, lineLen)
-		end = clampIndex(int(r.Position.EndCol), begin, lineLen)
+		begin = runeIndexToByte(line, clampIndex(int(r.Position.BeginCol)-1, 0, runeCount))
+		end = runeIndexToByte(line, clampIndex(int(r.Position.EndCol), begin, runeCount))
 	case i == 0:
-		begin = clampIndex(int(r.Position.BeginCol)-1, 0, lineLen)
+		begin = runeIndexToByte(line, clampIndex(int(r.Position.BeginCol)-1, 0, runeCount))
 	case i == total-1:
-		end = clampIndex(int(r.Position.EndCol), 0, lineLen)
+		end = runeIndexToByte(line, clampIndex(int(r.Position.EndCol), 0, runeCount))
 	}
 	if end < begin {
 		end = begin
 	}
 	return begin, end
+}
+
+// runeIndexToByte 返回字符串中第 idx 个 rune 之前的字节下标（越界时收敛到串尾）
+func runeIndexToByte(s string, idx int) int {
+	if idx <= 0 {
+		return 0
+	}
+	byteIdx, count := 0, 0
+	for byteIdx < len(s) && count < idx {
+		_, size := utf8.DecodeRuneInString(s[byteIdx:])
+		byteIdx += size
+		count++
+	}
+	return byteIdx
 }
 
 func clampIndex(v, min, max int) int {

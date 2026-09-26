@@ -18,6 +18,8 @@ var Errors = enum.New[struct {
 	UnexpectedTypeCategory       ErrorType `enum:"unexpected type category" format:"expected a %s type but got '%s'"`
 	InsufficientArguments        ErrorType `enum:"insufficient arguments" format:"expected %d arguments but got %d"`
 	ExpectedIntegerConstant      ErrorType `enum:"expected integer constant" format:"expected a integer constant"`
+	IntegerLiteralOutOfRange     ErrorType `enum:"integer literal out of range" format:"integer literal %s is out of range for type '%s'"`
+	ArraySizeOutOfRange          ErrorType `enum:"array size out of range" format:"array size %s is out of range (must fit in i64)"`
 	MustMutable                  ErrorType `enum:"must mutable" format:"the expression must be mutable"`
 	MustImmutable                ErrorType `enum:"must immutable" format:"the expression must be immutable"`
 	MustNotTemporary             ErrorType `enum:"must not temporary" format:"the expression must be not temporary"`

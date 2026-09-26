@@ -43,11 +43,18 @@ func (c *Compiler) Compile(pkg *globals.Package) error {
 			return "", err
 		}
 		pkg2Vertex[pkg] = v
+		// 依赖边去重：Dependencies 理论上已去重，这里防御重复 import 等回归
+		//（heimdalr/dag 对重复边返回 EdgeDuplicateError，错误信息只有裸 UUID）
+		addedEdges := make(map[string]bool, len(pkg.Dependencies))
 		for _, dep := range pkg.Dependencies {
 			depV, err := buildDAG(dep)
 			if err != nil {
 				return "", err
 			}
+			if addedEdges[depV] {
+				continue
+			}
+			addedEdges[depV] = true
 			err = stlerr.ErrorWrap(dagger.AddEdge(depV, v))
 			if err != nil {
 				return "", err

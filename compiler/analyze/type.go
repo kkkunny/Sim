@@ -2,7 +2,6 @@ package analyze
 
 import (
 	"math/big"
-	"strconv"
 
 	"github.com/kkkunny/stl/container/set"
 	stlslices "github.com/kkkunny/stl/container/slices"
@@ -32,8 +31,12 @@ func (a *Analyzer) analyzeType(t ast.Type) hir.Type {
 		})
 		return types.NewTupleType(elems...)
 	case *ast.ArrayType:
-		v, _ := strconv.ParseInt(t.Size.OriginText, 10, 64)
-		size := big.NewInt(v)
+		// 长度必须能放进 i64：此前忽略 ParseInt 错误，超长长度被静默钳制
+		size, ok := new(big.Int).SetString(t.Size.OriginText, 10)
+		if !ok || !size.IsInt64() {
+			a.errorf(t.Size.Position, report.Errors.ArraySizeOutOfRange, t.Size.OriginText)
+			return types.Invalid
+		}
 		elem := a.analyzeType(t.Elem)
 		return types.NewArrayType(size, elem)
 	case *ast.UnionType:

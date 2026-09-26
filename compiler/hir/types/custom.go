@@ -82,11 +82,15 @@ func (t *_CustomBaseType[T]) String() string {
 }
 
 func (t *_CustomBaseType[T]) Equal(p hir.Type) bool {
-	dst, ok := p.(CustomType)
-	if !ok {
-		return false
+	if dst, ok := p.(CustomType); ok {
+		// 自定义类型按定义身份判等（GetDef 指针唯一）：同名跨包类型、不同别名
+		// 不会互相混淆。此前按名字比较会把两个包里的同名类型视为同一类型。
+		return t.GetDef() == dst.GetDef()
 	}
-	return t.GetName() == dst.GetName()
+	// 与内建/字面量类型比较时递归到底层，保证与「内建.Equal(自定义)」方向对称：
+	// 内建类型用结构化接口匹配自定义包装（stlval.Is[...]），若这里只比名字，
+	// 会出现 x.Equal(b) 与 b.Equal(x) 结果相反的矛盾（`mb as bool` 类型问题的根因）。
+	return t.GetUnderlying().Equal(p)
 }
 
 func (t *_CustomBaseType[T]) GetName() string {

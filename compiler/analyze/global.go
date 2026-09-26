@@ -20,6 +20,17 @@ import (
 	"github.com/kkkunny/Sim/compiler/token"
 )
 
+// addDependency 追加依赖包（按包指针去重）：重复 import 同一包或显式 import std::buildin
+// 时不能产生重复依赖，否则编译 DAG 建边会失败（裸 EdgeDuplicateError）。
+func (a *Analyzer) addDependency(pkg *globals.Package) {
+	for _, dep := range a.ir.Dependencies {
+		if dep == pkg {
+			return
+		}
+	}
+	a.ir.Dependencies = append(a.ir.Dependencies, pkg)
+}
+
 // 导入buildin包，一定最先导入
 func (a *Analyzer) importBuildin() error {
 	dirpath := config.BuildinPkgPath
@@ -36,7 +47,7 @@ func (a *Analyzer) importBuildin() error {
 
 	ir, scope := a.pkgScopes[dirpath].Unpack()
 	a.scope.Root().AddInclude(scope)
-	a.ir.Dependencies = append(a.ir.Dependencies, ir)
+	a.addDependency(ir)
 	return nil
 }
 
@@ -81,7 +92,7 @@ func (a *Analyzer) analyzeImport(global *ast.Import) error {
 	} else {
 		a.scope.Root().AddInclude(scope)
 	}
-	a.ir.Dependencies = append(a.ir.Dependencies, ir)
+	a.addDependency(ir)
 	return nil
 }
 
@@ -112,8 +123,9 @@ func (a *Analyzer) analyzeTypeDecl(global ast.Global) {
 }
 
 func (a *Analyzer) analyzeCustomTypeDecl(stacks set.Set[*globals.TypeDef], global *ast.TypeDef) types.CustomType {
-	_, ok := a.scope.LookupType(global.Name.OriginText)
-	if ok {
+	// 仅当同名类型来自另一处声明时才算重定义：前向别名（type A B）会在递归中
+	// 先注册 B，外层循环再次处理 B 时不应误报
+	if exist, ok := a.scope.LookupType(global.Name.OriginText); ok && exist.GetDef() != a.typeDef2Ast.GetKey(global) {
 		a.errorf(
 			global.Name.Position,
 			report.Errors.RepeatedIdentifier,
@@ -290,20 +302,18 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 
 	if tAst, ok := global.Type.Value(); ok {
 		let.Type = a.analyzeType(tAst)
+		// 显式标注类型同样要校验 main 签名：否则错误签名会进入 codegen
+		//（genEntryWrapper 按 `() -> unit` 调用 sim_main，轻则 ICE、重则静默无入口）
+		if global.Name.OriginText == "main" && !isInvalidType(let.Type) {
+			a.checkMainType(global, let.Type)
+		}
 	} else {
 		v, ok := global.Value.MustValue().(*ast.Func)
 		if ok && !let.Mut {
 			// 函数定义
 			let.Type = a.analyzeFuncDecl(v)
 			if global.Name.OriginText == "main" {
-				expectType := types.NewFuncType(types.Unit)
-				if !let.Type.Equal(expectType) {
-					a.errorf(
-						global.Name.Position,
-						report.Errors.UnexpectedExpression,
-						expectType, let.Type,
-					)
-				}
+				a.checkMainType(global, let.Type)
 			}
 		} else {
 			if global.Name.OriginText == "main" {
@@ -326,6 +336,26 @@ func (a *Analyzer) analyzeGlobalLetDecl(global *ast.Let) {
 
 	a.scope.AddValue(let)
 	a.letDef2Ast[let] = global
+}
+
+// checkMainType 校验入口 main 的签名必须是 `() -> unit`：
+// 非函数类型报 InvalidMainFunction，函数但签名不符报 UnexpectedExpression。
+func (a *Analyzer) checkMainType(global *ast.Let, t hir.Type) {
+	if _, ok := t.(types.FuncType); !ok {
+		a.errorf(
+			global.Name.Position,
+			report.Errors.InvalidMainFunction,
+		)
+		return
+	}
+	expectType := types.NewFuncType(types.Unit)
+	if !t.Equal(expectType) {
+		a.errorf(
+			global.Name.Position,
+			report.Errors.UnexpectedExpression,
+			expectType, t,
+		)
+	}
 }
 
 func (a *Analyzer) analyzeGlobalValueDef(global ast.Global) globals.Global {

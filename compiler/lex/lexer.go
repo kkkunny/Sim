@@ -32,13 +32,14 @@ func New(r reader.Reader) *Lexer {
 
 // 下一个字符
 func (l *Lexer) next() rune {
-	c, _, err := stlerror.ErrorWith2(l.reader.ReadRune())
+	c, size, err := stlerror.ErrorWith2(l.reader.ReadRune())
 	if err != nil && !errors.Is(err, io.EOF) {
 		panic(&Error{Pos: l.Position(), Err: err})
 	}
 	if err == nil {
 		l.cache.WriteRune(c)
-		l.offset++
+		// offset 为字节偏移（与 reader.Seek/诊断源码切片一致）；col 为 rune 列号（仅用于展示）
+		l.offset += int64(size)
 		l.col++
 		if c == '\n' {
 			l.row++
