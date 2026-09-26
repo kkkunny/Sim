@@ -3,6 +3,7 @@ package llgen
 import (
 	"fmt"
 
+	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
 
 	"github.com/kkkunny/Sim/compiler/hir/locals"
@@ -27,6 +28,9 @@ func (c *CodeGenerator) genLocal(local locals.Local) {
 	case *locals.While:
 		c.ensureBlock()
 		c.genWhile(local)
+	case *locals.For:
+		c.ensureBlock()
+		c.genFor(local)
 	case locals.Expr:
 		c.ensureBlock()
 		c.genExpr(local)
@@ -110,6 +114,60 @@ func (c *CodeGenerator) genWhile(l *locals.While) {
 	c.moveTo(bodyBlock)
 	c.genLocal(l.Body)
 	if !c.terminated {
+		c.builder.Br(condBlock)
+		c.terminated = true
+	}
+
+	c.moveTo(endBlock)
+}
+
+// genFor for x in range 遍历数组（E5）：i64 索引从 0 递增到数组长度，条件 `idx < size`。
+// Range 只求值一次（不可寻址的字面量由 genAddrOrMaterialize 在入口块物化）；
+// 每轮循环体开头把 range[idx] 存入 Var 的入口块 alloca。
+func (c *CodeGenerator) genFor(l *locals.For) {
+	at, ok := types.GetUnderlying(l.Range.GetType()).(types.ArrayType)
+	if !ok {
+		panic(fmt.Errorf("llgen: for-in 的遍历对象必须是数组（实际 %s）", l.Range.GetType()))
+	}
+	arrayT := c.genType(l.Range.GetType())
+	// 先取 Range 地址（只求值一次，必要时物化），循环体按索引读取
+	rangePtr := c.genAddrOrMaterialize(l.Range)
+	if at.GetSize().Sign() <= 0 {
+		// 零长数组（B10）：循环体一次也不执行
+		return
+	}
+
+	i64 := c.ctx.LLVM().Int(64)
+	idxPtr := c.allocaEntry(i64, "")
+	c.builder.Store(i64.Const(0), idxPtr)
+	varPtr := c.allocaEntry(c.genType(l.Var.GetType()), l.Var.GetName())
+	c.ctx.idents[l.Var] = &Ident{Name: l.Var.GetName(), Local: varPtr}
+
+	condBlock := c.currentFunc.NewBlock("for.cond")
+	bodyBlock := c.currentFunc.NewBlock("for.body")
+	endBlock := c.currentFunc.NewBlock("for.end")
+
+	c.builder.Br(condBlock)
+	c.terminated = true
+
+	c.moveTo(condBlock)
+	idx := c.builder.Load[llvm.IntT](idxPtr, i64, "")
+	size := c.ctx.LLVM().ConstIntOfString(i64, at.GetSize().String(), 10)
+	c.builder.CondBr(c.builder.ICmp(llvm.IntSLT, idx, size, ""), bodyBlock, endBlock)
+	c.terminated = true
+
+	c.moveTo(bodyBlock)
+	elemT := c.genType(l.Var.GetType())
+	if c.isZeroSizeLLVM(elemT) {
+		// 零尺寸元素（B10）：元素无存储，直接给空聚合零值
+		c.builder.Store(c.genZeroValue(elemT), varPtr)
+	} else {
+		elemPtr := c.builder.GEP(arrayT, rangePtr, c.gepPath(idx), "")
+		c.builder.Store(c.builder.Load[llvm.DynT](elemPtr, elemT.DynType(), ""), varPtr)
+	}
+	c.genLocal(l.Body)
+	if !c.terminated {
+		c.builder.Store(c.builder.Add(idx, i64.Const(1), ""), idxPtr)
 		c.builder.Br(condBlock)
 		c.terminated = true
 	}

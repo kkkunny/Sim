@@ -21,17 +21,20 @@ type CodeGenerator struct {
 	currentFunc ir.Function // 当前正在生成的函数
 	terminated  bool        // 当前基本块是否已终结
 	strCount    int         // 字符串字面量计数
+	moduleID    int         // 模块标识（相等性辅助函数缓存按模块隔离）
 }
 
 // New 创建某包的代码生成器
 func New(ctx *Context, pkg *globals.Package) *CodeGenerator {
 	module := ir.NewModule(ctx.LLVM(), pkg.Name)
 	ctx.TargetMachine().ApplyTo(module)
+	ctx.moduleCount++
 	return &CodeGenerator{
-		pkg:     pkg,
-		ctx:     ctx,
-		module:  module,
-		builder: ir.NewBuilder(ctx.LLVM()),
+		pkg:      pkg,
+		ctx:      ctx,
+		module:   module,
+		builder:  ir.NewBuilder(ctx.LLVM()),
+		moduleID: ctx.moduleCount,
 	}
 }
 
@@ -60,6 +63,8 @@ func (c *CodeGenerator) Generate() *ir.Module {
 	}
 	// 函数符号声明子遍：先登记全部函数符号，再生成函数体，支持同包前向引用/互递归
 	c.genFuncDecls()
+	// 全局变量符号声明子遍：支持函数体前向引用同包后置声明的全局变量
+	c.genGlobalVarDecls()
 	for _, g := range c.pkg.Globals {
 		c.genGlobalValue(g)
 	}

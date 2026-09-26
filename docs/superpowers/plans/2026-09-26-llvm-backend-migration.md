@@ -214,18 +214,21 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 - [x] **B2 `str`**：named struct `{ptr, i64}`。验证：`m1_puts` 输出 hello，IR `%str = type { ptr, i64 }`。
 - [x] **B3 引用/指针**：`&T`/`&mut T` → `ptr`。验证：取址/解引用（`m2_lvalue`）；
       指针比较待 D4；`type R &T` 一类引用别名待 B7 修正（`genCustomTypeDecl` 目前按聚合预声明）。
-- [ ] **B4 tuple**：named struct `e1..en`。验证：构造 + 索引读写。
-- [ ] **B5 数组**：`[N x T]`；N=0 / 零尺寸元素 → `{}`。验证：字面量、索引、整体赋值、传参。
-- [ ] **B6 struct**：named struct；递归/互递归（`&Self`）走 opaque+`SetBody`。
-      验证：`examples/main.sim`（`S{name}` + `&s` + 方法）。
-- [ ] **B7 自定义类型**：标量别名透传；聚合 named struct（两遍 + `stableName`）。
-      备注：`type R &T` 引用别名属于**后端 B7 问题**——`genCustomTypeDecl` 目前把 `RefType` 也
-      预声明为 opaque named struct，应改为透传 `ptr`（详见 §11 修订记录/审查报告）。
-      验证：`std/buildin` 的 `type i8 i8` 等 + `type S struct`。
-- [ ] **B8 函数胖类型**：`{ptr fn, ptr ctx}`。验证：函数变量赋值/传递。
-- [ ] **B9 tagged union**：`{i8, payload}` + DataLayout 精确计算。
-      验证：union 注入/判别/取值，含 `{i8[16], f64}` 这类 size≠最大对齐成员的用例。
-- [ ] **B10 零尺寸类型**：`{}` 语义（`zeroinitializer`）。验证：空 tuple/空 struct 值传递。
+- [x] **B4 tuple**：字面量结构体 `e1..en`（自定义元组走 named struct）。验证：构造 + 索引读写 + 拷贝、
+  聚合传参/返回（`m3_tuple`→`ABC`、`m3_agg_abi`）。
+- [x] **B5 数组**：`[N x T]`；N=0 / 零尺寸元素 → `{}`。验证：字面量、索引、整体赋值（值语义）、传参、
+  遍历（`m3_array`→`BDCE`、`m3_for`）。
+- [x] **B6 struct**：字面量结构体；递归/互递归（`&Self`）走 opaque+`SetBody`。
+  验证：`m3_struct`→`BCDB`、`m3_recursive2`（自引用）、`m3_mutual`（互递归 A/B）。
+- [x] **B7 自定义类型**：标量/数组/引用/函数别名透传（不预声明 named struct）；struct/tuple/union
+  预声明 named struct 两遍填充。`type R &T` 引用别名已修复（透传 `ptr`）。
+  验证：`std/buildin` 的 `type i8 i8` 等 + `m3_recursive2` 的 `type R &i32`→`BAC0`。
+- [ ] **B8 函数胖类型**：`{ptr fn, ptr ctx}`。验证：函数变量赋值/传递。（M4）
+- [x] **B9 tagged union**：`{i8, payload}` + DataLayout 精确计算（payload 取最大对齐成员 + 补足 size 的
+  `[k x i8]`）。验证：`m3_union`→`AB`、`m3_union_layout`（`([16]i8) | f64` → IR `{ i8, { double, [8 x i8] } }`）
+  →`ABBABA`（含 NaN 成员 `!=` 语义）。
+- [x] **B10 零尺寸类型**：`{}` 语义（`zeroinitializer`）；数组 N=0/零尺寸元素、空 tuple/struct、
+  全零尺寸 union 恒不失配。验证：`m3_zero_size`→`AAAA`（IR 中 `br i1 true` 短路）。
 
 ### C. 常量与全局（`global.go`）
 
@@ -233,10 +236,12 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
       验证：i32 字面量作 extern 实参、u8/i64 局部初始化（`m1_types`）；边界值待统一测试集。
 - [x] **C2 字符串字面量**：`ConstString` + `ConstGEP` + `ConstNamedStruct` 全局常量。
       验证：`m1_puts` 输出 hello，IR `@_str.1 = constant [6 x i8] c"hello\00"`。
-- [ ] **C3 聚合字面量**：tuple/array/struct 常量路径（全局初始化）+ 运行时 `InsertValue` 路径。
-      验证：全局/局部聚合初始化。
-- [ ] **C4 全局变量**：定义（无值 → `SetInitializer(zeroinitializer)`）、`pub/static` 链接性、
-      `@extern` 外部全局声明。验证：跨包读写 pub 全局 + extern 全局。
+- [x] **C3 聚合字面量**：tuple/array/struct 常量路径（`genConstExpr`，供全局初始化）+ 运行时
+      `allocaEntry` + 逐元素 GEP/store + load 路径（三者统一）。缺省 struct 字段按 C designated
+      initializer 语义零初始化。验证：全局/局部聚合初始化（`m3_global`、`m3_mutual` 的 `P{x:65}`）。
+- [x] **C4 全局变量**：定义（无值 → `SetInitializer(zeroinitializer)`）、`pub/static` 链接性、
+      `@extern` 外部全局声明、跨包读写 pub 全局。验证：同包（`m3_global`→`Ahi`）、
+      跨包读/取址/写（临时 lib 包用例→`AAABhi`）、`@extern(optind)` 读→`1`。
 - [x] **C5 函数定义/声明**：`pub/static` 链接性、`@extern` 纯声明、`stableName` 命名。
       验证：`m1_putchar`（外部函数调用）、`m1_puts`（跨包声明与调用）。
 - [x] **C6 入口**：`main` → `sim_main` + `main` wrapper（`call sim_main; ret 0`）。
@@ -265,10 +270,13 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
       `m2_sideeffect` 输出 `AABBABB`、unit 结果 `m2_ternary_void` 输出 `AB`。
 - [x] **D9 数值转换** `NumberCovert`：`Trunc/ZExt/SExt/FPToSI/FPToUI/SIToFP/UIToFP/FPTrunc/FPExt`。
       验证：全组合转换表用例（`m2_convert`/`m2_convert2`/`m2_edge` IR）。
-- [ ] **D10 TypedefCovert**：标量透传/转换（与 C 后端一致只支持标量层）——标量路径已随 D9 实现
-      （聚合层待 B 系列，现为清晰 panic）。验证：`type MyInt i32` / `type MyBool bool` 转换与比较。
-- [ ] **D11 索引**：数组 `GEP`、元组 `ExtractValue`/GEP；右值/左值两路径。验证：嵌套索引赋值。
-- [ ] **D12 字段访问** `GetField`：struct/带 Self 指针自动解引用。验证：`examples/main.sim` 的 `self.name`。
+- [x] **D10 TypedefCovert**：标量透传/转换；聚合层 LLVM 类型相等 → 透传，否则 alloca+store+load
+      内存往返（布局由 analyze 的 `GetUnderlying(from).Equal(GetUnderlying(to))` 保证）。
+      验证：`type MyInt i32` 等标量（既有用例）+ 引用别名 `m3_recursive2`。
+- [x] **D11 索引**：数组 `GEP`、元组 `GEP`；右值/左值两路径（`genAddr` + load）。
+      验证：嵌套索引赋值、元组拷贝（`m3_array`/`m3_tuple`/`m3_agg_abi`）。
+- [x] **D12 字段访问** `GetField`：GEP 按 `GetFields()` 定位；引用自动解引用防御分支。
+      验证：`m3_struct`、`m3_agg_abi` 的 `q.arr[1]`/`q.t[0]` 链式左右值。
 - [ ] **D13 调用**：直接 `Call`、外部调用已实现并验证（`m1_putchar`/`m1_puts`）；
       函数值 `CallIndirect`（ctx 判空双分支 + 快速路径）待 F4。
 - [x] **D14 自增语义** `SELFADD`：**不适用**（HIR 无自增节点：`Unary` 仅 BitsReverse/BooleanReverse/
@@ -281,7 +289,9 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
       验证：空函数体 `m1_empty` 正常运行。
 - [x] **E3 `if/else-if/else`**：块结构递归。验证：嵌套 if 链。
 - [x] **E4 `while`**：cond→body→cond 块环。验证：条件副作用/出口。
-- [ ] **E5 `for`（range 数组）**：索引变量 + 数组遍历。验证：遍历求和。
+- [x] **E5 `for`（range 数组）**：i64 索引（入口块 alloca，初值 0）+ 条件 `idx < size`；Range 只求值
+      一次（不可寻址时入口块物化）；循环变量为入口块 alloca。验证：`m3_for`→`AAABBB`
+      （可寻址范围 + 函数返回的临时范围；循环变量因前端缺陷不可在体内引用，见 §11.7）。
 - [x] **E6 嵌套 block 作用域**。验证：内层 let 遮蔽外层。
 
 ### F. 函数与闭包（`closure.go`）
@@ -297,13 +307,17 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 
 ### G. 相等性辅助函数（`equal.go`）
 
-- [ ] **G1 标量/布尔/引用相等**：直接 `ICmp`。验证：`==/!=` 全标量。
-- [ ] **G2 数组逐元素**。验证：数组判等/不等。
-- [ ] **G3 元组逐字段**。验证：嵌套元组判等。
-- [ ] **G4 struct 逐字段**。验证：`S{name} == S{name}`。
-- [ ] **G5 union 判别 + `Switch` 分派**。验证：同/异 tag、同 tag 异值。
-- [ ] **G6 函数值相等**（并入 F5，独立可测）。
-- [ ] **G7 辅助函数去重缓存**：同类型只生成一次。验证：IR 文本中只出现一个 eq 函数。
+- [x] **G1 标量/布尔/引用相等**：直接 `ICmp`/`FCmp`（Neq 浮点用 `UNE`）。验证：`==/!=`
+      （标量既有用例 + `m3_union_layout` 的 NaN）。
+- [x] **G2 数组逐元素**：i64 索引循环，不等即短路返回 false。验证：`m3_equality`→`AABAABAAAA`。
+- [x] **G3 元组逐字段**。验证：嵌套元组含数组判等（`m3_equality`）。
+- [x] **G4 struct 逐字段**。验证：`P{x,y}` 判等（`m3_equality`）。
+- [x] **G5 union 判别 + `Switch` 分派**：同/异 tag、同 tag 异值、NaN 成员。验证：`m3_union`→`AB`、
+      `m3_union_layout`→`ABBABA`。
+- [ ] **G6 函数值相等**（并入 F5，独立可测）。（M4）
+- [x] **G7 辅助函数去重缓存**：`Context.eqFuncs` 按「模块标识 + LLVM 类型文本 + HIR 类型文本」缓存；
+      同类型同模块只生成一次，internal 链接。验证：`m3_equality` IR 中 `[2 x i32]` 辅助函数
+      1 个定义 / 4 处调用（含嵌套元组内复用），共 4 个定义 / 11 个调用点。
 
 ### H. 跨包、产物与链接（`compiler/compile`）
 
@@ -357,10 +371,12 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 1. **M1 端到端最小闭环**（A + B1/B2 + C1/C2/C5/C6 + E2 + H）：`main` 返回常量、`puts("hello")`
    经新后端跑通，链接/缓存/Verify 全链路就位。
 2. **M2 标量语言**（B1 + D1~D9/D14 + E1~E6）：算术/控制流/转换。
-3. **M3 复合类型**（B3~B7/B10 + C3/C4 + D10~D12 + G1~G4）：`examples/main.sim` 通过。
-4. **M4 函数值与闭包**（B8 + D13 + F1~F7 + G6）。
-5. **M5 union 与完整相等性**（B9 + G5/G7）。
-6. **M6 收尾**（I + J）：`examples/main.sim` 回归 + 旧代码删除 + 文档更新。
+3. **M3 复合类型**（B3~B7/B9/B10 + C3/C4 + D10~D12 + E5 + G1~G5/G7）：元组/数组/struct/union、
+   聚合字面量、全局变量、索引/字段访问、for 遍历、相等性端到端跑通（`examples/main.sim` 需
+   GetBind/闭包，随 M4 回归）。
+4. **M4 函数值与闭包**（B8 + D13 + F1~F7 + G6）+ `examples/main.sim` 回归。
+5. **M5 收尾**（I + J）：驱动集成与调试、删除旧 C 后端、文档更新。
+   （原 M5「union 与完整相等性」的 B9/G5/G7 已提前到 M3 完成；原 M6 并入本阶段。）
 
 ## 10. 进度记录
 
@@ -435,6 +451,28 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
   回归：M1/M2 全部既有用例双后端对照无新增差异（旧 C 后端在 `rev_forward`/`fix_forward`
   上前向引用直接 SIGSEGV，llgen 现已支持）；旧管线 `examples/main.sim` 输出 `123`；
   build/vet/gofmt 通过。审查报告见 `.superpowers/sdd/final-fix-report.md`。
+- **2026-09-26**：**M3 完成**（复合类型 + 聚合字面量 + 全局变量 + 索引字段访问 + for + 相等性）——
+  `type.go`：tuple/array/struct/union 映射（零尺寸 → `{}`，union `{i8, payload}` 用共享 DataLayout
+  精确计算，payload 取最大对齐成员 + `[k x i8]` 补齐）；`global.go`：struct/tuple/union 两遍
+  named struct（数组/引用/函数别名透传，修复 `type R &T`），全局变量定义/声明/链接性 +
+  `genConstExpr` 常量初始化 + 全局变量符号声明子遍 `genGlobalVarDecls`（函数体可前向引用
+  后置声明的全局）；`expr.go`：聚合字面量运行时 alloca+GEP/store+load（缺省字段零初始化）、
+  索引/字段左值 GEP、`genAddrOrMaterialize`（不可寻址值入口块物化）、union 注入、聚合 TypedefCovert
+  内存往返；`local.go`：`genFor`（Range 只求值一次）；新增 `equal.go`：G1~G5 相等性辅助函数
+  （union tag 比较 + `Switch` 分派、数组循环、逐字段短路、零尺寸恒真、浮点 `UNE`），
+  `Context.eqFuncs` 按模块 + 类型键去重（G7）。
+  验证：16 个 M3 用例全部实测（`m3_tuple`→`ABC`、`m3_array`→`BDCE`、`m3_struct`→`BCDB`、
+  `m3_recursive`→`AB`、`m3_recursive2`→`BAC0`、`m3_mutual`→`B1A0`、`m3_union`→`AB`、
+  `m3_for`→`AAABBB`、`m3_equality`→`AABAABAAAA`、`m3_global`→`Ahi`、`m3_union_layout`→`ABBABA`、
+  `m3_agg_abi`→`ABCDEFIMLNH`、`m3_materialize`→`AIAJ`、`m3_zero_size`→`AAAA`、
+  `m3_extern_global`→`1`、`m3_global_forward`→`AA`（旧 C 后端前向引用全局 SIGSEGV，llgen 现已支持）；
+  另临时 lib 包验证跨包全局读/取址/写 →`AAABhi`）；
+  G7 IR 证据：`[2 x i32]` 辅助函数 1 定义 / 4 调用（4 个定义 / 11 个调用点）；
+  M1/M2 全部既有可编译用例无回归（43 个 OK，10 个为既有前端问题）；旧管线
+  `examples/main.sim` 回归 `123`；`examples/main.sim` 在新后端仍止步于 GetBind（随 M4）。
+  发现旧 C 后端 `genFor` 元素类型 bug（`c.genType(at)` 应为 `at.GetElem()`）与 union/struct
+  相等性辅助函数类型不匹配 bug（自定义类型解包后重新生成字面量类型），llgen 已按正确语义实现。
+  报告见 `.superpowers/sdd/task-M3-report.md`。
 
 ## 11. 迁移期间发现的前端问题（非后端迁移范围，待单独处理）
 
@@ -459,6 +497,22 @@ compile: TargetMachine.EmitToFile ──▶ .sim_cache/<pkg>.o ──clang──
 6. **unit 局部变量被 analyze 放行**：`let x = g()`（`g` 返回 unit）通过 analyze，旧 C 后端与
    llgen 都无法为 unit 分配存储。llgen 已在 `genLocalLet` 前置检查并 panic
    `llgen: 不能为 unit 类型的变量 %s 分配存储（类型 %s）`。根治应在前端拒绝 unit 型 `let`。
+7. **`for x in a { ... }` 无法解析（struct 字面量歧义）**：`parsePrimaryExpr` 对
+   `Ident` 后紧跟 `{` 一律按 struct 字面量解析，因此 range 为裸标识符的 for-in 会被解析成
+   `a{...}`（报 `expected ':' but got '('`）；把 `{` 换行也无效（`parseBlock` 的 `expect(Lbr)`
+   不跳过换行 token）。可解析的写法只有 range 不是裸标识符：`for x in a[0] { }`、
+   `for x in f() { }`、`for x in *p { }`（M3 用例 `m3_for` 采用这种写法）。
+   旧 C 后端同样复现。根治应在 parser 层区分 struct 字面量与 for 体。
+8. **`analyzeFor` 未把循环变量加入作用域**：`compiler/analyze/local.go:118-128` 创建了
+   `hir.Param(local.Var)` 并传给 `locals.NewFor`，但没有 `a.scope.AddValue(param)`，因此循环体内
+   引用该变量报 `unknown identifier`。旧 C 后端同样复现；这也掩盖了旧 `codegen.genFor` 的
+   元素类型 bug（见 §10 M3 条目）。根治应在 `analyzeFor` 里把 param 加入新的块作用域。
+9. **无隐式数值转换，旧 C 后端的 C 隐式转换不再兜底**：`analyzeCall` 用
+   `a.analyzeExpr(arg, params[i])` 只对字面量/union 注入做自动转换，TupleIndex 等非字面量表达式
+   的类型不匹配会被放行（如 `let t = (65, 66, 67); putchar(t[0])`：`t` 元素默认 `i64`，`putchar`
+   形参 `i32`）。旧 C 后端靠 C 隐式转换可编译，llgen 严格按 LLVM 类型发调用会 panic
+   `argument 0 type i64 does not match parameter type i32`。M3 用例改为显式标注元组元素类型
+   （`let t: (i32, i32, i32) = (65, 66, 67)`）；根治应在前端补类型转换或在缺省时推定期望类型。
 
 > **给 H5 的备注（旧 `compile` 缓存/命名隐患，重写时一并处理）**：
 > 1. `compiler/codegen/other.go` 的 `stableName` 把绝对 `pkg.Path` 与 `pkg.Name` 一起哈希进符号名，

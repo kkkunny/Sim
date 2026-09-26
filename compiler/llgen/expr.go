@@ -6,6 +6,7 @@ import (
 	"github.com/kkkunny/go-llvm"
 	"github.com/kkkunny/go-llvm/ir"
 	stlslices "github.com/kkkunny/stl/container/slices"
+	stlval "github.com/kkkunny/stl/value"
 
 	"github.com/kkkunny/Sim/compiler/hir"
 	"github.com/kkkunny/Sim/compiler/hir/locals"
@@ -28,7 +29,7 @@ func (c *CodeGenerator) genExpr(expr locals.Expr) llvm.AnyValue {
 		return c.genCall(expr)
 	case *locals.DeRef:
 		// 解引用：目标表达式的值即指针，装载其指向的值
-		return c.builder.Load[llvm.DynT](c.genAddr(expr), c.genType(expr.GetType()).DynType(), "")
+		return c.genLoadFromAddr(expr)
 	case locals.Unary:
 		return c.genUnary(expr)
 	case *locals.Binary:
@@ -37,12 +38,26 @@ func (c *CodeGenerator) genExpr(expr locals.Expr) llvm.AnyValue {
 		return c.genCovert(expr)
 	case *locals.Ternary:
 		return c.genTernary(expr)
+	case *locals.Tuple:
+		return c.genTuple(expr)
+	case *locals.Array:
+		return c.genArray(expr)
+	case *locals.Struct:
+		return c.genStruct(expr)
+	case *locals.TupleIndex, *locals.ArrayIndex, *locals.GetField:
+		// 索引/字段访问：左值通道取地址后装载
+		return c.genLoadFromAddr(expr)
 	default:
 		panic(fmt.Errorf("llgen: 暂不支持的表达式 %s（%T）", expr, expr))
 	}
 }
 
-// genAddr 左值通道：生成表达式对应的存储地址（D1）
+// genLoadFromAddr 以左值通道（genAddr）求值后再装载，供解引用/索引/字段访问等表达式复用
+func (c *CodeGenerator) genLoadFromAddr(expr locals.Expr) llvm.AnyValue {
+	return c.builder.Load[llvm.DynT](c.genAddr(expr), c.genType(expr.GetType()).DynType(), "")
+}
+
+// genAddr 左值通道：生成表达式对应的存储地址（D1/D11/D12）
 func (c *CodeGenerator) genAddr(expr locals.Expr) llvm.Value[llvm.PtrT] {
 	switch expr := expr.(type) {
 	case *locals.IdentExpr:
@@ -50,27 +65,103 @@ func (c *CodeGenerator) genAddr(expr locals.Expr) llvm.Value[llvm.PtrT] {
 		if !ok {
 			panic(fmt.Errorf("llgen: 未找到符号 %s", expr.Define.GetName()))
 		}
-		if ident.Local.IsNil() {
-			panic(fmt.Errorf("llgen: 符号 %s 不是可寻址的局部变量（C4/F3）", ident.Name))
+		if !ident.Local.IsNil() {
+			return ident.Local
 		}
-		return ident.Local
+		if stlval.Is[types.FuncType](expr.GetType()) {
+			panic(fmt.Errorf("llgen: 暂不支持函数值取址 %s（B8/F3，M4）", ident.Name))
+		}
+		// 全局变量：符号本身即存储地址（跨包时按需建外部声明）
+		return c.getGlobalVar(ident.Name, c.genType(expr.GetType())).Value
 	case *locals.DeRef:
 		// 解引用表达式的值即指针
 		return c.genExpr(expr.Target).Dyn().MustAs[llvm.PtrT]()
 	case *locals.ArrayIndex:
-		panic(fmt.Errorf("llgen: 暂不支持数组索引左值（%T，待 B4/B5/B6 实现）", expr))
+		base := c.genAddrOrMaterialize(expr.From)
+		at, ok := c.genType(expr.From.GetType()).(llvm.ArrayType)
+		if !ok {
+			// 零尺寸数组（B10）映射为 {}，元素没有实际存储；load/store 皆为空操作，
+			// 返回零尺寸临时地址以维持左值语义
+			return c.allocaEntry(c.genType(expr.GetType()), "")
+		}
+		return c.builder.GEP(at, base, c.gepPath(asInt(c.genExpr(expr.Index))), "")
 	case *locals.TupleIndex:
-		panic(fmt.Errorf("llgen: 暂不支持元组索引左值（%T，待 B4/B5/B6 实现）", expr))
+		base := c.genAddrOrMaterialize(expr.From)
+		st, ok := c.genType(expr.From.GetType()).(llvm.StructType)
+		if !ok {
+			panic(fmt.Errorf("llgen: 元组索引 %s 的基类型 %s 不是结构体", expr, expr.From.GetType()))
+		}
+		return c.builder.GEP(st, base, c.gepPath(c.ctx.LLVM().Int(32).Const(uint64(expr.Index.Int64()))), "")
 	case *locals.GetField:
-		panic(fmt.Errorf("llgen: 暂不支持字段左值（%T，待 B4/B5/B6 实现）", expr))
+		return c.genFieldAddr(expr)
 	default:
 		panic(fmt.Errorf("llgen: 暂不支持的左值表达式 %s（%T）", expr, expr))
 	}
 }
 
-// genAddrOrMaterialize 获取表达式地址：左值直接取地址；非左值后续任务物化临时存储
+// genFieldAddr 字段左值地址（D12）：GEP [0, fieldIdx]；From 为引用时按自动解引用处理
+func (c *CodeGenerator) genFieldAddr(expr *locals.GetField) llvm.Value[llvm.PtrT] {
+	from := expr.From
+	fromT := from.GetType()
+	var base llvm.Value[llvm.PtrT]
+	if rt, ok := fromT.(types.RefType); ok {
+		// 自动解引用：From 的值即指向结构体的地址（analyze 通常已插入 DeRef，此处防御）
+		fromT = rt.PtrTo()
+		base = c.genExpr(from).Dyn().MustAs[llvm.PtrT]()
+	} else {
+		base = c.genAddrOrMaterialize(from)
+	}
+	structT, ok := types.GetUnderlying(fromT).(types.StructType)
+	if !ok {
+		panic(fmt.Errorf("llgen: 字段访问 %s 的基类型 %s 不是结构体", expr, fromT))
+	}
+	fieldIdx := -1
+	for i, f := range structT.GetFields() {
+		if f.Name == expr.Name {
+			fieldIdx = i
+			break
+		}
+	}
+	if fieldIdx < 0 {
+		panic(fmt.Errorf("llgen: 结构体 %s 中不存在字段 %s", fromT, expr.Name))
+	}
+	st, ok := c.genType(fromT).(llvm.StructType)
+	if !ok {
+		panic(fmt.Errorf("llgen: 结构体 %s 的 LLVM 表示不是结构体", fromT))
+	}
+	return c.builder.GEP(st, base, c.gepPath(c.ctx.LLVM().Int(32).Const(uint64(fieldIdx))), "")
+}
+
+// gepPath GEP 下标列表：[0, rest]（先索引聚合本身，再取其元素）
+func (c *CodeGenerator) gepPath(rest llvm.ValueRef[llvm.IntT]) []llvm.ValueRef[llvm.IntT] {
+	return []llvm.ValueRef[llvm.IntT]{c.ctx.LLVM().Int(32).Const(0), rest}
+}
+
+// genAddrOrMaterialize 获取表达式地址（§4.3）：左值直接取地址；
+// 不可寻址时在入口块 alloca 后存入其值（后续 by-value 语义与旧后端一致）。
 func (c *CodeGenerator) genAddrOrMaterialize(expr locals.Expr) llvm.Value[llvm.PtrT] {
-	return c.genAddr(expr)
+	if c.addressable(expr) {
+		return c.genAddr(expr)
+	}
+	ptr := c.allocaEntry(c.genType(expr.GetType()), "")
+	c.builder.Store(c.genExpr(expr), ptr)
+	return ptr
+}
+
+// addressable 表达式是否可直接取地址（与 genAddr 支持的分支保持一致）
+func (c *CodeGenerator) addressable(expr locals.Expr) bool {
+	switch expr := expr.(type) {
+	case *locals.IdentExpr:
+		ident, ok := c.ctx.idents[expr.Define]
+		if !ok {
+			return false
+		}
+		return !ident.Local.IsNil() || !stlval.Is[types.FuncType](expr.GetType())
+	case *locals.DeRef, *locals.ArrayIndex, *locals.TupleIndex, *locals.GetField:
+		return true
+	default:
+		return false
+	}
 }
 
 // genUnary 一元运算（D5）
@@ -220,8 +311,12 @@ func (c *CodeGenerator) genIntBinaryOp(op locals.BinaryOp, signed bool, left, ri
 	}
 }
 
-// genCompare 比较运算（D4）：结果为 i1；t 取左操作数类型
+// genCompare 比较运算（D4/G1~G5）：结果为 i1；t 取左操作数类型。
+// Eq/Neq 走 genEquals（复合类型按需合成辅助函数）；大小比较仅支持标量。
 func (c *CodeGenerator) genCompare(op locals.BinaryOp, t hir.Type, left, right llvm.AnyValue) llvm.AnyValue {
+	if op == locals.BinaryOpEnum.Eq || op == locals.BinaryOpEnum.Neq {
+		return c.genEquals(op == locals.BinaryOpEnum.Neq, t, left, right)
+	}
 	switch types.GetUnderlying(t).(type) {
 	case types.FloatType:
 		return c.builder.FCmp(floatCmpPred(op), asFloat(left), asFloat(right), "")
@@ -230,17 +325,11 @@ func (c *CodeGenerator) genCompare(op locals.BinaryOp, t hir.Type, left, right l
 	case types.UintType:
 		return c.builder.ICmp(intCmpPred(op, false), asInt(left), asInt(right), "")
 	case types.BooleanType:
-		if op == locals.BinaryOpEnum.Eq || op == locals.BinaryOpEnum.Neq {
-			return c.builder.ICmp(intCmpPred(op, true), asInt(left), asInt(right), "")
-		}
 		panic(fmt.Errorf("llgen: bool 不支持大小比较 %s", op))
 	case types.RefType:
-		if op == locals.BinaryOpEnum.Eq || op == locals.BinaryOpEnum.Neq {
-			return c.builder.ICmp(intCmpPred(op, true), left, right, "")
-		}
 		panic(fmt.Errorf("llgen: 引用不支持大小比较 %s", op))
 	default:
-		panic(fmt.Errorf("llgen: 暂不支持 %s 类型的比较 %s（复合类型相等比较待 G1~G5）", t, op))
+		panic(fmt.Errorf("llgen: 暂不支持 %s 类型的大小比较 %s", t, op))
 	}
 }
 
@@ -411,7 +500,7 @@ func (c *CodeGenerator) allocaEntry(t llvm.AnyType, name string) llvm.Value[llvm
 	return ptr
 }
 
-// genCovert 转换表达式（D9 数值转换 / D10 标量 typedef 透传）
+// genCovert 转换表达式（D9 数值转换 / D10 typedef / B9 union 注入）
 func (c *CodeGenerator) genCovert(expr locals.Covert) llvm.AnyValue {
 	switch expr := expr.(type) {
 	case *locals.NumberCovert:
@@ -424,19 +513,58 @@ func (c *CodeGenerator) genCovert(expr locals.Covert) llvm.AnyValue {
 		from, to := expr.GetFrom().GetType(), expr.GetType()
 		v := c.genExpr(expr.GetFrom())
 		if c.genType(from).Equal(c.genType(to)) {
-			// 标量别名/str 等底层 LLVM 类型一致：直接透传
+			// 标量别名/str/引用别名等底层 LLVM 类型一致：直接透传
 			return v
 		}
 		fromU, toU := types.GetUnderlying(from), types.GetUnderlying(to)
 		if isNumber(fromU) && isNumber(toU) {
 			return c.genNumberConvert(fromU, toU, v)
 		}
-		panic(fmt.Errorf("llgen: 暂不支持 %s 到 %s 的 TypedefCovert（聚合层待 B 系列）", from, to))
+		// 聚合层（D10）：analyze 仅在 GetUnderlying(from).Equal(GetUnderlying(to)) 时构造，
+		// 布局相同（如两个同布局的命名聚合类型）；经内存往返完成位重解释
+		slot := c.allocaEntry(c.genType(from), "")
+		c.builder.Store(v, slot)
+		return c.builder.Load[llvm.DynT](slot, c.genType(to).DynType(), "")
 	case *locals.Union:
-		panic(fmt.Errorf("llgen: 暂不支持 union 注入（B9）"))
+		return c.genUnionInject(expr)
 	default:
 		panic(fmt.Errorf("llgen: 暂不支持的转换表达式 %s（%T）", expr, expr))
 	}
+}
+
+// genUnionInject union 注入（B9）：tag = 成员下标，载荷成员写入 payload 首字段（偏移 0），
+// 其余字节先清零（C 的 designated initializer 语义），最后 InsertValue 组成 union 值。
+func (c *CodeGenerator) genUnionInject(expr *locals.Union) llvm.AnyValue {
+	val := c.genExpr(expr.GetFrom())
+	uT := c.genType(expr.GetType())
+	st, ok := uT.(llvm.StructType)
+	if !ok {
+		panic(fmt.Errorf("llgen: union 类型 %s 的 LLVM 表示不是结构体", expr.GetType()))
+	}
+	if c.isZeroSizeLLVM(st) {
+		// 全零尺寸 union → {}（B10）：无 tag 与载荷
+		return c.genZeroValue(st)
+	}
+	unionT, ok := types.GetUnderlying(expr.GetType()).(types.UnionType)
+	if !ok {
+		panic(fmt.Errorf("llgen: union 注入的目标类型 %s 不是 union", expr.GetType()))
+	}
+	elems := c.unionMemberTypes(unionT)
+	if int(expr.Index) >= len(elems) {
+		panic(fmt.Errorf("llgen: union %s 的成员下标 %d 越界", expr.GetType(), expr.Index))
+	}
+	payloadT, _ := c.genUnionPayload(elems)
+	slot := c.allocaEntry(payloadT, "")
+	c.builder.Store(c.genZeroValue(payloadT), slot)
+	if elems[expr.Index] != nil {
+		field := c.builder.GEP(payloadT, slot, c.gepPath(c.ctx.LLVM().Int(32).Const(0)), "")
+		c.builder.Store(val, field)
+	}
+	payload := c.builder.Load[llvm.DynT](slot, payloadT.DynType(), "")
+	tag := c.ctx.LLVM().Int(8).Const(uint64(expr.Index))
+	base := st.Zero()
+	withPayload := c.builder.InsertValue[llvm.StructT](base, payload, []uint32{1}, "")
+	return c.builder.InsertValue[llvm.StructT](withPayload, tag, []uint32{0}, "")
 }
 
 // genNumberConvert 标量数值转换（D9）：from/to 均为已解包的基础类型
@@ -523,7 +651,139 @@ func (c *CodeGenerator) genIdentExpr(expr *locals.IdentExpr) llvm.AnyValue {
 	if !ident.Local.IsNil() {
 		return c.builder.Load[llvm.DynT](ident.Local, c.genType(expr.GetType()).DynType(), "")
 	}
-	panic(fmt.Errorf("llgen: 暂不支持的非局部标识符 %s（C4/F3）", ident.Name))
+	if stlval.Is[types.FuncType](expr.GetType()) {
+		panic(fmt.Errorf("llgen: 暂不支持函数值 %s（B8/F3，M4）", ident.Name))
+	}
+	// 全局变量：跨包/后向引用时按需在本模块创建 external 声明
+	t := c.genType(expr.GetType())
+	g := c.getGlobalVar(ident.Name, t)
+	return c.builder.Load[llvm.DynT](g.Value, t.DynType(), "")
+}
+
+// genTuple 元组字面量（C3）：运行时按元素顺序求值并构造
+func (c *CodeGenerator) genTuple(expr *locals.Tuple) llvm.AnyValue {
+	return c.genAggregateLiteral(c.genType(expr.GetType()), stlslices.Map(expr.Elems, func(_ int, e locals.Expr) llvm.AnyValue {
+		return c.genExpr(e)
+	}))
+}
+
+// genArray 数组字面量（C3）：运行时按元素顺序求值并构造
+func (c *CodeGenerator) genArray(expr *locals.Array) llvm.AnyValue {
+	return c.genAggregateLiteral(c.genType(expr.GetType()), stlslices.Map(expr.Elems, func(_ int, e locals.Expr) llvm.AnyValue {
+		return c.genExpr(e)
+	}))
+}
+
+// genStruct 结构体字面量（C3）：按类型字段顺序求值并构造（Fields 是 map，不能直接遍历）。
+// 缺省字段按 C designated initializer 语义零初始化（旧后端同样依赖该语义）。
+func (c *CodeGenerator) genStruct(expr *locals.Struct) llvm.AnyValue {
+	fields := expr.Type.GetFields()
+	elems := make([]llvm.AnyValue, len(fields))
+	for i, f := range fields {
+		if fv, ok := expr.Fields[f.Name]; ok {
+			elems[i] = c.genExpr(fv)
+		} else {
+			elems[i] = c.genZeroValue(c.genType(f.Type))
+		}
+	}
+	return c.genAggregateLiteral(c.genType(expr.Type), elems)
+}
+
+// genAggregateLiteral 运行时构造聚合值：入口块 alloca + 逐元素 GEP/store + 整体 load。
+// 元组/数组/结构体字面量统一走该路径（元素副作用顺序与书写顺序一致）；
+// 零尺寸字面量直接给出空聚合零值，不走内存往返。
+func (c *CodeGenerator) genAggregateLiteral(t llvm.AnyType, elems []llvm.AnyValue) llvm.AnyValue {
+	if len(elems) == 0 || c.isZeroSizeLLVM(t) {
+		return c.genZeroValue(t)
+	}
+	slot := c.allocaEntry(t, "")
+	for i, e := range elems {
+		ptr := c.builder.GEP(t, slot, c.gepPath(c.ctx.LLVM().Int(32).Const(uint64(i))), "")
+		c.builder.Store(e, ptr)
+	}
+	return c.builder.Load[llvm.DynT](slot, t.DynType(), "")
+}
+
+// genConstExpr 常量路径（C3 全局初始化用）：Integer/Float/Boolean/String 及
+// Tuple/Array/Struct 的常量嵌套；不在常量集返回 false（调用方按语义报错）。
+func (c *CodeGenerator) genConstExpr(expr locals.Expr) (llvm.AnyValue, bool) {
+	switch expr := expr.(type) {
+	case *locals.Integer:
+		it, ok := c.genType(expr.GetType()).(llvm.IntType)
+		if !ok {
+			return nil, false
+		}
+		return c.ctx.LLVM().ConstIntOfString(it, expr.Value.String(), 10), true
+	case *locals.Float:
+		ft, ok := c.genType(expr.GetType()).(llvm.FloatType)
+		if !ok {
+			return nil, false
+		}
+		v, _ := expr.Value.Float64()
+		return c.ctx.LLVM().ConstFloat(ft, v), true
+	case *locals.Boolean:
+		return c.ctx.LLVM().ConstBool(expr.Value), true
+	case *locals.String:
+		// 字符串常量内部走 genString 的全局常量构造（ConstGEP + ConstNamedStruct）
+		return c.genString(expr), true
+	case *locals.Tuple:
+		return c.genConstAggregate(c.genType(expr.GetType()), expr.Elems)
+	case *locals.Array:
+		return c.genConstAggregate(c.genType(expr.GetType()), expr.Elems)
+	case *locals.Struct:
+		fields := expr.Type.GetFields()
+		elems := make([]llvm.AnyValue, len(fields))
+		for i, f := range fields {
+			fv, ok := expr.Fields[f.Name]
+			if !ok {
+				// 缺省字段零初始化（与运行时构造一致）
+				elems[i] = c.genZeroValue(c.genType(f.Type))
+				continue
+			}
+			v, ok := c.genConstExpr(fv)
+			if !ok {
+				return nil, false
+			}
+			elems[i] = v
+		}
+		return c.genConstValues(c.genType(expr.Type), elems)
+	default:
+		return nil, false
+	}
+}
+
+// genConstAggregate 聚合常量：逐元素递归求常量后按 LLVM 结构/数组类型构造
+func (c *CodeGenerator) genConstAggregate(t llvm.AnyType, exprs []locals.Expr) (llvm.AnyValue, bool) {
+	if len(exprs) == 0 || c.isZeroSizeLLVM(t) {
+		return c.genZeroValue(t), true
+	}
+	elems := make([]llvm.AnyValue, len(exprs))
+	for i, e := range exprs {
+		v, ok := c.genConstExpr(e)
+		if !ok {
+			return nil, false
+		}
+		elems[i] = v
+	}
+	return c.genConstValues(t, elems)
+}
+
+// genConstValues 已知各元素常量时按 LLVM 聚合类型构造常量
+func (c *CodeGenerator) genConstValues(t llvm.AnyType, elems []llvm.AnyValue) (llvm.AnyValue, bool) {
+	if len(elems) == 0 || c.isZeroSizeLLVM(t) {
+		return c.genZeroValue(t), true
+	}
+	switch t := t.(type) {
+	case llvm.StructType:
+		if t.Name() != "" {
+			return c.ctx.LLVM().ConstNamedStruct(t, elems...), true
+		}
+		return c.ctx.LLVM().ConstStruct(false, elems...), true
+	case llvm.ArrayType:
+		return c.ctx.LLVM().ConstArray(t.Elem(), elems...), true
+	default:
+		return nil, false
+	}
 }
 
 func (c *CodeGenerator) genInteger(expr *locals.Integer) llvm.AnyValue {

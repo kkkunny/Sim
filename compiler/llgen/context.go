@@ -2,6 +2,7 @@ package llgen
 
 import (
 	"github.com/kkkunny/go-llvm"
+	"github.com/kkkunny/go-llvm/ir"
 	"github.com/kkkunny/go-llvm/target"
 	stlerr "github.com/kkkunny/stl/error"
 
@@ -20,8 +21,9 @@ type Ident struct {
 
 // Context 跨包共享的代码生成上下文
 type Context struct {
-	llvm   *llvm.Context
-	target *target.TargetMachine
+	llvm       *llvm.Context
+	target     *target.TargetMachine
+	dataLayout *llvm.DataLayout
 
 	triple string
 
@@ -29,6 +31,9 @@ type Context struct {
 	typeCache map[*globals.TypeDef]llvm.AnyType
 
 	namedTypes map[string]llvm.StructType // named struct 按名去重（LLVM Context 级共享）
+
+	eqFuncs     map[string]ir.Function // 相等性辅助函数缓存（键含模块标识与类型键，见 equal.go）
+	moduleCount int                    // 已创建模块计数（辅助函数缓存的模块标识）
 }
 
 // NewContext 创建代码生成上下文（初始化本机 LLVM 目标）
@@ -44,8 +49,9 @@ func NewContext() *Context {
 		target.OptNone, target.RelocPIC, target.CodeModelDefault,
 	))
 	return &Context{
-		llvm:   llvm.NewContext(),
-		target: tm,
+		llvm:       llvm.NewContext(),
+		target:     tm,
+		dataLayout: tm.DataLayout(),
 
 		triple: target.DefaultTriple(),
 
@@ -53,6 +59,8 @@ func NewContext() *Context {
 		typeCache: make(map[*globals.TypeDef]llvm.AnyType),
 
 		namedTypes: make(map[string]llvm.StructType),
+
+		eqFuncs: make(map[string]ir.Function),
 	}
 }
 
@@ -64,6 +72,11 @@ func (c *Context) LLVM() *llvm.Context {
 // TargetMachine 返回本机目标机器
 func (c *Context) TargetMachine() *target.TargetMachine {
 	return c.target
+}
+
+// DataLayout 返回共享的目标数据布局（union payload 尺寸/对齐计算的权威来源）
+func (c *Context) DataLayout() *llvm.DataLayout {
+	return c.dataLayout
 }
 
 // NamedStruct 获取（或创建）名为 name 的 named struct；首次创建时 body 为空
@@ -87,10 +100,14 @@ func (c *Context) NamedStructWithBody(name string, elems ...llvm.AnyType) llvm.S
 
 // Close 释放上下文资源
 func (c *Context) Close() error {
-	err1 := c.target.Close()
-	err2 := c.llvm.Close()
+	err1 := c.dataLayout.Close()
+	err2 := c.target.Close()
+	err3 := c.llvm.Close()
 	if err1 != nil {
 		return err1
 	}
-	return err2
+	if err2 != nil {
+		return err2
+	}
+	return err3
 }
