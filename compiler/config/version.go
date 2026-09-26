@@ -1,5 +1,5 @@
 package config
 
 const (
-	ABIVersion = "000000"
+	ABIVersion = "000001"
 )

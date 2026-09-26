@@ -1,13 +1,12 @@
 package compile
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/heimdalr/dag"
+	"github.com/kkkunny/go-llvm/target"
 	stlerr "github.com/kkkunny/stl/error"
 	stlos "github.com/kkkunny/stl/os"
 
@@ -28,6 +27,8 @@ func NewCompiler() *Compiler {
 }
 
 func (c *Compiler) Compile(pkg *globals.Package) error {
+	defer c.ctx.Close()
+
 	dagger := dag.NewDAG()
 	pkg2Vertex := make(map[*globals.Package]string)
 	var buildDAG func(pkg *globals.Package) (string, error)
@@ -97,112 +98,71 @@ func (c *Compiler) compileDepPkg(pkg *globals.Package) error {
 	}
 
 	// 即使命中缓存也要生成代码，以填充共享的 codegen.Context（idents/typeCache）
-	cir := codegen.New(c.ctx, pkg).Generate()
+	gen := codegen.New(c.ctx, pkg)
+	defer gen.Close()
+	gen.Generate()
+
 	if valid, err := isCacheValid(pkg); err != nil {
 		return err
 	} else if valid {
 		return nil
 	}
 
-	headerPath := filepath.Join(cacheDir, pkg.Name+".h")
-	hfile, err := stlerr.ErrorWith(os.Create(headerPath))
-	if err != nil {
-		return err
-	}
-	defer hfile.Close()
-
-	relpath, err := stlerr.ErrorWith(filepath.Rel(config.SimRootPath, pkg.Path))
-	if err != nil {
-		return err
-	}
-	headerName := "_SIM_" + strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "_") + "_H"
-	fmt.Fprintf(hfile, "#ifndef %s\n", headerName)
-	fmt.Fprintf(hfile, "#define %s 1 \n\n", headerName)
-	includeRelpath, err := stlerr.ErrorWith(filepath.Rel(config.IncludePath, config.SimRootPath))
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(hfile, "#include \"%s/buildin.h\"\n", includeRelpath)
-	for _, depPkg := range pkg.Dependencies {
-		relpath, _ = filepath.Rel(config.StdPkgPath, depPkg.Path)
-		relpath = strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "")
-		fmt.Fprintf(hfile, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDir, depPkg.Name)
-	}
-
-	cir.OutputHeader(hfile)
-	fmt.Fprintf(hfile, "\n#endif\n")
-	err = stlerr.ErrorWrap(hfile.Sync())
-	if err != nil {
-		return err
-	}
-
-	file, err := stlerr.ErrorWith(stlos.CreateTempFileWithCloser("sim_compile", "c"))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	fmt.Fprintf(file, "#include \"%s/buildin.h\"\n", includeRelpath)
-	for _, depPkg := range pkg.Dependencies {
-		relpath, _ = filepath.Rel(config.StdPkgPath, depPkg.Path)
-		relpath = strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "")
-		fmt.Fprintf(file, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDir, depPkg.Name)
-	}
-
-	cir.Output(file)
-	err = stlerr.ErrorWrap(file.Sync())
-	if err != nil {
-		return err
-	}
-
-	execPath, err := util.LookupCCompiler()
-	if err != nil {
-		return err
-	}
 	objPath := filepath.Join(cacheDir, pkg.Name+".o")
-	cmder := exec.Command(execPath, "-std=c11", "-I", config.SimRootPath, "-c", file.Path(), "-o", objPath)
-	cmder.Stdin, cmder.Stdout, cmder.Stderr = os.Stdin, os.Stdout, os.Stderr
-	if err = stlerr.ErrorWrap(cmder.Run()); err != nil {
+	err = c.ctx.TargetMachine().EmitToFile(gen.Module(), objPath, target.ObjectFile)
+	if err != nil {
 		return err
 	}
-	return nil
+	// 清理旧 C 后端遗留的头文件
+	_ = os.Remove(filepath.Join(cacheDir, pkg.Name+".h"))
+	return writeBackendMarker(cacheDir)
 }
 
 // 编译主包
 func (c *Compiler) compileMainPkg(pkg *globals.Package) error {
-	file, err := stlerr.ErrorWith(stlos.CreateTempFileWithCloser("sim_compile", "c"))
+	gen := codegen.New(c.ctx, pkg)
+	defer gen.Close()
+	gen.Generate()
+
+	objPath, objFile, err := stlerr.ErrorWith2(stlos.CreateTempFile("sim_main", "o"))
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer os.Remove(objPath)
 
-	for _, depPkg := range pkg.Dependencies {
-		relpath, _ := filepath.Rel(config.StdPkgPath, depPkg.Path)
-		relpath = strings.ReplaceAll(relpath, string([]rune{filepath.Separator}), "")
-		fmt.Fprintf(file, "#include \"std/%s/%s/%s.h\"\n", relpath, config.CacheDir, depPkg.Name)
-	}
-
-	file.Write([]byte("#include \"include/buildin.c\"\n"))
-	codegen.New(c.ctx, pkg).Generate().Output(file)
-	err = stlerr.ErrorWrap(file.Sync())
+	err = c.ctx.TargetMachine().EmitToFile(gen.Module(), objPath, target.ObjectFile)
 	if err != nil {
+		objFile.Close()
 		return err
 	}
+	if err = stlerr.ErrorWrap(objFile.Close()); err != nil {
+		return err
+	}
+
+	// 收集所有（含传递）依赖包的目标文件
+	var depObjs []string
+	seen := make(map[*globals.Package]bool)
+	var collectDeps func(p *globals.Package)
+	collectDeps = func(p *globals.Package) {
+		for _, dep := range p.Dependencies {
+			if seen[dep] {
+				continue
+			}
+			seen[dep] = true
+			depObjs = append(depObjs, filepath.Join(dep.Path, config.CacheDir, dep.Name+".o"))
+			collectDeps(dep)
+		}
+	}
+	collectDeps(pkg)
 
 	execPath, err := util.LookupCCompiler()
 	if err != nil {
 		return err
 	}
 	outPath := filepath.Join(config.WorkPath, "main.out")
-	args := []string{"-std=c11", "-I", config.SimRootPath, file.Path()}
-	for _, depPkg := range pkg.Dependencies {
-		args = append(args, filepath.Join(depPkg.Path, config.CacheDir, depPkg.Name+".o"))
-	}
-	args = append(args, "-o", outPath)
+	args := append([]string{objPath}, depObjs...)
+	args = append(args, "-lm", "-o", outPath)
 	cmder := exec.Command(execPath, args...)
 	cmder.Stdin, cmder.Stdout, cmder.Stderr = os.Stdin, os.Stdout, os.Stderr
-	if err = stlerr.ErrorWrap(cmder.Run()); err != nil {
-		return err
-	}
-	return nil
+	return stlerr.ErrorWrap(cmder.Run())
 }

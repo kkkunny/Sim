@@ -1,6 +1,8 @@
 package compile
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -9,6 +11,12 @@ import (
 	"github.com/kkkunny/Sim/compiler/config"
 	"github.com/kkkunny/Sim/compiler/hir/globals"
 	"github.com/kkkunny/Sim/compiler/util"
+)
+
+// 后端标识：避免与旧 C 后端产物混用（缓存目录内文件名）
+const (
+	backendMarkerFile = ".backend"
+	backendMarker     = "llvm-" + config.ABIVersion
 )
 
 type cacheLock struct {
@@ -40,32 +48,37 @@ func (l *cacheLock) Close() error {
 	return l.locker.Unlock()
 }
 
-// isCacheValid 判断包的编译缓存是否有效（基于 mtime）
+func writeBackendMarker(cacheDir string) error {
+	return stlerr.ErrorWrap(os.WriteFile(filepath.Join(cacheDir, backendMarkerFile), []byte(backendMarker), 0644))
+}
+
+// isCacheValid 判断包的编译缓存是否有效（基于 mtime + 后端标识）
 func isCacheValid(pkg *globals.Package) (bool, error) {
 	cacheDir := filepath.Join(pkg.Path, config.CacheDir)
-	if _, err := os.Stat(cacheDir); err != nil && os.IsNotExist(err) {
+	if _, err := os.Stat(cacheDir); errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	} else if err != nil {
 		return false, err
 	}
 
 	objPath := filepath.Join(cacheDir, pkg.Name+".o")
-	hdrPath := filepath.Join(cacheDir, pkg.Name+".h")
-
-	objInfo, err := stlerr.ErrorWith(os.Stat(objPath))
-	if err != nil && os.IsNotExist(err) {
+	objInfo, err := os.Stat(objPath)
+	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	} else if err != nil {
 		return false, err
 	}
 	objMtime := objInfo.ModTime()
-	hdrInfo, err := stlerr.ErrorWith(os.Stat(hdrPath))
-	if err != nil && os.IsNotExist(err) {
+
+	marker, err := os.ReadFile(filepath.Join(cacheDir, backendMarkerFile))
+	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	} else if err != nil {
 		return false, err
 	}
-	hdrMtime := hdrInfo.ModTime()
+	if string(marker) != backendMarker {
+		return false, nil
+	}
 
 	entries, err := stlerr.ErrorWith(os.ReadDir(pkg.Path))
 	if err != nil {
@@ -79,7 +92,7 @@ func isCacheValid(pkg *globals.Package) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		if info.ModTime().After(objMtime) || info.ModTime().After(hdrMtime) {
+		if info.ModTime().After(objMtime) {
 			return false, nil
 		}
 	}

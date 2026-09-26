@@ -1,4 +1,4 @@
-package llgen
+package codegen
 
 import (
 	"crypto/sha256"

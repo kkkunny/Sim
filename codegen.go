@@ -8,6 +8,7 @@ import (
 
 	"github.com/kkkunny/Sim/compiler/analyze"
 	"github.com/kkkunny/Sim/compiler/codegen"
+	"github.com/kkkunny/Sim/compiler/hir/globals"
 )
 
 func main() {
@@ -15,10 +16,35 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	ctx := codegen.NewContext()
-	for _, depPkg := range pkg.Dependencies {
-		codegen.New(ctx, depPkg).Generate()
+	defer ctx.Close()
+
+	for _, p := range collectPkgs(pkg) {
+		gen := codegen.New(ctx, p)
+		gen.Generate()
+		fmt.Println(gen.Module())
+		if err := gen.Close(); err != nil {
+			panic(err)
+		}
 	}
-	builder := codegen.New(ctx, pkg).Generate()
-	fmt.Println(builder)
+}
+
+// collectPkgs 后序收集包（依赖优先）
+func collectPkgs(pkg *globals.Package) []*globals.Package {
+	var pkgs []*globals.Package
+	seen := make(map[*globals.Package]bool)
+	var walk func(p *globals.Package)
+	walk = func(p *globals.Package) {
+		if seen[p] {
+			return
+		}
+		seen[p] = true
+		for _, dep := range p.Dependencies {
+			walk(dep)
+		}
+		pkgs = append(pkgs, p)
+	}
+	walk(pkg)
+	return pkgs
 }
