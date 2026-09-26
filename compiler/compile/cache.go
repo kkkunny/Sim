@@ -41,11 +41,11 @@ func (l *cacheLock) Lock() error {
 }
 
 func (l *cacheLock) Close() error {
-	err := stlerr.ErrorWrap(l.f.Close())
-	if err != nil {
-		return err
-	}
-	return l.locker.Unlock()
+	// 必须先解锁再关闭 fd：对已关闭的 fd 执行 flock(LOCK_UN) 会返回 EBADF，
+	// 错误还会被 defer 吞掉。
+	unlockErr := stlerr.ErrorWrap(l.locker.Unlock())
+	closeErr := stlerr.ErrorWrap(l.f.Close())
+	return errors.Join(unlockErr, closeErr)
 }
 
 func writeBackendMarker(cacheDir string) error {
