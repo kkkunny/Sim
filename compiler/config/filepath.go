@@ -12,7 +12,6 @@ var (
 	SimRootPath    = WorkPath
 	StdPkgPath     = filepath.Join(SimRootPath, "std")
 	BuildinPkgPath = filepath.Join(StdPkgPath, "buildin")
-	IncludePath    = filepath.Join(SimRootPath, "include")
 )
 
 const (

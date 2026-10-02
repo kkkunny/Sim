@@ -7,7 +7,6 @@ import (
 	stlerr "github.com/kkkunny/stl/error"
 
 	"github.com/kkkunny/Sim/compiler/config"
-	"github.com/kkkunny/Sim/compiler/hir/globals"
 	"github.com/kkkunny/Sim/compiler/util"
 )
 
@@ -33,25 +32,33 @@ func (l *cacheLock) Lock() error {
 }
 
 func (l *cacheLock) Close() error {
-	err := stlerr.ErrorWrap(l.f.Close())
+	err := l.locker.Unlock()
 	if err != nil {
 		return err
 	}
-	return l.locker.Unlock()
+	return stlerr.ErrorWrap(l.f.Close())
 }
 
 // isCacheValid 判断包的编译缓存是否有效（基于 mtime）
-func isCacheValid(pkg *globals.Package) (bool, error) {
-	cacheDir := filepath.Join(pkg.Path, config.CacheDir)
+func isCacheValid(pkgDir, pkgName string) (bool, error) {
+	cacheDir := filepath.Join(pkgDir, config.CacheDir)
 	if _, err := os.Stat(cacheDir); err != nil && os.IsNotExist(err) {
 		return false, nil
 	} else if err != nil {
 		return false, stlerr.ErrorWrap(err)
 	}
 
-	objPath := filepath.Join(cacheDir, pkg.Name+".o")
-	hdrPath := filepath.Join(cacheDir, pkg.Name+".h")
+	backend, err := os.ReadFile(filepath.Join(cacheDir, ".backend"))
+	if err != nil && os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, stlerr.ErrorWrap(err)
+	}
+	if string(backend) != config.BackendVersion {
+		return false, nil
+	}
 
+	objPath := filepath.Join(cacheDir, pkgName+".o")
 	objInfo, err := os.Stat(objPath)
 	if err != nil && os.IsNotExist(err) {
 		return false, nil
@@ -59,15 +66,8 @@ func isCacheValid(pkg *globals.Package) (bool, error) {
 		return false, stlerr.ErrorWrap(err)
 	}
 	objMtime := objInfo.ModTime()
-	hdrInfo, err := os.Stat(hdrPath)
-	if err != nil && os.IsNotExist(err) {
-		return false, nil
-	} else if err != nil {
-		return false, stlerr.ErrorWrap(err)
-	}
-	hdrMtime := hdrInfo.ModTime()
 
-	entries, err := stlerr.ErrorWith(os.ReadDir(pkg.Path))
+	entries, err := stlerr.ErrorWith(os.ReadDir(pkgDir))
 	if err != nil {
 		return false, err
 	}
@@ -79,9 +79,15 @@ func isCacheValid(pkg *globals.Package) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		if info.ModTime().After(objMtime) || info.ModTime().After(hdrMtime) {
+		if info.ModTime().After(objMtime) {
 			return false, nil
 		}
 	}
 	return true, nil
+}
+
+// writeCacheBackend 写入后端版本标记
+func writeCacheBackend(cacheDir string) error {
+	path := filepath.Join(cacheDir, ".backend")
+	return stlerr.ErrorWrap(os.WriteFile(path, []byte(config.BackendVersion), 0644))
 }

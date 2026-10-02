@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 
+	stlerr "github.com/kkkunny/stl/error"
+
 	"github.com/kkkunny/Sim/compiler/analyze"
-	"github.com/kkkunny/Sim/compiler/codegen"
+	"github.com/kkkunny/Sim/compiler/llgen"
 )
 
 func main() {
@@ -15,10 +17,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ctx := codegen.NewContext()
+	ctx := llgen.NewContext()
+	defer func() {
+		stlerr.Must(ctx.Close())
+	}()
 	for _, depPkg := range pkg.Dependencies {
-		codegen.New(ctx, depPkg).Generate()
+		g := llgen.New(ctx, depPkg)
+		g.Generate()
+		stlerr.Must(g.Close())
 	}
-	builder := codegen.New(ctx, pkg).Generate()
-	fmt.Println(builder)
+	g := llgen.New(ctx, pkg)
+	model := g.Generate()
+	fmt.Println(model)
+	stlerr.Must(g.Close())
 }

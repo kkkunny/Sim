@@ -1,4 +1,4 @@
-package codegen
+package llgen
 
 import (
 	"crypto/sha256"
@@ -17,6 +17,6 @@ func stableName(pkg *globals.Package, name string) string {
 	h.Write([]byte(pkg.Path))
 	h.Write([]byte{0})
 	h.Write([]byte(pkg.Name))
-	digest := h.Sum(nil)
-	return fmt.Sprintf("_Sim_%s_%s", hex.EncodeToString(digest)[:16], name)
+	hash := hex.EncodeToString(h.Sum(nil))[:16]
+	return fmt.Sprintf("_Sim_%s_%s", hash, name)
 }

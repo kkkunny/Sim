@@ -102,6 +102,18 @@ func (r *report) Format() string {
 			beginPos = int(r.Position.EndCol) - 1
 			endPos = beginPos
 		}
+		if beginPos < 0 {
+			beginPos = 0
+		}
+		if endPos < beginPos {
+			endPos = beginPos
+		}
+		if beginPos > len(line) {
+			beginPos = len(line)
+		}
+		if endPos > len(line) {
+			endPos = len(line)
+		}
 		prev, mid, next := line[:beginPos], line[beginPos:endPos], line[endPos:]
 		if len(lines) == 1 {
 			mid = r.Level.CodeColor().Sprintf(mid)

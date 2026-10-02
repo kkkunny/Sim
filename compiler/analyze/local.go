@@ -121,6 +121,7 @@ func (a *Analyzer) analyzeFor(local *ast.For) *locals.For {
 	param := hir.NewParam(local.Mut, et, local.Variable.OriginText)
 
 	a.scope = scopes.NewBlockScope(a.scope)
+	a.scope.AddValue(param)
 	body := a.analyzeBlock(local.Body)
 	a.scope, _ = a.scope.Parent()
 

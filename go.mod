@@ -1,14 +1,12 @@
 module github.com/kkkunny/Sim
 
-go 1.25.0
+go 1.27
 
 require (
 	github.com/gookit/color v1.5.4
 	github.com/heimdalr/dag v1.5.1
+	github.com/kkkunny/go-llvm v0.0.0-20261002072036-c50562e59fcb
 	github.com/kkkunny/stl v0.0.0-20260925090443-9a3c348daa30
-)
-
-require (
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
 	golang.org/x/sys v0.30.0
 )

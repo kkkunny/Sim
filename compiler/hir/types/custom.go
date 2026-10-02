@@ -84,7 +84,12 @@ func (t *_CustomBaseType[T]) String() string {
 func (t *_CustomBaseType[T]) Equal(p hir.Type) bool {
 	dst, ok := p.(CustomType)
 	if !ok {
-		return false
+		// 与底层类型比较，保证类型相等关系的对称性
+		underlying := t.GetUnderlying()
+		if underlying == nil {
+			return false
+		}
+		return underlying.Equal(p)
 	}
 	return t.GetName() == dst.GetName()
 }

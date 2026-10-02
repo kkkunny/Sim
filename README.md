@@ -40,23 +40,47 @@ Sim是一门简洁的、强类型的编译型语言
 
 + linux
 
-+ llvm(version==18)
++ llvm(version==23，go-llvm 绑定)
 
-+ golang
++ clang（用作链接驱动，gcc 作为回退）
 
-+ c lib
++ golang(>=1.27)
 
 ## Hello World
 
-compiler/examples/hello_world.sim
+`examples/main.sim`
 
-```go
-func main(){
-    debug("Hello World")
+```sim
+import std::c
+
+type S struct {
+	name: str
+}
+
+let getname | S = (self: &Self) -> str {
+	return self.name
+}
+
+let main = () {
+	let s = S{name: "123"}
+	let ss = &s
+	c::puts((*ss).getname())
 }
 ```
 
 ```shell
-> make run TEST_FILE=$PWD/compiler/examples/hello_world.sim
-Hello World
+> go run -tags compile . examples/main.sim
+> ./main.out
+123
+```
+
+## Debug stages
+
+```shell
+go run -tags lex . <file.sim>       # 打印token
+go run -tags parse . <file.sim>     # 打印AST
+go run -tags analyze . <file.sim>   # 打印HIR
+go run -tags codegen . <file.sim>   # 打印LLVM IR
+go run -tags compile . <file.sim>   # 编译生成main.out
+go run -tags debug .                # 编译并运行examples/main.sim
 ```

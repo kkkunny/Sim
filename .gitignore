@@ -24,3 +24,6 @@ output
 # Cache
 .sim_cache
 .codegraph
+
+# AI
+.ai/
